@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Trash2, GripVertical } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { AddRowButton } from './AddRowButton';
@@ -183,6 +183,7 @@ export function BudgetEditor() {
   const removeSection = useBudgetStore((s) => s.removeSection);
   const renameSection = useBudgetStore((s) => s.renameSection);
   const getSectionSubtotal = useBudgetStore((s) => s.getSectionSubtotal);
+  const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
 
   if (sections.length === 0) {
     return (
@@ -213,7 +214,7 @@ export function BudgetEditor() {
               </span>
               <Button
                 variant="danger"
-                onClick={() => removeSection(section.id)}
+                onClick={() => setDeletingSectionId(section.id)}
                 className="no-print"
               >
                 <Trash2 size={14} />
@@ -256,6 +257,31 @@ export function BudgetEditor() {
           </div>
         </div>
       ))}
+
+      {deletingSectionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Eliminar partida?</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Se eliminarán todas las filas de esta partida. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="secondary" onClick={() => setDeletingSectionId(null)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  removeSection(deletingSectionId);
+                  setDeletingSectionId(null);
+                }}
+              >
+                Eliminar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
