@@ -197,7 +197,7 @@ Siempre visibles en PDF. El wrapper `.collapsible` se fuerza abierto con `print:
 ## Flujo de uso
 
 1. El usuario completa el presupuesto en la app
-2. Hace clic en "Exportar PDF" (botón con icono de impresora)
+2. Hace clic en "Generar PDF" (botón con icono de impresora)
 3. Se ejecuta `window.print()`
 4. El navegador aplica los estilos `@media print` y `print:*`
 5. El diálogo de impresión muestra una preview

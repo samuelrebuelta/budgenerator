@@ -135,7 +135,7 @@ export const es = {
 
   // Export
   export: {
-    button: 'Exportar PDF',
+    button: 'Generar PDF',
     iosAlert: 'Usa el botón de compartir (⎋) de Safari y selecciona "Imprimir" para exportar a PDF.',
   },
 
@@ -183,6 +183,14 @@ export const es = {
     phonePlaceholder: '600 123 456',
     email: 'Email',
     emailPlaceholder: 'info@miempresa.com',
+  },
+
+  // Share
+  share: {
+    button: 'Compartir',
+    notFound: 'Presupuesto no encontrado',
+    notFoundHint: 'El enlace no es válido o el presupuesto ya no está disponible.',
+    poweredBy: 'Generado con Budgenerator',
   },
 } as const;
 

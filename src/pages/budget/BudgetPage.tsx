@@ -5,6 +5,7 @@ import { BudgetEditor } from './components/BudgetEditor';
 import { BudgetSummary } from './components/BudgetSummary';
 import { AddWorkItemButton } from './components/AddWorkItemButton';
 import { ExportPdfButton } from './components/ExportPdfButton';
+import { ShareButton } from './components/ShareButton';
 import { useBudgetStore } from '@/entities/budget';
 import { Button, Modal } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
@@ -165,9 +166,9 @@ export function BudgetPage() {
           <BudgetSummary />
 
           {/* Actions Bar */}
-          <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 no-print">
+          <div className="mt-8 border-t border-gray-200 pt-6 no-print">
             {isDraft ? (
-              <>
+              <div className="flex items-center justify-end gap-2">
                 <Button variant="danger" onClick={handleDiscard}>
                   <X size={16} />
                   {t.budget.discard}
@@ -176,15 +177,20 @@ export function BudgetPage() {
                   <Save size={16} />
                   {t.budget.saveBudget}
                 </Button>
-              </>
+              </div>
             ) : (
-              <>
-                <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-                  <Trash2 size={16} />
-                  {t.budget.deleteBudget}
-                </Button>
-                <ExportPdfButton />
-              </>
+              <div className="space-y-3">
+                <div className="flex items-center justify-end gap-2">
+                  <ShareButton />
+                  <ExportPdfButton />
+                </div>
+                <div className="flex justify-end">
+                  <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+                    <Trash2 size={16} />
+                    {t.budget.deleteBudget}
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </div>

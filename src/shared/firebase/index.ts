@@ -12,5 +12,7 @@ export {
   deleteAllTariffs,
   fetchProfile,
   saveProfile,
+  shareBudget,
+  fetchSharedBudget,
 } from './firestore';
 export { auth, db } from './config';

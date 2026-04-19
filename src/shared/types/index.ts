@@ -61,3 +61,9 @@ export interface CompanyProfile {
   email: string;
   logo?: string;
 }
+
+export interface SharedBudget {
+  budget: Budget;
+  company: CompanyProfile;
+  sharedAt: string;
+}

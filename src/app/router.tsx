@@ -4,10 +4,12 @@ import { BudgetPage } from '@/pages/budget';
 import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
 import { LoginPage } from '@/pages/login';
+import { SharedBudgetPage } from '@/pages/shared';
 import { AuthGuard } from './AuthGuard';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/shared/:token', element: <SharedBudgetPage /> },
   {
     path: '/',
     element: (

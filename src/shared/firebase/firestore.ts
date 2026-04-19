@@ -9,7 +9,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { Budget, Tariff, CompanyProfile, WorkItem, BudgetTask } from '@/shared/types';
+import type { Budget, Tariff, CompanyProfile, WorkItem, BudgetTask, SharedBudget } from '@/shared/types';
 
 // --- Firestore ↔ App field mapping ---
 // Firestore stores: sections[].rows[] (legacy) / sections[].concepts[]
@@ -144,4 +144,22 @@ export async function fetchProfile(uid: string): Promise<CompanyProfile | null> 
 
 export async function saveProfile(uid: string, profile: CompanyProfile) {
   await setDoc(profileDoc(uid), profile);
+}
+
+// --- Shared Budgets (public, no auth required) ---
+
+export async function shareBudget(budget: Budget, company: CompanyProfile): Promise<string> {
+  const token = crypto.randomUUID();
+  const shared: SharedBudget = {
+    budget,
+    company,
+    sharedAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, 'sharedBudgets', token), shared);
+  return token;
+}
+
+export async function fetchSharedBudget(token: string): Promise<SharedBudget | null> {
+  const snap = await getDoc(doc(db, 'sharedBudgets', token));
+  return snap.exists() ? (snap.data() as SharedBudget) : null;
 }
