@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Trash2, GripVertical } from 'lucide-react';
+import { Trash2, GripVertical, ChevronDown } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { AddRowButton } from './AddRowButton';
 import { TariffSelector } from './TariffSelector';
@@ -186,6 +186,14 @@ export function BudgetEditor() {
   const renameSection = useBudgetStore((s) => s.renameSection);
   const getSectionSubtotal = useBudgetStore((s) => s.getSectionSubtotal);
   const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = (id: string) =>
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   if (sections.length === 0) {
     return (
@@ -201,29 +209,39 @@ export function BudgetEditor() {
       {sections.map((section) => (
         <div key={section.id} className="border border-gray-200 rounded-lg overflow-hidden section-break-avoid">
           {/* Section Header */}
-          <div className="bg-gray-50 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-200">
-            <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2 border-b border-gray-200">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className="no-print shrink-0 p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                <ChevronDown
+                  size={16}
+                  className={`text-gray-400 transition-transform duration-200 ${collapsedSections.has(section.id) ? '-rotate-90' : ''}`}
+                />
+              </button>
               <GripVertical size={16} className="text-gray-400 shrink-0 no-print" />
               <input
                 value={section.name}
                 onChange={(e) => renameSection(section.id, e.target.value)}
-                className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 w-full uppercase"
+                className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 uppercase"
               />
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                {t.editor.subtotal}: {formatCurrency(getSectionSubtotal(section.id))}
+              <span className="text-sm font-medium text-gray-500 whitespace-nowrap">
+                {formatCurrency(getSectionSubtotal(section.id))}
               </span>
-              <Button
-                variant="danger"
-                onClick={() => setDeletingSectionId(section.id)}
-                className="no-print"
-              >
-                <Trash2 size={14} />
-              </Button>
             </div>
+            <Button
+              variant="danger"
+              onClick={() => setDeletingSectionId(section.id)}
+              className="no-print shrink-0"
+            >
+              <Trash2 size={14} />
+            </Button>
           </div>
 
+          <div className={`collapsible print:!grid-rows-[1fr] ${collapsedSections.has(section.id) ? '' : 'open'}`}>
+          <div className="overflow-hidden">
           {/* Desktop Table */}
           <div className="hidden sm:block overflow-x-auto scrollbar-none print:!block">
             <table className="w-full text-sm print:min-w-0">
@@ -256,6 +274,8 @@ export function BudgetEditor() {
           {/* Add Row */}
           <div className="px-4 py-2 border-t border-gray-100">
             <AddRowButton sectionId={section.id} />
+          </div>
+          </div>
           </div>
         </div>
       ))}

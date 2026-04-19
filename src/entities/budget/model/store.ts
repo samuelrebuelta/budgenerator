@@ -126,6 +126,10 @@ function getUid(): string | null {
   return _getUid?.() ?? null;
 }
 
+function isRowComplete(r: BudgetRow): boolean {
+  return r.description.trim() !== '' && r.quantity > 0 && r.price > 0;
+}
+
 /** Persist a budget to Firestore if it's NOT a draft (debounced 1s) */
 let _syncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -134,7 +138,14 @@ function syncToFirestore(budget: Budget) {
   if (!uid || !budget.id) return;
   if (_syncTimer) clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => {
-    saveBudget(uid, budget);
+    const cleaned: Budget = {
+      ...budget,
+      sections: budget.sections.map((s) => ({
+        ...s,
+        rows: s.rows.filter(isRowComplete),
+      })),
+    };
+    saveBudget(uid, cleaned);
     _syncTimer = null;
   }, 1000);
 }
@@ -181,6 +192,10 @@ export const useBudgetStore = create<BudgetState>()(
         ...draft,
         id: generateId(),
         createdAt: new Date().toISOString(),
+        sections: draft.sections.map((s) => ({
+          ...s,
+          rows: s.rows.filter(isRowComplete),
+        })),
       };
       await saveBudget(uid, saved);
       set({
