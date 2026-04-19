@@ -67,3 +67,11 @@ export interface SharedBudget {
   company: CompanyProfile;
   sharedAt: string;
 }
+
+export interface BudgetTemplate {
+  id: string;
+  name: string;
+  workItems: WorkItem[];
+  adjustment?: BudgetAdjustment;
+  createdAt: string;
+}

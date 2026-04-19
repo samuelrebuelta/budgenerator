@@ -14,5 +14,8 @@ export {
   saveProfile,
   shareBudget,
   fetchSharedBudget,
+  fetchTemplates,
+  saveTemplate,
+  deleteTemplatDoc,
 } from './firestore';
 export { auth, db } from './config';

@@ -6,6 +6,7 @@ import { BudgetSummary } from './components/BudgetSummary';
 import { AddWorkItemButton } from './components/AddWorkItemButton';
 import { ExportPdfButton } from './components/ExportPdfButton';
 import { ShareButton } from './components/ShareButton';
+import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore } from '@/entities/budget';
 import { Button, Modal } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
@@ -180,9 +181,12 @@ export function BudgetPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <ShareButton />
                   <ExportPdfButton />
+                </div>
+                <div className="flex justify-end">
+                  <SaveTemplateButton />
                 </div>
                 <div className="flex justify-end">
                   <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>

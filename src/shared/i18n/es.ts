@@ -192,6 +192,20 @@ export const es = {
     notFoundHint: 'El enlace no es válido o el presupuesto ya no está disponible.',
     poweredBy: 'Generado con Budgenerator',
   },
+
+  // Templates
+  templates: {
+    saveAsTemplate: 'Guardar como plantilla',
+    saving: 'Guardando...',
+    saved: 'Plantilla guardada',
+    namePlaceholder: 'Nombre de la plantilla',
+    loadTemplate: 'Cargar plantilla',
+    noTemplates: 'No hay plantillas guardadas',
+    noTemplatesHint: 'Guarda un presupuesto como plantilla para reutilizarlo.',
+    deleteConfirmTitle: '¿Eliminar plantilla?',
+    deleteConfirmMessage: 'Se eliminará la plantilla de forma permanente.',
+    workItems: (n: number) => `${n} partida${n !== 1 ? 's' : ''}`,
+  },
 } as const;
 
 export type TranslationKeys = typeof es;

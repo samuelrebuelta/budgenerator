@@ -4,6 +4,7 @@ import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore, setBudgetAuthGetter } from '@/entities/budget';
 import { useTariffStore, setTariffAuthGetter } from '@/entities/tariff';
 import { useProfileStore, setProfileAuthGetter } from '@/entities/profile';
+import { useTemplateStore, setTemplateAuthGetter } from '@/entities/template';
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -21,9 +22,11 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     setBudgetAuthGetter(() => user.uid);
     setTariffAuthGetter(() => user.uid);
     setProfileAuthGetter(() => user.uid);
+    setTemplateAuthGetter(() => user.uid);
     useBudgetStore.getState().loadBudgets(user.uid);
     useTariffStore.getState().loadTariffs(user.uid);
     useProfileStore.getState().loadProfile(user.uid);
+    useTemplateStore.getState().loadTemplates(user.uid);
   }, [user]);
 
   if (loading) {

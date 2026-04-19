@@ -42,6 +42,7 @@ export function ShareButton() {
   return (
     <Button variant="secondary" onClick={handleShare} disabled={sharing} title={t.share.button}>
       <Share size={16} />
+      {t.share.button}
     </Button>
   );
 }

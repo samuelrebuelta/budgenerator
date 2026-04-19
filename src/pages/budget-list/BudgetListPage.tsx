@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Settings, LogOut, Building2 } from 'lucide-react';
+import { Plus, FileText, Settings, LogOut, Building2, Trash2 } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
+import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
 import { formatCurrency } from '@/shared/lib';
 import { Button, Modal } from '@/shared/ui';
@@ -12,12 +13,40 @@ export function BudgetListPage() {
   const budgets = useBudgetStore((s) => s.budgets);
   const loaded = useBudgetStore((s) => s.loaded);
   const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
+  const startDraftFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
+  const templates = useTemplateStore((s) => s.templates);
+  const removeTemplate = useTemplateStore((s) => s.removeTemplate);
   const signOut = useAuthStore((s) => s.signOut);
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
 
   const handleCreate = () => {
+    if (templates.length > 0) {
+      setShowTemplates(true);
+    } else {
+      navigate('/budget/new');
+    }
+  };
+
+  const handleBlank = () => {
+    setShowTemplates(false);
     navigate('/budget/new');
+  };
+
+  const handleFromTemplate = (templateId: string) => {
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    startDraftFromTemplate(tpl);
+    setShowTemplates(false);
+    navigate('/budget/new');
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    await removeTemplate(templateToDelete);
+    setTemplateToDelete(null);
   };
 
   const handleOpen = (id: string) => {
@@ -131,6 +160,47 @@ export function BudgetListPage() {
           </Button>
           <Button variant="danger" onClick={signOut}>
             {t.budgetList.signOut}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showTemplates} onClose={() => setShowTemplates(false)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.templates.loadTemplate}</h3>
+        <div className="space-y-2 mb-4">
+          {templates.map((tpl) => (
+            <div
+              key={tpl.id}
+              className="flex items-center justify-between rounded-lg border border-gray-200 p-3 hover:border-blue-300 cursor-pointer transition-colors"
+              onClick={() => handleFromTemplate(tpl.id)}
+            >
+              <div>
+                <p className="font-medium text-gray-900">{tpl.name}</p>
+                <p className="text-xs text-gray-500">{t.templates.workItems(tpl.workItems.length)}</p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setTemplateToDelete(tpl.id); }}
+                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <Button onClick={handleBlank} className="w-full">
+          <Plus size={16} />
+          {t.budgetList.newBudget}
+        </Button>
+      </Modal>
+
+      <Modal open={!!templateToDelete} onClose={() => setTemplateToDelete(null)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.templates.deleteConfirmTitle}</h3>
+        <p className="text-sm text-gray-600 mb-6">{t.templates.deleteConfirmMessage}</p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="secondary" onClick={() => setTemplateToDelete(null)}>
+            {t.common.cancel}
+          </Button>
+          <Button variant="danger" onClick={handleDeleteTemplate}>
+            {t.common.delete}
           </Button>
         </div>
       </Modal>

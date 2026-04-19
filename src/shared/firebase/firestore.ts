@@ -9,7 +9,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { Budget, Tariff, CompanyProfile, WorkItem, BudgetTask, SharedBudget } from '@/shared/types';
+import type { Budget, Tariff, CompanyProfile, WorkItem, BudgetTask, SharedBudget, BudgetTemplate } from '@/shared/types';
 
 // --- Firestore ↔ App field mapping ---
 // Firestore stores: sections[].rows[] (legacy) / sections[].concepts[]
@@ -162,4 +162,23 @@ export async function shareBudget(budget: Budget, company: CompanyProfile): Prom
 export async function fetchSharedBudget(token: string): Promise<SharedBudget | null> {
   const snap = await getDoc(doc(db, 'sharedBudgets', token));
   return snap.exists() ? (snap.data() as SharedBudget) : null;
+}
+
+// --- Budget Templates (user-scoped) ---
+
+function templatesCol(uid: string) {
+  return collection(db, 'users', uid, 'templates');
+}
+
+export async function fetchTemplates(uid: string): Promise<BudgetTemplate[]> {
+  const snap = await getDocs(templatesCol(uid));
+  return snap.docs.map((d) => d.data() as BudgetTemplate);
+}
+
+export async function saveTemplate(uid: string, template: BudgetTemplate) {
+  await setDoc(doc(templatesCol(uid), template.id), template);
+}
+
+export async function deleteTemplatDoc(uid: string, templateId: string) {
+  await deleteDoc(doc(templatesCol(uid), templateId));
 }

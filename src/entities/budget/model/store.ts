@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Budget, BudgetAdjustment, BudgetInfo, BudgetTask, WorkItem, Unit } from '@/shared/types';
+import type { Budget, BudgetAdjustment, BudgetInfo, BudgetTask, BudgetTemplate, WorkItem, Unit } from '@/shared/types';
 import { generateId } from '@/shared/lib';
 import {
   fetchBudgets,
@@ -86,6 +86,7 @@ interface BudgetState {
 
   // Draft lifecycle
   startDraft: () => void;
+  startDraftFromTemplate: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
 
@@ -181,6 +182,23 @@ export const useBudgetStore = create<BudgetState>()(
           .filter((n) => !isNaN(n));
         const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
         return { draftBudget: createDraftBudget(next), activeBudgetId: null };
+      }),
+
+    startDraftFromTemplate: (template) =>
+      set((state) => {
+        if (state.draftBudget) return {};
+        const nums = state.budgets
+          .map((b) => parseInt(b.info.budgetNumber, 10))
+          .filter((n) => !isNaN(n));
+        const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
+        const draft = createDraftBudget(next);
+        draft.workItems = template.workItems.map((wi) => ({
+          ...wi,
+          id: generateId(),
+          tasks: wi.tasks.map((task) => ({ ...task, id: generateId() })),
+        }));
+        if (template.adjustment) draft.adjustment = template.adjustment;
+        return { draftBudget: draft, activeBudgetId: null };
       }),
 
     saveDraft: async () => {
