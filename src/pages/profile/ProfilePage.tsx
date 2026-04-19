@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
-import { Button, Input } from '@/shared/ui';
+import { Button, Input, Modal } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function ProfilePage() {
@@ -15,6 +15,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showRemoveLogoConfirm, setShowRemoveLogoConfirm] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
@@ -39,6 +40,7 @@ export function ProfilePage() {
   };
 
   const handleRemoveLogo = async () => {
+    setShowRemoveLogoConfirm(false);
     setUploading(true);
     await removeLogo();
     setUploading(false);
@@ -71,7 +73,7 @@ export function ProfilePage() {
                   className="h-16 w-auto object-contain rounded border border-gray-200 bg-white p-1"
                 />
                 <button
-                  onClick={handleRemoveLogo}
+                  onClick={() => setShowRemoveLogoConfirm(true)}
                   disabled={uploading}
                   className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
                 >
@@ -146,6 +148,19 @@ export function ProfilePage() {
             </Button>
           </div>
         </div>
+
+        <Modal open={showRemoveLogoConfirm} onClose={() => setShowRemoveLogoConfirm(false)}>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.profile.removeLogoTitle}</h3>
+          <p className="text-sm text-gray-600 mb-6">{t.profile.removeLogoMessage}</p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={() => setShowRemoveLogoConfirm(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button variant="danger" onClick={handleRemoveLogo}>
+              {t.common.delete}
+            </Button>
+          </div>
+        </Modal>
       </div>
     </div>
   );

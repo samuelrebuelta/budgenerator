@@ -9,7 +9,18 @@ export function BudgetHeader() {
   const budget = useActiveBudget();
   const updateInfo = useBudgetStore((s) => s.updateInfo);
   const profile = useProfileStore((s) => s.profile);
-  const [showClientInfo, setShowClientInfo] = useState(true);
+  const clientInfoKey = `collapsed-clientinfo-${budget?.id ?? 'new'}`;
+  const [showClientInfo, setShowClientInfo] = useState(() => {
+    try {
+      const stored = localStorage.getItem(clientInfoKey);
+      return stored !== null ? stored === 'true' : true;
+    } catch { return true; }
+  });
+  const toggleClientInfo = () =>
+    setShowClientInfo((prev) => {
+      localStorage.setItem(clientInfoKey, String(!prev));
+      return !prev;
+    });
 
   if (!budget) return null;
   const { info } = budget;
@@ -40,7 +51,7 @@ export function BudgetHeader() {
       )}
       <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">{t.header.title}</h1>
       <button
-        onClick={() => setShowClientInfo((v) => !v)}
+        onClick={toggleClientInfo}
         className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
         aria-expanded={showClientInfo}
       >

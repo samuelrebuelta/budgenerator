@@ -65,7 +65,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   removeLogo: async () => {
     const uid = getUid?.();
     if (!uid) return;
-    set((s) => ({ profile: { ...s.profile, logo: undefined } }));
+    set((s) => ({ profile: { ...s.profile, logo: '' } }));
     await saveProfile(uid, get().profile);
   },
 }));

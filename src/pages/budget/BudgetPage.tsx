@@ -23,7 +23,18 @@ export function BudgetPage() {
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
   const draftBudget = useBudgetStore((s) => s.draftBudget);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showPartidas, setShowPartidas] = useState(true);
+  const partidasKey = `collapsed-partidas-${budgetId ?? 'new'}`;
+  const [showPartidas, setShowPartidas] = useState(() => {
+    try {
+      const stored = localStorage.getItem(partidasKey);
+      return stored !== null ? stored === 'true' : true;
+    } catch { return true; }
+  });
+  const togglePartidas = () =>
+    setShowPartidas((prev) => {
+      localStorage.setItem(partidasKey, String(!prev));
+      return !prev;
+    });
   const budgetExists = useBudgetStore((s) =>
     s.budgets.some((b) => b.id === budgetId),
   );
@@ -137,7 +148,7 @@ export function BudgetPage() {
           <BudgetHeader />
 
           <button
-            onClick={() => setShowPartidas((v) => !v)}
+            onClick={togglePartidas}
             className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
             aria-expanded={showPartidas}
           >

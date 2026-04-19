@@ -166,6 +166,8 @@ export const es = {
     title: 'Datos de empresa',
     logo: 'Logo',
     removeLogo: 'Eliminar',
+    removeLogoTitle: 'Eliminar logo',
+    removeLogoMessage: '¿Estás seguro de que quieres eliminar el logo de empresa?',
     uploadLogo: 'Subir logo (max 500KB)',
     uploading: 'Subiendo...',
     logoTooLarge: 'El logo no puede superar 500KB',

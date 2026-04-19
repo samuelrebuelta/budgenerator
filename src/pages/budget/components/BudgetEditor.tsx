@@ -186,12 +186,23 @@ export function BudgetEditor() {
   const renameSection = useBudgetStore((s) => s.renameSection);
   const getSectionSubtotal = useBudgetStore((s) => s.getSectionSubtotal);
   const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const LS_KEY = `collapsed-sections-${budget?.id ?? ''}`;
+
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(LS_KEY);
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   const toggleSection = (id: string) =>
     setCollapsedSections((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem(LS_KEY, JSON.stringify([...next]));
       return next;
     });
 
@@ -240,10 +251,10 @@ export function BudgetEditor() {
             </Button>
           </div>
 
-          <div className={`collapsible print:!grid-rows-[1fr] ${collapsedSections.has(section.id) ? '' : 'open'}`}>
+          <div className={`collapsible print:grid-rows-[1fr]! ${collapsedSections.has(section.id) ? '' : 'open'}`}>
           <div className="overflow-hidden">
           {/* Desktop Table */}
-          <div className="hidden sm:block overflow-x-auto scrollbar-none print:!block">
+          <div className="hidden sm:block overflow-x-auto scrollbar-none print:block!">
             <table className="w-full text-sm print:min-w-0">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
