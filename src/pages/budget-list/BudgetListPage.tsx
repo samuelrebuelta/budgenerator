@@ -9,6 +9,7 @@ import { t } from '@/shared/i18n';
 
 export function BudgetListPage() {
   const budgets = useBudgetStore((s) => s.budgets);
+  const loaded = useBudgetStore((s) => s.loaded);
   const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
   const signOut = useAuthStore((s) => s.signOut);
   const navigate = useNavigate();
@@ -29,9 +30,11 @@ export function BudgetListPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t.budgetList.title}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {budgets.length === 0
-                ? t.budgetList.empty
-                : t.budgetList.count(budgets.length)}
+              {!loaded
+                ? '\u00A0'
+                : budgets.length === 0
+                  ? t.budgetList.empty
+                  : t.budgetList.count(budgets.length)}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -53,7 +56,11 @@ export function BudgetListPage() {
           </div>
         </div>
 
-        {budgets.length === 0 ? (
+        {!loaded ? (
+          <div className="flex justify-center py-12">
+            <div className="text-gray-400">{t.common.loading}</div>
+          </div>
+        ) : budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-lg text-gray-500">{t.budgetList.emptyTitle}</p>
