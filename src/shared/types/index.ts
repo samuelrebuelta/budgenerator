@@ -30,10 +30,17 @@ export interface BudgetInfo {
   budgetNumber: string;
 }
 
+export interface BudgetAdjustment {
+  /** Multiplier: 1 = no change, 1.1 = +10%, 0.9 = -10% */
+  multiplier: number;
+  reason: string;
+}
+
 export interface Budget {
   id: string;
   info: BudgetInfo;
   sections: Section[];
+  adjustment?: BudgetAdjustment;
   createdAt: string;
 }
 
@@ -44,4 +51,13 @@ export interface Tariff {
   basePrice: number;
   cost: number;
   category: string;
+}
+
+export interface CompanyProfile {
+  name: string;
+  cif: string;
+  address: string;
+  phone: string;
+  email: string;
+  logo?: string;
 }

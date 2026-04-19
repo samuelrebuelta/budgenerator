@@ -1,1 +1,1 @@
-export { useBudgetStore, useActiveBudget } from './model/store';
+export { useBudgetStore, useActiveBudget, setBudgetAuthGetter } from './model/store';

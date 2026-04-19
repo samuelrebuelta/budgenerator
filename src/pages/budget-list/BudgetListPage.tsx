@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, FileText, Settings } from 'lucide-react';
+import { Plus, FileText, Settings, LogOut, Building2 } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
+import { useAuthStore } from '@/entities/auth';
 import { formatCurrency } from '@/shared/lib';
 import { Button } from '@/shared/ui';
 
 export function BudgetListPage() {
   const budgets = useBudgetStore((s) => s.budgets);
-  const deleteBudget = useBudgetStore((s) => s.deleteBudget);
   const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
+  const signOut = useAuthStore((s) => s.signOut);
   const navigate = useNavigate();
 
   const handleCreate = () => {
@@ -18,14 +19,9 @@ export function BudgetListPage() {
     navigate(`/budget/${id}`);
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    deleteBudget(id);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-white sm:bg-gray-100">
+      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Presupuestos</h1>
@@ -35,14 +31,21 @@ export function BudgetListPage() {
                 : `${budgets.length} presupuesto${budgets.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="secondary" onClick={signOut} title="Cerrar sesión">
+              <LogOut size={16} />
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/profile')} title="Datos de empresa">
+              <Building2 size={16} />
+              <span className="hidden sm:inline">Empresa</span>
+            </Button>
             <Button variant="secondary" onClick={() => navigate('/catalog')}>
               <Settings size={16} />
-              Catálogo
+              <span className="hidden sm:inline">Catálogo</span>
             </Button>
             <Button onClick={handleCreate}>
               <Plus size={16} />
-              Nuevo presupuesto
+              <span className="hidden sm:inline">Nuevo presupuesto</span>
             </Button>
           </div>
         </div>
@@ -81,16 +84,19 @@ export function BudgetListPage() {
                     <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                       <FileText size={20} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 overflow-hidden">
                       <p className="font-semibold text-gray-900 truncate">
                         {budget.info.clientName || 'Sin nombre'}
                       </p>
+                      {budget.info.address && (
+                        <p className="text-xs text-gray-400 truncate overflow-hidden text-ellipsis whitespace-nowrap">{budget.info.address}</p>
+                      )}
                       <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
                         {budget.info.budgetNumber && (
                           <span>Nº {budget.info.budgetNumber}</span>
                         )}
                         <span>{date}</span>
-                        <span>{budget.sections.length} sección{budget.sections.length !== 1 ? 'es' : ''}</span>
+                        <span>{budget.sections.length} partida{budget.sections.length !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
                   </div>
@@ -99,12 +105,6 @@ export function BudgetListPage() {
                     <span className="text-lg font-bold text-blue-700">
                       {formatCurrency(total)}
                     </span>
-                    <Button
-                      variant="danger"
-                      onClick={(e) => handleDelete(e, budget.id)}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
                   </div>
                 </div>
               );

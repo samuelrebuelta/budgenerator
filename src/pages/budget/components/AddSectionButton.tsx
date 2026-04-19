@@ -34,13 +34,15 @@ export function AddSectionButton() {
     if (!cat) return;
     addSection(cat);
     setName('');
+    setIsOpen(false);
+    setMode('catalog');
   };
 
   if (!isOpen) {
     return (
       <Button variant="secondary" onClick={() => setIsOpen(true)} className="no-print">
         <Plus size={16} />
-        Añadir sección
+        Añadir partida
       </Button>
     );
   }
@@ -79,7 +81,7 @@ export function AddSectionButton() {
                 <button
                   key={cat}
                   onClick={() => handleSelectCategory(cat)}
-                  className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 cursor-pointer transition-colors"
+                  className="text-sm px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 cursor-pointer transition-colors"
                 >
                   {cat}
                 </button>
@@ -92,7 +94,7 @@ export function AddSectionButton() {
       ) : (
         <div className="flex items-end gap-2">
           <input
-            placeholder="Nombre de sección personalizada"
+            placeholder="Nombre de partida personalizada"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}

@@ -1,0 +1,151 @@
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
+import { useProfileStore } from '@/entities/profile';
+import { Button, Input } from '@/shared/ui';
+
+export function ProfilePage() {
+  const profile = useProfileStore((s) => s.profile);
+  const loaded = useProfileStore((s) => s.loaded);
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+  const saveProfile = useProfileStore((s) => s.saveProfile);
+  const storeUploadLogo = useProfileStore((s) => s.uploadLogo);
+  const removeLogo = useProfileStore((s) => s.removeLogo);
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await saveProfile();
+    setSaving(false);
+    navigate('/');
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 500 * 1024) {
+      alert('El logo no puede superar 500KB');
+      return;
+    }
+    setUploading(true);
+    await storeUploadLogo(file);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const handleRemoveLogo = async () => {
+    setUploading(true);
+    await removeLogo();
+    setUploading(false);
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="min-h-screen bg-white sm:bg-gray-100">
+      <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
+        >
+          <ArrowLeft size={14} />
+          Volver a presupuestos
+        </button>
+
+        <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Datos de empresa</h1>
+
+          {/* Logo */}
+          <div className="mb-6">
+            <label className="text-sm font-medium text-gray-700 block mb-2">Logo</label>
+            {profile.logo ? (
+              <div className="flex items-center gap-4">
+                <img
+                  src={profile.logo}
+                  alt="Logo de empresa"
+                  className="h-16 w-auto object-contain rounded border border-gray-200 bg-white p-1"
+                />
+                <button
+                  onClick={handleRemoveLogo}
+                  disabled={uploading}
+                  className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                  Eliminar
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <Upload size={16} />
+                  {uploading ? 'Subiendo...' : 'Subir logo (max 500KB)'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              id="companyName"
+              label="Nombre de la empresa"
+              value={profile.name}
+              onChange={(e) => updateProfile({ name: e.target.value })}
+              placeholder="Mi Empresa S.L."
+            />
+            <Input
+              id="cif"
+              label="CIF / NIF"
+              value={profile.cif}
+              onChange={(e) => updateProfile({ cif: e.target.value })}
+              placeholder="B12345678"
+            />
+            <Input
+              id="companyAddress"
+              label="Dirección"
+              value={profile.address}
+              onChange={(e) => updateProfile({ address: e.target.value })}
+              placeholder="Calle, número, CP, ciudad"
+            />
+            <Input
+              id="phone"
+              label="Teléfono"
+              type="tel"
+              value={profile.phone}
+              onChange={(e) => updateProfile({ phone: e.target.value })}
+              placeholder="600 123 456"
+            />
+            <Input
+              id="companyEmail"
+              label="Email"
+              type="email"
+              value={profile.email}
+              onChange={(e) => updateProfile({ email: e.target.value })}
+              placeholder="info@miempresa.com"
+            />
+          </div>
+
+          <div className="mt-8 flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

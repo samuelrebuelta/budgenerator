@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
@@ -15,14 +15,21 @@ export function CatalogPage() {
   const navigate = useNavigate();
 
   const [showAdd, setShowAdd] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [newDesc, setNewDesc] = useState('');
   const [newUnit, setNewUnit] = useState<Unit>('m2');
   const [newPrice, setNewPrice] = useState('');
   const [newCost, setNewCost] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleAdd = () => {
     const desc = newDesc.trim();
@@ -49,7 +56,7 @@ export function CatalogPage() {
   }, [tariffs]);
 
   const grouped = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const filtered = q
       ? tariffs.filter(
           (t) =>
@@ -74,7 +81,7 @@ export function CatalogPage() {
       if (ia !== ib) return ia - ib;
       return a.localeCompare(b, 'es');
     });
-  }, [tariffs, search]);
+  }, [tariffs, debouncedSearch]);
 
   const toggleCategory = (cat: string) => {
     setCollapsedCats((prev) => {
@@ -92,8 +99,8 @@ export function CatalogPage() {
   const expandAll = () => setCollapsedCats(new Set());
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-white sm:bg-gray-100">
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
         <button
           onClick={() => navigate('/')}
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
@@ -110,64 +117,11 @@ export function CatalogPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="danger" onClick={resetToDefaults}>
-              <RotateCcw size={14} />
-              Restaurar
-            </Button>
             <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} />
-              Añadir concepto
+              <span className="hidden sm:inline">Añadir concepto</span>
             </Button>
           </div>
-        </div>
-
-        {/* Search + collapse controls */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-          <div className="relative flex-1 max-w-md">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por descripción o categoría..."
-              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </div>
-          <div className="flex gap-1">
-            <button onClick={expandAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              Expandir todo
-            </button>
-            <span className="text-gray-300">|</span>
-            <button onClick={collapseAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              Colapsar todo
-            </button>
-          </div>
-        </div>
-
-        {/* Category sidebar pills */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
-              activeCategory === null
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-            }`}
-          >
-            Todas ({tariffs.length})
-          </button>
-          {grouped.map(([cat, items]) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-              className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
-                activeCategory === cat
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-              }`}
-            >
-              {cat} ({items.length})
-            </button>
-          ))}
         </div>
 
         {/* Add form */}
@@ -244,6 +198,55 @@ export function CatalogPage() {
           </div>
         )}
 
+        {/* Search + collapse controls */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <div className="relative flex-1 w-full max-w-md">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por descripción o categoría..."
+              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex gap-1">
+            <button onClick={expandAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
+              Expandir todo
+            </button>
+            <span className="text-gray-300">|</span>
+            <button onClick={collapseAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
+              Colapsar todo
+            </button>
+          </div>
+        </div>
+
+        {/* Category sidebar pills */}
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
+              activeCategory === null
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+            }`}
+          >
+            Todas ({tariffs.length})
+          </button>
+          {grouped.map(([cat, items]) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
+              className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
+                activeCategory === cat
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              {cat} ({items.length})
+            </button>
+          ))}
+        </div>
+
         {/* Grouped tariffs */}
         <div className="space-y-3">
           {grouped
@@ -272,7 +275,8 @@ export function CatalogPage() {
 
                   {/* Category items */}
                   {!isCollapsed && (
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto scrollbar-none">
+                    <table className="w-full text-sm min-w-[560px]">
                       <thead>
                         <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-100">
                           <th className="px-4 py-2 w-[40%]">Descripción</th>
@@ -347,6 +351,7 @@ export function CatalogPage() {
                         })}
                       </tbody>
                     </table>
+                    </div>
                   )}
                 </div>
               );
@@ -358,7 +363,41 @@ export function CatalogPage() {
             <p className="text-sm">Sin resultados para "{search}"</p>
           </div>
         )}
+
+        {/* Restore defaults */}
+        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
+          <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
+            <RotateCcw size={14} />
+            Restaurar catálogo por defecto
+          </Button>
+        </div>
       </div>
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Restaurar catálogo?</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  await resetToDefaults();
+                  setShowResetConfirm(false);
+                }}
+              >
+                Restaurar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

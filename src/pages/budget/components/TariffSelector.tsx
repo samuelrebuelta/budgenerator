@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 
@@ -8,7 +8,7 @@ interface TariffSelectorProps {
   sectionName: string;
 }
 
-export function TariffSelector({ sectionId, rowId, sectionName }: TariffSelectorProps) {
+export const TariffSelector = memo(function TariffSelector({ sectionId, rowId, sectionName }: TariffSelectorProps) {
   const applyTariff = useBudgetStore((s) => s.applyTariff);
   const tariffs = useTariffStore((s) => s.tariffs);
 
@@ -55,13 +55,13 @@ export function TariffSelector({ sectionId, rowId, sectionName }: TariffSelector
     <select
       onChange={handleSelect}
       defaultValue=""
-      className="shrink-0 w-20 rounded border border-dashed border-blue-300 bg-blue-50 px-1 py-1 text-xs text-blue-600 outline-none cursor-pointer no-print"
+      className="shrink-0 w-9 rounded border border-dashed border-blue-300 bg-blue-50 px-1.5 py-1 text-xs text-blue-600 outline-none cursor-pointer appearance-none text-center no-print"
     >
       <option value="" disabled>
         📋
       </option>
       {matched ? (
-        grouped[0][1].map((t) => (
+        grouped[0]?.[1].map((t) => (
           <option key={t.id} value={t.id}>
             {t.description} — {t.basePrice}€/{t.unit}
           </option>
@@ -79,4 +79,4 @@ export function TariffSelector({ sectionId, rowId, sectionName }: TariffSelector
       )}
     </select>
   );
-}
+});

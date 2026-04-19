@@ -1,9 +1,25 @@
 @import 'tailwindcss';
 
-@custom-variant print (&:is(.print *, .print)) {
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@custom-variant print {
+  @media print {
+    @slot;
+  }
 }
 
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -27,5 +43,10 @@
 
   select {
     pointer-events: none;
+  }
+
+  .section-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
