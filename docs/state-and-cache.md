@@ -83,20 +83,27 @@ loadBudgets: async (uid) => {
 Cada mutación del presupuesto activo se persiste a Firestore con un debounce de 1 segundo:
 
 ```typescript
-let _syncTimer: ReturnType<typeof setTimeout> | null = null;
-
 function syncToFirestore(budget: Budget) {
   const uid = getUid();
   if (!uid || !budget.id) return;
   if (_syncTimer) clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => {
-    saveBudget(uid, budget);
+    const cleaned: Budget = {
+      ...budget,
+      sections: budget.sections.map((s) => ({
+        ...s,
+        rows: s.rows.filter(isRowComplete),
+      })),
+    };
+    saveBudget(uid, cleaned);
     _syncTimer = null;
   }, 1000);
 }
 ```
 
 **Motivación**: Sin debounce, cada keystroke en un input generaría una escritura a Firestore. Con debounce de 1s, se agrupan las ediciones rápidas en una sola escritura.
+
+**Filtrado de filas incompletas**: Antes de persistir, se filtran las filas que no tienen todos los campos rellenos (descripción, cantidad > 0, precio > 0). Las filas incompletas se mantienen en el estado local para que el usuario las edite, pero no se guardan en Firestore.
 
 **Excepción**: Los borradores (`draftBudget`) NO se sincronizan. Solo se persisten al llamar a `saveDraft()`.
 
@@ -183,3 +190,21 @@ Se usa en `BudgetPage`, `BudgetEditor`, `BudgetHeader`, `BudgetSummary` y `AddSe
 ### Selectores de cálculo
 
 Los cálculos (`getRawSubtotal`, `getSubtotal`, `getIva`, `getTotal`) son funciones del store que se invocan como selectores. No están memoizadas a nivel de Zustand pero son cálculos ligeros sobre arrays pequeños.
+
+### Lógica de recargos y descuentos
+
+El budget store distingue entre recargos (multiplicador > 1) y descuentos (multiplicador < 1):
+
+- **Recargo**: El multiplicador se aplica en `getRowAmount()` y `getSectionSubtotal()`. Las filas y subtotales de partida ya incluyen el recargo. El sumario no muestra línea separada en el PDF.
+- **Descuento**: Las filas mantienen el precio original. `getSubtotal()` aplica el multiplicador globalmente. El sumario muestra la línea de descuento visible en el PDF.
+
+```typescript
+getRowAmount: (row) => {
+  const mult = budget?.adjustment?.multiplier ?? 1;
+  return getRowAmountRaw(row) * (mult > 1 ? mult : 1);
+},
+```
+
+### Guard de filas en borrador
+
+El botón `AddRowButton` se deshabilita si ya existe una fila en borrador (sin descripción, cantidad 0, precio 0) en la partida. Esto evita acumular filas vacías.

@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { Plus, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
-import { Button } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Button, Modal } from '@/shared/ui';
+import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
+import type { ColumnDef } from '@/shared/ui/editable-row';
 import { t } from '@/shared/i18n';
+
+const CATALOG_COLUMNS: ColumnDef[] = [
+  { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
+  { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
+  { key: 'cost', label: t.common.cost, width: '13%', align: 'right' },
+  { key: 'pvp', label: t.common.pvp, width: '13%', align: 'right' },
+  { key: 'margin', label: t.common.margin, width: '13%', align: 'right', mobileHidden: true },
+];
 
 export function CatalogPage() {
   const tariffs = useTariffStore((s) => s.tariffs);
@@ -277,82 +286,31 @@ export function CatalogPage() {
 
                   {/* Category items */}
                   <div className={`collapsible ${!isCollapsed ? 'open' : ''}`}>
-                    <div className="overflow-x-auto scrollbar-none">
-                    <table className="w-full text-sm min-w-[560px]">
-                      <thead>
-                        <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                          <th className="px-4 py-2 w-[40%]">{t.common.description}</th>
-                          <th className="px-4 py-2 w-[10%] text-center">{t.common.unit}</th>
-                          <th className="px-4 py-2 w-[13%] text-right">{t.common.cost}</th>
-                          <th className="px-4 py-2 w-[13%] text-right">{t.common.pvp}</th>
-                          <th className="px-4 py-2 w-[13%] text-right">{t.common.margin}</th>
-                          <th className="px-4 py-2 w-[6%]"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {items.map((t) => {
-                          const margin =
-                            t.basePrice > 0
-                              ? ((t.basePrice - t.cost) / t.basePrice) * 100
-                              : 0;
-                          return (
-                            <tr key={t.id} className="hover:bg-gray-50/50">
-                              <td className="px-4 py-1.5">
-                                <input
-                                  value={t.description}
-                                  onChange={(e) => updateTariff(t.id, { description: e.target.value })}
-                                  className="w-full bg-transparent border-none outline-none text-sm"
-                                />
-                              </td>
-                              <td className="px-4 py-1.5 text-center">
-                                <select
-                                  value={t.unit}
-                                  onChange={(e) => updateTariff(t.id, { unit: e.target.value as Unit })}
-                                  className="bg-transparent border-none outline-none text-sm text-center cursor-pointer"
-                                >
-                                  {Object.entries(UNIT_LABELS).map(([v, l]) => (
-                                    <option key={v} value={v}>{l}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-4 py-1.5">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={t.cost || ''}
-                                  onChange={(e) => updateTariff(t.id, { cost: parseFloat(e.target.value) || 0 })}
-                                  className="w-full bg-transparent border-none outline-none text-right text-sm"
-                                />
-                              </td>
-                              <td className="px-4 py-1.5">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step="0.01"
-                                  value={t.basePrice || ''}
-                                  onChange={(e) => updateTariff(t.id, { basePrice: parseFloat(e.target.value) || 0 })}
-                                  className="w-full bg-transparent border-none outline-none text-right text-sm"
-                                />
-                              </td>
-                              <td className="px-4 py-1.5 text-right">
-                                <span className={`text-xs font-medium ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                                  {margin.toFixed(1)}%
-                                </span>
-                              </td>
-                              <td className="px-4 py-1.5 text-center">
-                                <button
-                                  onClick={() => removeTariff(t.id)}
-                                  className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="overflow-hidden">
+                    <EditableRowHeader columns={CATALOG_COLUMNS} />
+                    <div className="space-y-2 sm:space-y-0 p-3 sm:p-0">
+                      {items.map((tariff) => {
+                        const margin = tariff.basePrice > 0 ? ((tariff.basePrice - tariff.cost) / tariff.basePrice) * 100 : 0;
+                        return (
+                          <EditableRow
+                            key={tariff.id}
+                            columns={CATALOG_COLUMNS}
+                            cells={{
+                              description: { type: 'text', value: tariff.description, onChange: (v) => updateTariff(tariff.id, { description: v }) },
+                              unit: { type: 'unit-select', value: tariff.unit, onChange: (v) => updateTariff(tariff.id, { unit: v as Unit }) },
+                              cost: { type: 'number', value: tariff.cost, onChange: (v) => updateTariff(tariff.id, { cost: parseFloat(v) || 0 }) },
+                              pvp: { type: 'number', value: tariff.basePrice, onChange: (v) => updateTariff(tariff.id, { basePrice: parseFloat(v) || 0 }) },
+                              margin: { type: 'display', content: <span className={`text-xs font-medium ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}>{margin.toFixed(1)}%</span> },
+                            }}
+                            onDelete={() => removeTariff(tariff.id)}
+                            mobileFooter={{
+                              label: t.common.margin,
+                              value: <span className={`text-xs font-semibold ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}>{margin.toFixed(1)}%</span>,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                     </div>
                   </div>
                 </div>

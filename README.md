@@ -7,12 +7,13 @@ Aplicación web para generar y gestionar presupuestos de reformas de viviendas. 
 - **Gestión de presupuestos**: Crear, editar y eliminar presupuestos con información de cliente, partidas y filas de trabajo.
 - **Catálogo de tarifas**: +250 tarifas predefinidas organizadas en 28 categorías de reformas. Totalmente personalizable (añadir, editar, eliminar, restaurar por defecto).
 - **Cálculos automáticos**: Subtotales por partida, subtotal general, IVA (10%), total. Margen de beneficio por fila y global.
-- **Descuentos y recargos**: Aplicar un multiplicador porcentual antes del IVA. Se oculta del PDF (solo el precio final es visible para el cliente).
+- **Descuentos y recargos**: Recargos se aplican directamente en cada fila (transparente al cliente). Descuentos aparecen como línea separada en el PDF.
 - **Perfil de empresa**: Nombre, CIF, dirección, teléfono, email y logo. Los datos aparecen en la cabecera del PDF.
 - **Exportación PDF**: Impresión directa del navegador con layout A4 apaisado. Inputs ocultos, company info visible, diseño limpio.
 - **Autenticación**: Email + contraseña con Firebase Auth. Registro con indicador de seguridad de contraseña.
 - **Multi-tenant**: Cada usuario tiene sus propios presupuestos, tarifas y perfil, aislados por UID.
-- **Mobile-first**: Layout responsive con cards en móvil y tablas en escritorio. Touch targets de 44px mínimo.
+- **Secciones colapsables**: Partidas, información del cliente y secciones del editor se pueden colapsar/expandir. Estado persistido en localStorage.
+- **Mobile-first**: Layout responsive con cards en móvil y CSS Grid en escritorio. Componente compartido `EditableRow` para ambos layouts. Touch targets de 44px mínimo.
 - **Internacionalización**: Todos los textos extraídos a claves i18n. Español por defecto, preparado para añadir idiomas.
 
 ## Stack tecnológico
@@ -53,7 +54,7 @@ src/
     ├── i18n/             #   Traducciones (es.ts) y helper t
     ├── types/            #   TypeScript interfaces
     ├── lib/              #   Utilidades (cn, formatCurrency, generateId)
-    └── ui/               #   Componentes UI reutilizables (Button, Input, Select, Modal)
+    └── ui/               #   Componentes UI reutilizables (Button, Input, Select, Modal, EditableRow)
 ```
 
 ## Inicio rápido

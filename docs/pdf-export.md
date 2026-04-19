@@ -168,7 +168,8 @@ Siempre visibles en PDF. El wrapper `.collapsible` se fuerza abierto con `print:
 ### Resumen
 
 - **Subtotal**: siempre visible
-- **Descuento/recargo**: oculto (`no-print`) — el cliente solo ve el precio final
+- **Recargo**: se aplica directamente en cada fila (las filas ya incluyen el recargo). No aparece como línea separada en el PDF.
+- **Descuento**: aparece como línea separada en el PDF (Subtotal → Descuento -X% → Subtotal con descuento)
 - **IVA (10%)**: siempre visible
 - **TOTAL**: siempre visible, en azul y negrita
 - **Margen de beneficio**: oculto (`no-print`)

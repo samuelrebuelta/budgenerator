@@ -28,12 +28,12 @@ function createEmptySection(name: string): Section {
   };
 }
 
-function getRowAmount(row: BudgetRow): number {
+function getRowAmountRaw(row: BudgetRow): number {
   return row.quantity * row.price;
 }
 
 function calcSectionSubtotal(section: Section): number {
-  return section.rows.reduce((sum, row) => sum + getRowAmount(row), 0);
+  return section.rows.reduce((sum, row) => sum + getRowAmountRaw(row), 0);
 }
 
 function calcBudgetTotal(budget: Budget): number {
@@ -228,12 +228,20 @@ export const useBudgetStore = create<BudgetState>()(
 
     // --- Active budget computed ---
 
-    getRowAmount: (row) => getRowAmount(row),
+    getRowAmount: (row) => {
+      const budget = getActive(get());
+      const mult = budget?.adjustment?.multiplier ?? 1;
+      // Surcharge (mult > 1): bake into each row. Discount: keep raw.
+      return getRowAmountRaw(row) * (mult > 1 ? mult : 1);
+    },
 
     getSectionSubtotal: (sectionId) => {
       const budget = getActive(get());
       const section = budget?.sections.find((s) => s.id === sectionId);
-      return section ? calcSectionSubtotal(section) : 0;
+      if (!section) return 0;
+      const raw = calcSectionSubtotal(section);
+      const mult = budget?.adjustment?.multiplier ?? 1;
+      return raw * (mult > 1 ? mult : 1);
     },
 
     getRawSubtotal: () => {

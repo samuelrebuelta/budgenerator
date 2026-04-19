@@ -3,15 +3,24 @@ import { Trash2, GripVertical, ChevronDown } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { AddRowButton } from './AddRowButton';
 import { TariffSelector } from './TariffSelector';
-import { UNIT_LABELS } from '@/shared/types';
 import type { Unit, BudgetRow as BudgetRowType } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Button } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Button, Modal } from '@/shared/ui';
+import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
+import type { ColumnDef } from '@/shared/ui/editable-row';
 import { t } from '@/shared/i18n';
 
-/* ── Memoized Row (desktop table) ── */
-const DesktopRow = memo(function DesktopRow({
+const BUDGET_COLUMNS: ColumnDef[] = [
+  { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
+  { key: 'quantity', label: t.editor.quantity, width: '10%', align: 'right' },
+  { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
+  { key: 'price', label: t.editor.price, width: '12%', align: 'right' },
+  { key: 'amount', label: t.editor.amount, width: '12%', align: 'right', mobileHidden: true },
+  { key: 'margin', label: t.common.margin, width: '12%', align: 'right', className: 'no-print', mobileHidden: true },
+];
+
+/* ── Single Row (handles desktop + mobile) ── */
+const BudgetRowItem = memo(function BudgetRowItem({
   sectionId,
   row,
   sectionName,
@@ -23,158 +32,39 @@ const DesktopRow = memo(function DesktopRow({
   const updateRow = useBudgetStore((s) => s.updateRow);
   const removeRow = useBudgetStore((s) => s.removeRow);
   const getRowAmount = useBudgetStore((s) => s.getRowAmount);
+  // Subscribe to multiplier so memo re-renders when adjustment changes
+  const _mult = useBudgetStore((s) => {
+    const b = s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
+    return b?.adjustment?.multiplier ?? 1;
+  });
+  void _mult;
   const amount = getRowAmount(row);
 
   return (
-    <tr className="hover:bg-gray-50/50">
-      <td className="px-2 sm:px-4 py-2">
-        <div className="flex items-start gap-2">
-          <input
-            value={row.description}
-            onChange={(e) => updateRow(sectionId, row.id, { description: e.target.value })}
-            placeholder={t.common.description}
-            className="w-full bg-transparent border-none outline-none text-sm min-w-0"
-          />
-          <TariffSelector sectionId={sectionId} rowId={row.id} sectionName={sectionName} />
-        </div>
-      </td>
-      <td className="px-2 sm:px-4 py-2">
-        <input
-          type="number"
-          min={0}
-          step="0.01"
-          value={row.quantity || ''}
-          onChange={(e) => updateRow(sectionId, row.id, { quantity: parseFloat(e.target.value) || 0 })}
-          className="w-full bg-transparent border-none outline-none text-right text-sm"
-          placeholder="0"
-        />
-      </td>
-      <td className="px-2 sm:px-4 py-2 text-center">
-        <select
-          value={row.unit}
-          onChange={(e) => updateRow(sectionId, row.id, { unit: e.target.value as Unit })}
-          className="bg-transparent border-none outline-none text-sm text-center cursor-pointer print:appearance-none"
-        >
-          {Object.entries(UNIT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </td>
-      <td className="px-2 sm:px-4 py-2">
-        <input
-          type="number"
-          min={0}
-          step="0.01"
-          value={row.price || ''}
-          onChange={(e) => updateRow(sectionId, row.id, { price: parseFloat(e.target.value) || 0 })}
-          className="w-full bg-transparent border-none outline-none text-right text-sm"
-          placeholder="0.00"
-        />
-      </td>
-      <td className="px-2 sm:px-4 py-2 text-right font-medium text-gray-700">
-        {formatCurrency(amount)}
-      </td>
-      <td className="px-2 sm:px-4 py-2 text-right no-print">
-        {row.cost > 0 ? (
-          <span className={`text-xs font-medium ${
-            row.price > row.cost ? 'text-green-600' : row.price < row.cost ? 'text-red-500' : 'text-gray-400'
-          }`}>
-            {((row.price - row.cost) * row.quantity).toFixed(2)}€
-            <span className="ml-1 text-gray-400">
-              ({row.price > 0 ? (((row.price - row.cost) / row.price) * 100).toFixed(0) : 0}%)
+    <EditableRow
+      columns={BUDGET_COLUMNS}
+      cells={{
+        description: { type: 'text', value: row.description, onChange: (v) => updateRow(sectionId, row.id, { description: v }), placeholder: t.common.description },
+        quantity: { type: 'number', value: row.quantity, onChange: (v) => updateRow(sectionId, row.id, { quantity: parseFloat(v) || 0 }) },
+        unit: { type: 'unit-select', value: row.unit, onChange: (v) => updateRow(sectionId, row.id, { unit: v as Unit }) },
+        price: { type: 'number', value: row.price, onChange: (v) => updateRow(sectionId, row.id, { price: parseFloat(v) || 0 }), placeholder: '0.00' },
+        amount: { type: 'display', content: <span className="font-medium text-gray-700">{formatCurrency(amount)}</span> },
+        margin: {
+          type: 'display',
+          content: row.cost > 0 ? (
+            <span className={`text-xs font-medium ${row.price > row.cost ? 'text-green-600' : row.price < row.cost ? 'text-red-500' : 'text-gray-400'}`}>
+              {((row.price - row.cost) * row.quantity).toFixed(2)}€
+              <span className="ml-1 text-gray-400">({row.price > 0 ? (((row.price - row.cost) / row.price) * 100).toFixed(0) : 0}%)</span>
             </span>
-          </span>
-        ) : (
-          <span className="text-xs text-gray-300">—</span>
-        )}
-      </td>
-      <td className="px-2 sm:px-4 py-2 text-center no-print">
-        <button
-          onClick={() => removeRow(sectionId, row.id)}
-          className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-        >
-          <Trash2 size={14} />
-        </button>
-      </td>
-    </tr>
-  );
-});
-
-/* ── Memoized Row (mobile card) ── */
-const MobileRow = memo(function MobileRow({
-  sectionId,
-  row,
-  sectionName,
-}: {
-  sectionId: string;
-  row: BudgetRowType;
-  sectionName: string;
-}) {
-  const updateRow = useBudgetStore((s) => s.updateRow);
-  const removeRow = useBudgetStore((s) => s.removeRow);
-  const getRowAmount = useBudgetStore((s) => s.getRowAmount);
-  const amount = getRowAmount(row);
-
-  return (
-    <div className="border border-gray-200 rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <input
-          value={row.description}
-          onChange={(e) => updateRow(sectionId, row.id, { description: e.target.value })}
-          placeholder={t.common.description}
-          className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
-        />
-        <TariffSelector sectionId={sectionId} rowId={row.id} sectionName={sectionName} />
-        <button
-          onClick={() => removeRow(sectionId, row.id)}
-          className="p-2 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <label className="text-[10px] text-gray-500 uppercase">{t.editor.quantity}</label>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={row.quantity || ''}
-            onChange={(e) => updateRow(sectionId, row.id, { quantity: parseFloat(e.target.value) || 0 })}
-            className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right"
-            placeholder="0"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500 uppercase">{t.common.unit}</label>
-          <select
-            value={row.unit}
-            onChange={(e) => updateRow(sectionId, row.id, { unit: e.target.value as Unit })}
-            className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm cursor-pointer"
-          >
-            {Object.entries(UNIT_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500 uppercase">{t.editor.price}</label>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={row.price || ''}
-            onChange={(e) => updateRow(sectionId, row.id, { price: parseFloat(e.target.value) || 0 })}
-            className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right"
-            placeholder="0.00"
-          />
-        </div>
-      </div>
-      <div className="flex justify-between items-center pt-1 border-t border-gray-100 text-sm">
-        <span className="text-gray-500 text-xs">{t.editor.amount}</span>
-        <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span>
-      </div>
-    </div>
+          ) : (
+            <span className="text-xs text-gray-300">—</span>
+          ),
+        },
+      }}
+      onDelete={() => removeRow(sectionId, row.id)}
+      headerExtra={<TariffSelector sectionId={sectionId} rowId={row.id} sectionName={sectionName} />}
+      mobileFooter={{ label: t.editor.amount, value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span> }}
+    />
   );
 });
 
@@ -238,47 +128,27 @@ export function BudgetEditor() {
                 onChange={(e) => renameSection(section.id, e.target.value)}
                 className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 uppercase"
               />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm font-medium text-gray-500 whitespace-nowrap">
                 {formatCurrency(getSectionSubtotal(section.id))}
               </span>
-            </div>
-            <Button
-              variant="danger"
+              <Button
+                variant="danger"
               onClick={() => setDeletingSectionId(section.id)}
               className="no-print shrink-0"
             >
               <Trash2 size={14} />
             </Button>
+            </div>
           </div>
 
           <div className={`collapsible print:grid-rows-[1fr]! ${collapsedSections.has(section.id) ? '' : 'open'}`}>
           <div className="overflow-hidden">
-          {/* Desktop Table */}
-          <div className="hidden sm:block overflow-x-auto scrollbar-none print:block!">
-            <table className="w-full text-sm print:min-w-0">
-              <thead>
-                <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-2 w-[36%]">{t.common.description}</th>
-                  <th className="px-4 py-2 w-[10%] text-right">{t.editor.quantity}</th>
-                  <th className="px-4 py-2 w-[10%] text-center">{t.common.unit}</th>
-                  <th className="px-4 py-2 w-[12%] text-right">{t.editor.price}</th>
-                  <th className="px-4 py-2 w-[12%] text-right">{t.editor.amount}</th>
-                  <th className="px-4 py-2 w-[12%] text-right no-print">{t.common.margin}</th>
-                  <th className="px-4 py-2 w-[8%] text-center no-print"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {section.rows.map((row) => (
-                  <DesktopRow key={row.id} sectionId={section.id} row={row} sectionName={section.name} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="sm:hidden p-3 space-y-2 print:hidden">
+          <EditableRowHeader columns={BUDGET_COLUMNS} />
+          <div className="space-y-2 sm:space-y-0 p-3 sm:p-0">
             {section.rows.map((row) => (
-              <MobileRow key={row.id} sectionId={section.id} row={row} sectionName={section.name} />
+              <BudgetRowItem key={row.id} sectionId={section.id} row={row} sectionName={section.name} />
             ))}
           </div>
 

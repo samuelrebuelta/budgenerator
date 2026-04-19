@@ -13,19 +13,21 @@ La aplicación prioriza la percepción de velocidad del usuario:
 
 ### Filas del presupuesto
 
-Las filas de la tabla son los componentes más repetidos y re-renderizados. Están envueltos en `React.memo`:
+Las filas son los componentes más repetidos y re-renderizados. Están envueltas en `React.memo` via el componente `BudgetRowItem`:
 
 ```typescript
-const DesktopRow = memo(function DesktopRow({ sectionId, row, sectionName }: Props) {
-  // Solo se re-renderiza si sectionId, row o sectionName cambian
-});
-
-const MobileRow = memo(function MobileRow({ sectionId, row, sectionName }: Props) {
-  // Idem para la versión móvil (cards)
+const BudgetRowItem = memo(function BudgetRowItem({ sectionId, row, sectionName }: Props) {
+  // Suscripción al multiplicador de ajuste para forzar re-render al cambiar recargo
+  const _mult = useBudgetStore((s) => {
+    const b = s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
+    return b?.adjustment?.multiplier ?? 1;
+  });
+  void _mult;
+  // Solo se re-renderiza si sectionId, row, sectionName o multiplier cambian
 });
 ```
 
-**Impacto**: Sin memo, editar una fila re-renderizaría todas las filas de todas las secciones. Con memo, solo se re-renderiza la fila editada.
+**Impacto**: Sin memo, editar una fila re-renderizaría todas las filas de todas las secciones. Con memo, solo se re-renderiza la fila editada. La suscripción explícita al `multiplier` asegura que al añadir/quitar un recargo, todas las filas se actualizan.
 
 ### TariffSelector
 
@@ -114,23 +116,13 @@ Esto evita que el usuario sea redirigido a la lista al editar un presupuesto si 
 
 ## Optimizaciones de layout
 
-### Dual layout (desktop table + mobile cards)
+### Componente unificado `EditableRow`
 
-En lugar de hacer responsive una sola tabla con CSS, se renderizan dos layouts completamente diferentes controlados por `hidden sm:block` y `sm:hidden`:
+En lugar de renderizar dos layouts separados (tabla desktop + cards móvil), se usa un único componente `EditableRow` que muestra CSS Grid en desktop y cards en móvil. Ambos layouts viven en el mismo componente, controlados por `hidden sm:grid` y `sm:hidden`. Esto:
 
-```html
-<!-- Desktop: tabla completa, oculta en móvil -->
-<div class="hidden sm:block print:!block">
-  <table>...</table>
-</div>
-
-<!-- Móvil: cards compactas, ocultas en desktop -->
-<div class="sm:hidden print:hidden">
-  <div class="card">...</div>
-</div>
-```
-
-Ambos se renderizan en el DOM pero solo uno es visible. Esto es más eficiente que un layout responsive con media queries complejas y produce un CSS más sencillo.
+- Elimina la duplicación de código entre desktop y móvil
+- Usa CSS Grid con `gridTemplateColumns` dinámico en vez de `<table>`
+- Se reutiliza entre BudgetEditor y CatalogPage con columnas distintas
 
 ## Tamaño del bundle
 

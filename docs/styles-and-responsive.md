@@ -84,7 +84,12 @@ Animación de colapsar/expandir basada en `grid-template-rows` (anima `height: a
 }
 ```
 
-Se usa en los toggles "Información del cliente", "Partidas" (BudgetPage) y categorías del catálogo (CatalogPage). El hijo directo debe ser un `<div>` wrapper. Para print se fuerza abierto con `print:!grid-rows-[1fr]`.
+Se usa en los toggles "Información del cliente", "Partidas" (BudgetPage), secciones de partidas (BudgetEditor) y categorías del catálogo (CatalogPage). El hijo directo debe ser un `<div>` wrapper. Para print se fuerza abierto con `print:grid-rows-[1fr]!`.
+
+El estado abierto/cerrado de todos los colapsables se persiste en `localStorage` por ID de presupuesto:
+- `collapsed-sections-{budgetId}` — partidas individuales
+- `collapsed-partidas-{budgetId}` — toggle de secciones
+- `collapsed-clientinfo-{budgetId}` — datos del cliente
 
 ## Composición de clases: cn()
 
@@ -137,33 +142,50 @@ Se usa un único breakpoint `sm` (640px) como frontera entre móvil y escritorio
 </Button>
 ```
 
-### Layout dual para filas de presupuesto
+### Componente compartido `EditableRow`
 
-En lugar de hacer responsive una tabla, se renderizan dos layouts:
+En lugar de duplicar el layout dual (tabla desktop + cards móvil) en cada página, se usa un componente compartido `EditableRow` (`src/shared/ui/editable-row.tsx`) que renderiza automáticamente:
 
-**Desktop (tabla)**: `hidden sm:block print:!block`
-```html
-<table>
-  <tr>
-    <td>Descripción</td>
-    <td>Cant.</td>
-    <td>Ud.</td>
-    <td>Precio</td>
-    <td>Importe</td>
-    <td>Margen</td>  <!-- no-print -->
-    <td>🗑️</td>      <!-- no-print -->
-  </tr>
-</table>
+- **Desktop (≥ 640px)**: Fila CSS Grid con columnas configurables
+- **Móvil (< 640px)**: Card con descripción + acciones arriba, grid 3 columnas abajo, footer opcional
+- **Print**: Fuerza el layout desktop
+
+```tsx
+import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
+
+const COLUMNS: ColumnDef[] = [
+  { key: 'description', label: 'Descripción', width: 'minmax(0,1fr)' },
+  { key: 'quantity', label: 'Cantidad', width: '10%', align: 'right' },
+  { key: 'unit', label: 'Unidad', width: '10%', align: 'center' },
+  { key: 'price', label: 'Precio', width: '12%', align: 'right' },
+  { key: 'amount', label: 'Importe', width: '12%', align: 'right', mobileHidden: true },
+];
+
+<EditableRowHeader columns={COLUMNS} />
+<EditableRow
+  columns={COLUMNS}
+  cells={{
+    description: { type: 'text', value: '...', onChange: ... },
+    quantity: { type: 'number', value: 0, onChange: ... },
+    unit: { type: 'unit-select', value: 'm2', onChange: ... },
+    price: { type: 'number', value: 0, onChange: ... },
+    amount: { type: 'display', content: <span>100€</span> },
+  }}
+  onDelete={...}
+  headerExtra={<TariffSelector />}
+  mobileFooter={{ label: 'Importe', value: <span>100€</span> }}
+/>
 ```
 
-**Móvil (cards)**: `sm:hidden print:hidden`
-```html
-<div class="border rounded-lg p-3">
-  <div>Descripción + tariff selector + 🗑️</div>
-  <div class="grid grid-cols-3">Cant. | Ud. | Precio</div>
-  <div>Importe: XX,XX €</div>
-</div>
-```
+Se usa en:
+- **BudgetEditor**: Columnas de descripción, cantidad, unidad, precio, importe, margen
+- **CatalogPage**: Columnas de descripción, unidad, coste, PVP, margen
+
+Tipos de celda soportados:
+- `text`: Input de texto
+- `number`: Input numérico
+- `unit-select`: Selector de unidades (`UNIT_LABELS`)
+- `display`: Contenido React de solo lectura
 
 ## Touch targets
 
@@ -233,4 +255,4 @@ Características:
 - **Centrado**: `items-center justify-center` en todos los tamaños
 - **Print**: `no-print` para no aparecer en el PDF
 
-Se usa en: borrar presupuesto, borrar partida, restaurar catálogo, cerrar sesión.
+Se usa en: borrar presupuesto, borrar partida, restaurar catálogo, cerrar sesión, eliminar logo.

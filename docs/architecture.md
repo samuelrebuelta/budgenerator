@@ -102,10 +102,10 @@ pages/budget/
 ├── index.ts
 └── components/
     ├── BudgetHeader.tsx      → Info cliente + datos empresa (print)
-    ├── BudgetEditor.tsx      → Tabla de partidas y filas
-    ├── BudgetSummary.tsx     → Subtotales, IVA, total, ajustes
+    ├── BudgetEditor.tsx      → Tabla/cards de partidas y filas (usa EditableRow)
+    ├── BudgetSummary.tsx     → Subtotales, IVA, total, descuentos/recargos
     ├── AddSectionButton.tsx  → Selector de categoría para nueva partida
-    ├── AddRowButton.tsx      → Botón para añadir fila
+    ├── AddRowButton.tsx      → Botón para añadir fila (deshabilitado si hay borrador)
     ├── TariffSelector.tsx    → Dropdown para aplicar tarifa a una fila
     └── ExportPdfButton.tsx   → Botón de impresión/exportación PDF
 ```
@@ -120,7 +120,7 @@ Código sin dependencia de dominio:
 | `i18n/` | Traducciones (`es.ts`) y export `t` para acceso directo a claves |
 | `types/` | Interfaces TypeScript (`Budget`, `Tariff`, `CompanyProfile`, etc.) |
 | `lib/` | Utilidades: `cn()` (clsx+twMerge), `formatCurrency()`, `generateId()` |
-| `ui/` | Componentes UI genéricos: `Button`, `Input`, `Select`, `Modal` |
+| `ui/` | Componentes UI genéricos: `Button`, `Input`, `Select`, `Modal`, `EditableRow` |
 
 ## Flujo de datos
 

@@ -100,6 +100,8 @@ export const es = {
     surcharge: 'Recargo',
     discount: 'Descuento',
     adjustmentHidden: 'El cliente no verá este ajuste en el PDF',
+    surchargeInRows: 'El recargo se aplica en cada fila',
+    adjustedSubtotal: 'Subtotal con descuento:',
     subtotal: 'Subtotal:',
     iva: 'IVA (10%):',
     total: 'TOTAL:',

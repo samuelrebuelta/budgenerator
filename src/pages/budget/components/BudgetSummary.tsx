@@ -24,6 +24,8 @@ export function BudgetSummary() {
   const total = getTotal();
   const adjustment = budget.adjustment;
   const hasAdjustment = adjustment && adjustment.multiplier !== 1;
+  const isSurcharge = hasAdjustment && adjustment.multiplier > 1;
+  const isDiscount = hasAdjustment && adjustment.multiplier < 1;
 
   // Calculate total cost and margin
   const totalCost = budget.sections.reduce(
@@ -57,35 +59,56 @@ export function BudgetSummary() {
   return (
     <div className="border-t border-gray-200 pt-4 mt-6 section-break-avoid">
       <div className="flex flex-col items-end gap-1 text-sm">
-        {/* Raw subtotal and adjustment (only in screen, not PDF) */}
-        {hasAdjustment && (
+        {/* ── Surcharge: info on screen only (rows already include it) ── */}
+        {isSurcharge && (
           <div className="flex justify-between w-full max-w-72 no-print">
             <span className="text-gray-600">{t.summary.rawSubtotal}</span>
             <span className="font-medium">{formatCurrency(rawSubtotal)}</span>
           </div>
         )}
-
-        {/* Adjustment line */}
-        {hasAdjustment && (
+        {isSurcharge && (
           <div className="flex justify-between w-full max-w-72 no-print">
             <span className="text-gray-600">
-              {adjustmentPercent > 0 ? t.summary.surcharge : t.summary.discount}
+              {t.summary.surcharge}
               {adjustment.reason ? ` (${adjustment.reason})` : ''}
-              {' '}{adjustmentPercent > 0 ? '+' : ''}{adjustmentPercent}%:
+              {' '}+{adjustmentPercent}%:
             </span>
-            <span className={`font-medium ${adjustmentPercent > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {adjustmentPercent > 0 ? '+' : ''}{formatCurrency(subtotal - rawSubtotal)}
+            <span className="font-medium text-red-600">
+              +{formatCurrency(subtotal - rawSubtotal)}
             </span>
           </div>
         )}
-        {hasAdjustment && (
+        {isSurcharge && (
           <p className="text-[10px] text-gray-400 italic w-full max-w-72 text-right no-print">
-            {t.summary.adjustmentHidden}
+            {t.summary.surchargeInRows}
           </p>
         )}
 
+        {/* ── Discount: raw subtotal + discount line (visible in PDF) ── */}
+        {isDiscount && (
+          <div className="flex justify-between w-full max-w-72">
+            <span className="text-gray-600">{t.summary.subtotal}</span>
+            <span className="font-medium">{formatCurrency(rawSubtotal)}</span>
+          </div>
+        )}
+        {isDiscount && (
+          <div className="flex justify-between w-full max-w-72">
+            <span className="text-gray-600">
+              {t.summary.discount}
+              {adjustment.reason ? ` (${adjustment.reason})` : ''}
+              {' '}{adjustmentPercent}%:
+            </span>
+            <span className="font-medium text-green-600">
+              {formatCurrency(subtotal - rawSubtotal)}
+            </span>
+          </div>
+        )}
+
+        {/* ── Subtotal ── */}
         <div className="flex justify-between w-full max-w-72">
-          <span className="text-gray-600">{t.summary.subtotal}</span>
+          <span className="text-gray-600">
+            {isDiscount ? t.summary.adjustedSubtotal : t.summary.subtotal}
+          </span>
           <span className="font-medium">{formatCurrency(subtotal)}</span>
         </div>
         <div className="flex justify-between w-full max-w-72">
