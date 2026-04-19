@@ -13,7 +13,26 @@ export default defineConfig({
 });
 ```
 
-La configuración se hace directamente en `src/index.css` con directivas `@import`, `@utility`, y `@custom-variant`.
+La configuración se hace directamente en `src/index.css` con directivas `@import`, `@theme`, `@utility`, y `@custom-variant`.
+
+### Tema de colores (`@theme`)
+
+La paleta primaria azul se personaliza mediante la directiva `@theme` de Tailwind 4:
+
+```css
+@theme {
+  --color-blue-50: #eef2f9;
+  --color-blue-100: #d5deef;
+  --color-blue-200: #aebfe0;
+  --color-blue-300: #839dcf;
+  --color-blue-400: #5e7fbf;
+  --color-blue-500: #3d62ad;
+  --color-blue-600: #2f4e9e;
+  --color-blue-700: #263f80;
+}
+```
+
+Todas las clases `bg-blue-600`, `text-blue-600`, `hover:bg-blue-700`, etc. usan automáticamente estos valores.
 
 ## Utilidades personalizadas
 
@@ -38,10 +57,34 @@ Se usa en las tablas del catálogo para permitir scroll horizontal sin barra vis
 Variante custom para estilos de impresión:
 
 ```css
-@custom-variant print (&:is(.print *, .print)) {
+@custom-variant print {
+  @media print {
+    @slot;
+  }
+}
 ```
 
 Permite usar clases como `print:block`, `print:hidden`, `print:text-xs` para controlar la visibilidad en PDF.
+
+### Collapsible
+
+Animación de colapsar/expandir basada en `grid-template-rows` (anima `height: auto` sin JS):
+
+```css
+.collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms ease-out;
+}
+.collapsible.open {
+  grid-template-rows: 1fr;
+}
+.collapsible > * {
+  overflow: hidden;
+}
+```
+
+Se usa en los toggles "Información del cliente", "Partidas" (BudgetPage) y categorías del catálogo (CatalogPage). El hijo directo debe ser un `<div>` wrapper. Para print se fuerza abierto con `print:!grid-rows-[1fr]`.
 
 ## Composición de clases: cn()
 
@@ -152,11 +195,11 @@ Tamaños estándar:
 
 ## Temas y colores
 
-No hay sistema de temas/dark mode. Paleta basada en Tailwind defaults:
+No hay sistema de temas/dark mode. Paleta primaria personalizada via `@theme`:
 
 | Uso | Color |
 |---|---|
-| Primario (botones, links) | `blue-600` / `blue-700` |
+| Primario (botones, links) | `blue-600` (`#2f4e9e`) / `blue-700` (`#263f80`) |
 | Texto principal | `gray-900` |
 | Texto secundario | `gray-500` / `gray-600` |
 | Bordes | `gray-200` / `gray-300` |
@@ -167,14 +210,27 @@ No hay sistema de temas/dark mode. Paleta basada en Tailwind defaults:
 
 ## Modales
 
-Los modales de confirmación (borrar presupuesto, restaurar catálogo) usan un patrón simple sin librería:
+Los modales de confirmación usan el componente compartido `Modal` (`src/shared/ui/modal.tsx`):
 
-```html
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-  <div class="bg-white rounded-xl shadow-lg border p-6 w-full max-w-sm mx-4">
-    <!-- Contenido -->
+```tsx
+import { Modal } from '@/shared/ui';
+
+<Modal open={showConfirm} onClose={() => setShowConfirm(false)}>
+  <h3>Título</h3>
+  <p>Mensaje</p>
+  <div>
+    <Button variant="secondary" onClick={() => setShowConfirm(false)}>Cancelar</Button>
+    <Button variant="danger" onClick={handleConfirm}>Eliminar</Button>
   </div>
-</div>
+</Modal>
 ```
 
-El overlay `bg-black/40` oscurece el fondo. El modal se centra con flexbox. `mx-4` garantiza márgenes en móvil.
+Características:
+- **Animación de entrada**: Slide-up (translateY 2rem → 0) + fade, 200ms ease-out
+- **Cierre instantáneo**: Sin animación de salida, se desmonta al momento
+- **Cierre con Escape**: Listener de teclado activo mientras está abierto
+- **Click fuera**: Click en el backdrop cierra el modal
+- **Centrado**: `items-center justify-center` en todos los tamaños
+- **Print**: `no-print` para no aparecer en el PDF
+
+Se usa en: borrar presupuesto, borrar partida, restaurar catálogo, cerrar sesión.

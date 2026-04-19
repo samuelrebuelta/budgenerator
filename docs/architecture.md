@@ -117,9 +117,10 @@ Código sin dependencia de dominio:
 | Módulo | Contenido |
 |---|---|
 | `firebase/` | Configuración Firebase, funciones CRUD de Firestore, auth helpers |
+| `i18n/` | Traducciones (`es.ts`) y export `t` para acceso directo a claves |
 | `types/` | Interfaces TypeScript (`Budget`, `Tariff`, `CompanyProfile`, etc.) |
 | `lib/` | Utilidades: `cn()` (clsx+twMerge), `formatCurrency()`, `generateId()` |
-| `ui/` | Componentes UI genéricos: `Button`, `Input`, `Select` |
+| `ui/` | Componentes UI genéricos: `Button`, `Input`, `Select`, `Modal` |
 
 ## Flujo de datos
 

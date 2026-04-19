@@ -13,6 +13,7 @@ Aplicación web para generar y gestionar presupuestos de reformas de viviendas. 
 - **Autenticación**: Email + contraseña con Firebase Auth. Registro con indicador de seguridad de contraseña.
 - **Multi-tenant**: Cada usuario tiene sus propios presupuestos, tarifas y perfil, aislados por UID.
 - **Mobile-first**: Layout responsive con cards en móvil y tablas en escritorio. Touch targets de 44px mínimo.
+- **Internacionalización**: Todos los textos extraídos a claves i18n. Español por defecto, preparado para añadir idiomas.
 
 ## Stack tecnológico
 
@@ -49,9 +50,10 @@ src/
 │   └── profile/
 └── shared/               # Código compartido
     ├── firebase/         #   Configuración y servicios Firebase
+    ├── i18n/             #   Traducciones (es.ts) y helper t
     ├── types/            #   TypeScript interfaces
     ├── lib/              #   Utilidades (cn, formatCurrency, generateId)
-    └── ui/               #   Componentes UI reutilizables (Button, Input, Select)
+    └── ui/               #   Componentes UI reutilizables (Button, Input, Select, Modal)
 ```
 
 ## Inicio rápido

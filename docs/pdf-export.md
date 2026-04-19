@@ -151,7 +151,7 @@ Visible **solo** en PDF (`hidden print:flex`):
 
 ### Información del cliente
 
-Siempre visible en PDF (`print:!block`), independientemente del estado del toggle:
+Siempre visible en PDF, independientemente del estado del toggle. El wrapper `.collapsible` se fuerza abierto con `print:!grid-rows-[1fr]`:
 - Nombre del cliente
 - Dirección de la vivienda
 - Fecha
@@ -159,7 +159,7 @@ Siempre visible en PDF (`print:!block`), independientemente del estado del toggl
 
 ### Partidas
 
-Siempre visibles en PDF (`print:!block`):
+Siempre visibles en PDF. El wrapper `.collapsible` se fuerza abierto con `print:!grid-rows-[1fr]`:
 - Se fuerza el layout de tabla desktop (`print:!block`)
 - Se ocultan las cards de móvil (`print:hidden`)
 - Columnas visibles: Descripción, Cantidad, Unidad, Precio, Importe
