@@ -3,6 +3,7 @@ import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
 import { Input } from '@/shared/ui';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { t } from '@/shared/i18n';
 
 export function BudgetHeader() {
   const budget = useActiveBudget();
@@ -37,45 +38,47 @@ export function BudgetHeader() {
           </div>
         </div>
       )}
-      <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">Presupuesto de Reforma</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">{t.header.title}</h1>
       <button
         onClick={() => setShowClientInfo((v) => !v)}
-        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50"
+        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
         aria-expanded={showClientInfo}
       >
         {showClientInfo ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        Información del cliente
+        {t.header.clientInfo}
       </button>
-      <div className={`${showClientInfo ? '' : 'hidden'} print:!block`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className={`collapsible ${showClientInfo ? 'open' : ''} print:!grid-rows-[1fr]`}>
+        <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Input
           id="clientName"
-          label="Nombre del cliente"
+          label={t.header.clientName}
           value={info.clientName}
           onChange={(e) => updateInfo({ clientName: e.target.value })}
-          placeholder="Nombre completo del cliente"
+          placeholder={t.header.clientNamePlaceholder}
         />
         <Input
           id="address"
-          label="Dirección de la vivienda"
+          label={t.header.address}
           value={info.address}
           onChange={(e) => updateInfo({ address: e.target.value })}
-          placeholder="Calle, número, piso..."
+          placeholder={t.header.addressPlaceholder}
         />
         <Input
           id="date"
-          label="Fecha"
+          label={t.header.date}
           type="date"
           value={info.date}
           onChange={(e) => updateInfo({ date: e.target.value })}
         />
         <Input
           id="budgetNumber"
-          label="Nº Presupuesto"
+          label={t.header.budgetNumber}
           value={info.budgetNumber}
           onChange={(e) => updateInfo({ budgetNumber: e.target.value })}
-          placeholder="Ej. 26038"
+          placeholder={t.header.budgetNumberPlaceholder}
         />
+        </div>
         </div>
       </div>
     </div>

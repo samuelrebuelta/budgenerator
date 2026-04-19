@@ -1,11 +1,40 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-blue-50: #eef2f9;
+  --color-blue-100: #d5deef;
+  --color-blue-200: #aebfe0;
+  --color-blue-300: #839dcf;
+  --color-blue-400: #5e7fbf;
+  --color-blue-500: #3d62ad;
+  --color-blue-600: #2f4e9e;
+  --color-blue-700: #263f80;
+}
+
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 @utility scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+.collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms ease-out;
+}
+.collapsible.open {
+  grid-template-rows: 1fr;
+}
+.collapsible > * {
+  overflow: hidden;
 }
 
 @custom-variant print {

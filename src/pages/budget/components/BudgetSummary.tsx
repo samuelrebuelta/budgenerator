@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { formatCurrency } from '@/shared/lib';
 import { Minus, Plus, X } from 'lucide-react';
+import { t } from '@/shared/i18n';
 
 export function BudgetSummary() {
   const getRawSubtotal = useBudgetStore((s) => s.getRawSubtotal);
@@ -54,12 +55,12 @@ export function BudgetSummary() {
   };
 
   return (
-    <div className="border-t border-gray-200 pt-4 mt-6">
+    <div className="border-t border-gray-200 pt-4 mt-6 section-break-avoid">
       <div className="flex flex-col items-end gap-1 text-sm">
         {/* Raw subtotal and adjustment (only in screen, not PDF) */}
         {hasAdjustment && (
           <div className="flex justify-between w-full max-w-72 no-print">
-            <span className="text-gray-600">Subtotal base:</span>
+            <span className="text-gray-600">{t.summary.rawSubtotal}</span>
             <span className="font-medium">{formatCurrency(rawSubtotal)}</span>
           </div>
         )}
@@ -68,7 +69,7 @@ export function BudgetSummary() {
         {hasAdjustment && (
           <div className="flex justify-between w-full max-w-72 no-print">
             <span className="text-gray-600">
-              {adjustmentPercent > 0 ? 'Recargo' : 'Descuento'}
+              {adjustmentPercent > 0 ? t.summary.surcharge : t.summary.discount}
               {adjustment.reason ? ` (${adjustment.reason})` : ''}
               {' '}{adjustmentPercent > 0 ? '+' : ''}{adjustmentPercent}%:
             </span>
@@ -79,20 +80,20 @@ export function BudgetSummary() {
         )}
         {hasAdjustment && (
           <p className="text-[10px] text-gray-400 italic w-full max-w-72 text-right no-print">
-            El cliente no verá este ajuste en el PDF
+            {t.summary.adjustmentHidden}
           </p>
         )}
 
         <div className="flex justify-between w-full max-w-72">
-          <span className="text-gray-600">Subtotal:</span>
+          <span className="text-gray-600">{t.summary.subtotal}</span>
           <span className="font-medium">{formatCurrency(subtotal)}</span>
         </div>
         <div className="flex justify-between w-full max-w-72">
-          <span className="text-gray-600">IVA (10%):</span>
+          <span className="text-gray-600">{t.summary.iva}</span>
           <span className="font-medium">{formatCurrency(iva)}</span>
         </div>
         <div className="flex justify-between w-full max-w-72 border-t border-gray-300 pt-2 mt-1">
-          <span className="text-gray-900 font-bold text-base">TOTAL:</span>
+          <span className="text-gray-900 font-bold text-base">{t.summary.total}</span>
           <span className="font-bold text-base text-blue-700">{formatCurrency(total)}</span>
         </div>
 
@@ -105,14 +106,14 @@ export function BudgetSummary() {
                 className="text-xs text-green-600 hover:text-green-800 cursor-pointer flex items-center gap-1"
               >
                 <Minus size={12} />
-                Añadir descuento
+                {t.summary.addDiscount}
               </button>
               <button
                 onClick={() => startEditing('recargo')}
                 className="text-xs text-red-600 hover:text-red-800 cursor-pointer flex items-center gap-1"
               >
                 <Plus size={12} />
-                Añadir recargo
+                {t.summary.addSurcharge}
               </button>
             </div>
           )}
@@ -123,7 +124,7 @@ export function BudgetSummary() {
               className="text-xs text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1"
             >
               <X size={12} />
-              Quitar {adjustmentPercent < 0 ? 'descuento' : 'recargo'}
+              {adjustmentPercent < 0 ? t.summary.removeDiscount : t.summary.removeSurcharge}
             </button>
           )}
 
@@ -131,7 +132,7 @@ export function BudgetSummary() {
             <div className="border border-gray-200 rounded-lg p-3 mt-1 bg-gray-50 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-700">
-                  {editingType === 'descuento' ? 'Nuevo descuento' : 'Nuevo recargo'}
+                  {editingType === 'descuento' ? t.summary.newDiscount : t.summary.newSurcharge}
                 </span>
                 <button onClick={() => setEditingType(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                   <X size={14} />
@@ -139,7 +140,7 @@ export function BudgetSummary() {
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500">Porcentaje</label>
+                  <label className="text-xs text-gray-500">{t.summary.percentage}</label>
                   <input
                     type="number"
                     min="1"
@@ -150,13 +151,13 @@ export function BudgetSummary() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-500">Motivo (opcional)</label>
+                  <label className="text-xs text-gray-500">{t.summary.reason}</label>
                   <input
                     type="text"
                     value={editReason}
                     onChange={(e) => setEditReason(e.target.value)}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                    placeholder="Ej. distancia, amistad..."
+                    placeholder={t.summary.reasonPlaceholder}
                   />
                 </div>
               </div>
@@ -168,7 +169,7 @@ export function BudgetSummary() {
                     : 'text-red-600 hover:text-red-800'
                 }`}
               >
-                Aplicar {editingType}
+                {editingType === 'descuento' ? t.summary.applyDiscount : t.summary.applySurcharge}
               </button>
             </div>
           )}
@@ -176,7 +177,7 @@ export function BudgetSummary() {
 
         {totalCost > 0 && (
           <div className="flex justify-between w-full max-w-72 border-t border-dashed border-gray-200 pt-2 mt-2 no-print">
-            <span className="text-gray-500 text-xs">Margen beneficio:</span>
+            <span className="text-gray-500 text-xs">{t.summary.profitMargin}</span>
             <span className={`text-xs font-semibold ${marginAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
               {formatCurrency(marginAmount)} ({marginPercent.toFixed(1)}%)
             </span>

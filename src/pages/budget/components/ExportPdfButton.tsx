@@ -1,5 +1,6 @@
 import { Printer } from 'lucide-react';
 import { Button } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 export function ExportPdfButton() {
   return (
@@ -9,7 +10,7 @@ export function ExportPdfButton() {
       className="no-print"
     >
       <Printer size={16} />
-      Exportar PDF
+      {t.export.button}
     </Button>
   );
 }

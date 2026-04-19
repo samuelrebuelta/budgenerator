@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { Button } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 interface AddRowButtonProps {
   sectionId: string;
@@ -16,7 +17,7 @@ export function AddRowButton({ sectionId }: AddRowButtonProps) {
       className="text-xs no-print"
     >
       <Plus size={14} />
-      Añadir fila
+      {t.editor.addRow}
     </Button>
   );
 }

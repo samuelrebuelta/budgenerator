@@ -7,7 +7,9 @@ import { AddSectionButton } from './components/AddSectionButton';
 import { ExportPdfButton } from './components/ExportPdfButton';
 import { useBudgetStore } from '@/entities/budget';
 import { Button } from '@/shared/ui';
+import { Modal } from '@/shared/ui';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { t } from '@/shared/i18n';
 
 export function BudgetPage() {
   const { budgetId } = useParams<{ budgetId: string }>();
@@ -55,7 +57,7 @@ export function BudgetPage() {
   useEffect(() => {
     if (blocker.state === 'blocked') {
       const confirmed = window.confirm(
-        'Hay cambios sin guardar. ¿Deseas salir sin guardar?',
+        t.budget.unsavedChanges,
       );
       if (confirmed) {
         discardDraft();
@@ -105,7 +107,7 @@ export function BudgetPage() {
   if (!isDraft && !budgetsLoaded) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500">Cargando...</div>
+        <div className="text-gray-500">{t.common.loading}</div>
       </div>
     );
   }
@@ -121,12 +123,12 @@ export function BudgetPage() {
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 px-4 pt-4 sm:px-0 sm:pt-0 no-print cursor-pointer"
         >
           <ArrowLeft size={14} />
-          Volver a presupuestos
+          {t.budget.backToBudgets}
         </button>
 
         {isDraft && (
           <div className="mb-4 mx-4 sm:mx-0 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 no-print">
-            Borrador — Este presupuesto no se guardará hasta que pulses <strong>Guardar</strong>.
+            {t.budget.draftBanner} <strong>{t.budget.draftBannerBold}</strong>.
           </div>
         )}
 
@@ -136,18 +138,20 @@ export function BudgetPage() {
 
           <button
             onClick={() => setShowPartidas((v) => !v)}
-            className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50"
+            className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
             aria-expanded={showPartidas}
           >
             {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            Partidas
+            {t.budget.sections}
           </button>
 
-          <div className={`${showPartidas ? '' : 'hidden'} print:!block`}>
-            <BudgetEditor />
+          <div className={`collapsible ${showPartidas ? 'open' : ''} print:!grid-rows-[1fr]`}>
+            <div>
+              <BudgetEditor />
 
-            <div className="mt-4 flex items-center gap-3 no-print">
-              <AddSectionButton />
+              <div className="mt-4 flex items-center gap-3 no-print">
+                <AddSectionButton />
+              </div>
             </div>
           </div>
 
@@ -159,18 +163,18 @@ export function BudgetPage() {
               <>
                 <Button variant="danger" onClick={handleDiscard}>
                   <X size={16} />
-                  Descartar
+                  {t.budget.discard}
                 </Button>
                 <Button onClick={handleSave}>
                   <Save size={16} />
-                  Guardar presupuesto
+                  {t.budget.saveBudget}
                 </Button>
               </>
             ) : (
               <>
                 <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
                   <Trash2 size={16} />
-                  Borrar presupuesto
+                  {t.budget.deleteBudget}
                 </Button>
                 <ExportPdfButton />
               </>
@@ -179,34 +183,29 @@ export function BudgetPage() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Borrar presupuesto?</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Se eliminará el presupuesto de forma permanente. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={async () => {
-                  if (budgetId && budgetId !== 'new') {
-                    await deleteBudget(budgetId);
-                  }
-                  setShowDeleteConfirm(false);
-                  navigate('/', { replace: true });
-                }}
-              >
-                Borrar
-              </Button>
-            </div>
-          </div>
+      <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.budget.deleteConfirmTitle}</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          {t.budget.deleteConfirmMessage}
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (budgetId && budgetId !== 'new') {
+                await deleteBudget(budgetId);
+              }
+              setShowDeleteConfirm(false);
+              navigate('/', { replace: true });
+            }}
+          >
+            {t.common.delete}
+          </Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

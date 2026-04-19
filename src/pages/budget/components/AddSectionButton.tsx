@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { Button } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 export function AddSectionButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,7 +43,7 @@ export function AddSectionButton() {
     return (
       <Button variant="secondary" onClick={() => setIsOpen(true)} className="no-print">
         <Plus size={16} />
-        Añadir partida
+        {t.addSection.button}
       </Button>
     );
   }
@@ -59,7 +60,7 @@ export function AddSectionButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Del catálogo
+          {t.addSection.fromCatalog}
         </button>
         <button
           onClick={() => setMode('custom')}
@@ -69,7 +70,7 @@ export function AddSectionButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          Personalizada
+          {t.addSection.custom}
         </button>
       </div>
 
@@ -88,26 +89,26 @@ export function AddSectionButton() {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">Todas las categorías ya están añadidas</p>
+            <p className="text-xs text-gray-400">{t.addSection.allAdded}</p>
           )}
         </div>
       ) : (
         <div className="flex items-end gap-2">
           <input
-            placeholder="Nombre de partida personalizada"
+            placeholder={t.addSection.customPlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             autoFocus
             className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
           />
-          <Button onClick={handleAdd}>Añadir</Button>
+          <Button onClick={handleAdd}>{t.common.add}</Button>
         </div>
       )}
 
       <div className="flex justify-end">
         <Button variant="ghost" onClick={() => { setIsOpen(false); setName(''); setMode('catalog'); }}>
-          Cancelar
+          {t.common.cancel}
         </Button>
       </div>
     </div>

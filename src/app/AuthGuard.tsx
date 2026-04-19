@@ -4,6 +4,7 @@ import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore, setBudgetAuthGetter } from '@/entities/budget';
 import { useTariffStore, setTariffAuthGetter } from '@/entities/tariff';
 import { useProfileStore, setProfileAuthGetter } from '@/entities/profile';
+import { t } from '@/shared/i18n';
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -29,7 +30,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500">Cargando...</div>
+        <div className="text-gray-500">{t.common.loading}</div>
       </div>
     );
   }

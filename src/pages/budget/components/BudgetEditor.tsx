@@ -7,6 +7,8 @@ import { UNIT_LABELS } from '@/shared/types';
 import type { Unit, BudgetRow as BudgetRowType } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Button } from '@/shared/ui';
+import { Modal } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 /* ── Memoized Row (desktop table) ── */
 const DesktopRow = memo(function DesktopRow({
@@ -26,12 +28,12 @@ const DesktopRow = memo(function DesktopRow({
   return (
     <tr className="hover:bg-gray-50/50">
       <td className="px-2 sm:px-4 py-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <input
             value={row.description}
             onChange={(e) => updateRow(sectionId, row.id, { description: e.target.value })}
-            placeholder="Descripción"
-            className="w-full bg-transparent border-none outline-none text-sm"
+            placeholder={t.common.description}
+            className="w-full bg-transparent border-none outline-none text-sm min-w-0"
           />
           <TariffSelector sectionId={sectionId} rowId={row.id} sectionName={sectionName} />
         </div>
@@ -119,7 +121,7 @@ const MobileRow = memo(function MobileRow({
         <input
           value={row.description}
           onChange={(e) => updateRow(sectionId, row.id, { description: e.target.value })}
-          placeholder="Descripción"
+          placeholder={t.common.description}
           className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
         />
         <TariffSelector sectionId={sectionId} rowId={row.id} sectionName={sectionName} />
@@ -132,7 +134,7 @@ const MobileRow = memo(function MobileRow({
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <label className="text-[10px] text-gray-500 uppercase">Cant.</label>
+          <label className="text-[10px] text-gray-500 uppercase">{t.editor.quantity}</label>
           <input
             type="number"
             min={0}
@@ -144,7 +146,7 @@ const MobileRow = memo(function MobileRow({
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 uppercase">Ud.</label>
+          <label className="text-[10px] text-gray-500 uppercase">{t.common.unit}</label>
           <select
             value={row.unit}
             onChange={(e) => updateRow(sectionId, row.id, { unit: e.target.value as Unit })}
@@ -156,7 +158,7 @@ const MobileRow = memo(function MobileRow({
           </select>
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 uppercase">Precio</label>
+          <label className="text-[10px] text-gray-500 uppercase">{t.editor.price}</label>
           <input
             type="number"
             min={0}
@@ -169,7 +171,7 @@ const MobileRow = memo(function MobileRow({
         </div>
       </div>
       <div className="flex justify-between items-center pt-1 border-t border-gray-100 text-sm">
-        <span className="text-gray-500 text-xs">Importe</span>
+        <span className="text-gray-500 text-xs">{t.editor.amount}</span>
         <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span>
       </div>
     </div>
@@ -188,8 +190,8 @@ export function BudgetEditor() {
   if (sections.length === 0) {
     return (
       <div className="py-12 text-center text-gray-400">
-        <p className="text-lg">Sin partidas</p>
-        <p className="text-sm mt-1">Añade una partida para empezar a crear tu presupuesto</p>
+        <p className="text-lg">{t.editor.emptySections}</p>
+        <p className="text-sm mt-1">{t.editor.emptySectionsHint}</p>
       </div>
     );
   }
@@ -210,7 +212,7 @@ export function BudgetEditor() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                Subtotal: {formatCurrency(getSectionSubtotal(section.id))}
+                {t.editor.subtotal}: {formatCurrency(getSectionSubtotal(section.id))}
               </span>
               <Button
                 variant="danger"
@@ -227,12 +229,12 @@ export function BudgetEditor() {
             <table className="w-full text-sm print:min-w-0">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-2 w-[36%]">Descripción</th>
-                  <th className="px-4 py-2 w-[10%] text-right">Cant.</th>
-                  <th className="px-4 py-2 w-[10%] text-center">Ud.</th>
-                  <th className="px-4 py-2 w-[12%] text-right">Precio</th>
-                  <th className="px-4 py-2 w-[12%] text-right">Importe</th>
-                  <th className="px-4 py-2 w-[12%] text-right no-print">Margen</th>
+                  <th className="px-4 py-2 w-[36%]">{t.common.description}</th>
+                  <th className="px-4 py-2 w-[10%] text-right">{t.editor.quantity}</th>
+                  <th className="px-4 py-2 w-[10%] text-center">{t.common.unit}</th>
+                  <th className="px-4 py-2 w-[12%] text-right">{t.editor.price}</th>
+                  <th className="px-4 py-2 w-[12%] text-right">{t.editor.amount}</th>
+                  <th className="px-4 py-2 w-[12%] text-right no-print">{t.common.margin}</th>
                   <th className="px-4 py-2 w-[8%] text-center no-print"></th>
                 </tr>
               </thead>
@@ -258,30 +260,26 @@ export function BudgetEditor() {
         </div>
       ))}
 
-      {deletingSectionId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Eliminar partida?</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Se eliminarán todas las filas de esta partida. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setDeletingSectionId(null)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  removeSection(deletingSectionId);
-                  setDeletingSectionId(null);
-                }}
-              >
-                Eliminar
-              </Button>
-            </div>
-          </div>
+      <Modal open={!!deletingSectionId} onClose={() => setDeletingSectionId(null)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.editor.deleteSectionTitle}</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          {t.editor.deleteSectionMessage}
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="secondary" onClick={() => setDeletingSectionId(null)}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              removeSection(deletingSectionId!);
+              setDeletingSectionId(null);
+            }}
+          >
+            {t.common.delete}
+          </Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

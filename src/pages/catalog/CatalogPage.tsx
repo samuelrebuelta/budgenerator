@@ -5,6 +5,8 @@ import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
 import { Button } from '@/shared/ui';
+import { Modal } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 export function CatalogPage() {
   const tariffs = useTariffStore((s) => s.tariffs);
@@ -106,20 +108,20 @@ export function CatalogPage() {
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
         >
           <ArrowLeft size={14} />
-          Volver a presupuestos
+          {t.common.back}
         </button>
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Catálogo de tarifas</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t.catalog.title}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {tariffs.length} conceptos · {grouped.length} categorías
+              {t.catalog.stats(tariffs.length, grouped.length)}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} />
-              <span className="hidden sm:inline">Añadir concepto</span>
+              <span className="hidden sm:inline">{t.catalog.addConcept}</span>
             </Button>
           </div>
         </div>
@@ -127,25 +129,25 @@ export function CatalogPage() {
         {/* Add form */}
         {showAdd && (
           <div className="bg-white rounded-lg border border-blue-200 p-4 mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Nuevo concepto</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t.catalog.newConcept}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-gray-600">Descripción</label>
+                <label className="text-xs font-medium text-gray-600">{t.common.description}</label>
                 <input
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder="Ej. Instalación de tarima"
+                  placeholder={t.catalog.descriptionPlaceholder}
                   autoFocus
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">Categoría</label>
+                <label className="text-xs font-medium text-gray-600">{t.catalog.category}</label>
                 <input
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder="Selecciona o escribe"
+                  placeholder={t.catalog.categoryPlaceholder}
                   list="new-categories"
                 />
                 <datalist id="new-categories">
@@ -155,7 +157,7 @@ export function CatalogPage() {
                 </datalist>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">Ud.</label>
+                <label className="text-xs font-medium text-gray-600">{t.common.unit}</label>
                 <select
                   value={newUnit}
                   onChange={(e) => setNewUnit(e.target.value as Unit)}
@@ -167,7 +169,7 @@ export function CatalogPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">Coste</label>
+                <label className="text-xs font-medium text-gray-600">{t.common.cost}</label>
                 <input
                   type="number"
                   min={0}
@@ -175,11 +177,11 @@ export function CatalogPage() {
                   value={newCost}
                   onChange={(e) => setNewCost(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder="0.00"
+                  placeholder={t.catalog.costPlaceholder}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">PVP</label>
+                <label className="text-xs font-medium text-gray-600">{t.common.pvp}</label>
                 <input
                   type="number"
                   min={0}
@@ -187,13 +189,13 @@ export function CatalogPage() {
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder="0.00"
+                  placeholder={t.catalog.pricePlaceholder}
                 />
               </div>
             </div>
             <div className="mt-3 flex gap-2">
-              <Button onClick={handleAdd}>Añadir</Button>
-              <Button variant="ghost" onClick={() => setShowAdd(false)}>Cancelar</Button>
+              <Button onClick={handleAdd}>{t.common.add}</Button>
+              <Button variant="ghost" onClick={() => setShowAdd(false)}>{t.common.cancel}</Button>
             </div>
           </div>
         )}
@@ -205,17 +207,17 @@ export function CatalogPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por descripción o categoría..."
+              placeholder={t.catalog.search}
               className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </div>
           <div className="flex gap-1">
             <button onClick={expandAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              Expandir todo
+              {t.catalog.expandAll}
             </button>
             <span className="text-gray-300">|</span>
             <button onClick={collapseAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              Colapsar todo
+              {t.catalog.collapseAll}
             </button>
           </div>
         </div>
@@ -274,16 +276,16 @@ export function CatalogPage() {
                   </button>
 
                   {/* Category items */}
-                  {!isCollapsed && (
+                  <div className={`collapsible ${!isCollapsed ? 'open' : ''}`}>
                     <div className="overflow-x-auto scrollbar-none">
                     <table className="w-full text-sm min-w-[560px]">
                       <thead>
                         <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                          <th className="px-4 py-2 w-[40%]">Descripción</th>
-                          <th className="px-4 py-2 w-[10%] text-center">Ud.</th>
-                          <th className="px-4 py-2 w-[13%] text-right">Coste</th>
-                          <th className="px-4 py-2 w-[13%] text-right">PVP</th>
-                          <th className="px-4 py-2 w-[13%] text-right">Margen</th>
+                          <th className="px-4 py-2 w-[40%]">{t.common.description}</th>
+                          <th className="px-4 py-2 w-[10%] text-center">{t.common.unit}</th>
+                          <th className="px-4 py-2 w-[13%] text-right">{t.common.cost}</th>
+                          <th className="px-4 py-2 w-[13%] text-right">{t.common.pvp}</th>
+                          <th className="px-4 py-2 w-[13%] text-right">{t.common.margin}</th>
                           <th className="px-4 py-2 w-[6%]"></th>
                         </tr>
                       </thead>
@@ -352,7 +354,7 @@ export function CatalogPage() {
                       </tbody>
                     </table>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -360,7 +362,7 @@ export function CatalogPage() {
 
         {grouped.length === 0 && search && (
           <div className="text-center py-12 text-gray-500">
-            <p className="text-sm">Sin resultados para "{search}"</p>
+            <p className="text-sm">{t.catalog.noResults(search)}</p>
           </div>
         )}
 
@@ -368,36 +370,31 @@ export function CatalogPage() {
         <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
           <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
             <RotateCcw size={14} />
-            Restaurar catálogo por defecto
+            {t.catalog.resetDefaults}
           </Button>
         </div>
       </div>
 
-      {/* Reset confirmation modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Restaurar catálogo?</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={async () => {
-                  await resetToDefaults();
-                  setShowResetConfirm(false);
-                }}
-              >
-                Restaurar
-              </Button>
-            </div>
-          </div>
+      <Modal open={showResetConfirm} onClose={() => setShowResetConfirm(false)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.catalog.resetConfirmTitle}</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          {t.catalog.resetConfirmMessage}
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              await resetToDefaults();
+              setShowResetConfirm(false);
+            }}
+          >
+            {t.catalog.reset}
+          </Button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

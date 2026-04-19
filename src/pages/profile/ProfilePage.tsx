@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { Button, Input } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 export function ProfilePage() {
   const profile = useProfileStore((s) => s.profile);
@@ -28,7 +29,7 @@ export function ProfilePage() {
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
     if (file.size > 500 * 1024) {
-      alert('El logo no puede superar 500KB');
+      alert(t.profile.logoTooLarge);
       return;
     }
     setUploading(true);
@@ -53,15 +54,15 @@ export function ProfilePage() {
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
         >
           <ArrowLeft size={14} />
-          Volver a presupuestos
+          {t.common.back}
         </button>
 
         <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Datos de empresa</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t.profile.title}</h1>
 
           {/* Logo */}
           <div className="mb-6">
-            <label className="text-sm font-medium text-gray-700 block mb-2">Logo</label>
+            <label className="text-sm font-medium text-gray-700 block mb-2">{t.profile.logo}</label>
             {profile.logo ? (
               <div className="flex items-center gap-4">
                 <img
@@ -75,7 +76,7 @@ export function ProfilePage() {
                   className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
                 >
                   <Trash2 size={14} />
-                  Eliminar
+                  {t.profile.removeLogo}
                 </button>
               </div>
             ) : (
@@ -93,7 +94,7 @@ export function ProfilePage() {
                   className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors disabled:opacity-50"
                 >
                   <Upload size={16} />
-                  {uploading ? 'Subiendo...' : 'Subir logo (max 500KB)'}
+                  {uploading ? t.profile.uploading : t.profile.uploadLogo}
                 </button>
               </div>
             )}
@@ -102,46 +103,46 @@ export function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               id="companyName"
-              label="Nombre de la empresa"
+              label={t.profile.companyName}
               value={profile.name}
               onChange={(e) => updateProfile({ name: e.target.value })}
-              placeholder="Mi Empresa S.L."
+              placeholder={t.profile.companyNamePlaceholder}
             />
             <Input
               id="cif"
-              label="CIF / NIF"
+              label={t.profile.cif}
               value={profile.cif}
               onChange={(e) => updateProfile({ cif: e.target.value })}
-              placeholder="B12345678"
+              placeholder={t.profile.cifPlaceholder}
             />
             <Input
               id="companyAddress"
-              label="Dirección"
+              label={t.profile.address}
               value={profile.address}
               onChange={(e) => updateProfile({ address: e.target.value })}
-              placeholder="Calle, número, CP, ciudad"
+              placeholder={t.profile.addressPlaceholder}
             />
             <Input
               id="phone"
-              label="Teléfono"
+              label={t.profile.phone}
               type="tel"
               value={profile.phone}
               onChange={(e) => updateProfile({ phone: e.target.value })}
-              placeholder="600 123 456"
+              placeholder={t.profile.phonePlaceholder}
             />
             <Input
               id="companyEmail"
-              label="Email"
+              label={t.profile.email}
               type="email"
               value={profile.email}
               onChange={(e) => updateProfile({ email: e.target.value })}
-              placeholder="info@miempresa.com"
+              placeholder={t.profile.emailPlaceholder}
             />
           </div>
 
           <div className="mt-8 flex justify-end">
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? t.common.saving : t.common.save}
             </Button>
           </div>
         </div>

@@ -4,14 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X } from 'lucide-react';
+import { t } from '@/shared/i18n';
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
     const checks = [
-      { label: 'Mínimo 6 caracteres', met: password.length >= 6 },
-      { label: 'Una letra mayúscula', met: /[A-Z]/.test(password) },
-      { label: 'Una letra minúscula', met: /[a-z]/.test(password) },
-      { label: 'Un número', met: /\d/.test(password) },
+      { label: t.login.passwordMinLength, met: password.length >= 6 },
+      { label: t.login.passwordUppercase, met: /[A-Z]/.test(password) },
+      { label: t.login.passwordLowercase, met: /[a-z]/.test(password) },
+      { label: t.login.passwordNumber, met: /\d/.test(password) },
     ];
     const score = checks.filter((c) => c.met).length;
     return { checks, score };
@@ -63,26 +64,26 @@ export function LoginPage() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Budgenerator</h1>
-          <p className="text-sm text-gray-500 mt-2">Generador de presupuestos de reformas</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t.login.title}</h1>
+          <p className="text-sm text-gray-500 mt-2">{t.login.subtitle}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
+            {isRegister ? t.login.signUp : t.login.signIn}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                {t.login.email}
               </label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@empresa.com"
+                placeholder={t.login.emailPlaceholder}
                 required
                 autoComplete="email"
               />
@@ -90,14 +91,14 @@ export function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
+                {t.login.password}
               </label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t.login.passwordPlaceholder}
                 required
                 minLength={6}
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
@@ -147,7 +148,7 @@ export function LoginPage() {
 
             <Button type="submit" className="w-full justify-center" disabled={loading || (isRegister && !allChecksMet)}>
               {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
-              {isRegister ? 'Registrarse' : 'Entrar'}
+              {isRegister ? t.login.register : t.login.enter}
             </Button>
           </form>
 
@@ -158,8 +159,8 @@ export function LoginPage() {
               className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
             >
               {isRegister
-                ? '¿Ya tienes cuenta? Inicia sesión'
-                : '¿No tienes cuenta? Regístrate'}
+                ? t.login.hasAccount
+                : t.login.noAccount}
             </button>
           </div>
         </div>

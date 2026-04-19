@@ -1,6 +1,8 @@
 import { memo, useMemo } from 'react';
+import { ListPlus } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
+import { t } from '@/shared/i18n';
 
 interface TariffSelectorProps {
   sectionId: string;
@@ -52,31 +54,36 @@ export const TariffSelector = memo(function TariffSelector({ sectionId, rowId, s
   };
 
   return (
-    <select
-      onChange={handleSelect}
-      defaultValue=""
-      className="shrink-0 w-9 rounded border border-dashed border-blue-300 bg-blue-50 px-1.5 py-1 text-xs text-blue-600 outline-none cursor-pointer appearance-none text-center no-print"
-    >
-      <option value="" disabled>
-        📋
-      </option>
-      {matched ? (
-        grouped[0]?.[1].map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.description} — {t.basePrice}€/{t.unit}
-          </option>
-        ))
-      ) : (
-        grouped.map(([cat, items]) => (
-          <optgroup key={cat} label={cat}>
-            {items.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.description} — {t.basePrice}€/{t.unit}
-              </option>
-            ))}
-          </optgroup>
-        ))
-      )}
-    </select>
+    <div className="relative shrink-0 no-print">
+      <select
+        onChange={handleSelect}
+        defaultValue=""
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      >
+        <option value="" disabled>
+          {t.tariffSelector.placeholder}
+        </option>
+        {matched ? (
+          grouped[0]?.[1].map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.description} — {t.basePrice}€/{t.unit}
+            </option>
+          ))
+        ) : (
+          grouped.map(([cat, items]) => (
+            <optgroup key={cat} label={cat}>
+              {items.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.description} — {t.basePrice}€/{t.unit}
+                </option>
+              ))}
+            </optgroup>
+          ))
+        )}
+      </select>
+      <div className="flex items-center rounded-md border border-gray-300 bg-gray-50 text-gray-500 p-1.5 pointer-events-none hover:bg-gray-100 hover:text-gray-700 transition-colors">
+        <ListPlus size={14} />
+      </div>
+    </div>
   );
 });

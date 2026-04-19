@@ -1,15 +1,18 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Settings, LogOut, Building2 } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useAuthStore } from '@/entities/auth';
 import { formatCurrency } from '@/shared/lib';
-import { Button } from '@/shared/ui';
+import { Button, Modal } from '@/shared/ui';
+import { t } from '@/shared/i18n';
 
 export function BudgetListPage() {
   const budgets = useBudgetStore((s) => s.budgets);
   const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
   const signOut = useAuthStore((s) => s.signOut);
   const navigate = useNavigate();
+  const [showLogout, setShowLogout] = useState(false);
 
   const handleCreate = () => {
     navigate('/budget/new');
@@ -24,28 +27,28 @@ export function BudgetListPage() {
       <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Presupuestos</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t.budgetList.title}</h1>
             <p className="text-sm text-gray-500 mt-1">
               {budgets.length === 0
-                ? 'No hay presupuestos aún'
-                : `${budgets.length} presupuesto${budgets.length !== 1 ? 's' : ''}`}
+                ? t.budgetList.empty
+                : t.budgetList.count(budgets.length)}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="secondary" onClick={signOut} title="Cerrar sesión">
+            <Button variant="secondary" onClick={() => setShowLogout(true)} title={t.budgetList.signOut}>
               <LogOut size={16} />
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/profile')} title="Datos de empresa">
+            <Button variant="secondary" onClick={() => navigate('/profile')} title={t.profile.title}>
               <Building2 size={16} />
-              <span className="hidden sm:inline">Empresa</span>
+              <span className="hidden sm:inline">{t.budgetList.company}</span>
             </Button>
             <Button variant="secondary" onClick={() => navigate('/catalog')}>
               <Settings size={16} />
-              <span className="hidden sm:inline">Catálogo</span>
+              <span className="hidden sm:inline">{t.budgetList.catalog}</span>
             </Button>
             <Button onClick={handleCreate}>
               <Plus size={16} />
-              <span className="hidden sm:inline">Nuevo presupuesto</span>
+              <span className="hidden sm:inline">{t.budgetList.newBudget}</span>
             </Button>
           </div>
         </div>
@@ -53,13 +56,13 @@ export function BudgetListPage() {
         {budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-lg text-gray-500">Sin presupuestos</p>
+            <p className="text-lg text-gray-500">{t.budgetList.emptyTitle}</p>
             <p className="text-sm text-gray-400 mt-1">
-              Crea tu primer presupuesto para empezar
+              {t.budgetList.emptySubtitle}
             </p>
             <Button onClick={handleCreate} className="mt-6">
               <Plus size={16} />
-              Crear presupuesto
+              {t.budgetList.createBudget}
             </Button>
           </div>
         ) : (
@@ -86,17 +89,17 @@ export function BudgetListPage() {
                     </div>
                     <div className="min-w-0 overflow-hidden">
                       <p className="font-semibold text-gray-900 truncate">
-                        {budget.info.clientName || 'Sin nombre'}
+                        {budget.info.clientName || t.budgetList.noName}
                       </p>
                       {budget.info.address && (
                         <p className="text-xs text-gray-400 truncate overflow-hidden text-ellipsis whitespace-nowrap">{budget.info.address}</p>
                       )}
                       <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
                         {budget.info.budgetNumber && (
-                          <span>Nº {budget.info.budgetNumber}</span>
+                          <span>{t.budgetList.budgetNumber(budget.info.budgetNumber)}</span>
                         )}
                         <span>{date}</span>
-                        <span>{budget.sections.length} partida{budget.sections.length !== 1 ? 's' : ''}</span>
+                        <span>{t.budgetList.sections(budget.sections.length)}</span>
                       </div>
                     </div>
                   </div>
@@ -112,6 +115,19 @@ export function BudgetListPage() {
           </div>
         )}
       </div>
+
+      <Modal open={showLogout} onClose={() => setShowLogout(false)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.budgetList.logoutConfirmTitle}</h3>
+        <p className="text-sm text-gray-600 mb-6">{t.budgetList.logoutConfirmMessage}</p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="secondary" onClick={() => setShowLogout(false)}>
+            {t.common.cancel}
+          </Button>
+          <Button variant="danger" onClick={signOut}>
+            {t.budgetList.signOut}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
