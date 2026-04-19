@@ -32,6 +32,7 @@ export function CatalogPage() {
   const [newPrice, setNewPrice] = useState('');
   const [newCost, setNewCost] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
@@ -58,6 +59,7 @@ export function CatalogPage() {
     setNewPrice('');
     setNewCost('');
     setNewCategory('');
+    setIsCustomCategory(false);
     setShowAdd(false);
   };
 
@@ -150,27 +152,46 @@ export function CatalogPage() {
                   autoFocus
                 />
               </div>
-              <div>
+              <div className={isCustomCategory ? '' : 'sm:col-span-1'}>
                 <label className="text-xs font-medium text-gray-600">{t.catalog.category}</label>
-                <input
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder={t.catalog.categoryPlaceholder}
-                  list="new-categories"
-                />
-                <datalist id="new-categories">
+                <select
+                  value={isCustomCategory ? '__custom__' : newCategory}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomCategory(true);
+                      setNewCategory('');
+                    } else {
+                      setIsCustomCategory(false);
+                      setNewCategory(e.target.value);
+                    }
+                  }}
+                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">{t.catalog.categoryPlaceholder}</option>
                   {allCategories.map((c) => (
-                    <option key={c} value={c} />
+                    <option key={c} value={c}>{c}</option>
                   ))}
-                </datalist>
+                  <option value="__custom__">{t.addSection.custom}</option>
+                </select>
               </div>
+              {isCustomCategory && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600">{t.addSection.custom}</label>
+                  <input
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                    placeholder={t.addSection.customPlaceholder}
+                    autoFocus
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-xs font-medium text-gray-600">{t.common.unit}</label>
                 <select
                   value={newUnit}
                   onChange={(e) => setNewUnit(e.target.value as Unit)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
                   {Object.entries(UNIT_LABELS).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
