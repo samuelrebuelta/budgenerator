@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { Button, Input, Modal } from '@/shared/ui';
+import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
 
 export function ProfilePage() {
@@ -46,7 +47,9 @@ export function ProfilePage() {
     setUploading(false);
   };
 
-  if (!loaded) return null;
+  if (!loaded) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-white sm:bg-gray-100">

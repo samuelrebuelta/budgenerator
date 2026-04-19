@@ -48,7 +48,7 @@ export const es = {
     createBudget: 'Crear presupuesto',
     noName: 'Sin nombre',
     budgetNumber: (n: string) => `Nº ${n}`,
-    sections: (n: number) => `${n} partida${n !== 1 ? 's' : ''}`,
+    workItems: (n: number) => `${n} partida${n !== 1 ? 's' : ''}`,
     signOut: 'Cerrar sesión',
     logoutConfirmTitle: '¿Cerrar sesión?',
     logoutConfirmMessage: 'Tendrás que volver a iniciar sesión para acceder a tus presupuestos.',
@@ -59,7 +59,7 @@ export const es = {
     backToBudgets: 'Volver a presupuestos',
     draftBanner: 'Borrador — Este presupuesto no se guardará hasta que pulses',
     draftBannerBold: 'Guardar',
-    sections: 'Partidas',
+    workItems: 'Partidas',
     discard: 'Descartar',
     saveBudget: 'Guardar presupuesto',
     deleteBudget: 'Borrar presupuesto',
@@ -83,14 +83,14 @@ export const es = {
 
   // Budget editor
   editor: {
-    emptySections: 'Sin partidas',
-    emptySectionsHint: 'Añade una partida para empezar a crear tu presupuesto',
+    emptyWorkItems: 'Sin partidas',
+    emptyWorkItemsHint: 'Añade una partida para empezar a crear tu presupuesto',
     quantity: 'Cant.',
     price: 'Precio',
     amount: 'Importe',
-    addRow: 'Añadir fila',
-    deleteSectionTitle: '¿Eliminar partida?',
-    deleteSectionMessage: 'Se eliminarán todas las filas de esta partida. Esta acción no se puede deshacer.',
+    addTask: 'Añadir concepto',
+    deleteWorkItemTitle: '¿Eliminar partida?',
+    deleteWorkItemMessage: 'Se eliminarán todos los conceptos de esta partida. Esta acción no se puede deshacer.',
     subtotal: 'Subtotal',
   },
 
@@ -100,7 +100,7 @@ export const es = {
     surcharge: 'Recargo',
     discount: 'Descuento',
     adjustmentHidden: 'El cliente no verá este ajuste en el PDF',
-    surchargeInRows: 'El recargo se aplica en cada fila',
+    surchargeInTasks: 'El recargo se aplica en cada concepto',
     adjustedSubtotal: 'Subtotal con descuento:',
     subtotal: 'Subtotal:',
     iva: 'IVA (10%):',
@@ -120,7 +120,7 @@ export const es = {
   },
 
   // Add section
-  addSection: {
+  addWorkItem: {
     button: 'Añadir partida',
     fromCatalog: 'Del catálogo',
     custom: 'Personalizada',
@@ -144,8 +144,8 @@ export const es = {
     title: 'Catálogo de tarifas',
     stats: (concepts: number, categories: number) =>
       `${concepts} conceptos · ${categories} categorías`,
-    addConcept: 'Añadir concepto',
-    newConcept: 'Nuevo concepto',
+    addTask: 'Añadir concepto',
+    newTask: 'Nuevo concepto',
     category: 'Categoría',
     categoryPlaceholder: 'Selecciona o escribe',
     costPlaceholder: '0.00',

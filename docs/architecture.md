@@ -102,10 +102,10 @@ pages/budget/
 ├── index.ts
 └── components/
     ├── BudgetHeader.tsx      → Info cliente + datos empresa (print)
-    ├── BudgetEditor.tsx      → Tabla/cards de partidas y filas (usa EditableRow)
+    ├── BudgetEditor.tsx      → Tabla/cards de partidas y conceptos (usa EditableRow)
     ├── BudgetSummary.tsx     → Subtotales, IVA, total, descuentos/recargos
-    ├── AddSectionButton.tsx  → Selector de categoría para nueva partida
-    ├── AddRowButton.tsx      → Botón para añadir fila (deshabilitado si hay borrador)
+    ├── AddWorkItemButton.tsx → Selector de categoría para nueva partida
+    ├── AddTaskButton.tsx     → Botón para añadir fila (deshabilitado si hay borrador)
     ├── TariffSelector.tsx    → Dropdown para aplicar tarifa a una fila
     └── ExportPdfButton.tsx   → Botón de impresión/exportación PDF
 ```

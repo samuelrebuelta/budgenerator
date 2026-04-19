@@ -11,35 +11,35 @@ La aplicación prioriza la percepción de velocidad del usuario:
 
 ## Memoización de componentes
 
-### Filas del presupuesto
+### Conceptos del presupuesto
 
-Las filas son los componentes más repetidos y re-renderizados. Están envueltas en `React.memo` via el componente `BudgetRowItem`:
+Los conceptos son los componentes más repetidos y re-renderizados. Están envueltas en `React.memo` via el componente `BudgetTaskItem`:
 
 ```typescript
-const BudgetRowItem = memo(function BudgetRowItem({ sectionId, row, sectionName }: Props) {
+const BudgetTaskItem = memo(function BudgetTaskItem({ workItemId, task, workItemName }: Props) {
   // Suscripción al multiplicador de ajuste para forzar re-render al cambiar recargo
   const _mult = useBudgetStore((s) => {
     const b = s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
     return b?.adjustment?.multiplier ?? 1;
   });
   void _mult;
-  // Solo se re-renderiza si sectionId, row, sectionName o multiplier cambian
+  // Solo se re-renderiza si workItemId, row, workItemName o multiplier cambian
 });
 ```
 
-**Impacto**: Sin memo, editar una fila re-renderizaría todas las filas de todas las secciones. Con memo, solo se re-renderiza la fila editada. La suscripción explícita al `multiplier` asegura que al añadir/quitar un recargo, todas las filas se actualizan.
+**Impacto**: Sin memo, editar un concepto re-renderizaría todos los conceptos de todas las secciones. Con memo, solo se re-renderiza el concepto editado. La suscripción explícita al `multiplier` asegura que al añadir/quitar un recargo, todas las filas se actualizan.
 
 ### TariffSelector
 
 El selector de tarifas agrupa y ordena las tarifas cada vez que se renderiza. Está envuelto en `React.memo` y usa `useMemo` internamente:
 
 ```typescript
-export const TariffSelector = memo(function TariffSelector({ sectionId, rowId, sectionName }) {
+export const TariffSelector = memo(function TariffSelector({ workItemId, taskId, workItemName }) {
   const { matched, grouped } = useMemo(() => {
     // Agrupación y ordenación de tarifas por categoría
     // Optimización: si el nombre de la sección coincide con una categoría,
     // solo muestra esa categoría (menos opciones → render más rápido)
-  }, [tariffs, sectionName]);
+  }, [tariffs, workItemName]);
 });
 ```
 

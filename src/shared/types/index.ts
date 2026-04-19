@@ -8,7 +8,7 @@ export const UNIT_LABELS: Record<Unit, string> = {
   hour: 'Hr',
 };
 
-export interface BudgetRow {
+export interface BudgetTask {
   id: string;
   description: string;
   quantity: number;
@@ -17,10 +17,10 @@ export interface BudgetRow {
   cost: number;
 }
 
-export interface Section {
+export interface WorkItem {
   id: string;
   name: string;
-  rows: BudgetRow[];
+  tasks: BudgetTask[];
 }
 
 export interface BudgetInfo {
@@ -39,7 +39,7 @@ export interface BudgetAdjustment {
 export interface Budget {
   id: string;
   info: BudgetInfo;
-  sections: Section[];
+  workItems: WorkItem[];
   adjustment?: BudgetAdjustment;
   createdAt: string;
 }

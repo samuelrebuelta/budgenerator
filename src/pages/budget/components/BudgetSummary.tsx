@@ -16,7 +16,7 @@ export function BudgetSummary() {
   const [editPercent, setEditPercent] = useState('');
   const [editReason, setEditReason] = useState('');
 
-  if (!budget || budget.sections.length === 0) return null;
+  if (!budget || budget.workItems.length === 0) return null;
 
   const rawSubtotal = getRawSubtotal();
   const subtotal = getSubtotal();
@@ -28,8 +28,8 @@ export function BudgetSummary() {
   const isDiscount = hasAdjustment && adjustment.multiplier < 1;
 
   // Calculate total cost and margin
-  const totalCost = budget.sections.reduce(
-    (sum, s) => sum + s.rows.reduce((rs, r) => rs + r.cost * r.quantity, 0),
+  const totalCost = budget.workItems.reduce(
+    (sum, wi) => sum + wi.tasks.reduce((ts, t) => ts + t.cost * t.quantity, 0),
     0,
   );
   const marginAmount = subtotal - totalCost;
@@ -59,7 +59,7 @@ export function BudgetSummary() {
   return (
     <div className="border-t border-gray-200 pt-4 mt-6 section-break-avoid">
       <div className="flex flex-col items-end gap-1 text-sm">
-        {/* ── Surcharge: info on screen only (rows already include it) ── */}
+        {/* ── Surcharge: info on screen only (concepts already include it) ── */}
         {isSurcharge && (
           <div className="flex justify-between w-full max-w-72 no-print">
             <span className="text-gray-600">{t.summary.rawSubtotal}</span>
@@ -80,7 +80,7 @@ export function BudgetSummary() {
         )}
         {isSurcharge && (
           <p className="text-[10px] text-gray-400 italic w-full max-w-72 text-right no-print">
-            {t.summary.surchargeInRows}
+            {t.summary.surchargeInTasks}
           </p>
         )}
 

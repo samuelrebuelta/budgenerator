@@ -5,6 +5,7 @@ import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
 import { Button, Modal } from '@/shared/ui';
+import { CatalogSkeleton } from './components/CatalogSkeleton';
 import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
 import type { ColumnDef } from '@/shared/ui/editable-row';
 import { t } from '@/shared/i18n';
@@ -19,6 +20,7 @@ const CATALOG_COLUMNS: ColumnDef[] = [
 
 export function CatalogPage() {
   const tariffs = useTariffStore((s) => s.tariffs);
+  const loaded = useTariffStore((s) => s.loaded);
   const addTariff = useTariffStore((s) => s.addTariff);
   const updateTariff = useTariffStore((s) => s.updateTariff);
   const removeTariff = useTariffStore((s) => s.removeTariff);
@@ -132,7 +134,7 @@ export function CatalogPage() {
           <div className="flex items-center gap-2">
             <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} />
-              <span className="hidden sm:inline">{t.catalog.addConcept}</span>
+              <span className="hidden sm:inline">{t.catalog.addTask}</span>
             </Button>
           </div>
         </div>
@@ -140,7 +142,7 @@ export function CatalogPage() {
         {/* Add form */}
         {showAdd && (
           <div className="bg-white rounded-lg border border-blue-200 p-4 mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t.catalog.newConcept}</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t.catalog.newTask}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
               <div className="sm:col-span-2">
                 <label className="text-xs font-medium text-gray-600">{t.common.description}</label>
@@ -171,17 +173,17 @@ export function CatalogPage() {
                   {allCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                  <option value="__custom__">{t.addSection.custom}</option>
+                  <option value="__custom__">{t.addWorkItem.custom}</option>
                 </select>
               </div>
               {isCustomCategory && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600">{t.addSection.custom}</label>
+                  <label className="text-xs font-medium text-gray-600">{t.addWorkItem.custom}</label>
                   <input
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                    placeholder={t.addSection.customPlaceholder}
+                    placeholder={t.addWorkItem.customPlaceholder}
                     autoFocus
                   />
                 </div>
@@ -230,6 +232,10 @@ export function CatalogPage() {
           </div>
         )}
 
+        {!loaded ? (
+          <CatalogSkeleton />
+        ) : (
+        <>
         {/* Search + collapse controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
           <div className="relative flex-1 w-full max-w-md">
@@ -352,6 +358,8 @@ export function CatalogPage() {
             {t.catalog.resetDefaults}
           </Button>
         </div>
+        </>
+        )}
       </div>
 
       <Modal open={showResetConfirm} onClose={() => setShowResetConfirm(false)}>

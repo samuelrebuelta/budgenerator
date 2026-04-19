@@ -5,18 +5,18 @@ import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { t } from '@/shared/i18n';
 
 interface TariffSelectorProps {
-  sectionId: string;
-  rowId: string;
-  sectionName: string;
+  workItemId: string;
+  taskId: string;
+  workItemName: string;
 }
 
-export const TariffSelector = memo(function TariffSelector({ sectionId, rowId, sectionName }: TariffSelectorProps) {
+export const TariffSelector = memo(function TariffSelector({ workItemId, taskId, workItemName }: TariffSelectorProps) {
   const applyTariff = useBudgetStore((s) => s.applyTariff);
   const tariffs = useTariffStore((s) => s.tariffs);
 
   const { matched, grouped } = useMemo(() => {
     const catOrder = new Map<string, number>(RENOVATION_CATEGORIES.map((c, i) => [c, i]));
-    const nameNorm = sectionName.trim().toLowerCase();
+    const nameNorm = workItemName.trim().toLowerCase();
 
     // Check if the section name matches a catalog category
     const matchedCat = [...new Set(tariffs.map((t) => t.category))].find(
@@ -42,14 +42,14 @@ export const TariffSelector = memo(function TariffSelector({ sectionId, rowId, s
       return a.localeCompare(b, 'es');
     });
     return { matched: null, grouped: sorted };
-  }, [tariffs, sectionName]);
+  }, [tariffs, workItemName]);
 
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const tariffId = e.target.value;
     if (!tariffId) return;
     const tariff = tariffs.find((t) => t.id === tariffId);
     if (!tariff) return;
-    applyTariff(sectionId, rowId, tariff.description, tariff.unit, tariff.basePrice, tariff.cost);
+    applyTariff(workItemId, taskId, tariff.description, tariff.unit, tariff.basePrice, tariff.cost);
     e.target.value = '';
   };
 

@@ -5,15 +5,15 @@ import { RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
-export function AddSectionButton() {
+export function AddWorkItemButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [mode, setMode] = useState<'catalog' | 'custom'>('catalog');
-  const addSection = useBudgetStore((s) => s.addSection);
+  const addWorkItem = useBudgetStore((s) => s.addWorkItem);
   const budget = useActiveBudget();
 
   const usedNames = useMemo(
-    () => new Set(budget?.sections.map((s) => s.name) ?? []),
+    () => new Set(budget?.workItems.map((wi) => wi.name) ?? []),
     [budget],
   );
 
@@ -25,7 +25,7 @@ export function AddSectionButton() {
   const handleAdd = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    addSection(trimmed);
+    addWorkItem(trimmed);
     setName('');
     setIsOpen(false);
     setMode('catalog');
@@ -33,7 +33,7 @@ export function AddSectionButton() {
 
   const handleSelectCategory = (cat: string) => {
     if (!cat) return;
-    addSection(cat);
+    addWorkItem(cat);
     setName('');
     setIsOpen(false);
     setMode('catalog');
@@ -43,7 +43,7 @@ export function AddSectionButton() {
     return (
       <Button variant="secondary" onClick={() => setIsOpen(true)} className="no-print">
         <Plus size={16} />
-        {t.addSection.button}
+        {t.addWorkItem.button}
       </Button>
     );
   }
@@ -60,7 +60,7 @@ export function AddSectionButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          {t.addSection.fromCatalog}
+          {t.addWorkItem.fromCatalog}
         </button>
         <button
           onClick={() => setMode('custom')}
@@ -70,7 +70,7 @@ export function AddSectionButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          {t.addSection.custom}
+          {t.addWorkItem.custom}
         </button>
       </div>
 
@@ -89,13 +89,13 @@ export function AddSectionButton() {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">{t.addSection.allAdded}</p>
+            <p className="text-xs text-gray-400">{t.addWorkItem.allAdded}</p>
           )}
         </div>
       ) : (
         <div className="flex items-end gap-2">
           <input
-            placeholder={t.addSection.customPlaceholder}
+            placeholder={t.addWorkItem.customPlaceholder}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}

@@ -4,10 +4,10 @@ Aplicación web para generar y gestionar presupuestos de reformas de viviendas. 
 
 ## Funcionalidades
 
-- **Gestión de presupuestos**: Crear, editar y eliminar presupuestos con información de cliente, partidas y filas de trabajo.
+- **Gestión de presupuestos**: Crear, editar y eliminar presupuestos con información de cliente, partidas y conceptos de trabajo.
 - **Catálogo de tarifas**: +250 tarifas predefinidas organizadas en 28 categorías de reformas. Totalmente personalizable (añadir, editar, eliminar, restaurar por defecto).
-- **Cálculos automáticos**: Subtotales por partida, subtotal general, IVA (10%), total. Margen de beneficio por fila y global.
-- **Descuentos y recargos**: Recargos se aplican directamente en cada fila (transparente al cliente). Descuentos aparecen como línea separada en el PDF.
+- **Cálculos automáticos**: Subtotales por partida, subtotal general, IVA (10%), total. Margen de beneficio por concepto y global.
+- **Descuentos y recargos**: Recargos se aplican directamente en cada concepto (transparente al cliente). Descuentos aparecen como línea separada en el PDF.
 - **Perfil de empresa**: Nombre, CIF, dirección, teléfono, email y logo. Los datos aparecen en la cabecera del PDF.
 - **Exportación PDF**: Impresión directa del navegador con layout A4 apaisado. Inputs ocultos, company info visible, diseño limpio.
 - **Autenticación**: Email + contraseña con Firebase Auth. Registro con indicador de seguridad de contraseña.

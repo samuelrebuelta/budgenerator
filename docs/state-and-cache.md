@@ -90,9 +90,9 @@ function syncToFirestore(budget: Budget) {
   _syncTimer = setTimeout(() => {
     const cleaned: Budget = {
       ...budget,
-      sections: budget.sections.map((s) => ({
+      workItems: budget.workItems.map((s) => ({
         ...s,
-        rows: s.rows.filter(isRowComplete),
+        tasks: s.tasks.filter(isTaskComplete),
       })),
     };
     saveBudget(uid, cleaned);
@@ -103,7 +103,7 @@ function syncToFirestore(budget: Budget) {
 
 **Motivación**: Sin debounce, cada keystroke en un input generaría una escritura a Firestore. Con debounce de 1s, se agrupan las ediciones rápidas en una sola escritura.
 
-**Filtrado de filas incompletas**: Antes de persistir, se filtran las filas que no tienen todos los campos rellenos (descripción, cantidad > 0, precio > 0). Las filas incompletas se mantienen en el estado local para que el usuario las edite, pero no se guardan en Firestore.
+**Filtrado de conceptos incompletos**: Antes de persistir, se filtran los conceptos que no tienen todos los campos rellenos (descripción, cantidad > 0, precio > 0). Los conceptos incompletos se mantienen en el estado local para que el usuario los edite, pero no se guardan en Firestore.
 
 **Excepción**: Los borradores (`draftBudget`) NO se sincronizan. Solo se persisten al llamar a `saveDraft()`.
 
@@ -133,7 +133,7 @@ budgets[]: Budget[]  ←  Lista completa de Firestore
 activeBudgetId: string | null  ←  ID del presupuesto siendo editado
 ```
 
-Las mutaciones (`updateRow`, `addSection`, etc.) operan sobre el presupuesto dentro del array `budgets[]` y disparan `syncToFirestore()`.
+Las mutaciones (`updateTask`, `addWorkItem`, etc.) operan sobre el presupuesto dentro del array `budgets[]` y disparan `syncToFirestore()`.
 
 ### Borrador (draft)
 
@@ -169,7 +169,7 @@ function updateActive(state: StateSlice, updater: (b: Budget) => Budget) {
 }
 ```
 
-Esto permite que todas las acciones (addRow, updateInfo, etc.) funcionen igual para drafts y presupuestos persistidos, sin duplicar lógica.
+Esto permite que todas las acciones (addTask, updateInfo, etc.) funcionen igual para drafts y presupuestos persistidos, sin duplicar lógica.
 
 ## Selectores
 
@@ -185,7 +185,7 @@ export function useActiveBudget() {
 }
 ```
 
-Se usa en `BudgetPage`, `BudgetEditor`, `BudgetHeader`, `BudgetSummary` y `AddSectionButton`.
+Se usa en `BudgetPage`, `BudgetEditor`, `BudgetHeader`, `BudgetSummary` y `AddWorkItemButton`.
 
 ### Selectores de cálculo
 
@@ -195,16 +195,16 @@ Los cálculos (`getRawSubtotal`, `getSubtotal`, `getIva`, `getTotal`) son funcio
 
 El budget store distingue entre recargos (multiplicador > 1) y descuentos (multiplicador < 1):
 
-- **Recargo**: El multiplicador se aplica en `getRowAmount()` y `getSectionSubtotal()`. Las filas y subtotales de partida ya incluyen el recargo. El sumario no muestra línea separada en el PDF.
-- **Descuento**: Las filas mantienen el precio original. `getSubtotal()` aplica el multiplicador globalmente. El sumario muestra la línea de descuento visible en el PDF.
+- **Recargo**: El multiplicador se aplica en `getTaskAmount()` y `getWorkItemSubtotal()`. Los conceptos y subtotales de partida ya incluyen el recargo. El sumario no muestra línea separada en el PDF.
+- **Descuento**: Los conceptos mantienen el precio original. `getSubtotal()` aplica el multiplicador globalmente. El sumario muestra la línea de descuento visible en el PDF.
 
 ```typescript
-getRowAmount: (row) => {
+getTaskAmount: (task) => {
   const mult = budget?.adjustment?.multiplier ?? 1;
-  return getRowAmountRaw(row) * (mult > 1 ? mult : 1);
+  return getTaskAmountRaw(task) * (mult > 1 ? mult : 1);
 },
 ```
 
-### Guard de filas en borrador
+### Guard de conceptos en borrador
 
-El botón `AddRowButton` se deshabilita si ya existe una fila en borrador (sin descripción, cantidad 0, precio 0) en la partida. Esto evita acumular filas vacías.
+El botón `AddTaskButton` se deshabilita si ya existe un concepto en borrador (sin descripción, cantidad 0, precio 0) en la partida. Esto evita acumular conceptos vacíos.

@@ -60,7 +60,7 @@ Se aplica a:
 - Banner de borrador
 - TariffSelector (dropdown de tarifas)
 - Columna "Margen" de la tabla
-- Botones de eliminar fila/sección
+- Botones de eliminar concepto/sección
 - Botones de descuento/recargo
 - Toggles de secciones
 - GripVertical (icono de arrastrar)
@@ -168,7 +168,7 @@ Siempre visibles en PDF. El wrapper `.collapsible` se fuerza abierto con `print:
 ### Resumen
 
 - **Subtotal**: siempre visible
-- **Recargo**: se aplica directamente en cada fila (las filas ya incluyen el recargo). No aparece como línea separada en el PDF.
+- **Recargo**: se aplica directamente en cada concepto (los conceptos ya incluyen el recargo). No aparece como línea separada en el PDF.
 - **Descuento**: aparece como línea separada en el PDF (Subtotal → Descuento -X% → Subtotal con descuento)
 - **IVA (10%)**: siempre visible
 - **TOTAL**: siempre visible, en azul y negrita
@@ -185,10 +185,10 @@ Siempre visibles en PDF. El wrapper `.collapsible` se fuerza abierto con `print:
 | GripVertical (drag icon) | `no-print` |
 | TariffSelector dropdown | `no-print` |
 | Columna Margen | `no-print` |
-| Botones eliminar fila | `no-print` |
+| Botones eliminar concepto | `no-print` |
 | Botón eliminar sección | `no-print` |
-| AddRowButton | `no-print` (via className) |
-| AddSectionButton | `no-print` |
+| AddTaskButton | `no-print` (via className) |
+| AddWorkItemButton | `no-print` |
 | Detalle ajuste (descuento/recargo) | `no-print` |
 | Nota "El cliente no verá este ajuste" | `no-print` |
 | Margen de beneficio global | `no-print` |

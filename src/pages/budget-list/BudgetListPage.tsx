@@ -5,6 +5,7 @@ import { useBudgetStore } from '@/entities/budget';
 import { useAuthStore } from '@/entities/auth';
 import { formatCurrency } from '@/shared/lib';
 import { Button, Modal } from '@/shared/ui';
+import { BudgetListSkeleton } from './components/BudgetListSkeleton';
 import { t } from '@/shared/i18n';
 
 export function BudgetListPage() {
@@ -57,9 +58,7 @@ export function BudgetListPage() {
         </div>
 
         {!loaded ? (
-          <div className="flex justify-center py-12">
-            <div className="text-gray-400">{t.common.loading}</div>
-          </div>
+          <BudgetListSkeleton />
         ) : budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
@@ -106,7 +105,7 @@ export function BudgetListPage() {
                           <span>{t.budgetList.budgetNumber(budget.info.budgetNumber)}</span>
                         )}
                         <span>{date}</span>
-                        <span>{t.budgetList.sections(budget.sections.length)}</span>
+                        <span>{t.budgetList.workItems(budget.workItems.length)}</span>
                       </div>
                     </div>
                   </div>

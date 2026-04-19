@@ -146,7 +146,7 @@ Se usa un único breakpoint `sm` (640px) como frontera entre móvil y escritorio
 
 En lugar de duplicar el layout dual (tabla desktop + cards móvil) en cada página, se usa un componente compartido `EditableRow` (`src/shared/ui/editable-row.tsx`) que renderiza automáticamente:
 
-- **Desktop (≥ 640px)**: Fila CSS Grid con columnas configurables
+- **Desktop (≥ 640px)**: Concepto CSS Grid con columnas configurables
 - **Móvil (< 640px)**: Card con descripción + acciones arriba, grid 3 columnas abajo, footer opcional
 - **Print**: Fuerza el layout desktop
 
@@ -199,7 +199,7 @@ Todos los elementos interactivos tienen un tamaño mínimo de 44×44px (recomend
 'min-h-[44px] py-2'
 ```
 
-Los pills de categoría en `AddSectionButton` usan `px-3 py-2` para ser fáciles de pulsar en móvil.
+Los pills de categoría en `AddWorkItemButton` usan `px-3 py-2` para ser fáciles de pulsar en móvil.
 
 ## Iconos
 
@@ -211,7 +211,7 @@ import { Plus, Trash2, ArrowLeft, Save, X } from 'lucide-react';
 
 Tamaños estándar:
 - **14px**: Iconos en botones pequeños, acciones secundarias
-- **16px**: Iconos en botones principales, acciones de fila
+- **16px**: Iconos en botones principales, acciones de concepto
 - **20px**: Iconos decorativos (lista de presupuestos)
 - **48px**: Iconos de estado vacío (empty state)
 

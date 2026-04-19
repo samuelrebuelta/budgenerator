@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Budget, BudgetAdjustment, BudgetInfo, BudgetRow, Section, Unit } from '@/shared/types';
+import type { Budget, BudgetAdjustment, BudgetInfo, BudgetTask, WorkItem, Unit } from '@/shared/types';
 import { generateId } from '@/shared/lib';
 import {
   fetchBudgets,
@@ -9,7 +9,7 @@ import {
 
 const IVA_RATE = 0.10;
 
-function createEmptyRow(): BudgetRow {
+function createEmptyTask(): BudgetTask {
   return {
     id: generateId(),
     description: '',
@@ -20,24 +20,24 @@ function createEmptyRow(): BudgetRow {
   };
 }
 
-function createEmptySection(name: string): Section {
+function createEmptyWorkItem(name: string): WorkItem {
   return {
     id: generateId(),
     name,
-    rows: [createEmptyRow()],
+    tasks: [createEmptyTask()],
   };
 }
 
-function getRowAmountRaw(row: BudgetRow): number {
-  return row.quantity * row.price;
+function getTaskAmountRaw(task: BudgetTask): number {
+  return task.quantity * task.price;
 }
 
-function calcSectionSubtotal(section: Section): number {
-  return section.rows.reduce((sum, row) => sum + getRowAmountRaw(row), 0);
+function calcWorkItemSubtotal(workItem: WorkItem): number {
+  return workItem.tasks.reduce((sum, t) => sum + getTaskAmountRaw(t), 0);
 }
 
 function calcBudgetTotal(budget: Budget): number {
-  const rawSubtotal = budget.sections.reduce((sum, s) => sum + calcSectionSubtotal(s), 0);
+  const rawSubtotal = budget.workItems.reduce((sum, wi) => sum + calcWorkItemSubtotal(wi), 0);
   const multiplier = budget.adjustment?.multiplier ?? 1;
   const adjusted = rawSubtotal * multiplier;
   return adjusted + adjusted * IVA_RATE;
@@ -52,7 +52,7 @@ function createDraftBudget(nextNumber: string): Budget {
       date: new Date().toISOString().split('T')[0] || '',
       budgetNumber: nextNumber,
     },
-    sections: [],
+    workItems: [],
     createdAt: '',
   };
 }
@@ -95,22 +95,22 @@ interface BudgetState {
   getBudgetTotal: (budgetId: string) => number;
 
   // Active budget computed
-  getSectionSubtotal: (sectionId: string) => number;
+  getWorkItemSubtotal: (workItemId: string) => number;
   getRawSubtotal: () => number;
   getSubtotal: () => number;
   getIva: () => number;
   getTotal: () => number;
-  getRowAmount: (row: BudgetRow) => number;
+  getTaskAmount: (task: BudgetTask) => number;
 
   // Active budget mutations
   updateInfo: (info: Partial<BudgetInfo>) => void;
-  addSection: (name: string) => void;
-  removeSection: (sectionId: string) => void;
-  renameSection: (sectionId: string, name: string) => void;
-  addRow: (sectionId: string) => void;
-  removeRow: (sectionId: string, rowId: string) => void;
-  updateRow: (sectionId: string, rowId: string, updates: Partial<BudgetRow>) => void;
-  applyTariff: (sectionId: string, rowId: string, description: string, unit: Unit, price: number, cost: number) => void;
+  addWorkItem: (name: string) => void;
+  removeWorkItem: (workItemId: string) => void;
+  renameWorkItem: (workItemId: string, name: string) => void;
+  addTask: (workItemId: string) => void;
+  removeTask: (workItemId: string, taskId: string) => void;
+  updateTask: (workItemId: string, taskId: string, updates: Partial<BudgetTask>) => void;
+  applyTariff: (workItemId: string, taskId: string, description: string, unit: Unit, price: number, cost: number) => void;
   updateAdjustment: (adjustment: BudgetAdjustment | undefined) => void;
   resetBudget: () => void;
 }
@@ -126,8 +126,8 @@ function getUid(): string | null {
   return _getUid?.() ?? null;
 }
 
-function isRowComplete(r: BudgetRow): boolean {
-  return r.description.trim() !== '' && r.quantity > 0 && r.price > 0;
+function isTaskComplete(t: BudgetTask): boolean {
+  return t.description.trim() !== '' && t.quantity > 0 && t.price > 0;
 }
 
 /** Persist a budget to Firestore if it's NOT a draft (debounced 1s) */
@@ -140,9 +140,9 @@ function syncToFirestore(budget: Budget) {
   _syncTimer = setTimeout(() => {
     const cleaned: Budget = {
       ...budget,
-      sections: budget.sections.map((s) => ({
-        ...s,
-        rows: s.rows.filter(isRowComplete),
+      workItems: budget.workItems.map((wi) => ({
+        ...wi,
+        tasks: wi.tasks.filter(isTaskComplete),
       })),
     };
     saveBudget(uid, cleaned);
@@ -192,9 +192,9 @@ export const useBudgetStore = create<BudgetState>()(
         ...draft,
         id: generateId(),
         createdAt: new Date().toISOString(),
-        sections: draft.sections.map((s) => ({
-          ...s,
-          rows: s.rows.filter(isRowComplete),
+        workItems: draft.workItems.map((wi) => ({
+          ...wi,
+          tasks: wi.tasks.filter(isTaskComplete),
         })),
       };
       await saveBudget(uid, saved);
@@ -228,18 +228,18 @@ export const useBudgetStore = create<BudgetState>()(
 
     // --- Active budget computed ---
 
-    getRowAmount: (row) => {
+    getTaskAmount: (task) => {
       const budget = getActive(get());
       const mult = budget?.adjustment?.multiplier ?? 1;
-      // Surcharge (mult > 1): bake into each row. Discount: keep raw.
-      return getRowAmountRaw(row) * (mult > 1 ? mult : 1);
+      // Surcharge (mult > 1): bake into each task. Discount: keep raw.
+      return getTaskAmountRaw(task) * (mult > 1 ? mult : 1);
     },
 
-    getSectionSubtotal: (sectionId) => {
+    getWorkItemSubtotal: (workItemId) => {
       const budget = getActive(get());
-      const section = budget?.sections.find((s) => s.id === sectionId);
-      if (!section) return 0;
-      const raw = calcSectionSubtotal(section);
+      const workItem = budget?.workItems.find((wi) => wi.id === workItemId);
+      if (!workItem) return 0;
+      const raw = calcWorkItemSubtotal(workItem);
       const mult = budget?.adjustment?.multiplier ?? 1;
       return raw * (mult > 1 ? mult : 1);
     },
@@ -247,7 +247,7 @@ export const useBudgetStore = create<BudgetState>()(
     getRawSubtotal: () => {
       const budget = getActive(get());
       return budget
-        ? budget.sections.reduce((sum, s) => sum + calcSectionSubtotal(s), 0)
+        ? budget.workItems.reduce((sum, wi) => sum + calcWorkItemSubtotal(wi), 0)
         : 0;
     },
 
@@ -282,11 +282,11 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    addSection: (name) =>
+    addWorkItem: (name) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: [...b.sections, createEmptySection(name)],
+          workItems: [...b.workItems, createEmptyWorkItem(name)],
         }));
         if (!state.draftBudget) {
           const updated = (patch as { budgets: Budget[] }).budgets?.find(
@@ -297,11 +297,11 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    removeSection: (sectionId) =>
+    removeWorkItem: (workItemId) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.filter((s) => s.id !== sectionId),
+          workItems: b.workItems.filter((wi) => wi.id !== workItemId),
         }));
         if (!state.draftBudget) {
           const updated = (patch as { budgets: Budget[] }).budgets?.find(
@@ -312,12 +312,12 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    renameSection: (sectionId, name) =>
+    renameWorkItem: (workItemId, name) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.map((s) =>
-            s.id === sectionId ? { ...s, name } : s,
+          workItems: b.workItems.map((wi) =>
+            wi.id === workItemId ? { ...wi, name } : wi,
           ),
         }));
         if (!state.draftBudget) {
@@ -329,12 +329,12 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    addRow: (sectionId) =>
+    addTask: (workItemId) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.map((s) =>
-            s.id === sectionId ? { ...s, rows: [...s.rows, createEmptyRow()] } : s,
+          workItems: b.workItems.map((wi) =>
+            wi.id === workItemId ? { ...wi, tasks: [...wi.tasks, createEmptyTask()] } : wi,
           ),
         }));
         if (!state.draftBudget) {
@@ -346,14 +346,14 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    removeRow: (sectionId, rowId) =>
+    removeTask: (workItemId, taskId) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.map((s) =>
-            s.id === sectionId
-              ? { ...s, rows: s.rows.filter((r) => r.id !== rowId) }
-              : s,
+          workItems: b.workItems.map((wi) =>
+            wi.id === workItemId
+              ? { ...wi, tasks: wi.tasks.filter((t) => t.id !== taskId) }
+              : wi,
           ),
         }));
         if (!state.draftBudget) {
@@ -365,19 +365,19 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    updateRow: (sectionId, rowId, updates) =>
+    updateTask: (workItemId, taskId, updates) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.map((s) =>
-            s.id === sectionId
+          workItems: b.workItems.map((wi) =>
+            wi.id === workItemId
               ? {
-                  ...s,
-                  rows: s.rows.map((r) =>
-                    r.id === rowId ? { ...r, ...updates } : r,
+                  ...wi,
+                  tasks: wi.tasks.map((t) =>
+                    t.id === taskId ? { ...t, ...updates } : t,
                   ),
                 }
-              : s,
+              : wi,
           ),
         }));
         if (!state.draftBudget) {
@@ -389,19 +389,19 @@ export const useBudgetStore = create<BudgetState>()(
         return patch;
       }),
 
-    applyTariff: (sectionId, rowId, description, unit, price, cost) =>
+    applyTariff: (workItemId, taskId, description, unit, price, cost) =>
       set((state) => {
         const patch = updateActive(state, (b) => ({
           ...b,
-          sections: b.sections.map((s) =>
-            s.id === sectionId
+          workItems: b.workItems.map((wi) =>
+            wi.id === workItemId
               ? {
-                  ...s,
-                  rows: s.rows.map((r) =>
-                    r.id === rowId ? { ...r, description, unit, price, cost } : r,
+                  ...wi,
+                  tasks: wi.tasks.map((t) =>
+                    t.id === taskId ? { ...t, description, unit, price, cost } : t,
                   ),
                 }
-              : s,
+              : wi,
           ),
         }));
         if (!state.draftBudget) {
@@ -435,7 +435,7 @@ export const useBudgetStore = create<BudgetState>()(
         const patch = updateActive(state, (b) => ({
           ...b,
           info: { clientName: '', address: '', date: new Date().toISOString().split('T')[0] || '', budgetNumber: '' },
-          sections: [],
+          workItems: [],
         }));
         if (!state.draftBudget) {
           const updated = (patch as { budgets: Budget[] }).budgets?.find(

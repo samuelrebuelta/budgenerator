@@ -3,11 +3,11 @@ import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from './components/BudgetEditor';
 import { BudgetSummary } from './components/BudgetSummary';
-import { AddSectionButton } from './components/AddSectionButton';
+import { AddWorkItemButton } from './components/AddWorkItemButton';
 import { ExportPdfButton } from './components/ExportPdfButton';
 import { useBudgetStore } from '@/entities/budget';
-import { Button } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Button, Modal } from '@/shared/ui';
+import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { t } from '@/shared/i18n';
 
@@ -61,7 +61,7 @@ export function BudgetPage() {
       draft.info.clientName !== '' ||
       draft.info.address !== '' ||
       draft.info.budgetNumber !== '' ||
-      draft.sections.length > 0
+      draft.workItems.length > 0
     );
   });
 
@@ -89,7 +89,7 @@ export function BudgetPage() {
         (draft.info.clientName !== '' ||
           draft.info.address !== '' ||
           draft.info.budgetNumber !== '' ||
-          draft.sections.length > 0)
+          draft.workItems.length > 0)
       ) {
         e.preventDefault();
       }
@@ -116,11 +116,7 @@ export function BudgetPage() {
   }, [isDraft, budgetId, budgetExists, budgetsLoaded, navigate]);
 
   if (!isDraft && !budgetsLoaded) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500">{t.common.loading}</div>
-      </div>
-    );
+    return <BudgetSkeleton />;
   }
   if (!isDraft && !budgetExists) return null;
   if (isDraft && !draftBudget) return null;
@@ -153,7 +149,7 @@ export function BudgetPage() {
             aria-expanded={showPartidas}
           >
             {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            {t.budget.sections}
+            {t.budget.workItems}
           </button>
 
           <div className={`collapsible ${showPartidas ? 'open' : ''} print:!grid-rows-[1fr]`}>
@@ -161,7 +157,7 @@ export function BudgetPage() {
               <BudgetEditor />
 
               <div className="mt-4 flex items-center gap-3 no-print">
-                <AddSectionButton />
+                <AddWorkItemButton />
               </div>
             </div>
           </div>

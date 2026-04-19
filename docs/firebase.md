@@ -82,7 +82,7 @@ interface Budget {
     date: string;         // ISO date string "2026-04-19"
     budgetNumber: string;
   };
-  sections: Section[];     // Array de partidas embebidas
+  workItems: WorkItem[];     // Array de partidas embebidas
   adjustment?: {
     multiplier: number;    // 0.9 = -10%, 1.15 = +15%
     reason: string;
@@ -91,7 +91,7 @@ interface Budget {
 }
 ```
 
-Las secciones y filas están **embebidas** dentro del documento del presupuesto (no son subcollecciones). Esto simplifica las lecturas/escrituras a costa de un documento más grande, pero es adecuado dado que un presupuesto típico tiene 5-15 secciones con 3-10 filas cada una.
+Las secciones y conceptos están **embebidos** dentro del documento del presupuesto (no son subcollecciones). Esto simplifica las lecturas/escrituras a costa de un documento más grande, pero es adecuado dado que un presupuesto típico tiene 5-15 secciones con 3-10 filas cada una.
 
 #### Tariff
 

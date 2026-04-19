@@ -9,7 +9,66 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { Budget, Tariff, CompanyProfile } from '@/shared/types';
+import type { Budget, Tariff, CompanyProfile, WorkItem, BudgetTask } from '@/shared/types';
+
+// --- Firestore ↔ App field mapping ---
+// Firestore stores: sections[].rows[] (legacy) / sections[].concepts[]
+// App uses: workItems[].tasks[]
+
+interface FirestoreTask {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  cost: number;
+}
+
+interface FirestoreWorkItem {
+  id: string;
+  name: string;
+  rows?: FirestoreTask[];
+  concepts?: FirestoreTask[];
+  tasks?: FirestoreTask[];
+}
+
+interface FirestoreBudget {
+  id: string;
+  info: Budget['info'];
+  sections?: FirestoreWorkItem[];
+  workItems?: FirestoreWorkItem[];
+  adjustment?: Budget['adjustment'];
+  createdAt: string;
+}
+
+function mapFromFirestore(raw: FirestoreBudget): Budget {
+  const items = raw.workItems ?? raw.sections ?? [];
+  return {
+    id: raw.id,
+    info: raw.info,
+    workItems: items.map((wi): WorkItem => ({
+      id: wi.id,
+      name: wi.name,
+      tasks: (wi.tasks ?? wi.concepts ?? wi.rows ?? []) as BudgetTask[],
+    })),
+    adjustment: raw.adjustment,
+    createdAt: raw.createdAt,
+  };
+}
+
+function mapToFirestore(budget: Budget): FirestoreBudget {
+  return {
+    id: budget.id,
+    info: budget.info,
+    workItems: budget.workItems.map((wi) => ({
+      id: wi.id,
+      name: wi.name,
+      tasks: wi.tasks,
+    })),
+    adjustment: budget.adjustment,
+    createdAt: budget.createdAt,
+  };
+}
 
 // --- Budgets ---
 
@@ -19,11 +78,11 @@ function budgetsCol(uid: string) {
 
 export async function fetchBudgets(uid: string): Promise<Budget[]> {
   const snap = await getDocs(budgetsCol(uid));
-  return snap.docs.map((d) => d.data() as Budget);
+  return snap.docs.map((d) => mapFromFirestore(d.data() as FirestoreBudget));
 }
 
 export async function saveBudget(uid: string, budget: Budget) {
-  await setDoc(doc(budgetsCol(uid), budget.id), budget);
+  await setDoc(doc(budgetsCol(uid), budget.id), mapToFirestore(budget));
 }
 
 export async function updateBudget(uid: string, budgetId: string, data: Partial<Budget>) {
