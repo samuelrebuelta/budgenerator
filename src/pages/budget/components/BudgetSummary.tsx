@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { formatCurrency } from '@/shared/lib';
-import { Minus, Plus, X } from 'lucide-react';
+import { Info, Minus, Plus, X } from 'lucide-react';
 import { t } from '@/shared/i18n';
 
 export function BudgetSummary() {
@@ -15,6 +15,7 @@ export function BudgetSummary() {
   const [editingType, setEditingType] = useState<'descuento' | 'recargo' | null>(null);
   const [editPercent, setEditPercent] = useState('');
   const [editReason, setEditReason] = useState('');
+  const [showToast, setShowToast] = useState(false);
 
   if (!budget || budget.workItems.length === 0) return null;
 
@@ -68,20 +69,23 @@ export function BudgetSummary() {
         )}
         {isSurcharge && (
           <div className="flex justify-between w-full max-w-72 no-print">
-            <span className="text-gray-600">
+            <span className="text-gray-600 flex items-center gap-1">
               {t.summary.surcharge}
               {adjustment.reason ? ` (${adjustment.reason})` : ''}
               {' '}+{adjustmentPercent}%:
+              <button
+                onClick={() => { setShowToast(true); setTimeout(() => setShowToast(false), 4000); }}
+                className="text-gray-400 hover:text-blue-500 cursor-pointer"
+                type="button"
+                aria-label="Info"
+              >
+                <Info size={13} />
+              </button>
             </span>
             <span className="font-medium text-red-600">
               +{formatCurrency(subtotal - rawSubtotal)}
             </span>
           </div>
-        )}
-        {isSurcharge && (
-          <p className="text-[10px] text-gray-400 italic w-full max-w-72 text-right no-print">
-            {t.summary.surchargeInTasks}
-          </p>
         )}
 
         {/* ── Discount: raw subtotal + discount line (visible in PDF) ── */}
@@ -207,6 +211,12 @@ export function BudgetSummary() {
           </div>
         )}
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-4 py-2.5 rounded-lg shadow-lg z-50 max-w-xs text-center no-print">
+          {t.summary.surchargeInTasks.replace('{pct}', String(adjustmentPercent))}
+        </div>
+      )}
     </div>
   );
 }
