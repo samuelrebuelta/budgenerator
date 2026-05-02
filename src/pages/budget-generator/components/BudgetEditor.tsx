@@ -5,9 +5,8 @@ import { AddTaskButton } from './AddTaskButton';
 import { TariffSelector } from './TariffSelector';
 import type { Unit, BudgetTask as BudgetTaskType } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Button, Modal } from '@/shared/ui';
-import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
-import type { ColumnDef } from '@/shared/ui/editable-row';
+import { Button, Modal, EditableRow, EditableRowHeader } from '@/shared/ui';
+import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 const BUDGET_COLUMNS: ColumnDef[] = [

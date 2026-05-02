@@ -4,10 +4,9 @@ import { Plus, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search } from 'l
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
-import { Button, Modal } from '@/shared/ui';
+import { Button, Modal, EditableRow, EditableRowHeader } from '@/shared/ui';
+import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
-import { EditableRow, EditableRowHeader } from '@/shared/ui/editable-row';
-import type { ColumnDef } from '@/shared/ui/editable-row';
 import { t } from '@/shared/i18n';
 
 const CATALOG_COLUMNS: ColumnDef[] = [
