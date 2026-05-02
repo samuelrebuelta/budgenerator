@@ -4,7 +4,7 @@ import { fetchSharedBudget } from '@/shared/firebase';
 import type { SharedBudget, WorkItem, BudgetTask } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Printer } from 'lucide-react';
+import { ExportPdfButton } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 function getTaskAmount(task: BudgetTask, multiplier: number): number {
@@ -221,15 +221,8 @@ export function BudgetViewerPage() {
           </div>
 
           {/* Export PDF button */}
-          <div className="mt-6 flex justify-end no-print">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors cursor-pointer"
-            >
-              <Printer size={16} />
-              {t.export.button}
-            </button>
+          <div className="mt-6 flex justify-end">
+            <ExportPdfButton />
           </div>
         </div>
 
