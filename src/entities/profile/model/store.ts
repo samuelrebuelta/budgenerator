@@ -28,7 +28,7 @@ function fileToBase64(file: File): Promise<string> {
 interface ProfileState {
   profile: CompanyProfile;
   loaded: boolean;
-  loadProfile: (uid: string) => Promise<void>;
+  loadProfile: (uid: string, authEmail?: string) => Promise<void>;
   updateProfile: (patch: Partial<CompanyProfile>) => void;
   saveProfile: () => Promise<void>;
   uploadLogo: (file: File) => Promise<void>;
@@ -39,9 +39,11 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   profile: { ...EMPTY_PROFILE },
   loaded: false,
 
-  loadProfile: async (uid) => {
+  loadProfile: async (uid, authEmail?: string) => {
     const data = await fetchProfile(uid);
-    set({ profile: data ?? { ...EMPTY_PROFILE }, loaded: true });
+    const profile = data ?? { ...EMPTY_PROFILE };
+    if (authEmail) profile.email = authEmail;
+    set({ profile, loaded: true });
   },
 
   updateProfile: (patch) => {
@@ -51,7 +53,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   saveProfile: async () => {
     const uid = getUid?.();
     if (!uid) return;
-    await saveProfile(uid, get().profile);
+    const { profile } = get();
+    await saveProfile(uid, profile);
   },
 
   uploadLogo: async (file) => {

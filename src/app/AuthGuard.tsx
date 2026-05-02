@@ -25,7 +25,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     setTemplateAuthGetter(() => user.uid);
     useBudgetStore.getState().loadBudgets(user.uid);
     useTariffStore.getState().loadTariffs(user.uid);
-    useProfileStore.getState().loadProfile(user.uid);
+    useProfileStore.getState().loadProfile(user.uid, user.email ?? '');
     useTemplateStore.getState().loadTemplates(user.uid);
   }, [user]);
 

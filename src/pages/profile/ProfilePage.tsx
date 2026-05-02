@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
+import { useAuthStore } from '@/entities/auth';
 import { Button, Input, Modal } from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
@@ -13,6 +14,7 @@ export function ProfilePage() {
   const saveProfile = useProfileStore((s) => s.saveProfile);
   const storeUploadLogo = useProfileStore((s) => s.uploadLogo);
   const removeLogo = useProfileStore((s) => s.removeLogo);
+  const authEmail = useAuthStore((s) => s.user?.email ?? '');
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -139,9 +141,9 @@ export function ProfilePage() {
               id="companyEmail"
               label={t.profile.email}
               type="email"
-              value={profile.email}
-              onChange={(e) => updateProfile({ email: e.target.value })}
-              placeholder={t.profile.emailPlaceholder}
+              value={authEmail}
+              readOnly
+              className="bg-gray-100 text-gray-500 cursor-not-allowed"
             />
           </div>
 
