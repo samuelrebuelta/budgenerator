@@ -23,7 +23,7 @@ export function AddTaskButton({ workItemId }: AddTaskButtonProps) {
       disabled={hasDraft}
     >
       <Plus size={14} />
-      {t.editor.addTask}
+      {t('editor.addTask')}
     </Button>
   );
 }

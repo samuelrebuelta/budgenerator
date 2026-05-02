@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BudgetTemplate } from '@/shared/types';
-import { fetchTemplates, saveTemplate, deleteTemplatDoc } from '@/shared/firebase';
+import { fetchTemplates, saveTemplate, deleteTemplateDoc } from '@/shared/firebase';
 
 interface TemplateState {
   templates: BudgetTemplate[];
@@ -39,7 +39,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
   removeTemplate: async (id) => {
     const uid = getUid();
     if (!uid) return;
-    await deleteTemplatDoc(uid, id);
+    await deleteTemplateDoc(uid, id);
     set({ templates: get().templates.filter((t) => t.id !== id) });
   },
 }));

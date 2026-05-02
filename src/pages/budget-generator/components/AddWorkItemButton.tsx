@@ -43,7 +43,7 @@ export function AddWorkItemButton() {
     return (
       <Button variant="secondary" onClick={() => setIsOpen(true)} className="no-print">
         <Plus size={16} />
-        {t.addWorkItem.button}
+        {t('addWorkItem.button')}
       </Button>
     );
   }
@@ -60,7 +60,7 @@ export function AddWorkItemButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          {t.addWorkItem.fromCatalog}
+          {t('addWorkItem.fromCatalog')}
         </button>
         <button
           onClick={() => setMode('custom')}
@@ -70,7 +70,7 @@ export function AddWorkItemButton() {
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          {t.addWorkItem.custom}
+          {t('addWorkItem.custom')}
         </button>
       </div>
 
@@ -89,26 +89,26 @@ export function AddWorkItemButton() {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">{t.addWorkItem.allAdded}</p>
+            <p className="text-xs text-gray-400">{t('addWorkItem.allAdded')}</p>
           )}
         </div>
       ) : (
         <div className="flex items-end gap-2">
           <input
-            placeholder={t.addWorkItem.customPlaceholder}
+            placeholder={t('addWorkItem.customPlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             autoFocus
             className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
           />
-          <Button onClick={handleAdd}>{t.common.add}</Button>
+          <Button onClick={handleAdd}>{t('common.add')}</Button>
         </div>
       )}
 
       <div className="flex justify-end">
         <Button variant="ghost" onClick={() => { setIsOpen(false); setName(''); setMode('catalog'); }}>
-          {t.common.cancel}
+          {t('common.cancel')}
         </Button>
       </div>
     </div>

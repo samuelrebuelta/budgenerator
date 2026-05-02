@@ -11,11 +11,11 @@ import { t } from '@/shared/i18n';
 
 function getCatalogColumns(): ColumnDef[] {
   return [
-    { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
-    { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
-    { key: 'cost', label: t.common.cost, width: '13%', align: 'right' },
-    { key: 'pvp', label: t.common.pvp, width: '13%', align: 'right' },
-    { key: 'margin', label: t.common.margin, width: '13%', align: 'right', mobileHidden: true },
+    { key: 'description', label: t('common.description'), width: 'minmax(0,1fr)' },
+    { key: 'unit', label: t('common.unit'), width: '10%', align: 'center' },
+    { key: 'cost', label: t('common.cost'), width: '13%', align: 'right' },
+    { key: 'pvp', label: t('common.pvp'), width: '13%', align: 'right' },
+    { key: 'margin', label: t('common.margin'), width: '13%', align: 'right', mobileHidden: true },
   ];
 }
 
@@ -122,20 +122,20 @@ export function CatalogPage() {
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
         >
           <ArrowLeft size={14} />
-          {t.common.back}
+          {t('common.back')}
         </button>
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t.catalog.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('catalog.title')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {t.catalog.stats(tariffs.length, grouped.length)}
+              {t('catalog.stats', { 0: tariffs.length, 1: grouped.length })}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} />
-              <span className="hidden sm:inline">{t.catalog.addTask}</span>
+              <span className="hidden sm:inline">{t('catalog.addTask')}</span>
             </Button>
           </div>
         </div>
@@ -143,20 +143,20 @@ export function CatalogPage() {
         {/* Add form */}
         {showAdd && (
           <div className="bg-white rounded-lg border border-blue-200 p-4 mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t.catalog.newTask}</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('catalog.newTask')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-gray-600">{t.common.description}</label>
+                <label className="text-xs font-medium text-gray-600">{t('common.description')}</label>
                 <input
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder={t.catalog.descriptionPlaceholder}
+                  placeholder={t('catalog.descriptionPlaceholder')}
                   autoFocus
                 />
               </div>
               <div className={isCustomCategory ? '' : 'sm:col-span-1'}>
-                <label className="text-xs font-medium text-gray-600">{t.catalog.category}</label>
+                <label className="text-xs font-medium text-gray-600">{t('catalog.category')}</label>
                 <select
                   value={isCustomCategory ? '__custom__' : newCategory}
                   onChange={(e) => {
@@ -170,27 +170,27 @@ export function CatalogPage() {
                   }}
                   className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
-                  <option value="">{t.catalog.categoryPlaceholder}</option>
+                  <option value="">{t('catalog.categoryPlaceholder')}</option>
                   {allCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                  <option value="__custom__">{t.addWorkItem.custom}</option>
+                  <option value="__custom__">{t('addWorkItem.custom')}</option>
                 </select>
               </div>
               {isCustomCategory && (
                 <div>
-                  <label className="text-xs font-medium text-gray-600">{t.addWorkItem.custom}</label>
+                  <label className="text-xs font-medium text-gray-600">{t('addWorkItem.custom')}</label>
                   <input
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                    placeholder={t.addWorkItem.customPlaceholder}
+                    placeholder={t('addWorkItem.customPlaceholder')}
                     autoFocus
                   />
                 </div>
               )}
               <div>
-                <label className="text-xs font-medium text-gray-600">{t.common.unit}</label>
+                <label className="text-xs font-medium text-gray-600">{t('common.unit')}</label>
                 <select
                   value={newUnit}
                   onChange={(e) => setNewUnit(e.target.value as Unit)}
@@ -202,7 +202,7 @@ export function CatalogPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">{t.common.cost}</label>
+                <label className="text-xs font-medium text-gray-600">{t('common.cost')}</label>
                 <input
                   type="number"
                   min={0}
@@ -210,11 +210,11 @@ export function CatalogPage() {
                   value={newCost}
                   onChange={(e) => setNewCost(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder={t.catalog.costPlaceholder}
+                  placeholder={t('catalog.costPlaceholder')}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600">{t.common.pvp}</label>
+                <label className="text-xs font-medium text-gray-600">{t('common.pvp')}</label>
                 <input
                   type="number"
                   min={0}
@@ -222,13 +222,13 @@ export function CatalogPage() {
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder={t.catalog.pricePlaceholder}
+                  placeholder={t('catalog.pricePlaceholder')}
                 />
               </div>
             </div>
             <div className="mt-3 flex gap-2">
-              <Button onClick={handleAdd}>{t.common.add}</Button>
-              <Button variant="ghost" onClick={() => setShowAdd(false)}>{t.common.cancel}</Button>
+              <Button onClick={handleAdd}>{t('common.add')}</Button>
+              <Button variant="ghost" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
             </div>
           </div>
         )}
@@ -244,17 +244,17 @@ export function CatalogPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.catalog.search}
+              placeholder={t('catalog.search')}
               className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </div>
           <div className="flex gap-1">
             <button onClick={expandAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              {t.catalog.expandAll}
+              {t('catalog.expandAll')}
             </button>
             <span className="text-gray-300">|</span>
             <button onClick={collapseAll} className="text-xs text-blue-600 hover:underline cursor-pointer">
-              {t.catalog.collapseAll}
+              {t('catalog.collapseAll')}
             </button>
           </div>
         </div>
@@ -332,7 +332,7 @@ export function CatalogPage() {
                             }}
                             onDelete={() => removeTariff(tariff.id)}
                             mobileFooter={{
-                              label: t.common.margin,
+                              label: t('common.margin'),
                               value: <span className={`text-xs font-semibold ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}>{margin.toFixed(1)}%</span>,
                             }}
                           />
@@ -348,7 +348,7 @@ export function CatalogPage() {
 
         {grouped.length === 0 && search && (
           <div className="text-center py-12 text-gray-500">
-            <p className="text-sm">{t.catalog.noResults(search)}</p>
+            <p className="text-sm">{t('catalog.noResults', { 0: search })}</p>
           </div>
         )}
 
@@ -356,7 +356,7 @@ export function CatalogPage() {
         <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
           <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
             <RotateCcw size={14} />
-            {t.catalog.resetDefaults}
+            {t('catalog.resetDefaults')}
           </Button>
         </div>
         </>
@@ -364,13 +364,13 @@ export function CatalogPage() {
       </div>
 
       <Modal open={showResetConfirm} onClose={() => setShowResetConfirm(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.catalog.resetConfirmTitle}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('catalog.resetConfirmTitle')}</h3>
         <p className="text-sm text-gray-600 mb-6">
-          {t.catalog.resetConfirmMessage}
+          {t('catalog.resetConfirmMessage')}
         </p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
-            {t.common.cancel}
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger"
@@ -379,7 +379,7 @@ export function CatalogPage() {
               setShowResetConfirm(false);
             }}
           >
-            {t.catalog.reset}
+            {t('catalog.reset')}
           </Button>
         </div>
       </Modal>

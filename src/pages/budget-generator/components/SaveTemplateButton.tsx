@@ -39,7 +39,7 @@ export function SaveTemplateButton() {
     return (
       <Button variant="secondary" disabled>
         <Check size={16} className="text-green-600" />
-        {t.templates.saved}
+        {t('templates.saved')}
       </Button>
     );
   }
@@ -51,15 +51,15 @@ export function SaveTemplateButton() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder={t.templates.namePlaceholder}
+          placeholder={t('templates.namePlaceholder')}
           autoFocus
           className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-[44px]"
         />
         <Button onClick={handleSave} disabled={saving || !name.trim()}>
-          {saving ? t.templates.saving : t.common.save}
+          {saving ? t('templates.saving') : t('common.save')}
         </Button>
         <Button variant="ghost" onClick={() => { setShowInput(false); setName(''); }}>
-          {t.common.cancel}
+          {t('common.cancel')}
         </Button>
       </div>
     );
@@ -68,7 +68,7 @@ export function SaveTemplateButton() {
   return (
     <Button variant="secondary" onClick={() => setShowInput(true)}>
       <BookmarkPlus size={16} />
-      {t.templates.saveAsTemplate}
+      {t('templates.saveAsTemplate')}
     </Button>
   );
 }

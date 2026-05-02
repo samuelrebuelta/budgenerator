@@ -16,6 +16,6 @@ export {
   fetchSharedBudget,
   fetchTemplates,
   saveTemplate,
-  deleteTemplatDoc,
+  deleteTemplatDoc as deleteTemplateDoc,
 } from './firestore';
 export { auth, db } from './config';

@@ -73,7 +73,7 @@ export function BudgetGeneratorPage() {
   useEffect(() => {
     if (blocker.state === 'blocked') {
       const confirmed = window.confirm(
-        t.budget.unsavedChanges,
+        t('budget.unsavedChanges'),
       );
       if (confirmed) {
         discardDraft();
@@ -135,12 +135,12 @@ export function BudgetGeneratorPage() {
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 px-4 pt-4 sm:px-0 sm:pt-0 no-print cursor-pointer"
         >
           <ArrowLeft size={14} />
-          {t.budget.backToBudgets}
+          {t('budget.backToBudgets')}
         </button>
 
         {isDraft && (
           <div className="mb-4 mx-4 sm:mx-0 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 no-print">
-            {t.budget.draftBanner} <strong>{t.budget.draftBannerBold}</strong>.
+            {t('budget.draftBanner')} <strong>{t('budget.draftBannerBold')}</strong>.
           </div>
         )}
 
@@ -154,7 +154,7 @@ export function BudgetGeneratorPage() {
             aria-expanded={showPartidas}
           >
             {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            {t.budget.workItems}
+            {t('budget.workItems')}
           </button>
 
           <div className={`collapsible ${showPartidas ? 'open' : ''} print:!grid-rows-[1fr]`}>
@@ -175,11 +175,11 @@ export function BudgetGeneratorPage() {
               <div className="flex items-center justify-end gap-2">
                 <Button variant="danger" onClick={handleDiscard}>
                   <X size={16} />
-                  {t.budget.discard}
+                  {t('budget.discard')}
                 </Button>
                 <Button onClick={handleSave}>
                   <Save size={16} />
-                  {t.budget.saveBudget}
+                  {t('budget.saveBudget')}
                 </Button>
               </div>
             ) : (
@@ -194,7 +194,7 @@ export function BudgetGeneratorPage() {
                 <div className="flex justify-end">
                   <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
                     <Trash2 size={16} />
-                    {t.budget.deleteBudget}
+                    {t('budget.deleteBudget')}
                   </Button>
                 </div>
               </div>
@@ -204,13 +204,13 @@ export function BudgetGeneratorPage() {
       </div>
 
       <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.budget.deleteConfirmTitle}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budget.deleteConfirmTitle')}</h3>
         <p className="text-sm text-gray-600 mb-6">
-          {t.budget.deleteConfirmMessage}
+          {t('budget.deleteConfirmMessage')}
         </p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
-            {t.common.cancel}
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger"
@@ -222,7 +222,7 @@ export function BudgetGeneratorPage() {
               navigate('/', { replace: true });
             }}
           >
-            {t.common.delete}
+            {t('common.delete')}
           </Button>
         </div>
       </Modal>

@@ -61,7 +61,7 @@ export const TariffSelector = memo(function TariffSelector({ workItemId, taskId,
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       >
         <option value="" disabled>
-          {t.tariffSelector.placeholder}
+          {t('tariffSelector.placeholder')}
         </option>
         {matched ? (
           grouped[0]?.[1].map((t) => (

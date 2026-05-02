@@ -30,7 +30,7 @@ export function SharedBudgetPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-pulse text-gray-400">{t.common.loading}</div>
+        <div className="animate-pulse text-gray-400">{t('common.loading')}</div>
       </div>
     );
   }
@@ -39,8 +39,8 @@ export function SharedBudgetPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <p className="text-lg font-semibold text-gray-700">{t.share.notFound}</p>
-          <p className="text-sm text-gray-400 mt-1">{t.share.notFoundHint}</p>
+          <p className="text-lg font-semibold text-gray-700">{t('share.notFound')}</p>
+          <p className="text-sm text-gray-400 mt-1">{t('share.notFoundHint')}</p>
         </div>
       </div>
     );

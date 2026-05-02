@@ -9,10 +9,10 @@ import { t } from '@/shared/i18n';
 function usePasswordStrength(password: string) {
   return useMemo(() => {
     const checks = [
-      { label: t.login.passwordMinLength, met: password.length >= 6 },
-      { label: t.login.passwordUppercase, met: /[A-Z]/.test(password) },
-      { label: t.login.passwordLowercase, met: /[a-z]/.test(password) },
-      { label: t.login.passwordNumber, met: /\d/.test(password) },
+      { label: t('login.passwordMinLength'), met: password.length >= 6 },
+      { label: t('login.passwordUppercase'), met: /[A-Z]/.test(password) },
+      { label: t('login.passwordLowercase'), met: /[a-z]/.test(password) },
+      { label: t('login.passwordNumber'), met: /\d/.test(password) },
     ];
     const score = checks.filter((c) => c.met).length;
     return { checks, score };
@@ -64,26 +64,26 @@ export function LoginPage() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t.login.title}</h1>
-          <p className="text-sm text-gray-500 mt-2">{t.login.subtitle}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('login.title')}</h1>
+          <p className="text-sm text-gray-500 mt-2">{t('login.subtitle')}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {isRegister ? t.login.signUp : t.login.signIn}
+            {isRegister ? t('login.signUp') : t('login.signIn')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                {t.login.email}
+                {t('login.email')}
               </label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={t.login.emailPlaceholder}
+                placeholder={t('login.emailPlaceholder')}
                 required
                 autoComplete="email"
               />
@@ -91,14 +91,14 @@ export function LoginPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                {t.login.password}
+                {t('login.password')}
               </label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={t.login.passwordPlaceholder}
+                placeholder={t('login.passwordPlaceholder')}
                 required
                 minLength={6}
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
@@ -148,7 +148,7 @@ export function LoginPage() {
 
             <Button type="submit" className="w-full justify-center" disabled={loading || (isRegister && !allChecksMet)}>
               {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
-              {isRegister ? t.login.register : t.login.enter}
+              {isRegister ? t('login.register') : t('login.enter')}
             </Button>
           </form>
 
@@ -159,8 +159,8 @@ export function LoginPage() {
               className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
             >
               {isRegister
-                ? t.login.hasAccount
-                : t.login.noAccount}
+                ? t('login.hasAccount')
+                : t('login.noAccount')}
             </button>
           </div>
         </div>

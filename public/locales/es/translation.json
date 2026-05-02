@@ -34,8 +34,8 @@
   "budgetList": {
     "title": "Presupuestos",
     "empty": "No hay presupuestos aún",
-    "count_one": "{0} presupuesto",
-    "count_other": "{0} presupuestos",
+    "count_one": "{{count}} presupuesto",
+    "count_other": "{{count}} presupuestos",
     "company": "Empresa",
     "catalog": "Catálogo",
     "newBudget": "Nuevo presupuesto",
@@ -43,9 +43,9 @@
     "emptySubtitle": "Crea tu primer presupuesto para empezar",
     "createBudget": "Crear presupuesto",
     "noName": "Sin nombre",
-    "budgetNumber": "Nº {0}",
-    "workItems_one": "{0} partida",
-    "workItems_other": "{0} partidas",
+    "budgetNumber": "Nº {{0}}",
+    "workItems_one": "{{count}} partida",
+    "workItems_other": "{{count}} partidas",
     "signOut": "Cerrar sesión",
     "logoutConfirmTitle": "¿Cerrar sesión?",
     "logoutConfirmMessage": "Tendrás que volver a iniciar sesión para acceder a tus presupuestos."
@@ -89,10 +89,10 @@
     "surcharge": "Recargo",
     "discount": "Descuento",
     "adjustmentHidden": "El cliente no verá este ajuste en el PDF",
-    "surchargeInTasks": "El cliente no verá este recargo como tal. Se sumará un {pct}% a cada concepto del presupuesto",
+    "surchargeInTasks": "El cliente no verá este recargo como tal. Se sumará un {{pct}}% a cada concepto del presupuesto",
     "adjustedSubtotal": "Subtotal con descuento:",
     "subtotal": "Subtotal:",
-    "iva": "IVA ({0}%):",
+    "iva": "IVA ({{0}}%):",
     "total": "TOTAL:",
     "addDiscount": "Añadir descuento",
     "addSurcharge": "Añadir recargo",
@@ -124,7 +124,7 @@
   },
   "catalog": {
     "title": "Catálogo de tarifas",
-    "stats": "{0} conceptos · {1} categorías",
+    "stats": "{{0}} conceptos · {{1}} categorías",
     "addTask": "Añadir concepto",
     "newTask": "Nuevo concepto",
     "category": "Categoría",
@@ -135,8 +135,8 @@
     "search": "Buscar por descripción o categoría...",
     "expandAll": "Expandir todo",
     "collapseAll": "Colapsar todo",
-    "all": "Todas ({0})",
-    "noResults": "Sin resultados para \"{0}\"",
+    "all": "Todas ({{0}})",
+    "noResults": "Sin resultados para \"{{0}}\"",
     "resetDefaults": "Restaurar catálogo por defecto",
     "resetConfirmTitle": "¿Restaurar catálogo?",
     "resetConfirmMessage": "Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.",
@@ -165,8 +165,8 @@
   },
   "share": {
     "button": "Compartir",
-    "shareTitle": "Mira el presupuesto de {0}",
-    "pageTitle": "Presupuesto de {0}",
+    "shareTitle": "Mira el presupuesto de {{0}}",
+    "pageTitle": "Presupuesto de {{0}}",
     "notFound": "Presupuesto no encontrado",
     "notFoundHint": "El enlace no es válido o el presupuesto ya no está disponible.",
     "poweredBy": "Generado con Budgenerator"
@@ -181,7 +181,7 @@
     "noTemplatesHint": "Guarda un presupuesto como plantilla para reutilizarlo.",
     "deleteConfirmTitle": "¿Eliminar plantilla?",
     "deleteConfirmMessage": "Se eliminará la plantilla de forma permanente.",
-    "workItems_one": "{0} partida",
-    "workItems_other": "{0} partidas"
+    "workItems_one": "{{count}} partida",
+    "workItems_other": "{{count}} partidas"
   }
 }

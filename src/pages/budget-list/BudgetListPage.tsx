@@ -58,30 +58,30 @@ export function BudgetListPage() {
       <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t.budgetList.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('budgetList.title')}</h1>
             <p className="text-sm text-gray-500 mt-1">
               {!loaded
                 ? '\u00A0'
                 : budgets.length === 0
-                  ? t.budgetList.empty
-                  : t.budgetList.count(budgets.length)}
+                  ? t('budgetList.empty')
+                  : t('budgetList.count', { count: budgets.length })}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="secondary" onClick={() => setShowLogout(true)} title={t.budgetList.signOut}>
+            <Button variant="secondary" onClick={() => setShowLogout(true)} title={t('budgetList.signOut')}>
               <LogOut size={16} />
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/profile')} title={t.profile.title}>
+            <Button variant="secondary" onClick={() => navigate('/profile')} title={t('profile.title')}>
               <Building2 size={16} />
-              <span className="hidden sm:inline">{t.budgetList.company}</span>
+              <span className="hidden sm:inline">{t('budgetList.company')}</span>
             </Button>
             <Button variant="secondary" onClick={() => navigate('/catalog')}>
               <Settings size={16} />
-              <span className="hidden sm:inline">{t.budgetList.catalog}</span>
+              <span className="hidden sm:inline">{t('budgetList.catalog')}</span>
             </Button>
             <Button onClick={handleCreate}>
               <Plus size={16} />
-              <span className="hidden sm:inline">{t.budgetList.newBudget}</span>
+              <span className="hidden sm:inline">{t('budgetList.newBudget')}</span>
             </Button>
           </div>
         </div>
@@ -91,13 +91,13 @@ export function BudgetListPage() {
         ) : budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-lg text-gray-500">{t.budgetList.emptyTitle}</p>
+            <p className="text-lg text-gray-500">{t('budgetList.emptyTitle')}</p>
             <p className="text-sm text-gray-400 mt-1">
-              {t.budgetList.emptySubtitle}
+              {t('budgetList.emptySubtitle')}
             </p>
             <Button onClick={handleCreate} className="mt-6">
               <Plus size={16} />
-              {t.budgetList.createBudget}
+              {t('budgetList.createBudget')}
             </Button>
           </div>
         ) : (
@@ -124,17 +124,17 @@ export function BudgetListPage() {
                     </div>
                     <div className="min-w-0 overflow-hidden">
                       <p className="font-semibold text-gray-900 truncate">
-                        {budget.info.clientName || t.budgetList.noName}
+                        {budget.info.clientName || t('budgetList.noName')}
                       </p>
                       {budget.info.address && (
                         <p className="text-xs text-gray-400 truncate overflow-hidden text-ellipsis whitespace-nowrap">{budget.info.address}</p>
                       )}
                       <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
                         {budget.info.budgetNumber && (
-                          <span>{t.budgetList.budgetNumber(budget.info.budgetNumber)}</span>
+                          <span>{t('budgetList.budgetNumber', { 0: budget.info.budgetNumber })}</span>
                         )}
                         <span>{date}</span>
-                        <span>{t.budgetList.workItems(budget.workItems.length)}</span>
+                        <span>{t('budgetList.workItems', { count: budget.workItems.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -152,20 +152,20 @@ export function BudgetListPage() {
       </div>
 
       <Modal open={showLogout} onClose={() => setShowLogout(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.budgetList.logoutConfirmTitle}</h3>
-        <p className="text-sm text-gray-600 mb-6">{t.budgetList.logoutConfirmMessage}</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budgetList.logoutConfirmTitle')}</h3>
+        <p className="text-sm text-gray-600 mb-6">{t('budgetList.logoutConfirmMessage')}</p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={() => setShowLogout(false)}>
-            {t.common.cancel}
+            {t('common.cancel')}
           </Button>
           <Button variant="danger" onClick={signOut}>
-            {t.budgetList.signOut}
+            {t('budgetList.signOut')}
           </Button>
         </div>
       </Modal>
 
       <Modal open={showTemplates} onClose={() => setShowTemplates(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.templates.loadTemplate}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('templates.loadTemplate')}</h3>
         <div className="space-y-2 mb-4">
           {templates.map((tpl) => (
             <div
@@ -175,7 +175,7 @@ export function BudgetListPage() {
             >
               <div>
                 <p className="font-medium text-gray-900">{tpl.name}</p>
-                <p className="text-xs text-gray-500">{t.templates.workItems(tpl.workItems.length)}</p>
+                <p className="text-xs text-gray-500">{t('templates.workItems', { count: tpl.workItems.length })}</p>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setTemplateToDelete(tpl.id); }}
@@ -188,19 +188,19 @@ export function BudgetListPage() {
         </div>
         <Button onClick={handleBlank} className="w-full">
           <Plus size={16} />
-          {t.budgetList.newBudget}
+          {t('budgetList.newBudget')}
         </Button>
       </Modal>
 
       <Modal open={!!templateToDelete} onClose={() => setTemplateToDelete(null)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.templates.deleteConfirmTitle}</h3>
-        <p className="text-sm text-gray-600 mb-6">{t.templates.deleteConfirmMessage}</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('templates.deleteConfirmTitle')}</h3>
+        <p className="text-sm text-gray-600 mb-6">{t('templates.deleteConfirmMessage')}</p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={() => setTemplateToDelete(null)}>
-            {t.common.cancel}
+            {t('common.cancel')}
           </Button>
           <Button variant="danger" onClick={handleDeleteTemplate}>
-            {t.common.delete}
+            {t('common.delete')}
           </Button>
         </div>
       </Modal>

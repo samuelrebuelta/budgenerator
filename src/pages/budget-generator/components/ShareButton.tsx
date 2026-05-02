@@ -24,8 +24,8 @@ export function ShareButton() {
       }
 
       const shareTitle = profile.name
-        ? t.share.shareTitle(profile.name)
-        : t.header.title;
+        ? t('share.shareTitle', { 0: profile.name })
+        : t('header.title');
 
       if (navigator.share) {
         await navigator.share({
@@ -43,9 +43,9 @@ export function ShareButton() {
   };
 
   return (
-    <Button variant="secondary" onClick={handleShare} disabled={sharing} title={t.share.button}>
+    <Button variant="secondary" onClick={handleShare} disabled={sharing} title={t('share.button')}>
       <Share size={16} />
-      {t.share.button}
+      {t('share.button')}
     </Button>
   );
 }

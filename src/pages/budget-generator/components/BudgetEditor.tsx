@@ -11,12 +11,12 @@ import { t } from '@/shared/i18n';
 
 function getBudgetColumns(): ColumnDef[] {
   return [
-    { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
-    { key: 'quantity', label: t.editor.quantity, width: '10%', align: 'right' },
-    { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
-    { key: 'price', label: t.editor.price, width: '12%', align: 'right' },
-    { key: 'amount', label: t.editor.amount, width: '12%', align: 'right', mobileHidden: true },
-    { key: 'margin', label: t.common.margin, width: '12%', align: 'right', className: 'no-print', mobileHidden: true },
+    { key: 'description', label: t('common.description'), width: 'minmax(0,1fr)' },
+    { key: 'quantity', label: t('editor.quantity'), width: '10%', align: 'right' },
+    { key: 'unit', label: t('common.unit'), width: '10%', align: 'center' },
+    { key: 'price', label: t('editor.price'), width: '12%', align: 'right' },
+    { key: 'amount', label: t('editor.amount'), width: '12%', align: 'right', mobileHidden: true },
+    { key: 'margin', label: t('common.margin'), width: '12%', align: 'right', className: 'no-print', mobileHidden: true },
   ];
 }
 
@@ -45,7 +45,7 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
     <EditableRow
       columns={getBudgetColumns()}
       cells={{
-        description: { type: 'text', value: task.description, onChange: (v) => updateTask(workItemId, task.id, { description: v }), placeholder: t.common.description },
+        description: { type: 'text', value: task.description, onChange: (v) => updateTask(workItemId, task.id, { description: v }), placeholder: t('common.description') },
         quantity: { type: 'number', value: task.quantity, onChange: (v) => updateTask(workItemId, task.id, { quantity: parseFloat(v) || 0 }) },
         unit: { type: 'unit-select', value: task.unit, onChange: (v) => updateTask(workItemId, task.id, { unit: v as Unit }) },
         price: { type: 'number', value: task.price, onChange: (v) => updateTask(workItemId, task.id, { price: parseFloat(v) || 0 }), placeholder: '0.00' },
@@ -64,7 +64,7 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
       }}
       onDelete={() => removeTask(workItemId, task.id)}
       headerExtra={<TariffSelector workItemId={workItemId} taskId={task.id} workItemName={workItemName} />}
-      mobileFooter={{ label: t.editor.amount, value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span> }}
+      mobileFooter={{ label: t('editor.amount'), value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span> }}
     />
   );
 });
@@ -100,8 +100,8 @@ export function BudgetEditor() {
   if (workItems.length === 0) {
     return (
       <div className="py-12 text-center text-gray-400">
-        <p className="text-lg">{t.editor.emptyWorkItems}</p>
-        <p className="text-sm mt-1">{t.editor.emptyWorkItemsHint}</p>
+        <p className="text-lg">{t('editor.emptyWorkItems')}</p>
+        <p className="text-sm mt-1">{t('editor.emptyWorkItemsHint')}</p>
       </div>
     );
   }
@@ -163,13 +163,13 @@ export function BudgetEditor() {
       ))}
 
       <Modal open={!!deletingWorkItemId} onClose={() => setDeletingWorkItemId(null)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.editor.deleteWorkItemTitle}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('editor.deleteWorkItemTitle')}</h3>
         <p className="text-sm text-gray-600 mb-6">
-          {t.editor.deleteWorkItemMessage}
+          {t('editor.deleteWorkItemMessage')}
         </p>
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onClick={() => setDeletingWorkItemId(null)}>
-            {t.common.cancel}
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger"
@@ -178,7 +178,7 @@ export function BudgetEditor() {
               setDeletingWorkItemId(null);
             }}
           >
-            {t.common.delete}
+            {t('common.delete')}
           </Button>
         </div>
       </Modal>
