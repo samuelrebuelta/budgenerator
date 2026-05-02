@@ -1,10 +1,10 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { BudgetListPage } from '@/pages/budget-list';
-import { BudgetPage } from '@/pages/budget';
+import { BudgetPage } from '@/pages/budget-generator';
 import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
 import { LoginPage } from '@/pages/login';
-import { SharedBudgetPage } from '@/pages/shared';
+import { SharedBudgetPage } from '@/pages/budget-viewer';
 import { AuthGuard } from './AuthGuard';
 
 export const router = createBrowserRouter([

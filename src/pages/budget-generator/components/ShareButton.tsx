@@ -22,11 +22,15 @@ export function ShareButton() {
         url = `${window.location.origin}/shared/${token}`;
         setShareUrl(url);
       }
+
+      const shareTitle = profile.name
+        ? t.share.shareTitle(profile.name)
+        : t.header.title;
+
       if (navigator.share) {
         await navigator.share({
-          title: budget?.info.clientName
-            ? `${t.header.title} — ${budget.info.clientName}`
-            : t.header.title,
+          title: shareTitle,
+          text: shareTitle,
           url,
         });
       } else {

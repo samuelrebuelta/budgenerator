@@ -17,6 +17,8 @@ export function SharedBudgetPage() {
       .then((result) => {
         if (result) {
           setData(result);
+          const name = result.company?.name;
+          if (name) document.title = `Presupuesto de ${name}`;
         } else {
           setError(true);
         }

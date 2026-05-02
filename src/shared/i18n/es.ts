@@ -188,6 +188,7 @@ export const es = {
   // Share
   share: {
     button: 'Compartir',
+    shareTitle: (company: string) => `Mira el presupuesto de ${company}`,
     notFound: 'Presupuesto no encontrado',
     notFoundHint: 'El enlace no es válido o el presupuesto ya no está disponible.',
     poweredBy: 'Generado con Budgenerator',

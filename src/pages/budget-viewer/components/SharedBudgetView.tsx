@@ -2,6 +2,7 @@ import type { Budget, CompanyProfile, WorkItem, BudgetTask } from '@/shared/type
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Printer } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { t } from '@/shared/i18n';
 
 const IVA_RATE = 0.10;
@@ -22,6 +23,18 @@ interface Props {
 
 export function SharedBudgetView({ budget, company }: Props) {
   const multiplier = budget.adjustment?.multiplier ?? 1;
+  const printRef = useRef<HTMLButtonElement>(null);
+
+  // iOS Safari: use native click listener so window.print() works
+  useEffect(() => {
+    const btn = printRef.current;
+    if (!btn) return;
+    const handler = () => {
+      try { window.print(); } catch { /* noop */ }
+    };
+    btn.addEventListener('click', handler);
+    return () => btn.removeEventListener('click', handler);
+  }, []);
   const rawSubtotal = budget.workItems.reduce(
     (sum, wi) => sum + wi.tasks.reduce((s, t) => s + t.quantity * t.price, 0),
     0,
@@ -33,10 +46,6 @@ export function SharedBudgetView({ budget, company }: Props) {
   const total = subtotal + iva;
 
   const hasCompanyInfo = company.name || company.cif || company.address || company.phone || company.email || company.logo;
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white">
@@ -186,10 +195,10 @@ export function SharedBudgetView({ budget, company }: Props) {
             </div>
           </div>
 
-          {/* Print button */}
+          {/* Print / Export PDF button */}
           <div className="mt-6 flex justify-end no-print">
             <button
-              onClick={handlePrint}
+              ref={printRef}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity cursor-pointer"
             >
               <Printer size={16} />

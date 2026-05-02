@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && cp dist/index.html functions/spa.html",
     "lint": "eslint .",
     "preview": "vite preview",
-    "firebase:deploy": "pnpm build && npx firebase deploy --only hosting"
+    "firebase:deploy": "pnpm build && pnpm dlx firebase-tools deploy --only hosting,functions"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
