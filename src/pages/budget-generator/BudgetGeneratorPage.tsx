@@ -4,7 +4,7 @@ import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from './components/BudgetEditor';
 import { BudgetSummary } from './components/BudgetSummary';
 import { AddWorkItemButton } from './components/AddWorkItemButton';
-import { ExportPdfButton } from './components/ExportPdfButton';
+import { ExportPdfButton } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore } from '@/entities/budget';
