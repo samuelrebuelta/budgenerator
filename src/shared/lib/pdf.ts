@@ -257,9 +257,17 @@ export async function generateBudgetPdf({ budget, company }: PdfData) {
   doc.text('TOTAL', labelX, y);
   doc.text(fmt(total), valueX, y, { align: 'right' });
 
-  // ─── Save ───
+  // ─── Output ───
   const filename = budget.info.clientName
     ? `presupuesto-${budget.info.clientName.toLowerCase().replace(/\s+/g, '-')}.pdf`
     : 'presupuesto.pdf';
-  doc.save(filename);
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } else {
+    doc.save(filename);
+  }
 }
