@@ -9,14 +9,16 @@ import { Button, Modal, EditableRow, EditableRowHeader } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
-const BUDGET_COLUMNS: ColumnDef[] = [
-  { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
-  { key: 'quantity', label: t.editor.quantity, width: '10%', align: 'right' },
-  { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
-  { key: 'price', label: t.editor.price, width: '12%', align: 'right' },
-  { key: 'amount', label: t.editor.amount, width: '12%', align: 'right', mobileHidden: true },
-  { key: 'margin', label: t.common.margin, width: '12%', align: 'right', className: 'no-print', mobileHidden: true },
-];
+function getBudgetColumns(): ColumnDef[] {
+  return [
+    { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
+    { key: 'quantity', label: t.editor.quantity, width: '10%', align: 'right' },
+    { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
+    { key: 'price', label: t.editor.price, width: '12%', align: 'right' },
+    { key: 'amount', label: t.editor.amount, width: '12%', align: 'right', mobileHidden: true },
+    { key: 'margin', label: t.common.margin, width: '12%', align: 'right', className: 'no-print', mobileHidden: true },
+  ];
+}
 
 /* ── Single Task (handles desktop + mobile) ── */
 const BudgetTaskItem = memo(function BudgetTaskItem({
@@ -41,7 +43,7 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
 
   return (
     <EditableRow
-      columns={BUDGET_COLUMNS}
+      columns={getBudgetColumns()}
       cells={{
         description: { type: 'text', value: task.description, onChange: (v) => updateTask(workItemId, task.id, { description: v }), placeholder: t.common.description },
         quantity: { type: 'number', value: task.quantity, onChange: (v) => updateTask(workItemId, task.id, { quantity: parseFloat(v) || 0 }) },
@@ -144,7 +146,7 @@ export function BudgetEditor() {
 
           <div className={`collapsible print:grid-rows-[1fr]! ${collapsedWorkItems.has(workItem.id) ? '' : 'open'}`}>
           <div className="overflow-hidden">
-          <EditableRowHeader columns={BUDGET_COLUMNS} />
+          <EditableRowHeader columns={getBudgetColumns()} />
           <div className="space-y-2 sm:space-y-0 p-3 sm:p-0">
             {workItem.tasks.map((task) => (
               <BudgetTaskItem key={task.id} workItemId={workItem.id} task={task} workItemName={workItem.name} />

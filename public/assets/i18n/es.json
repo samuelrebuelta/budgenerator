@@ -119,6 +119,7 @@
   },
   "export": {
     "button": "Exportar PDF",
+    "generating": "Generando PDF...",
     "iosAlert": "Usa el botón de compartir (⎋) de Safari y selecciona \"Imprimir\" para exportar a PDF."
   },
   "catalog": {

@@ -9,13 +9,15 @@ import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
 import { t } from '@/shared/i18n';
 
-const CATALOG_COLUMNS: ColumnDef[] = [
-  { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
-  { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
-  { key: 'cost', label: t.common.cost, width: '13%', align: 'right' },
-  { key: 'pvp', label: t.common.pvp, width: '13%', align: 'right' },
-  { key: 'margin', label: t.common.margin, width: '13%', align: 'right', mobileHidden: true },
-];
+function getCatalogColumns(): ColumnDef[] {
+  return [
+    { key: 'description', label: t.common.description, width: 'minmax(0,1fr)' },
+    { key: 'unit', label: t.common.unit, width: '10%', align: 'center' },
+    { key: 'cost', label: t.common.cost, width: '13%', align: 'right' },
+    { key: 'pvp', label: t.common.pvp, width: '13%', align: 'right' },
+    { key: 'margin', label: t.common.margin, width: '13%', align: 'right', mobileHidden: true },
+  ];
+}
 
 export function CatalogPage() {
   const tariffs = useTariffStore((s) => s.tariffs);
@@ -313,14 +315,14 @@ export function CatalogPage() {
                   {/* Category items */}
                   <div className={`collapsible ${!isCollapsed ? 'open' : ''}`}>
                     <div className="overflow-hidden">
-                    <EditableRowHeader columns={CATALOG_COLUMNS} />
+                    <EditableRowHeader columns={getCatalogColumns()} />
                     <div className="space-y-2 sm:space-y-0 p-3 sm:p-0">
                       {items.map((tariff) => {
                         const margin = tariff.basePrice > 0 ? ((tariff.basePrice - tariff.cost) / tariff.basePrice) * 100 : 0;
                         return (
                           <EditableRow
                             key={tariff.id}
-                            columns={CATALOG_COLUMNS}
+                            columns={getCatalogColumns()}
                             cells={{
                               description: { type: 'text', value: tariff.description, onChange: (v) => updateTariff(tariff.id, { description: v }) },
                               unit: { type: 'unit-select', value: tariff.unit, onChange: (v) => updateTariff(tariff.id, { unit: v as Unit }) },

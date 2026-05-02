@@ -7,7 +7,8 @@ import { AddWorkItemButton } from './components/AddWorkItemButton';
 import { ExportPdfButton } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
-import { useBudgetStore } from '@/entities/budget';
+import { useBudgetStore, useActiveBudget } from '@/entities/budget';
+import { useProfileStore } from '@/entities/profile';
 import { Button, Modal } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
@@ -37,6 +38,8 @@ export function BudgetGeneratorPage() {
       localStorage.setItem(partidasKey, String(!prev));
       return !prev;
     });
+  const activeBudget = useActiveBudget();
+  const profile = useProfileStore((s) => s.profile);
   const budgetExists = useBudgetStore((s) =>
     s.budgets.some((b) => b.id === budgetId),
   );
@@ -183,7 +186,7 @@ export function BudgetGeneratorPage() {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <ShareButton />
-                  <ExportPdfButton />
+                  {activeBudget && <ExportPdfButton budget={activeBudget} company={profile} />}
                 </div>
                 <div className="flex justify-end">
                   <SaveTemplateButton />
