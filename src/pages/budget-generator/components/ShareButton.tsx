@@ -30,7 +30,6 @@ export function ShareButton() {
       if (navigator.share) {
         await navigator.share({
           title: shareTitle,
-          text: shareTitle,
           url,
         });
       } else {

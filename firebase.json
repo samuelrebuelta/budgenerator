@@ -12,10 +12,6 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "/shared/**",
-        "function": "sharedBudget"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }
