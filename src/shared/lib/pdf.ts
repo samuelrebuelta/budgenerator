@@ -5,6 +5,7 @@ import { UNIT_LABELS } from '@/shared/types';
 interface PdfData {
   budget: Budget;
   company?: CompanyProfile;
+  pdfWindow?: Window | null;
 }
 
 function fmt(n: number): string {
@@ -34,7 +35,7 @@ async function loadImage(url: string): Promise<{ data: string; width: number; he
   }
 }
 
-export async function generateBudgetPdf({ budget, company }: PdfData) {
+export async function generateBudgetPdf({ budget, company, pdfWindow }: PdfData) {
   const ivaRate = budget.ivaRate ?? 0.10;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -262,11 +263,10 @@ export async function generateBudgetPdf({ budget, company }: PdfData) {
     ? `presupuesto-${budget.info.clientName.toLowerCase().replace(/\s+/g, '-')}.pdf`
     : 'presupuesto.pdf';
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
+  if (pdfWindow) {
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    pdfWindow.location.href = url;
   } else {
     doc.save(filename);
   }
