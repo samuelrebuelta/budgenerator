@@ -15,7 +15,7 @@
   },
   "login": {
     "title": "Budgenerator",
-    "subtitle": "Generador de presupuestos de reformas",
+    "subtitle": "Generador de presupuestos",
     "signIn": "Iniciar sesión",
     "signUp": "Crear cuenta",
     "email": "Email",
@@ -63,7 +63,7 @@
     "unsavedChanges": "Hay cambios sin guardar. ¿Deseas salir sin guardar?"
   },
   "header": {
-    "title": "Presupuesto de Reforma",
+    "title": "Presupuesto",
     "clientInfo": "Información del cliente",
     "clientName": "Nombre del cliente",
     "clientNamePlaceholder": "Nombre completo del cliente",
