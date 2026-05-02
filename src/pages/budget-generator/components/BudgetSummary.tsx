@@ -10,6 +10,7 @@ export function BudgetSummary() {
   const getIva = useBudgetStore((s) => s.getIva);
   const getTotal = useBudgetStore((s) => s.getTotal);
   const updateAdjustment = useBudgetStore((s) => s.updateAdjustment);
+  const updateIvaRate = useBudgetStore((s) => s.updateIvaRate);
   const budget = useActiveBudget();
 
   const [editingType, setEditingType] = useState<'descuento' | 'recargo' | null>(null);
@@ -115,8 +116,24 @@ export function BudgetSummary() {
           </span>
           <span className="font-medium">{formatCurrency(subtotal)}</span>
         </div>
-        <div className="flex justify-between w-full max-w-72">
-          <span className="text-gray-600">{t.summary.iva}</span>
+        <div className="flex justify-between w-full max-w-72 items-center">
+          <span className="text-gray-600 flex items-center gap-1">
+            IVA (
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.round((budget.ivaRate ?? 0.10) * 100)}
+              onChange={(e) => {
+                const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                updateIvaRate(val / 100);
+              }}
+              className="w-10 text-center border border-gray-300 rounded px-1 py-0 text-sm no-print"
+            />
+            <span className="print:hidden">%):</span>
+            <span className="hidden print:inline">{Math.round((budget.ivaRate ?? 0.10) * 100)}%):</span>
+          </span>
           <span className="font-medium">{formatCurrency(iva)}</span>
         </div>
         <div className="flex justify-between w-full max-w-72 border-t border-gray-300 pt-2 mt-1">

@@ -7,8 +7,6 @@ import { formatCurrency } from '@/shared/lib';
 import { Printer } from 'lucide-react';
 import { t } from '@/shared/i18n';
 
-const IVA_RATE = 0.10;
-
 function getTaskAmount(task: BudgetTask, multiplier: number): number {
   const raw = task.quantity * task.price;
   return raw * (multiplier > 1 ? multiplier : 1);
@@ -32,7 +30,7 @@ export function BudgetViewerPage() {
         if (result) {
           setData(result);
           const name = result.company?.name;
-          if (name) document.title = `Presupuesto de ${name}`;
+          if (name) document.title = t.share.pageTitle(name);
         } else {
           setError(true);
         }
@@ -72,6 +70,7 @@ export function BudgetViewerPage() {
   }
 
   const { budget, company } = data;
+  const ivaRate = data.ivaRate ?? 0.10;
   const multiplier = budget.adjustment?.multiplier ?? 1;
   const rawSubtotal = budget.workItems.reduce(
     (sum, wi) => sum + wi.tasks.reduce((s, t) => s + t.quantity * t.price, 0),
@@ -80,7 +79,7 @@ export function BudgetViewerPage() {
   const subtotal = rawSubtotal * multiplier;
   const isDiscount = multiplier < 1;
   const adjustmentPercent = Math.round((multiplier - 1) * 100);
-  const iva = subtotal * IVA_RATE;
+  const iva = subtotal * ivaRate;
   const total = subtotal + iva;
 
   const hasCompanyInfo = company.name || company.cif || company.address || company.phone || company.email || company.logo;
@@ -101,11 +100,11 @@ export function BudgetViewerPage() {
               )}
               <div>
                 {company.name && <p className="font-semibold text-gray-900">{company.name}</p>}
-                {company.cif && <p>CIF: {company.cif}</p>}
+                {company.cif && <p>{t.profile.cif}: {company.cif}</p>}
                 {company.address && <p>{company.address}</p>}
                 <div className="flex gap-4 flex-wrap">
-                  {company.phone && <p>Tel: {company.phone}</p>}
-                  {company.email && <p>{company.email}</p>}
+                  {company.phone && <p>{t.profile.phoneLabel}: {company.phone}</p>}
+                  {company.email && <p className="break-all">{company.email}</p>}
                 </div>
               </div>
             </div>
@@ -223,7 +222,7 @@ export function BudgetViewerPage() {
                 <span className="font-medium">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between w-full max-w-72">
-                <span className="text-gray-600">{t.summary.iva}</span>
+                <span className="text-gray-600">{t.summary.iva(Math.round(ivaRate * 100))}</span>
                 <span className="font-medium">{formatCurrency(iva)}</span>
               </div>
               <div className="flex justify-between w-full max-w-72 border-t border-gray-300 pt-2 mt-1">
@@ -237,7 +236,7 @@ export function BudgetViewerPage() {
           <div className="mt-6 flex justify-end no-print">
             <button
               ref={printRef}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <Printer size={16} />
               {t.export.button}

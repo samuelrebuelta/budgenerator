@@ -40,10 +40,10 @@ export function BudgetHeader() {
           )}
           <div>
             {profile.name && <p className="font-semibold text-gray-900">{profile.name}</p>}
-            {profile.cif && <p>CIF: {profile.cif}</p>}
+            {profile.cif && <p>{t.profile.cif}: {profile.cif}</p>}
             {profile.address && <p>{profile.address}</p>}
             <div className="flex gap-4 flex-wrap">
-              {profile.phone && <p>Tel: {profile.phone}</p>}
+              {profile.phone && <p>{t.profile.phoneLabel}: {profile.phone}</p>}
               {profile.email && <p>{profile.email}</p>}
             </div>
           </div>

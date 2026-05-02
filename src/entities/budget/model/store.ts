@@ -7,7 +7,7 @@ import {
   deleteBudgetDoc,
 } from '@/shared/firebase';
 
-const IVA_RATE = 0.10;
+const DEFAULT_IVA_RATE = 0.10;
 
 function createEmptyTask(): BudgetTask {
   return {
@@ -40,7 +40,8 @@ function calcBudgetTotal(budget: Budget): number {
   const rawSubtotal = budget.workItems.reduce((sum, wi) => sum + calcWorkItemSubtotal(wi), 0);
   const multiplier = budget.adjustment?.multiplier ?? 1;
   const adjusted = rawSubtotal * multiplier;
-  return adjusted + adjusted * IVA_RATE;
+  const ivaRate = budget.ivaRate ?? DEFAULT_IVA_RATE;
+  return adjusted + adjusted * ivaRate;
 }
 
 function createDraftBudget(nextNumber: string): Budget {
@@ -113,6 +114,7 @@ interface BudgetState {
   updateTask: (workItemId: string, taskId: string, updates: Partial<BudgetTask>) => void;
   applyTariff: (workItemId: string, taskId: string, description: string, unit: Unit, price: number, cost: number) => void;
   updateAdjustment: (adjustment: BudgetAdjustment | undefined) => void;
+  updateIvaRate: (rate: number) => void;
   resetBudget: () => void;
 }
 
@@ -276,11 +278,17 @@ export const useBudgetStore = create<BudgetState>()(
       return raw * multiplier;
     },
 
-    getIva: () => get().getSubtotal() * IVA_RATE,
+    getIva: () => {
+      const budget = getActive(get());
+      const ivaRate = budget?.ivaRate ?? DEFAULT_IVA_RATE;
+      return get().getSubtotal() * ivaRate;
+    },
 
     getTotal: () => {
+      const budget = getActive(get());
+      const ivaRate = budget?.ivaRate ?? DEFAULT_IVA_RATE;
       const subtotal = get().getSubtotal();
-      return subtotal + subtotal * IVA_RATE;
+      return subtotal + subtotal * ivaRate;
     },
 
     // --- Active budget mutations ---
@@ -436,6 +444,21 @@ export const useBudgetStore = create<BudgetState>()(
         const patch = updateActive(state, (b) => ({
           ...b,
           adjustment,
+        }));
+        if (!state.draftBudget) {
+          const updated = (patch as { budgets: Budget[] }).budgets?.find(
+            (b) => b.id === state.activeBudgetId,
+          );
+          if (updated) syncToFirestore(updated);
+        }
+        return patch;
+      }),
+
+    updateIvaRate: (rate) =>
+      set((state) => {
+        const patch = updateActive(state, (b) => ({
+          ...b,
+          ivaRate: rate,
         }));
         if (!state.draftBudget) {
           const updated = (patch as { budgets: Budget[] }).budgets?.find(

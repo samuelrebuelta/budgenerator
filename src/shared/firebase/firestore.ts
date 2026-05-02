@@ -153,6 +153,7 @@ export async function shareBudget(budget: Budget, company: CompanyProfile): Prom
   const shared: SharedBudget = {
     budget,
     company,
+    ivaRate: budget.ivaRate ?? 0.10,
     sharedAt: new Date().toISOString(),
   };
   await setDoc(doc(db, 'sharedBudgets', token), shared);

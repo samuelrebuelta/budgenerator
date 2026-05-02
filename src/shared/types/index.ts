@@ -41,6 +41,7 @@ export interface Budget {
   info: BudgetInfo;
   workItems: WorkItem[];
   adjustment?: BudgetAdjustment;
+  ivaRate?: number;
   createdAt: string;
 }
 
@@ -65,6 +66,7 @@ export interface CompanyProfile {
 export interface SharedBudget {
   budget: Budget;
   company: CompanyProfile;
+  ivaRate: number;
   sharedAt: string;
 }
 
