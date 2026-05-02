@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchSharedBudget } from '@/shared/firebase';
 import type { SharedBudget, WorkItem, BudgetTask } from '@/shared/types';
@@ -21,15 +21,6 @@ export function BudgetViewerPage() {
   const [data, setData] = useState<SharedBudget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-
-  // Callback ref: attaches native click listener the instant the button mounts.
-  // This guarantees the user gesture chain is preserved on iOS Safari.
-  const printBtnRef = useCallback((node: HTMLButtonElement | null) => {
-    if (!node) return;
-    node.onclick = () => {
-      try { window.print(); } catch { /* noop */ }
-    };
-  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -232,7 +223,8 @@ export function BudgetViewerPage() {
           {/* Export PDF button */}
           <div className="mt-6 flex justify-end no-print">
             <button
-              ref={printBtnRef}
+              type="button"
+              onClick={() => window.print()}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <Printer size={16} />
