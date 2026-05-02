@@ -1,1 +1,1 @@
-export { BudgetPage } from './BudgetPage';
+export { BudgetGeneratorPage } from './BudgetGeneratorPage';

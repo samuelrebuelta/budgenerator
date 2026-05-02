@@ -1,1 +1,1 @@
-export { SharedBudgetPage } from './SharedBudgetPage';
+export { BudgetViewerPage } from './BudgetViewerPage';

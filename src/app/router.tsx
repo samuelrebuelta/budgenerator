@@ -1,15 +1,15 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { BudgetListPage } from '@/pages/budget-list';
-import { BudgetPage } from '@/pages/budget-generator';
+import { BudgetGeneratorPage } from '@/pages/budget-generator';
 import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
 import { LoginPage } from '@/pages/login';
-import { SharedBudgetPage } from '@/pages/budget-viewer';
+import { BudgetViewerPage } from '@/pages/budget-viewer';
 import { AuthGuard } from './AuthGuard';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/shared/:token', element: <SharedBudgetPage /> },
+  { path: '/shared/:token', element: <BudgetViewerPage /> },
   {
     path: '/',
     element: (
@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
     path: '/budget/:budgetId',
     element: (
       <AuthGuard>
-        <BudgetPage />
+        <BudgetGeneratorPage />
       </AuthGuard>
     ),
   },

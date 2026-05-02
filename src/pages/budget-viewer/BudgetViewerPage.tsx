@@ -1,8 +1,10 @@
-import type { Budget, CompanyProfile, WorkItem, BudgetTask } from '@/shared/types';
+import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { fetchSharedBudget } from '@/shared/firebase';
+import type { SharedBudget, WorkItem, BudgetTask } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Printer } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { t } from '@/shared/i18n';
 
 const IVA_RATE = 0.10;
@@ -16,14 +18,28 @@ function getWorkItemSubtotal(wi: WorkItem, multiplier: number): number {
   return wi.tasks.reduce((sum, task) => sum + getTaskAmount(task, multiplier), 0);
 }
 
-interface Props {
-  budget: Budget;
-  company: CompanyProfile;
-}
-
-export function SharedBudgetView({ budget, company }: Props) {
-  const multiplier = budget.adjustment?.multiplier ?? 1;
+export function BudgetViewerPage() {
+  const { token } = useParams<{ token: string }>();
+  const [data, setData] = useState<SharedBudget | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const printRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchSharedBudget(token)
+      .then((result) => {
+        if (result) {
+          setData(result);
+          const name = result.company?.name;
+          if (name) document.title = `Presupuesto de ${name}`;
+        } else {
+          setError(true);
+        }
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [token]);
 
   // iOS Safari: use native click listener so window.print() works
   useEffect(() => {
@@ -34,7 +50,29 @@ export function SharedBudgetView({ budget, company }: Props) {
     };
     btn.addEventListener('click', handler);
     return () => btn.removeEventListener('click', handler);
-  }, []);
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="animate-pulse text-gray-400">{t.common.loading}</div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-gray-700">{t.share.notFound}</p>
+          <p className="text-sm text-gray-400 mt-1">{t.share.notFoundHint}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { budget, company } = data;
+  const multiplier = budget.adjustment?.multiplier ?? 1;
   const rawSubtotal = budget.workItems.reduce(
     (sum, wi) => sum + wi.tasks.reduce((s, t) => s + t.quantity * t.price, 0),
     0,
@@ -195,7 +233,7 @@ export function SharedBudgetView({ budget, company }: Props) {
             </div>
           </div>
 
-          {/* Print / Export PDF button */}
+          {/* Export PDF button */}
           <div className="mt-6 flex justify-end no-print">
             <button
               ref={printRef}
