@@ -92,7 +92,7 @@ interface UserData {
 | `free` | 3 presupuestos |
 | `premium` | Ilimitado |
 
-El admin (`admin@admin.com`) puede cambiar el plan de cualquier usuario desde `/admin`.
+El admin (`budgenerator@gmail.com`) puede cambiar el plan de cualquier usuario desde `/admin`.
 
 ### Tipos de documentos
 

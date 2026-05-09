@@ -7,9 +7,9 @@ import {
   fetchAllUsers,
   adminUpdateUserPlan,
 } from '@/shared/firebase';
+import { CONTACT_EMAIL } from '@/shared/lib';
 
 export const FREE_BUDGET_LIMIT = 3;
-const ADMIN_EMAIL = 'admin@admin.com';
 
 interface UserState {
   userData: UserData | null;
@@ -43,7 +43,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   loadUserData: async (uid, email) => {
     let data = await fetchUserData(uid);
     if (!data) {
-      const isAdmin = email === ADMIN_EMAIL;
+      const isAdmin = email === CONTACT_EMAIL;
       data = {
         uid,
         email,
