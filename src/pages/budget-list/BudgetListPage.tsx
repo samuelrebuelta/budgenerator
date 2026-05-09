@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Lock, Sparkles, ShieldCheck, User, Settings } from 'lucide-react';
+import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, Settings } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
-import { formatCurrency } from '@/shared/lib';
-import { Button, Modal } from '@/shared/ui';
+import { formatCurrency, CONTACT_EMAIL } from '@/shared/lib';
+import { Button, Modal, BudgetLimitReached } from '@/shared/ui';
 import { BudgetListSkeleton } from './components/BudgetListSkeleton';
 import { t } from '@/shared/i18n';
 
@@ -93,13 +93,14 @@ export function BudgetListPage() {
             <Sparkles size={18} className="text-amber-500 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-800">
               <span className="font-semibold">{t('budgetList.upgradeBannerTitle')}</span>{' '}
-              {t('budgetList.upgradeBannerMessage')}{' '}
+              {t('budgetList.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
               <a
-                href="mailto:budgenerator@gmail.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="font-medium text-amber-700 underline hover:text-amber-900"
               >
-                budgenerator@gmail.com
+                {CONTACT_EMAIL}
               </a>
+              {t('budgetList.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
             </p>
           </div>
         )}
@@ -281,13 +282,8 @@ export function BudgetListPage() {
       </Modal>
 
       <Modal open={showLimitReached} onClose={() => setShowLimitReached(false)}>
-        <div className="text-center">
-          <Lock size={40} className="mx-auto text-orange-400 mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budgetList.limitReachedTitle')}</h3>
-          <p className="text-sm text-gray-600 mb-2">{t('budgetList.limitReachedMessage')}</p>
-          <p className="text-xs text-gray-400 mb-6">
-            {t('budgetList.budgetsUsed', { used: userData?.totalBudgetsCreated ?? 0, limit: 5 })}
-          </p>
+        <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />
+        <div className="flex justify-center mt-6">
           <Button variant="secondary" onClick={() => setShowLimitReached(false)}>
             {t('common.cancel')}
           </Button>

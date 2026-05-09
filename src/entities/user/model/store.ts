@@ -8,7 +8,7 @@ import {
   adminUpdateUserPlan,
 } from '@/shared/firebase';
 
-const FREE_BUDGET_LIMIT = 5;
+export const FREE_BUDGET_LIMIT = 3;
 const ADMIN_EMAIL = 'admin@admin.com';
 
 interface UserState {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
+import { MAX_LOGO_SIZE } from '@/shared/lib';
 import { Button, Input, Modal } from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
@@ -32,7 +33,7 @@ export function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
-    if (file.size > 500 * 1024) {
+    if (file.size > MAX_LOGO_SIZE) {
       alert(t('profile.logoTooLarge'));
       return;
     }

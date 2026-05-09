@@ -9,7 +9,8 @@ import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
-import { Button, Modal } from '@/shared/ui';
+import { useUserStore } from '@/entities/user';
+import { Button, Modal, BudgetLimitReached } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { t } from '@/shared/i18n';
@@ -25,6 +26,8 @@ export function BudgetGeneratorPage() {
   const discardDraft = useBudgetStore((s) => s.discardDraft);
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
   const draftBudget = useBudgetStore((s) => s.draftBudget);
+  const canCreateBudget = useUserStore((s) => s.canCreateBudget);
+  const userData = useUserStore((s) => s.userData);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const partidasKey = `collapsed-partidas-${budgetId ?? 'new'}`;
   const [showPartidas, setShowPartidas] = useState(() => {
@@ -65,7 +68,6 @@ export function BudgetGeneratorPage() {
     return (
       draft.info.clientName !== '' ||
       draft.info.address !== '' ||
-      draft.info.budgetNumber !== '' ||
       draft.workItems.length > 0
     );
   });
@@ -93,7 +95,6 @@ export function BudgetGeneratorPage() {
         draft &&
         (draft.info.clientName !== '' ||
           draft.info.address !== '' ||
-          draft.info.budgetNumber !== '' ||
           draft.workItems.length > 0)
       ) {
         e.preventDefault();
@@ -124,6 +125,22 @@ export function BudgetGeneratorPage() {
     return <BudgetSkeleton />;
   }
   if (!isDraft && !budgetExists) return null;
+
+  if (isDraft && !canCreateBudget()) {
+    return (
+      <div className="min-h-screen bg-white sm:bg-gray-100 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />
+          <div className="flex justify-center mt-6">
+            <Button variant="secondary" onClick={() => navigate('/')}>
+              {t('common.back')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isDraft && !draftBudget) return null;
 
   return (

@@ -6,3 +6,4 @@ export { Input } from './Input';
 export { Modal } from './Modal';
 export { Select } from './Select';
 export { Skeleton, SkeletonList } from './Skeleton';
+export { BudgetLimitReached } from './BudgetLimitReached';

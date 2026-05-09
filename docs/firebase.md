@@ -89,7 +89,7 @@ interface UserData {
 
 | Plan | Límite de presupuestos |
 |---|---|
-| `free` | 5 presupuestos |
+| `free` | 3 presupuestos |
 | `premium` | Ilimitado |
 
 El admin (`admin@admin.com`) puede cambiar el plan de cualquier usuario desde `/admin`.

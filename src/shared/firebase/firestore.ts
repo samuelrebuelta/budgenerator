@@ -57,7 +57,7 @@ function mapFromFirestore(raw: FirestoreBudget): Budget {
 }
 
 function mapToFirestore(budget: Budget): FirestoreBudget {
-  return {
+  const doc: FirestoreBudget = {
     id: budget.id,
     info: budget.info,
     workItems: budget.workItems.map((wi) => ({
@@ -65,9 +65,12 @@ function mapToFirestore(budget: Budget): FirestoreBudget {
       name: wi.name,
       tasks: wi.tasks,
     })),
-    adjustment: budget.adjustment,
     createdAt: budget.createdAt,
   };
+  if (budget.adjustment) {
+    doc.adjustment = budget.adjustment;
+  }
+  return doc;
 }
 
 // --- Budgets ---
@@ -86,7 +89,8 @@ export async function saveBudget(uid: string, budget: Budget) {
 }
 
 export async function updateBudget(uid: string, budgetId: string, data: Partial<Budget>) {
-  await updateDoc(doc(budgetsCol(uid), budgetId), data);
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+  await updateDoc(doc(budgetsCol(uid), budgetId), clean);
 }
 
 export async function deleteBudgetDoc(uid: string, budgetId: string) {

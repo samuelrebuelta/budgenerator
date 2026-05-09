@@ -81,7 +81,7 @@ export function AdminPage() {
           </div>
         ) : (
           <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-none">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                   <tr>
@@ -91,7 +91,7 @@ export function AdminPage() {
                     <th className="px-4 py-3 text-right">{t('admin.registeredAt')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200 border-b border-gray-200">
                   {visibleUsers.map((user) => (
                     <tr
                       key={user.uid}
@@ -169,7 +169,7 @@ export function AdminPage() {
             </div>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => setSelectedUser(null)}>
-                {t('common.cancel')}
+                {t('common.close')}
               </Button>
             </div>
           </div>
