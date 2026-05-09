@@ -33,7 +33,9 @@ Contiene el bootstrap de la aplicación:
 |---|---|
 | `App.tsx` | Monta el `RouterProvider` |
 | `router.tsx` | Define todas las rutas con `createBrowserRouter` |
-| `AuthGuard.tsx` | Componente wrapper que protege rutas, inicializa auth, y carga datos |
+| `AuthGuard.tsx` | Componente wrapper que protege rutas, inicializa auth, y carga datos de usuario |
+| `AdminGuard.tsx` | Protege la ruta `/admin`, verifica `accountData.isAdmin` |
+| `ErrorPage.tsx` | Página de error global (`errorElement` en todas las rutas) |
 
 ### AuthGuard
 
@@ -64,6 +66,7 @@ entities/
 | `budget` | Estado completo de presupuestos: lista, borrador, presupuesto activo. CRUD + cálculos (subtotales, IVA, total, margen). |
 | `tariff` | Catálogo de tarifas con CRUD. Seed de defaults. Cache con flag `loaded`. |
 | `profile` | Perfil de empresa. Logo almacenado como base64. CRUD simple. |
+| `user` | Datos de cuenta del usuario: plan (free/premium), isAdmin, totalBudgetsCreated. Gestión de usuarios (admin). |
 
 ### Patrón de inyección de auth
 
@@ -86,11 +89,13 @@ Cada página corresponde a una ruta:
 
 | Ruta | Página | Descripción |
 |---|---|---|
-| `/login` | `LoginPage` | Login + registro con email/password |
+| `/login` | `LoginPage` | Login + registro con email/password + reset de contraseña |
 | `/` | `BudgetListPage` | Lista de presupuestos del usuario |
 | `/budget/:budgetId` | `BudgetPage` | Editor de presupuesto (o borrador si `budgetId === 'new'`) |
 | `/catalog` | `CatalogPage` | Gestión del catálogo de tarifas |
 | `/profile` | `ProfilePage` | Datos de empresa y logo |
+| `/admin` | `AdminPage` | Panel de administración (solo admin). Gestión de planes de usuarios. |
+| `/shared/:token` | `SharedBudgetPage` | Vista pública de presupuesto compartido (sin auth) |
 
 ### Componentes de página
 

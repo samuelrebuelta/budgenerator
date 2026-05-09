@@ -34,6 +34,7 @@ Expone 4 funciones wrapper sobre Firebase Auth:
 | `signUpWithEmail(email, password)` | `createUserWithEmailAndPassword` |
 | `signOut()` | `firebaseSignOut` |
 | `onAuthChange(callback)` | `onAuthStateChanged` |
+| `sendPasswordReset(email)` | `sendPasswordResetEmail` |
 
 ### Flujo de autenticación
 
@@ -58,16 +59,40 @@ Todos los checks deben cumplirse para habilitar el botón de registro.
 ### Estructura de documentos
 
 ```
-users/{uid}/
+users/{uid}                         → UserData (accountData, plan, email, totalBudgetsCreated)
 ├── budgets/
 │   └── {budgetId}          → Budget (documento completo)
 ├── tariffs/
 │   └── {tariffId}          → Tariff
 └── settings/
     └── profile             → CompanyProfile
+
+sharedBudgets/{token}               → Presupuesto compartido (lectura pública)
 ```
 
-Cada usuario tiene su propio subárbol bajo `users/{uid}/`. Esto facilita las reglas de seguridad y el aislamiento multi-tenant.
+El documento raíz `users/{uid}` contiene los datos de cuenta del usuario:
+
+```typescript
+interface UserData {
+  uid: string;
+  email: string;
+  accountData: {
+    isAdmin: boolean;
+    plan: 'free' | 'premium';
+  };
+  totalBudgetsCreated: number;
+  createdAt: string;
+}
+```
+
+### Planes y límites
+
+| Plan | Límite de presupuestos |
+|---|---|
+| `free` | 5 presupuestos |
+| `premium` | Ilimitado |
+
+El admin (`admin@admin.com`) puede cambiar el plan de cualquier usuario desde `/admin`.
 
 ### Tipos de documentos
 
@@ -137,6 +162,12 @@ El módulo `src/shared/firebase/firestore.ts` expone funciones CRUD tipadas:
 | `deleteAllTariffs(uid)` | Eliminar todas las tarifas | `writeBatch` |
 | `fetchProfile(uid)` | Leer perfil | `getDoc` |
 | `saveProfile(uid, profile)` | Crear/actualizar perfil | `setDoc` |
+| `fetchUserData(uid)` | Leer datos de cuenta | `getDoc` |
+| `saveUserData(uid, data)` | Crear datos de cuenta | `setDoc` |
+| `incrementBudgetCount(uid)` | Incrementar contador de presupuestos | `updateDoc` |
+| `fetchAllUsers()` | Leer todos los usuarios (admin) | `getDocs` |
+| `adminUpdateUserPlan(uid, plan)` | Cambiar plan de usuario (admin) | `updateDoc` |
+| `shareBudget(budget, profile)` | Crear presupuesto compartido | `setDoc` |
 
 ### Seed de tarifas
 
@@ -163,20 +194,37 @@ El usuario puede restaurar las tarifas por defecto desde la página del catálog
 
 Ambas operaciones usan batch writes para atomicidad.
 
-## Reglas de seguridad recomendadas
+## Reglas de seguridad
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountData.isAdmin == true;
+    }
+
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null && isAdmin();
+      allow update: if request.auth != null && isAdmin();
+    }
+
+    match /sharedBudgets/{token} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }
 ```
 
-Esta regla garantiza que cada usuario solo pueda leer/escribir sus propios datos.
+- Cada usuario solo puede leer/escribir sus propios datos
+- Los admins pueden leer y actualizar datos de otros usuarios (para gestión de planes)
+- Los presupuestos compartidos son de lectura pública
 
 ## Hosting
 
@@ -197,7 +245,9 @@ Configuración en `firebase.json`:
 
 - **SPA rewrite**: Todas las rutas redirigen a `index.html` (React Router maneja el routing)
 - **Cache de assets**: Los archivos en `/assets/` se cachean 1 año (Vite genera hashes en los nombres)
-- **Deploy**: `pnpm deploy` ejecuta build + firebase deploy
+- **Deploy**: `pnpm firebase:deploy` ejecuta build + firebase deploy (solo hosting)
+
+> **Nota**: No se usa Firebase Cloud Functions. El proyecto funciona íntegramente como SPA estática con Firestore como backend.
 
 ## Límites y consideraciones
 

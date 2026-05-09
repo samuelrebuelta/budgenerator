@@ -27,6 +27,3 @@ dist-ssr
 
 # Firebase
 .firebase/
-
-# Functions build artifact
-functions/spa.html
