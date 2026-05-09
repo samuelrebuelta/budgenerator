@@ -3,7 +3,6 @@ import type { UserData, UserPlan } from '@/shared/types';
 import {
   fetchUserData,
   saveUserData,
-  updateUserData,
   incrementBudgetCount,
   fetchAllUsers,
   adminUpdateUserPlan,
@@ -29,6 +28,10 @@ let _getUid: (() => string) | null = null;
 
 export function setUserAuthGetter(fn: () => string) {
   _getUid = fn;
+}
+
+export function getUserUid(): string {
+  return _getUid?.() ?? '';
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
