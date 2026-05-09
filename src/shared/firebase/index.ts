@@ -1,4 +1,4 @@
-export { signInWithEmail, signUpWithEmail, signOut, onAuthChange, sendPasswordReset } from './auth';
+export { signInWithEmail, signUpWithEmail, signOut, onAuthChange, sendPasswordReset, changePassword } from './auth';
 export {
   fetchBudgets,
   saveBudget,

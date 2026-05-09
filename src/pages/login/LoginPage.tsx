@@ -224,8 +224,11 @@ export function LoginPage() {
         </h3>
         {resetSent ? (
           <div>
-            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-4">
+            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-2">
               {t('login.resetPasswordSent')}
+            </p>
+            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+              {t('login.resetPasswordSpamHint')}
             </p>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => setShowReset(false)}>

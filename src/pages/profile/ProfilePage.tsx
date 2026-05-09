@@ -55,7 +55,7 @@ export function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
+      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
         <button
           onClick={() => navigate('/')}
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
@@ -64,7 +64,7 @@ export function ProfilePage() {
           {t('common.back')}
         </button>
 
-        <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.title')}</h1>
           <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
             <Info size={16} className="shrink-0 mt-0.5" />

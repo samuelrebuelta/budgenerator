@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Lock, Sparkles, ShieldCheck } from 'lucide-react';
+import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Lock, Sparkles, ShieldCheck, User, Settings } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
@@ -25,6 +25,18 @@ export function BudgetListPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
   const [showLimitReached, setShowLimitReached] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   const handleCreate = () => {
     if (!canCreateBudget()) {
@@ -104,21 +116,48 @@ export function BudgetListPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="secondary" onClick={() => setShowLogout(true)} title={t('budgetList.signOut')}>
-              <LogOut size={16} />
-            </Button>
-            <Button variant="secondary" onClick={() => navigate('/profile')} title={t('profile.title')}>
-              <Building2 size={16} />
-              <span className="hidden sm:inline">{t('budgetList.company')}</span>
-            </Button>
-            <Button variant="secondary" onClick={() => navigate('/catalog')}>
-              <BookOpen size={16} />
-              <span className="hidden sm:inline">{t('budgetList.catalog')}</span>
-            </Button>
             <Button onClick={handleCreate}>
               <Plus size={16} />
               <span className="hidden sm:inline">{t('budgetList.newBudget')}</span>
             </Button>
+            <div className="relative" ref={menuRef}>
+              <Button variant="secondary" onClick={() => setShowMenu(!showMenu)} title={t('settings.title')}>
+                <User size={16} />
+              </Button>
+              {showMenu && (
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  <button
+                    onClick={() => { setShowMenu(false); navigate('/profile'); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <Building2 size={16} className="text-gray-400" />
+                    {t('profile.title')}
+                  </button>
+                  <button
+                    onClick={() => { setShowMenu(false); navigate('/catalog'); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <BookOpen size={16} className="text-gray-400" />
+                    {t('budgetList.catalog')}
+                  </button>
+                  <button
+                    onClick={() => { setShowMenu(false); navigate('/settings'); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <Settings size={16} className="text-gray-400" />
+                    {t('settings.title')}
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => { setShowMenu(false); setShowLogout(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                  >
+                    <LogOut size={16} className="text-red-400" />
+                    {t('budgetList.signOut')}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

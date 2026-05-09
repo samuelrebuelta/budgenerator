@@ -3,6 +3,7 @@ import { BudgetListPage } from '@/pages/budget-list';
 import { BudgetGeneratorPage } from '@/pages/budget-generator';
 import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
+import { SettingsPage, ChangePasswordPage } from '@/pages/settings';
 import { LoginPage } from '@/pages/login';
 import { BudgetViewerPage } from '@/pages/budget-viewer';
 import { AdminPage } from '@/pages/admin';
@@ -48,6 +49,24 @@ export const router = createBrowserRouter([
     element: (
       <AuthGuard>
         <ProfilePage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: '/settings',
+    errorElement,
+    element: (
+      <AuthGuard>
+        <SettingsPage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: '/settings/password',
+    errorElement,
+    element: (
+      <AuthGuard>
+        <ChangePasswordPage />
       </AuthGuard>
     ),
   },
