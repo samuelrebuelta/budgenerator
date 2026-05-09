@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Modal } from '@/shared/ui';
-import { LogIn, UserPlus, Check, X, KeyRound } from 'lucide-react';
+import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
 import { sendPasswordReset } from '@/shared/firebase';
 
@@ -41,6 +41,7 @@ export function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Initialize auth listener so loading becomes false
   useEffect(() => {
@@ -132,16 +133,25 @@ export function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 {t('login.password')}
               </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('login.passwordPlaceholder')}
-                required
-                minLength={6}
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('login.passwordPlaceholder')}
+                  required
+                  minLength={6}
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               {isRegister && password.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   <div className="flex gap-1">

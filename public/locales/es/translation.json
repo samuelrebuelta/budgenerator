@@ -35,7 +35,13 @@
     "resetPasswordMessage": "Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.",
     "resetPasswordButton": "Enviar enlace",
     "resetPasswordSent": "Se ha enviado un email con instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada.",
-    "resetPasswordSpamHint": "Si no lo encuentras, revisa la carpeta de spam o correo no deseado."
+    "resetPasswordSpamHint": "Si no lo encuentras, revisa la carpeta de spam o correo no deseado.",
+    "errorInvalidCredentials": "Email o contraseña incorrectos",
+    "errorEmailInUse": "Ya existe una cuenta con este email",
+    "errorTooManyRequests": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    "errorInvalidEmail": "El email no es válido",
+    "errorWeakPassword": "La contraseña es demasiado débil",
+    "errorGeneric": "Ha ocurrido un error. Inténtalo de nuevo."
   },
   "budgetList": {
     "title": "Presupuestos",

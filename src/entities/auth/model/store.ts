@@ -7,6 +7,28 @@ import {
   onAuthChange,
 } from '@/shared/firebase';
 
+import { t } from '@/shared/i18n';
+
+function mapAuthError(e: unknown): string {
+  const code = (e as { code?: string }).code;
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return t('login.errorInvalidCredentials');
+    case 'auth/email-already-in-use':
+      return t('login.errorEmailInUse');
+    case 'auth/too-many-requests':
+      return t('login.errorTooManyRequests');
+    case 'auth/invalid-email':
+      return t('login.errorInvalidEmail');
+    case 'auth/weak-password':
+      return t('login.errorWeakPassword');
+    default:
+      return t('login.errorGeneric');
+  }
+}
+
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -35,7 +57,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
     try {
       await signInWithEmail(email, password);
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      set({ error: mapAuthError(e), loading: false });
     }
   },
 
@@ -44,7 +66,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
     try {
       await signUpWithEmail(email, password);
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      set({ error: mapAuthError(e), loading: false });
     }
   },
 
