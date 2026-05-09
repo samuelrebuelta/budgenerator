@@ -1,4 +1,4 @@
-export { signInWithEmail, signUpWithEmail, signOut, onAuthChange } from './auth';
+export { signInWithEmail, signUpWithEmail, signOut, onAuthChange, sendPasswordReset } from './auth';
 export {
   fetchBudgets,
   saveBudget,
@@ -17,5 +17,11 @@ export {
   fetchTemplates,
   saveTemplate,
   deleteTemplatDoc as deleteTemplateDoc,
+  fetchUserData,
+  saveUserData,
+  updateUserData,
+  incrementBudgetCount,
+  fetchAllUsers,
+  adminUpdateUserPlan,
 } from './firestore';
 export { auth, db } from './config';

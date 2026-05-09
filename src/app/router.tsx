@@ -5,13 +5,19 @@ import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
 import { LoginPage } from '@/pages/login';
 import { BudgetViewerPage } from '@/pages/budget-viewer';
+import { AdminPage } from '@/pages/admin';
 import { AuthGuard } from './AuthGuard';
+import { AdminGuard } from './AdminGuard';
+import { ErrorPage } from './ErrorPage';
+
+const errorElement = <ErrorPage />;
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/shared/:token', element: <BudgetViewerPage /> },
+  { path: '/login', element: <LoginPage />, errorElement },
+  { path: '/shared/:token', element: <BudgetViewerPage />, errorElement },
   {
     path: '/',
+    errorElement,
     element: (
       <AuthGuard>
         <BudgetListPage />
@@ -20,6 +26,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/budget/:budgetId',
+    errorElement,
     element: (
       <AuthGuard>
         <BudgetGeneratorPage />
@@ -28,6 +35,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/catalog',
+    errorElement,
     element: (
       <AuthGuard>
         <CatalogPage />
@@ -36,10 +44,20 @@ export const router = createBrowserRouter([
   },
   {
     path: '/profile',
+    errorElement,
     element: (
       <AuthGuard>
         <ProfilePage />
       </AuthGuard>
+    ),
+  },
+  {
+    path: '/admin',
+    errorElement,
+    element: (
+      <AdminGuard>
+        <AdminPage />
+      </AdminGuard>
     ),
   },
   { path: '*', element: <Navigate to="/" replace /> },

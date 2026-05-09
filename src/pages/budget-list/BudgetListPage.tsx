@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Settings, LogOut, Building2, Trash2 } from 'lucide-react';
+import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Lock, Sparkles, ShieldCheck } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
+import { useUserStore } from '@/entities/user';
 import { formatCurrency } from '@/shared/lib';
 import { Button, Modal } from '@/shared/ui';
 import { BudgetListSkeleton } from './components/BudgetListSkeleton';
@@ -17,12 +18,19 @@ export function BudgetListPage() {
   const templates = useTemplateStore((s) => s.templates);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
   const signOut = useAuthStore((s) => s.signOut);
+  const canCreateBudget = useUserStore((s) => s.canCreateBudget);
+  const userData = useUserStore((s) => s.userData);
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+  const [showLimitReached, setShowLimitReached] = useState(false);
 
   const handleCreate = () => {
+    if (!canCreateBudget()) {
+      setShowLimitReached(true);
+      return;
+    }
     if (templates.length > 0) {
       setShowTemplates(true);
     } else {
@@ -56,6 +64,34 @@ export function BudgetListPage() {
   return (
     <div className="min-h-screen bg-white sm:bg-gray-100">
       <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
+
+        {userData?.accountData.isAdmin && (
+          <div
+            onClick={() => navigate('/admin')}
+            className="mb-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-blue-400 transition-colors"
+          >
+            <ShieldCheck size={18} className="text-blue-600 shrink-0" />
+            <p className="text-sm text-blue-800 font-medium flex-1">{t('budgetList.adminBanner')}</p>
+            <span className="text-blue-400 text-sm">&rarr;</span>
+          </div>
+        )}
+
+        {userData?.accountData.plan === 'free' && (
+          <div className="mb-4 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
+            <Sparkles size={18} className="text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">{t('budgetList.upgradeBannerTitle')}</span>{' '}
+              {t('budgetList.upgradeBannerMessage')}{' '}
+              <a
+                href="mailto:budgenerator@gmail.com"
+                className="font-medium text-amber-700 underline hover:text-amber-900"
+              >
+                budgenerator@gmail.com
+              </a>
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('budgetList.title')}</h1>
@@ -76,7 +112,7 @@ export function BudgetListPage() {
               <span className="hidden sm:inline">{t('budgetList.company')}</span>
             </Button>
             <Button variant="secondary" onClick={() => navigate('/catalog')}>
-              <Settings size={16} />
+              <BookOpen size={16} />
               <span className="hidden sm:inline">{t('budgetList.catalog')}</span>
             </Button>
             <Button onClick={handleCreate}>
@@ -201,6 +237,20 @@ export function BudgetListPage() {
           </Button>
           <Button variant="danger" onClick={handleDeleteTemplate}>
             {t('common.delete')}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showLimitReached} onClose={() => setShowLimitReached(false)}>
+        <div className="text-center">
+          <Lock size={40} className="mx-auto text-orange-400 mb-3" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budgetList.limitReachedTitle')}</h3>
+          <p className="text-sm text-gray-600 mb-2">{t('budgetList.limitReachedMessage')}</p>
+          <p className="text-xs text-gray-400 mb-6">
+            {t('budgetList.budgetsUsed', { used: userData?.totalBudgetsCreated ?? 0, limit: 5 })}
+          </p>
+          <Button variant="secondary" onClick={() => setShowLimitReached(false)}>
+            {t('common.cancel')}
           </Button>
         </div>
       </Modal>

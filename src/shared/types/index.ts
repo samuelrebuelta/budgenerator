@@ -77,3 +77,18 @@ export interface BudgetTemplate {
   adjustment?: BudgetAdjustment;
   createdAt: string;
 }
+
+export type UserPlan = 'free' | 'premium';
+
+export interface AccountData {
+  isAdmin: boolean;
+  plan: UserPlan;
+}
+
+export interface UserData {
+  uid: string;
+  email: string;
+  accountData: AccountData;
+  totalBudgetsCreated: number;
+  createdAt: string;
+}

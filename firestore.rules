@@ -2,9 +2,18 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User-scoped data: only authenticated owner
+    // Check if the authenticated user has isAdmin flag in their own user doc
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountData.isAdmin == true;
+    }
+
+    // User-scoped data: only authenticated owner or admin
+    match /users/{uid} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
 
     // Shared budgets: anyone can read, only authenticated users can create

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
 import { Button, Input, Modal } from '@/shared/ui';
@@ -65,7 +65,11 @@ export function ProfilePage() {
         </button>
 
         <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('profile.title')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.title')}</h1>
+          <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
+            <Info size={16} className="shrink-0 mt-0.5" />
+            <span>{t('profile.disclaimer')}</span>
+          </div>
 
           {/* Logo */}
           <div className="mb-6">

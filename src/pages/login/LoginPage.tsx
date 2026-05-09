@@ -1,10 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
+import { useUserStore } from '@/entities/user';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { LogIn, UserPlus, Check, X } from 'lucide-react';
+import { Modal } from '@/shared/ui';
+import { LogIn, UserPlus, Check, X, KeyRound } from 'lucide-react';
 import { t } from '@/shared/i18n';
+import { sendPasswordReset } from '@/shared/firebase';
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
@@ -33,6 +36,11 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { checks, score } = usePasswordStrength(password);
   const allChecksMet = score === checks.length;
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Initialize auth listener so loading becomes false
   useEffect(() => {
@@ -41,9 +49,20 @@ export function LoginPage() {
   }, [init]);
 
   // Redirect if already logged in
+  const userData = useUserStore((s) => s.userData);
+  const userLoaded = useUserStore((s) => s.loaded);
+
   useEffect(() => {
-    if (user) navigate('/', { replace: true });
-  }, [user, navigate]);
+    if (user && !userLoaded) {
+      useUserStore.getState().loadUserData(user.uid, user.email ?? '');
+    }
+  }, [user, userLoaded]);
+
+  useEffect(() => {
+    if (user && userData) {
+      navigate('/', { replace: true });
+    }
+  }, [user, userData, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +77,26 @@ export function LoginPage() {
   const toggleMode = () => {
     setIsRegister(!isRegister);
     clearError();
+  };
+
+  const handleResetPassword = async () => {
+    setResetError(null);
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(resetEmail);
+      setResetSent(true);
+    } catch (e) {
+      setResetError((e as Error).message);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const openResetModal = () => {
+    setResetEmail(email);
+    setResetSent(false);
+    setResetError(null);
+    setShowReset(true);
   };
 
   return (
@@ -152,6 +191,18 @@ export function LoginPage() {
             </Button>
           </form>
 
+          {!isRegister && (
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={openResetModal}
+                className="text-sm text-gray-500 hover:text-blue-600 cursor-pointer"
+              >
+                {t('login.forgotPassword')}
+              </button>
+            </div>
+          )}
+
           <div className="mt-4 text-center">
             <button
               type="button"
@@ -165,6 +216,50 @@ export function LoginPage() {
           </div>
         </div>
       </div>
+
+      <Modal open={showReset} onClose={() => setShowReset(false)}>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <KeyRound size={18} className="inline mr-2" />
+          {t('login.resetPasswordTitle')}
+        </h3>
+        {resetSent ? (
+          <div>
+            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-4">
+              {t('login.resetPasswordSent')}
+            </p>
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={() => setShowReset(false)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">{t('login.resetPasswordMessage')}</p>
+            <Input
+              id="resetEmail"
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder={t('login.emailPlaceholder')}
+              required
+            />
+            {resetError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mt-2">
+                {resetError}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-3 mt-4">
+              <Button variant="secondary" onClick={() => setShowReset(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={handleResetPassword} disabled={resetLoading || !resetEmail}>
+                {resetLoading ? t('common.loading') : t('login.resetPasswordButton')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

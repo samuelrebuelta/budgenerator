@@ -6,6 +6,7 @@ import {
   saveBudget,
   deleteBudgetDoc,
 } from '@/shared/firebase';
+import { useUserStore } from '@/entities/user';
 
 const DEFAULT_IVA_RATE = 0.10;
 
@@ -218,6 +219,7 @@ export const useBudgetStore = create<BudgetState>()(
         })),
       };
       await saveBudget(uid, saved);
+      await useUserStore.getState().onBudgetCreated(uid);
       set({
         budgets: [...get().budgets, saved],
         activeBudgetId: saved.id,

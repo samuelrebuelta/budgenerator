@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { Plus, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search, Info } from 'lucide-react';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
@@ -138,6 +138,11 @@ export function CatalogPage() {
               <span className="hidden sm:inline">{t('catalog.addTask')}</span>
             </Button>
           </div>
+        </div>
+
+        <div className="flex items-start gap-2 bg-amber-50 text-amber-700 text-sm rounded-lg px-3 py-2 mb-4">
+          <Info size={16} className="shrink-0 mt-0.5" />
+          <span>{t('catalog.disclaimer')}</span>
         </div>
 
         {/* Add form */}

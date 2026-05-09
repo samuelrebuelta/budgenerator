@@ -29,7 +29,12 @@
     "passwordMinLength": "Mínimo 6 caracteres",
     "passwordUppercase": "Una letra mayúscula",
     "passwordLowercase": "Una letra minúscula",
-    "passwordNumber": "Un número"
+    "passwordNumber": "Un número",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPasswordTitle": "Restablecer contraseña",
+    "resetPasswordMessage": "Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.",
+    "resetPasswordButton": "Enviar enlace",
+    "resetPasswordSent": "Se ha enviado un email con instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada."
   },
   "budgetList": {
     "title": "Presupuestos",
@@ -48,7 +53,13 @@
     "workItems_other": "{{count}} partidas",
     "signOut": "Cerrar sesión",
     "logoutConfirmTitle": "¿Cerrar sesión?",
-    "logoutConfirmMessage": "Tendrás que volver a iniciar sesión para acceder a tus presupuestos."
+    "logoutConfirmMessage": "Tendrás que volver a iniciar sesión para acceder a tus presupuestos.",
+    "limitReachedTitle": "Límite alcanzado",
+    "limitReachedMessage": "Has alcanzado el límite de presupuestos del plan gratuito. Contacta con el administrador para obtener el plan Premium.",
+    "budgetsUsed": "{{used}} de {{limit}} presupuestos utilizados",
+    "upgradeBannerTitle": "¿Necesitas presupuestos ilimitados?",
+    "upgradeBannerMessage": "Pasa al plan Premium y genera todos los presupuestos que necesites sin restricciones. Escríbenos a",
+    "adminBanner": "Acceder al panel de administración"
   },
   "budget": {
     "backToBudgets": "Volver a presupuestos",
@@ -140,7 +151,8 @@
     "resetDefaults": "Restaurar catálogo por defecto",
     "resetConfirmTitle": "¿Restaurar catálogo?",
     "resetConfirmMessage": "Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.",
-    "reset": "Restaurar"
+    "reset": "Restaurar",
+    "disclaimer": "Los cambios en el catálogo solo afectan a los presupuestos nuevos. Los presupuestos existentes no se modifican."
   },
   "profile": {
     "title": "Datos de empresa",
@@ -161,7 +173,8 @@
     "phoneLabel": "Tel",
     "phonePlaceholder": "600 123 456",
     "email": "Email",
-    "emailPlaceholder": "info@miempresa.com"
+    "emailPlaceholder": "info@miempresa.com",
+    "disclaimer": "Estos datos aparecerán en los presupuestos que compartas con tus clientes."
   },
   "share": {
     "button": "Compartir",
@@ -183,5 +196,26 @@
     "deleteConfirmMessage": "Se eliminará la plantilla de forma permanente.",
     "workItems_one": "{{count}} partida",
     "workItems_other": "{{count}} partidas"
+  },
+  "admin": {
+    "title": "Panel de administración",
+    "email": "Email",
+    "plan": "Plan",
+    "budgetsCreated": "Presupuestos creados",
+    "registeredAt": "Fecha de registro",
+    "free": "Gratuito",
+    "premium": "Premium",
+    "userDetail": "Detalle de usuario",
+    "premiumPlan": "Plan Premium",
+    "premiumDescription": "Sin límite de presupuestos",
+    "noUsers": "No hay usuarios registrados",
+    "userCount_one": "{{count}} usuario registrado",
+    "userCount_other": "{{count}} usuarios registrados"
+  },
+  "error": {
+    "title": "Algo salió mal",
+    "unknownError": "Ha ocurrido un error inesperado. Inténtalo de nuevo.",
+    "reload": "Recargar",
+    "goHome": "Ir al inicio"
   }
 }

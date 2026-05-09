@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  sendPasswordResetEmail as firebaseSendPasswordReset,
   type User,
 } from 'firebase/auth';
 import { auth } from './config';
@@ -21,4 +22,8 @@ export function signOut() {
 
 export function onAuthChange(callback: (user: User | null) => void) {
   return onAuthStateChanged(auth, callback);
+}
+
+export function sendPasswordReset(email: string) {
+  return firebaseSendPasswordReset(auth, email);
 }
