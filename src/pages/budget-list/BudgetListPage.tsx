@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, Settings } from 'lucide-react';
+import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, CircleUserRound } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
 import { formatCurrency, CONTACT_EMAIL } from '@/shared/lib';
-import { Button, Modal, BudgetLimitReached } from '@/shared/ui';
+import { Button, BudgetLimitReached, ConfirmModal, Modal } from '@/shared/ui';
 import { BudgetListSkeleton } from './components/BudgetListSkeleton';
 import { t } from '@/shared/i18n';
 
@@ -142,11 +142,11 @@ export function BudgetListPage() {
                     {t('budgetList.catalog')}
                   </button>
                   <button
-                    onClick={() => { setShowMenu(false); navigate('/settings'); }}
+                    onClick={() => { setShowMenu(false); navigate('/account'); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                   >
-                    <Settings size={16} className="text-gray-400" />
-                    {t('settings.title')}
+                    <CircleUserRound size={16} className="text-gray-400" />
+                    {t('account.title')}
                   </button>
                   <div className="border-t border-gray-100 my-1" />
                   <button
@@ -227,18 +227,14 @@ export function BudgetListPage() {
         )}
       </div>
 
-      <Modal open={showLogout} onClose={() => setShowLogout(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budgetList.logoutConfirmTitle')}</h3>
-        <p className="text-sm text-gray-600 mb-6">{t('budgetList.logoutConfirmMessage')}</p>
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => setShowLogout(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="danger" onClick={signOut}>
-            {t('budgetList.signOut')}
-          </Button>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={showLogout}
+        onClose={() => setShowLogout(false)}
+        title={t('budgetList.logoutConfirmTitle')}
+        message={t('budgetList.logoutConfirmMessage')}
+        confirmLabel={t('budgetList.signOut')}
+        onConfirm={signOut}
+      />
 
       <Modal open={showTemplates} onClose={() => setShowTemplates(false)}>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('templates.loadTemplate')}</h3>
@@ -268,18 +264,14 @@ export function BudgetListPage() {
         </Button>
       </Modal>
 
-      <Modal open={!!templateToDelete} onClose={() => setTemplateToDelete(null)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('templates.deleteConfirmTitle')}</h3>
-        <p className="text-sm text-gray-600 mb-6">{t('templates.deleteConfirmMessage')}</p>
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => setTemplateToDelete(null)}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="danger" onClick={handleDeleteTemplate}>
-            {t('common.delete')}
-          </Button>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={!!templateToDelete}
+        onClose={() => setTemplateToDelete(null)}
+        title={t('templates.deleteConfirmTitle')}
+        message={t('templates.deleteConfirmMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={handleDeleteTemplate}
+      />
 
       <Modal open={showLimitReached} onClose={() => setShowLimitReached(false)}>
         <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />

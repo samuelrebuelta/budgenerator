@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
+import { Check, Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '@/entities/auth/api/firebase';
-import { Button, Input } from '@/shared/ui';
+import { Button, Input, PageLayout } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function ChangePasswordPage() {
@@ -47,9 +47,8 @@ export function ChangePasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-white sm:bg-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-          <div className="text-center">
+      <PageLayout>
+        <div className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
               <Check size={24} className="text-green-600" />
             </div>
@@ -58,24 +57,14 @@ export function ChangePasswordPage() {
             <Button onClick={() => navigate('/account')}>
               {t('settings.backToSettings')}
             </Button>
-          </div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-        <button
-          onClick={() => navigate('/account')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('settings.backToSettings')}
-        </button>
-
-        <div>
+    <PageLayout onBack={() => navigate('/account')} backLabel={t('settings.backToSettings')}>
+      <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('settings.changePasswordTitle')}</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -159,7 +148,6 @@ export function ChangePasswordPage() {
             </div>
           </form>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 }

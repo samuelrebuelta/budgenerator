@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ArrowLeft, RotateCcw, ChevronDown, ChevronRight, Search, Info } from 'lucide-react';
+import { Plus, RotateCcw, ChevronDown, ChevronRight, Search, Info } from 'lucide-react';
 import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
-import { Button, Modal, EditableRow, EditableRowHeader } from '@/shared/ui';
+import { Button, ConfirmModal, EditableRow, EditableRowHeader, PageLayout } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
 import { t } from '@/shared/i18n';
@@ -115,15 +115,7 @@ export function CatalogPage() {
   const expandAll = () => setCollapsedCats(new Set());
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('common.back')}
-        </button>
+    <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')} maxWidth="4xl">
 
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -366,28 +358,18 @@ export function CatalogPage() {
         </div>
         </>
         )}
-      </div>
 
-      <Modal open={showResetConfirm} onClose={() => setShowResetConfirm(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('catalog.resetConfirmTitle')}</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          {t('catalog.resetConfirmMessage')}
-        </p>
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => setShowResetConfirm(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={async () => {
-              await resetToDefaults();
-              setShowResetConfirm(false);
-            }}
-          >
-            {t('catalog.reset')}
-          </Button>
-        </div>
-      </Modal>
-    </div>
+      <ConfirmModal
+        open={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        title={t('catalog.resetConfirmTitle')}
+        message={t('catalog.resetConfirmMessage')}
+        confirmLabel={t('catalog.reset')}
+        onConfirm={async () => {
+          await resetToDefaults();
+          setShowResetConfirm(false);
+        }}
+      />
+    </PageLayout>
   );
 }

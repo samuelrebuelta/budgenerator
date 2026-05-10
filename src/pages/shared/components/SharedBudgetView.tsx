@@ -3,6 +3,7 @@ import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Printer } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { Card } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 const IVA_RATE = 0.10;
@@ -50,7 +51,7 @@ export function SharedBudgetView({ budget, company }: Props) {
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white">
       <div className="max-w-5xl mx-auto py-4 sm:py-8 px-4 sm:px-6 print:max-w-none print:py-0 print:px-0 print:p-[10mm]">
-        <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
+        <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
           {/* Company Header */}
           {hasCompanyInfo && (
             <div className="flex mb-4 pb-4 border-b border-gray-100 text-sm text-gray-600 items-start gap-4">
@@ -205,7 +206,7 @@ export function SharedBudgetView({ budget, company }: Props) {
               {t('export.button')}
             </button>
           </div>
-        </div>
+        </Card>
 
         {/* Powered by */}
         <p className="text-center text-xs text-gray-400 mt-4 no-print">

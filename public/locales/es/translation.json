@@ -219,13 +219,24 @@
     "premiumDescription": "Sin límite de presupuestos",
     "noUsers": "No hay usuarios registrados",
     "userCount_one": "{{count}} usuario registrado",
-    "userCount_other": "{{count}} usuarios registrados"
+    "userCount_other": "{{count}} usuarios registrados",
+    "premiumExpiresAt": "Fecha de expiración premium",
+    "premiumExpired": "Este plan premium ha expirado"
   },
   "error": {
     "title": "Algo salió mal",
     "unknownError": "Ha ocurrido un error inesperado. Inténtalo de nuevo.",
     "reload": "Recargar",
     "goHome": "Ir al inicio"
+  },
+  "account": {
+    "title": "Mi cuenta",
+    "planPremium": "Plan Premium activo",
+    "planFree": "Plan Gratuito",
+    "premiumValidUntil": "Válido hasta el {{date}}",
+    "premiumExpiredOn": "Expiró el {{date}}",
+    "premiumNoExpiry": "Sin fecha de expiración",
+    "freeUpgradeHint": "Con el plan gratuito puedes crear hasta 3 presupuestos. Hazte premium para crear presupuestos ilimitados."
   },
   "settings": {
     "title": "Ajustes",

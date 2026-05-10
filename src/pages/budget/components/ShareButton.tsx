@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Share } from 'lucide-react';
 import { useActiveBudget } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
-import { shareBudget } from '@/shared/firebase';
+import { shareBudget } from '@/entities/budget/api/firestore';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 

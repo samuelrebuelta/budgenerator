@@ -5,7 +5,7 @@ import { AddTaskButton } from './AddTaskButton';
 import { TariffSelector } from './TariffSelector';
 import type { Unit, BudgetTask as BudgetTaskType } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Button, Modal, EditableRow, EditableRowHeader } from '@/shared/ui';
+import { Button, ConfirmModal, EditableRow, EditableRowHeader } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
@@ -162,26 +162,17 @@ export function BudgetEditor() {
         </div>
       ))}
 
-      <Modal open={!!deletingWorkItemId} onClose={() => setDeletingWorkItemId(null)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('editor.deleteWorkItemTitle')}</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          {t('editor.deleteWorkItemMessage')}
-        </p>
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => setDeletingWorkItemId(null)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              removeWorkItem(deletingWorkItemId!);
-              setDeletingWorkItemId(null);
-            }}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={!!deletingWorkItemId}
+        onClose={() => setDeletingWorkItemId(null)}
+        title={t('editor.deleteWorkItemTitle')}
+        message={t('editor.deleteWorkItemMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => {
+          removeWorkItem(deletingWorkItemId!);
+          setDeletingWorkItemId(null);
+        }}
+      />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
-import { Button, Modal, BudgetLimitReached } from '@/shared/ui';
+import { Button, Card, ConfirmModal, BudgetLimitReached } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { t } from '@/shared/i18n';
@@ -162,7 +162,7 @@ export function BudgetGeneratorPage() {
         )}
 
         {/* Page Card */}
-        <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
+        <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
           <BudgetHeader />
 
           <button
@@ -217,32 +217,23 @@ export function BudgetGeneratorPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
 
-      <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budget.deleteConfirmTitle')}</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          {t('budget.deleteConfirmMessage')}
-        </p>
-        <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={async () => {
-              if (budgetId && budgetId !== 'new') {
-                await deleteBudget(budgetId);
-              }
-              setShowDeleteConfirm(false);
-              navigate('/', { replace: true });
-            }}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={t('budget.deleteConfirmTitle')}
+        message={t('budget.deleteConfirmMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={async () => {
+          if (budgetId && budgetId !== 'new') {
+            await deleteBudget(budgetId);
+          }
+          setShowDeleteConfirm(false);
+          navigate('/', { replace: true });
+        }}
+      />
     </div>
   );
 }

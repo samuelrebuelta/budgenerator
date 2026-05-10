@@ -49,25 +49,25 @@ export function AddWorkItemButton() {
   }
 
   return (
-    <div className="no-print space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+    <div className="no-print w-full flex-1 space-y-3 rounded-lg border border-gray-200 bg-white p-4">
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 pb-2">
+      <div className="flex w-full flex-1 rounded-lg bg-gray-100 p-1">
         <button
           onClick={() => setMode('catalog')}
-          className={`text-xs px-3 py-1.5 rounded-t cursor-pointer transition-colors ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm cursor-pointer transition-colors ${
             mode === 'catalog'
-              ? 'bg-blue-50 text-blue-700 font-medium border border-b-0 border-blue-200'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white text-blue-700 font-medium shadow-sm ring-1 ring-gray-200'
+              : 'text-gray-600 hover:text-gray-800'
           }`}
         >
           {t('addWorkItem.fromCatalog')}
         </button>
         <button
           onClick={() => setMode('custom')}
-          className={`text-xs px-3 py-1.5 rounded-t cursor-pointer transition-colors ${
+          className={`flex-1 rounded-md px-3 py-1.5 text-sm cursor-pointer transition-colors ${
             mode === 'custom'
-              ? 'bg-blue-50 text-blue-700 font-medium border border-b-0 border-blue-200'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white text-blue-700 font-medium shadow-sm ring-1 ring-gray-200'
+              : 'text-gray-600 hover:text-gray-800'
           }`}
         >
           {t('addWorkItem.custom')}

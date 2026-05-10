@@ -6,7 +6,8 @@ import {
   incrementBudgetCount,
   fetchAllUsers,
   adminUpdateUserPlan,
-} from '@/shared/firebase';
+  adminUpdatePremiumExpiry,
+} from '@/entities/user/api/firestore';
 import { CONTACT_EMAIL } from '@/shared/lib';
 
 export const FREE_BUDGET_LIMIT = 3;
@@ -21,7 +22,8 @@ interface UserState {
   allUsers: UserData[];
   allUsersLoaded: boolean;
   loadAllUsers: () => Promise<void>;
-  setUserPlan: (uid: string, plan: UserPlan) => Promise<void>;
+  setUserPlan: (uid: string, plan: UserPlan, premiumExpiresAt?: string) => Promise<void>;
+  setPremiumExpiry: (uid: string, premiumExpiresAt: string) => Promise<void>;
 }
 
 let _getUid: (() => string) | null = null;
@@ -59,7 +61,10 @@ export const useUserStore = create<UserState>((set, get) => ({
   canCreateBudget: () => {
     const { userData } = get();
     if (!userData) return false;
-    if (userData.accountData.plan === 'premium') return true;
+    if (userData.accountData.plan === 'premium') {
+      const { premiumExpiresAt } = userData.accountData;
+      if (!premiumExpiresAt || new Date(premiumExpiresAt) > new Date()) return true;
+    }
     return userData.totalBudgetsCreated < FREE_BUDGET_LIMIT;
   },
 
@@ -81,11 +86,27 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  setUserPlan: async (uid, plan) => {
-    await adminUpdateUserPlan(uid, plan);
+  setUserPlan: async (uid, plan, premiumExpiresAt?) => {
+    await adminUpdateUserPlan(uid, plan, premiumExpiresAt);
+    const expiresAt = plan === 'premium'
+      ? (premiumExpiresAt ?? (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString(); })())
+      : undefined;
     set((s) => ({
       allUsers: s.allUsers.map((u) =>
-        u.uid === uid ? { ...u, accountData: { ...u.accountData, plan } } : u,
+        u.uid === uid
+          ? { ...u, accountData: { ...u.accountData, plan, premiumExpiresAt: expiresAt } }
+          : u,
+      ),
+    }));
+  },
+
+  setPremiumExpiry: async (uid, premiumExpiresAt) => {
+    await adminUpdatePremiumExpiry(uid, premiumExpiresAt);
+    set((s) => ({
+      allUsers: s.allUsers.map((u) =>
+        u.uid === uid
+          ? { ...u, accountData: { ...u.accountData, premiumExpiresAt } }
+          : u,
       ),
     }));
   },

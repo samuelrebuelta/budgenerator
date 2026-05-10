@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, KeyRound, ChevronRight, Crown, Sparkles } from 'lucide-react';
+import { KeyRound, ChevronRight, Crown, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
 import { CONTACT_EMAIL } from '@/shared/lib';
+import { Card, PageLayout } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
-export function SettingsPage() {
+export function AccountPage() {
   const navigate = useNavigate();
   const email = useAuthStore((s) => s.user?.email ?? '');
   const userData = useUserStore((s) => s.userData);
@@ -14,17 +15,8 @@ export function SettingsPage() {
   const isExpired = plan === 'premium' && !!premiumExpiresAt && new Date(premiumExpiresAt) < new Date();
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('common.back')}
-        </button>
-
-        <div>
+    <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')}>
+      <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('account.title')}</h1>
           <p className="text-sm text-gray-500 mb-6">{email}</p>
 
@@ -37,17 +29,17 @@ export function SettingsPage() {
                   {t('account.planPremium')}
                 </span>
               </div>
-              {premiumExpiresAt && (
-                <p className={`text-sm ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
-                  {isExpired
+              <p className={`text-sm ${isExpired ? 'text-red-600' : 'text-amber-600'}`}>
+                {!premiumExpiresAt
+                  ? t('account.premiumNoExpiry')
+                  : isExpired
                     ? t('account.premiumExpiredOn', {
                         date: new Date(premiumExpiresAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                       })
                     : t('account.premiumValidUntil', {
                         date: new Date(premiumExpiresAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }),
                       })}
-                </p>
-              )}
+              </p>
             </div>
           ) : (
             <div className="rounded-xl p-4 mb-6 bg-blue-50 border border-blue-200">
@@ -56,19 +48,23 @@ export function SettingsPage() {
                 <span className="font-semibold text-sm text-blue-700">{t('account.planFree')}</span>
               </div>
               <p className="text-sm text-blue-600 mb-2">{t('account.freeUpgradeHint')}</p>
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="inline-block text-sm font-medium text-blue-700 underline hover:text-blue-900"
-              >
-                {t('account.contactForPremium')}
-              </a>
+              <p className="text-sm text-blue-700">
+                {t('budgetList.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="font-medium underline hover:text-blue-900"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+                {t('budgetList.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
+              </p>
             </div>
           )}
 
-          <div className="divide-y divide-gray-100">
+          <Card className="overflow-hidden">
             <button
               onClick={() => navigate('/account/password')}
-              className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 rounded-lg px-3 -mx-3 cursor-pointer transition-colors"
+              className="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-gray-50 cursor-pointer transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -81,9 +77,8 @@ export function SettingsPage() {
               </div>
               <ChevronRight size={16} className="text-gray-400" />
             </button>
-          </div>
-        </div>
+          </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }

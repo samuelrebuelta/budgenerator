@@ -83,6 +83,7 @@ export type UserPlan = 'free' | 'premium';
 export interface AccountData {
   isAdmin: boolean;
   plan: UserPlan;
+  premiumExpiresAt?: string;
 }
 
 export interface UserData {

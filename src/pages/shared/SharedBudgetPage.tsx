@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchSharedBudget } from '@/shared/firebase';
+import { fetchSharedBudget } from '@/entities/budget/api/firestore';
 import type { SharedBudget } from '@/shared/types';
 import { SharedBudgetView } from './components/SharedBudgetView';
 import { t } from '@/shared/i18n';

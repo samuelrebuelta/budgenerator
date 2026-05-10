@@ -5,7 +5,7 @@ import {
   signUpWithEmail,
   signOut as fbSignOut,
   onAuthChange,
-} from '@/shared/firebase';
+} from '@/entities/auth/api/firebase';
 
 import { t } from '@/shared/i18n';
 

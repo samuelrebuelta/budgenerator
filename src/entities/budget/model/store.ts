@@ -5,7 +5,7 @@ import {
   fetchBudgets,
   saveBudget,
   deleteBudgetDoc,
-} from '@/shared/firebase';
+} from '@/entities/budget/api/firestore';
 import { useUserStore } from '@/entities/user';
 
 const DEFAULT_IVA_RATE = 0.10;

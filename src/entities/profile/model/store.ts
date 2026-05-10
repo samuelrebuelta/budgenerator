@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchProfile, saveProfile } from '@/shared/firebase';
+import { fetchProfile, saveProfile } from '@/entities/profile/api/firestore';
 import type { CompanyProfile } from '@/shared/types';
 
 let getUid: (() => string) | null = null;

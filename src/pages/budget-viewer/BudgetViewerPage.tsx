@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchSharedBudget } from '@/shared/firebase';
+import { fetchSharedBudget } from '@/entities/budget/api/firestore';
 import type { SharedBudget, WorkItem, BudgetTask } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { ExportPdfButton } from '@/shared/ui';
+import { Card, ExportPdfButton } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 function getTaskAmount(task: BudgetTask, multiplier: number): number {
@@ -75,7 +75,7 @@ export function BudgetViewerPage() {
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white">
       <div className="max-w-5xl mx-auto py-4 sm:py-8 px-4 sm:px-6 print:max-w-none print:py-0 print:px-0 print:p-[10mm]">
-        <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
+        <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
           {/* Company Header */}
           {hasCompanyInfo && (
             <div className="flex mb-4 pb-4 border-b border-gray-100 text-sm text-gray-600 items-start gap-4">
@@ -224,7 +224,7 @@ export function BudgetViewerPage() {
           <div className="mt-6 flex justify-end">
             <ExportPdfButton budget={{ ...data.budget, ivaRate: data.ivaRate ?? data.budget.ivaRate }} company={data.company} />
           </div>
-        </div>
+        </Card>
 
         {/* Powered by */}
         <p className="text-center text-xs text-gray-400 mt-4 no-print">

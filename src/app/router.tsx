@@ -3,7 +3,7 @@ import { BudgetListPage } from '@/pages/budget-list';
 import { BudgetGeneratorPage } from '@/pages/budget-generator';
 import { CatalogPage } from '@/pages/catalog';
 import { ProfilePage } from '@/pages/profile';
-import { SettingsPage, ChangePasswordPage } from '@/pages/settings';
+import { AccountPage, ChangePasswordPage } from '@/pages/account';
 import { LoginPage } from '@/pages/login';
 import { BudgetViewerPage } from '@/pages/budget-viewer';
 import { AdminPage } from '@/pages/admin';
@@ -53,16 +53,16 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/settings',
+    path: '/account',
     errorElement,
     element: (
       <AuthGuard>
-        <SettingsPage />
+        <AccountPage />
       </AuthGuard>
     ),
   },
   {
-    path: '/settings/password',
+    path: '/account/password',
     errorElement,
     element: (
       <AuthGuard>

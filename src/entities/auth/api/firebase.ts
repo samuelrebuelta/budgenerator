@@ -9,7 +9,7 @@ import {
   EmailAuthProvider,
   type User,
 } from 'firebase/auth';
-import { auth } from './config';
+import { auth } from '@/shared/firebase/config';
 
 export function signInWithEmail(email: string, password: string) {
   return signInWithEmailAndPassword(auth, email, password);

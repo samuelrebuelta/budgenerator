@@ -7,7 +7,7 @@ import { Input } from '@/shared/ui';
 import { Modal } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
-import { sendPasswordReset } from '@/shared/firebase';
+import { sendPasswordReset } from '@/entities/auth/api/firebase';
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {

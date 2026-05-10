@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Crown } from 'lucide-react';
 import { useUserStore } from '@/entities/user';
-import { Button, Modal } from '@/shared/ui';
+import { Button, Card, Modal } from '@/shared/ui';
 import { Skeleton } from '@/shared/ui';
-import type { UserData } from '@/shared/types';
+import type { UserData, UserPlan } from '@/shared/types';
 import { t } from '@/shared/i18n';
 
 function formatRelativeDate(iso: string): string {
@@ -33,9 +33,11 @@ export function AdminPage() {
   const allUsersLoaded = useUserStore((s) => s.allUsersLoaded);
   const loadAllUsers = useUserStore((s) => s.loadAllUsers);
   const setUserPlan = useUserStore((s) => s.setUserPlan);
+  const setPremiumExpiry = useUserStore((s) => s.setPremiumExpiry);
   const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [expiryInput, setExpiryInput] = useState('');
 
   useEffect(() => {
     loadAllUsers();
@@ -43,9 +45,24 @@ export function AdminPage() {
 
   const handleTogglePlan = async (user: UserData) => {
     setSaving(true);
-    const newPlan = user.accountData.plan === 'premium' ? 'free' : 'premium';
+    const newPlan = (user.accountData.plan === 'premium' ? 'free' : 'premium') as UserPlan;
+    const newExpiresAt = newPlan === 'premium'
+      ? (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString(); })()
+      : undefined;
     await setUserPlan(user.uid, newPlan);
-    setSelectedUser({ ...user, accountData: { ...user.accountData, plan: newPlan } });
+    const updated = { ...user, accountData: { ...user.accountData, plan: newPlan, premiumExpiresAt: newExpiresAt } };
+    setSelectedUser(updated);
+    setExpiryInput(newExpiresAt ? newExpiresAt.slice(0, 10) : '');
+    setSaving(false);
+  };
+
+  const handleExpiryChange = async (user: UserData, value: string) => {
+    setExpiryInput(value);
+    if (!value) return;
+    const iso = new Date(value).toISOString();
+    setSaving(true);
+    await setPremiumExpiry(user.uid, iso);
+    setSelectedUser({ ...user, accountData: { ...user.accountData, premiumExpiresAt: iso } });
     setSaving(false);
   };
 
@@ -74,13 +91,13 @@ export function AdminPage() {
         )}
 
         {!allUsersLoaded ? (
-          <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 p-4 sm:p-6 space-y-3">
+          <Card className="p-4 sm:p-6 space-y-3">
             {Array.from({ length: 5 }, (_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
-          </div>
+          </Card>
         ) : (
-          <div className="bg-white sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="overflow-x-auto scrollbar-none">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
@@ -95,7 +112,10 @@ export function AdminPage() {
                   {visibleUsers.map((user) => (
                     <tr
                       key={user.uid}
-                      onClick={() => setSelectedUser(user)}
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setExpiryInput(user.accountData.premiumExpiresAt?.slice(0, 10) ?? '');
+                      }}
                       className="hover:bg-blue-50 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3 text-left font-medium text-blue-700">{user.email}</td>
@@ -123,7 +143,7 @@ export function AdminPage() {
             {visibleUsers.length === 0 && (
               <p className="text-center text-gray-400 py-8">{t('admin.noUsers')}</p>
             )}
-          </div>
+          </Card>
         )}
       </div>
 
@@ -166,6 +186,21 @@ export function AdminPage() {
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
                 </label>
               </div>
+              {selectedUser.accountData.plan === 'premium' && (
+                <div className="pt-2">
+                  <span className="text-xs text-gray-500 uppercase">{t('admin.premiumExpiresAt')}</span>
+                  <input
+                    type="date"
+                    value={expiryInput}
+                    onChange={(e) => handleExpiryChange(selectedUser, e.target.value)}
+                    disabled={saving}
+                    className="mt-1 block w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                  {selectedUser.accountData.premiumExpiresAt && new Date(selectedUser.accountData.premiumExpiresAt) < new Date() && (
+                    <p className="text-xs text-red-500 mt-1">{t('admin.premiumExpired')}</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => setSelectedUser(null)}>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BudgetTemplate } from '@/shared/types';
-import { fetchTemplates, saveTemplate, deleteTemplateDoc } from '@/shared/firebase';
+import { auth } from '@/shared/firebase/config';
+import { fetchTemplates, saveTemplate, deleteTemplateDoc } from '@/entities/template/api/firestore';
 
 interface TemplateState {
   templates: BudgetTemplate[];
@@ -17,7 +18,7 @@ export function setTemplateAuthGetter(fn: () => string | null) {
 }
 
 function getUid(): string | null {
-  return _getUid?.() ?? null;
+  return _getUid?.() ?? auth.currentUser?.uid ?? null;
 }
 
 export const useTemplateStore = create<TemplateState>()((set, get) => ({
@@ -31,7 +32,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
 
   addTemplate: async (template) => {
     const uid = getUid();
-    if (!uid) return;
+    if (!uid) throw new Error('User is not authenticated');
     await saveTemplate(uid, template);
     set({ templates: [...get().templates, template] });
   },

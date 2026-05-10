@@ -9,7 +9,7 @@ import {
   deleteTariffDoc,
   seedTariffs,
   deleteAllTariffs,
-} from '@/shared/firebase';
+} from '@/entities/tariff/api/firestore';
 
 let _getUid: (() => string | null) | null = null;
 
