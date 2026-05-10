@@ -18,7 +18,7 @@ export interface ColumnDef {
 
 export type CellDef =
   | { type: 'text'; value: string; onChange: (v: string) => void; placeholder?: string }
-  | { type: 'number'; value: number; onChange: (v: string) => void; placeholder?: string }
+  | { type: 'number'; value: number; onChange: (v: string) => void; placeholder?: string; integer?: boolean }
   | { type: 'unit-select'; value: string; onChange: (v: string) => void }
   | { type: 'display'; content: ReactNode };
 
@@ -50,7 +50,7 @@ interface EditableRowProps {
   columns: ColumnDef[];
   cells: Record<string, CellDef>;
   onDelete: () => void;
-  /** Extra elements next to description on both layouts (e.g. TariffSelector) */
+  /** Extra elements next to description on both layouts (e.g. CatalogSelector) */
   headerExtra?: ReactNode;
   /** Footer line shown only on mobile */
   mobileFooter?: { label: string; value: ReactNode };
@@ -147,7 +147,7 @@ function desktopCell(cell: CellDef): ReactNode {
     case 'text':
       return <input value={cell.value} onChange={(e) => cell.onChange(e.target.value)} placeholder={cell.placeholder} className="w-full bg-transparent border-none outline-none text-sm min-w-0" />;
     case 'number':
-      return <input type="number" min={0} step="0.01" value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full bg-transparent border-none outline-none text-right text-sm" placeholder={cell.placeholder ?? '0'} />;
+      return <input type="number" min={0} step={cell.integer ? '1' : '0.01'} value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full bg-transparent border-none outline-none text-right text-sm" placeholder={cell.placeholder ?? '0'} />;
     case 'unit-select':
       return (
         <select value={cell.value} onChange={(e) => cell.onChange(e.target.value)} className="bg-transparent border-none outline-none text-sm text-center cursor-pointer print:appearance-none">
@@ -164,7 +164,7 @@ function mobileCell(cell: CellDef): ReactNode {
     case 'text':
       return <input value={cell.value} onChange={(e) => cell.onChange(e.target.value)} placeholder={cell.placeholder} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" />;
     case 'number':
-      return <input type="number" min={0} step="0.01" value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right" placeholder={cell.placeholder ?? '0'} />;
+      return <input type="number" min={0} step={cell.integer ? '1' : '0.01'} value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right" placeholder={cell.placeholder ?? '0'} />;
     case 'unit-select':
       return (
         <select value={cell.value} onChange={(e) => cell.onChange(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm cursor-pointer">

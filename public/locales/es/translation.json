@@ -50,7 +50,7 @@
     "count_one": "{{count}} presupuesto",
     "count_other": "{{count}} presupuestos",
     "company": "Empresa",
-    "catalog": "Catálogo",
+    "catalog": "Catálogos",
     "newBudget": "Nuevo presupuesto",
     "emptyTitle": "Sin presupuestos",
     "emptySubtitle": "Crea tu primer presupuesto para empezar",
@@ -74,6 +74,8 @@
     "backToBudgets": "Volver a presupuestos",
     "draftBanner": "Borrador — Este presupuesto no se guardará hasta que pulses",
     "draftBannerBold": "Guardar",
+    "catalogForBudget": "Catálogo para este presupuesto",
+    "catalogForBudgetHint": "Solo afecta a este presupuesto. No cambia el catálogo activo global.",
     "workItems": "Partidas",
     "discard": "Descartar",
     "saveBudget": "Guardar presupuesto",
@@ -134,18 +136,19 @@
     "allAdded": "Todas las categorías ya están añadidas",
     "customPlaceholder": "Nombre de partida personalizada"
   },
-  "tariffSelector": {
-    "placeholder": "Seleccionar tarifa"
-  },
   "export": {
     "button": "Exportar PDF",
     "generating": "Generando PDF...",
     "iosAlert": "Usa el botón de compartir (⎋) de Safari y selecciona \"Imprimir\" para exportar a PDF."
   },
   "catalog": {
-    "title": "Catálogo de tarifas",
+    "title": "Catálogos de tarifas",
     "stats": "{{0}} conceptos · {{1}} categorías",
+    "activeCatalog": "Catálogo activo",
+    "catalogName": "Nombre del catálogo",
+    "catalogNamePlaceholder": "Escribe un nombre",
     "addTask": "Añadir concepto",
+    "createFromBase": "Nuevo desde base",
     "newTask": "Nuevo concepto",
     "category": "Categoría",
     "categoryPlaceholder": "Selecciona o escribe",
@@ -158,10 +161,21 @@
     "all": "Todas ({{0}})",
     "noResults": "Sin resultados para \"{{0}}\"",
     "resetDefaults": "Restaurar catálogo por defecto",
+    "changeCatalog": "Cambiar catálogo",
+    "deleteCatalog": "Borrar catálogo",
+    "deleteCatalogConfirmTitle": "¿Borrar catálogo?",
+    "deleteCatalogConfirmMessage": "Se eliminará el catálogo \"{{0}}\". Esta acción no se puede deshacer.",
+    "deleteCatalogConfirmAction": "Sí, borrar catálogo",
+    "selectBaseCatalog": "Selecciona un catálogo base",
+    "selectBaseCatalogDescription": "Elige un catálogo base para crear un nuevo catálogo guardado. Después podrás personalizar sus precios y márgenes sin afectar a tus otros catálogos.",
     "resetConfirmTitle": "¿Restaurar catálogo?",
     "resetConfirmMessage": "Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.",
     "reset": "Restaurar",
-    "disclaimer": "Los cambios en el catálogo solo afectan a los presupuestos nuevos. Los presupuestos existentes no se modifican."
+    "items": "elementos",
+    "disclaimer": "Los cambios en los catálogos solo afectan a los presupuestos nuevos. Los presupuestos existentes no se modifican."
+  },
+  "catalogSelector": {
+    "placeholder": "Seleccionar concepto del catálogo"
   },
   "profile": {
     "title": "Datos de empresa",

@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore, setBudgetAuthGetter } from '@/entities/budget';
-import { useTariffStore, setTariffAuthGetter } from '@/entities/tariff';
+import { useCatalogStore, setCatalogAuthGetter } from '@/entities/catalog';
 import { useProfileStore, setProfileAuthGetter } from '@/entities/profile';
 import { useTemplateStore, setTemplateAuthGetter } from '@/entities/template';
 import { useUserStore, setUserAuthGetter } from '@/entities/user';
@@ -21,12 +21,12 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     setBudgetAuthGetter(() => user.uid);
-    setTariffAuthGetter(() => user.uid);
+    setCatalogAuthGetter(() => user.uid);
     setProfileAuthGetter(() => user.uid);
     setTemplateAuthGetter(() => user.uid);
     setUserAuthGetter(() => user.uid);
     useBudgetStore.getState().loadBudgets(user.uid);
-    useTariffStore.getState().loadTariffs(user.uid);
+    useCatalogStore.getState().loadCatalogs(user.uid);
     useProfileStore.getState().loadProfile(user.uid, user.email ?? '');
     useTemplateStore.getState().loadTemplates(user.uid);
     useUserStore.getState().loadUserData(user.uid, user.email ?? '');

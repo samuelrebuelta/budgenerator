@@ -25,6 +25,7 @@ export function SaveTemplateButton() {
         id: generateId(),
         name: name.trim(),
         workItems: budget.workItems,
+        ...(budget.catalogId ? { catalogId: budget.catalogId } : {}),
         ...(budget.adjustment ? { adjustment: budget.adjustment } : {}),
         createdAt: new Date().toISOString(),
       };
@@ -65,7 +66,7 @@ export function SaveTemplateButton() {
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder={t('templates.namePlaceholder')}
             autoFocus
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-[44px]"
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-11"
           />
           <Button onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? t('templates.saving') : t('common.save')}

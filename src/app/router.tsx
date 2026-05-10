@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { BudgetListPage } from '@/pages/budget-list';
 import { BudgetGeneratorPage } from '@/pages/budget-generator';
-import { CatalogPage } from '@/pages/catalog';
+import { CatalogsPage } from '@/pages/catalogs';
 import { ProfilePage } from '@/pages/profile';
 import { AccountPage, ChangePasswordPage } from '@/pages/account';
 import { LoginPage } from '@/pages/login';
@@ -35,11 +35,11 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: '/catalog',
+    path: '/catalogs',
     errorElement,
     element: (
       <AuthGuard>
-        <CatalogPage />
+        <CatalogsPage />
       </AuthGuard>
     ),
   },

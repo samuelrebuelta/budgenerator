@@ -40,6 +40,7 @@ export interface Budget {
   id: string;
   info: BudgetInfo;
   workItems: WorkItem[];
+  catalogId?: string;
   adjustment?: BudgetAdjustment;
   ivaRate?: number;
   createdAt: string;
@@ -52,6 +53,15 @@ export interface Tariff {
   basePrice: number;
   cost: number;
   category: string;
+}
+
+export interface TariffCatalog {
+  id: string;
+  name: string;
+  baseCatalogId?: string;
+  tariffs: Tariff[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CompanyProfile {
@@ -74,6 +84,7 @@ export interface BudgetTemplate {
   id: string;
   name: string;
   workItems: WorkItem[];
+  catalogId?: string;
   adjustment?: BudgetAdjustment;
   createdAt: string;
 }

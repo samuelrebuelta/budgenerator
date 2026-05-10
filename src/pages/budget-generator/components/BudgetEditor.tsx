@@ -2,7 +2,7 @@ import { memo, useState } from 'react';
 import { Trash2, GripVertical, ChevronDown } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { AddTaskButton } from './AddTaskButton';
-import { TariffSelector } from './TariffSelector';
+import { CatalogSelector } from './CatalogSelector';
 import type { Unit, BudgetTask as BudgetTaskType } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Button, ConfirmModal, EditableRow, EditableRowHeader } from '@/shared/ui';
@@ -46,9 +46,9 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
       columns={getBudgetColumns()}
       cells={{
         description: { type: 'text', value: task.description, onChange: (v) => updateTask(workItemId, task.id, { description: v }), placeholder: t('common.description') },
-        quantity: { type: 'number', value: task.quantity, onChange: (v) => updateTask(workItemId, task.id, { quantity: parseFloat(v) || 0 }) },
+        quantity: { type: 'number', value: task.quantity, integer: true, onChange: (v) => updateTask(workItemId, task.id, { quantity: parseInt(v, 10) || 0 }) },
         unit: { type: 'unit-select', value: task.unit, onChange: (v) => updateTask(workItemId, task.id, { unit: v as Unit }) },
-        price: { type: 'number', value: task.price, onChange: (v) => updateTask(workItemId, task.id, { price: parseFloat(v) || 0 }), placeholder: '0.00' },
+        price: { type: 'number', value: task.price, integer: true, onChange: (v) => updateTask(workItemId, task.id, { price: parseInt(v, 10) || 0 }), placeholder: '0' },
         amount: { type: 'display', content: <span className="font-medium text-gray-700">{formatCurrency(amount)}</span> },
         margin: {
           type: 'display',
@@ -63,7 +63,7 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
         },
       }}
       onDelete={() => removeTask(workItemId, task.id)}
-      headerExtra={<TariffSelector workItemId={workItemId} taskId={task.id} workItemName={workItemName} />}
+      headerExtra={<CatalogSelector workItemId={workItemId} taskId={task.id} workItemName={workItemName} />}
       mobileFooter={{ label: t('editor.amount'), value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span> }}
     />
   );

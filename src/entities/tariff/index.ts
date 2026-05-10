@@ -1,2 +1,12 @@
-export { DEFAULT_TARIFFS, RENOVATION_CATEGORIES, getTariffById, getTariffsByCategory, getCategories } from './model/catalog';
-export { useTariffStore, setTariffAuthGetter } from './model/store';
+export {
+	DEFAULT_TARIFFS,
+	RENOVATION_CATEGORIES,
+	getTariffById,
+	getTariffsByCategory,
+	getCategories,
+	useCatalogStore,
+	setCatalogAuthGetter,
+	BASE_CATALOGS,
+} from '@/entities/catalog';
+export type { BaseCatalog } from '@/entities/catalog';
+export type { TariffCatalog } from '@/shared/types';

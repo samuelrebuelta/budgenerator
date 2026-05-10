@@ -16,6 +16,7 @@ export async function saveTemplate(uid: string, template: BudgetTemplate) {
     id: template.id,
     name: template.name,
     workItems: template.workItems,
+    ...(template.catalogId ? { catalogId: template.catalogId } : {}),
     ...(template.adjustment ? { adjustment: template.adjustment } : {}),
     createdAt: template.createdAt,
   };

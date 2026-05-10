@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, ChevronDown, ChevronRight, Search, Info } from 'lucide-react';
-import { useTariffStore, RENOVATION_CATEGORIES } from '@/entities/tariff';
+import { Plus, RotateCcw, ChevronDown, ChevronRight, Search, Info, Trash2 } from 'lucide-react';
+import { useCatalogStore, RENOVATION_CATEGORIES } from '@/entities/catalog';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
 import { Button, ConfirmModal, EditableRow, EditableRowHeader, PageLayout } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
+import { SelectBaseCatalogModal } from './components/SelectBaseCatalogModal';
 import { t } from '@/shared/i18n';
 
 function getCatalogColumns(): ColumnDef[] {
@@ -19,17 +20,26 @@ function getCatalogColumns(): ColumnDef[] {
   ];
 }
 
-export function CatalogPage() {
-  const tariffs = useTariffStore((s) => s.tariffs);
-  const loaded = useTariffStore((s) => s.loaded);
-  const addTariff = useTariffStore((s) => s.addTariff);
-  const updateTariff = useTariffStore((s) => s.updateTariff);
-  const removeTariff = useTariffStore((s) => s.removeTariff);
-  const resetToDefaults = useTariffStore((s) => s.resetToDefaults);
+export function CatalogsPage() {
+  const tariffs = useCatalogStore((s) => s.tariffs);
+  const catalogs = useCatalogStore((s) => s.catalogs);
+  const loaded = useCatalogStore((s) => s.loaded);
+  const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
+  const addTariff = useCatalogStore((s) => s.addTariff);
+  const updateTariff = useCatalogStore((s) => s.updateTariff);
+  const removeTariff = useCatalogStore((s) => s.removeTariff);
+  const createCatalogFromBase = useCatalogStore((s) => s.createCatalogFromBase);
+  const selectCatalog = useCatalogStore((s) => s.selectCatalog);
+  const renameCatalog = useCatalogStore((s) => s.renameCatalog);
+  const deleteCatalog = useCatalogStore((s) => s.deleteCatalog);
   const navigate = useNavigate();
 
   const [showAdd, setShowAdd] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showSelectCatalog, setShowSelectCatalog] = useState(false);
+  const [showDeleteCatalogConfirm, setShowDeleteCatalogConfirm] = useState(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  const [isRenamingCatalog, setIsRenamingCatalog] = useState(false);
+  const [catalogNameDraft, setCatalogNameDraft] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newUnit, setNewUnit] = useState<Unit>('m2');
   const [newPrice, setNewPrice] = useState('');
@@ -41,10 +51,26 @@ export function CatalogPage() {
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+  const activeCatalog = useMemo(
+    () => catalogs.find((catalog) => catalog.id === activeCatalogId) ?? null,
+    [catalogs, activeCatalogId],
+  );
+
+  // Show catalog selection modal if no tariffs are loaded yet
+  useEffect(() => {
+    if (loaded && catalogs.length === 0) {
+      setShowSelectCatalog(true);
+    }
+  }, [loaded, catalogs.length]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 200);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    setCatalogNameDraft(activeCatalog?.name ?? '');
+  }, [activeCatalog?.id, activeCatalog?.name]);
 
   const handleAdd = () => {
     const desc = newDesc.trim();
@@ -53,8 +79,8 @@ export function CatalogPage() {
     addTariff({
       description: desc,
       unit: newUnit,
-      basePrice: parseFloat(newPrice) || 0,
-      cost: parseFloat(newCost) || 0,
+      basePrice: parseInt(newPrice, 10) || 0,
+      cost: parseInt(newCost, 10) || 0,
       category: cat,
     });
     setNewDesc('');
@@ -114,6 +140,29 @@ export function CatalogPage() {
   const collapseAll = () => setCollapsedCats(new Set(grouped.map(([cat]) => cat)));
   const expandAll = () => setCollapsedCats(new Set());
 
+  const handleCreateCatalog = async (catalogId: string) => {
+    setIsLoadingCatalog(true);
+    try {
+      await createCatalogFromBase(catalogId);
+      setShowSelectCatalog(false);
+    } finally {
+      setIsLoadingCatalog(false);
+    }
+  };
+
+  const handleRenameCatalog = async () => {
+    if (!activeCatalogId || !activeCatalog) return;
+    const nextName = catalogNameDraft.trim();
+    if (!nextName || nextName === activeCatalog.name) return;
+
+    setIsRenamingCatalog(true);
+    try {
+      await renameCatalog(activeCatalogId, nextName);
+    } finally {
+      setIsRenamingCatalog(false);
+    }
+  };
+
   return (
     <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')} maxWidth="4xl">
 
@@ -125,6 +174,10 @@ export function CatalogPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setShowSelectCatalog(true)}>
+              <RotateCcw size={16} />
+              <span className="hidden sm:inline">{t('catalog.createFromBase')}</span>
+            </Button>
             <Button onClick={() => setShowAdd(true)}>
               <Plus size={16} />
               <span className="hidden sm:inline">{t('catalog.addTask')}</span>
@@ -136,6 +189,61 @@ export function CatalogPage() {
           <Info size={16} className="shrink-0 mt-0.5" />
           <span>{t('catalog.disclaimer')}</span>
         </div>
+
+        {loaded && catalogs.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">{t('catalog.activeCatalog')}</label>
+                  <select
+                    value={activeCatalogId ?? ''}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      void selectCatalog(e.target.value);
+                    }}
+                    className="mt-1 h-11 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    {catalogs.map((catalog) => (
+                      <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">{t('catalog.catalogName')}</label>
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      value={catalogNameDraft}
+                      onChange={(e) => setCatalogNameDraft(e.target.value)}
+                      className="h-11 w-full rounded-md border border-gray-300 px-3 text-sm outline-none focus:border-blue-500"
+                      placeholder={t('catalog.catalogNamePlaceholder')}
+                      disabled={!activeCatalog || isRenamingCatalog}
+                    />
+                    <Button
+                      variant="secondary"
+                      className="h-11"
+                      onClick={() => void handleRenameCatalog()}
+                      disabled={!activeCatalog || isRenamingCatalog || !catalogNameDraft.trim() || catalogNameDraft.trim() === (activeCatalog?.name ?? '')}
+                    >
+                      {t('common.save')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="danger"
+                  className="h-11"
+                  onClick={() => setShowDeleteCatalogConfirm(true)}
+                  disabled={!activeCatalog}
+                >
+                  <Trash2 size={14} />
+                  <span className="hidden sm:inline">{t('catalog.deleteCatalog')}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add form */}
         {showAdd && (
@@ -165,7 +273,7 @@ export function CatalogPage() {
                       setNewCategory(e.target.value);
                     }
                   }}
-                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">{t('catalog.categoryPlaceholder')}</option>
                   {allCategories.map((c) => (
@@ -191,7 +299,7 @@ export function CatalogPage() {
                 <select
                   value={newUnit}
                   onChange={(e) => setNewUnit(e.target.value as Unit)}
-                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
                   {Object.entries(UNIT_LABELS).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -203,7 +311,7 @@ export function CatalogPage() {
                 <input
                   type="number"
                   min={0}
-                  step="0.01"
+                  step="1"
                   value={newCost}
                   onChange={(e) => setNewCost(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
@@ -215,7 +323,7 @@ export function CatalogPage() {
                 <input
                   type="number"
                   min={0}
-                  step="0.01"
+                  step="1"
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
@@ -323,8 +431,8 @@ export function CatalogPage() {
                             cells={{
                               description: { type: 'text', value: tariff.description, onChange: (v) => updateTariff(tariff.id, { description: v }) },
                               unit: { type: 'unit-select', value: tariff.unit, onChange: (v) => updateTariff(tariff.id, { unit: v as Unit }) },
-                              cost: { type: 'number', value: tariff.cost, onChange: (v) => updateTariff(tariff.id, { cost: parseFloat(v) || 0 }) },
-                              pvp: { type: 'number', value: tariff.basePrice, onChange: (v) => updateTariff(tariff.id, { basePrice: parseFloat(v) || 0 }) },
+                              cost: { type: 'number', value: tariff.cost, integer: true, onChange: (v) => updateTariff(tariff.id, { cost: parseInt(v, 10) || 0 }) },
+                              pvp: { type: 'number', value: tariff.basePrice, integer: true, onChange: (v) => updateTariff(tariff.id, { basePrice: parseInt(v, 10) || 0 }) },
                               margin: { type: 'display', content: <span className={`text-xs font-medium ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}>{margin.toFixed(1)}%</span> },
                             }}
                             onDelete={() => removeTariff(tariff.id)}
@@ -349,25 +457,32 @@ export function CatalogPage() {
           </div>
         )}
 
-        {/* Restore defaults */}
-        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
-          <Button variant="danger" onClick={() => setShowResetConfirm(true)}>
-            <RotateCcw size={14} />
-            {t('catalog.resetDefaults')}
-          </Button>
-        </div>
         </>
         )}
 
+      <SelectBaseCatalogModal
+        isOpen={showSelectCatalog}
+        onSelect={handleCreateCatalog}
+        onClose={() => {
+          if (catalogs.length > 0) {
+            setShowSelectCatalog(false);
+          }
+        }}
+        isLoading={isLoadingCatalog}
+      />
+
       <ConfirmModal
-        open={showResetConfirm}
-        onClose={() => setShowResetConfirm(false)}
-        title={t('catalog.resetConfirmTitle')}
-        message={t('catalog.resetConfirmMessage')}
-        confirmLabel={t('catalog.reset')}
-        onConfirm={async () => {
-          await resetToDefaults();
-          setShowResetConfirm(false);
+        open={showDeleteCatalogConfirm}
+        onClose={() => {
+          setShowDeleteCatalogConfirm(false);
+        }}
+        title={t('catalog.deleteCatalogConfirmTitle')}
+        message={t('catalog.deleteCatalogConfirmMessage', { 0: activeCatalog?.name ?? '' })}
+        confirmLabel={t('catalog.deleteCatalogConfirmAction')}
+        onConfirm={() => {
+          if (!activeCatalogId) return;
+          void deleteCatalog(activeCatalogId);
+          setShowDeleteCatalogConfirm(false);
         }}
       />
     </PageLayout>

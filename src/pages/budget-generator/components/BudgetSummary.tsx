@@ -188,6 +188,7 @@ export function BudgetSummary() {
                   <input
                     type="number"
                     min="1"
+                    step="1"
                     value={editPercent}
                     onChange={(e) => setEditPercent(e.target.value)}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-sm"

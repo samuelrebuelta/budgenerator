@@ -45,7 +45,7 @@ function calcBudgetTotal(budget: Budget): number {
   return adjusted + adjusted * ivaRate;
 }
 
-function createDraftBudget(nextNumber: string): Budget {
+function createDraftBudget(nextNumber: string, catalogId?: string): Budget {
   return {
     id: '',
     info: {
@@ -54,6 +54,7 @@ function createDraftBudget(nextNumber: string): Budget {
       date: new Date().toISOString().split('T')[0] || '',
       budgetNumber: nextNumber,
     },
+    catalogId,
     workItems: [],
     createdAt: '',
   };
@@ -87,7 +88,7 @@ interface BudgetState {
   loadBudgets: (uid: string) => Promise<void>;
 
   // Draft lifecycle
-  startDraft: () => void;
+  startDraft: (defaultCatalogId?: string) => void;
   startDraftFromTemplate: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
@@ -116,6 +117,7 @@ interface BudgetState {
   applyTariff: (workItemId: string, taskId: string, description: string, unit: Unit, price: number, cost: number) => void;
   updateAdjustment: (adjustment: BudgetAdjustment | undefined) => void;
   updateIvaRate: (rate: number) => void;
+  setBudgetCatalog: (catalogId: string) => void;
   resetBudget: () => void;
 }
 
@@ -177,14 +179,14 @@ export const useBudgetStore = create<BudgetState>()(
 
     // --- Draft lifecycle ---
 
-    startDraft: () =>
+    startDraft: (defaultCatalogId) =>
       set((state) => {
         if (state.draftBudget) return {};
         const nums = state.budgets
           .map((b) => parseInt(b.info.budgetNumber, 10))
           .filter((n) => !isNaN(n));
         const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
-        return { draftBudget: createDraftBudget(next), activeBudgetId: null };
+        return { draftBudget: createDraftBudget(next, defaultCatalogId), activeBudgetId: null };
       }),
 
     startDraftFromTemplate: (template) =>
@@ -194,7 +196,7 @@ export const useBudgetStore = create<BudgetState>()(
           .map((b) => parseInt(b.info.budgetNumber, 10))
           .filter((n) => !isNaN(n));
         const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
-        const draft = createDraftBudget(next);
+        const draft = createDraftBudget(next, template.catalogId);
         draft.workItems = template.workItems.map((wi) => ({
           ...wi,
           id: generateId(),
@@ -461,6 +463,23 @@ export const useBudgetStore = create<BudgetState>()(
         const patch = updateActive(state, (b) => ({
           ...b,
           ivaRate: rate,
+        }));
+        if (!state.draftBudget) {
+          const updated = (patch as { budgets: Budget[] }).budgets?.find(
+            (b) => b.id === state.activeBudgetId,
+          );
+          if (updated) syncToFirestore(updated);
+        }
+        return patch;
+      }),
+
+    setBudgetCatalog: (catalogId) =>
+      set((state) => {
+        const nextCatalogId = catalogId.trim();
+        if (!nextCatalogId) return {};
+        const patch = updateActive(state, (b) => ({
+          ...b,
+          catalogId: nextCatalogId,
         }));
         if (!state.draftBudget) {
           const updated = (patch as { budgets: Budget[] }).budgets?.find(

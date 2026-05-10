@@ -38,7 +38,9 @@ interface FirestoreBudget {
   info: Budget['info'];
   sections?: FirestoreWorkItem[];
   workItems?: FirestoreWorkItem[];
+  catalogId?: string;
   adjustment?: Budget['adjustment'];
+  ivaRate?: number;
   createdAt: string;
 }
 
@@ -52,7 +54,9 @@ function mapFromFirestore(raw: FirestoreBudget): Budget {
       name: wi.name,
       tasks: (wi.tasks ?? wi.concepts ?? wi.rows ?? []) as BudgetTask[],
     })),
+    catalogId: raw.catalogId,
     adjustment: raw.adjustment,
+    ivaRate: raw.ivaRate,
     createdAt: raw.createdAt,
   };
 }
@@ -70,6 +74,12 @@ function mapToFirestore(budget: Budget): FirestoreBudget {
   };
   if (budget.adjustment) {
     data.adjustment = budget.adjustment;
+  }
+  if (budget.catalogId) {
+    data.catalogId = budget.catalogId;
+  }
+  if (budget.ivaRate !== undefined) {
+    data.ivaRate = budget.ivaRate;
   }
   return data;
 }

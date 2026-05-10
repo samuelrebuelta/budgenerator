@@ -8,6 +8,7 @@ import { ExportPdfButton } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
+import { useCatalogStore } from '@/entities/catalog';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
 import { Button, Card, ConfirmModal, BudgetLimitReached } from '@/shared/ui';
@@ -22,6 +23,7 @@ export function BudgetGeneratorPage() {
 
   const setActiveBudget = useBudgetStore((s) => s.setActiveBudget);
   const startDraft = useBudgetStore((s) => s.startDraft);
+  const setBudgetCatalog = useBudgetStore((s) => s.setBudgetCatalog);
   const saveDraft = useBudgetStore((s) => s.saveDraft);
   const discardDraft = useBudgetStore((s) => s.discardDraft);
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
@@ -42,6 +44,8 @@ export function BudgetGeneratorPage() {
       return !prev;
     });
   const activeBudget = useActiveBudget();
+  const catalogs = useCatalogStore((s) => s.catalogs);
+  const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
   const profile = useProfileStore((s) => s.profile);
   const budgetExists = useBudgetStore((s) =>
     s.budgets.some((b) => b.id === budgetId),
@@ -51,14 +55,14 @@ export function BudgetGeneratorPage() {
   // Initialize draft or set active budget
   useEffect(() => {
     if (isDraft) {
-      startDraft();
+      startDraft(activeCatalogId ?? undefined);
     } else if (budgetId) {
       setActiveBudget(budgetId);
     }
     return () => {
       if (!isDraft) setActiveBudget(null);
     };
-  }, [budgetId, isDraft, setActiveBudget, startDraft]);
+  }, [budgetId, isDraft, setActiveBudget, startDraft, activeCatalogId]);
 
   // Block in-app navigation when draft has content
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
@@ -165,6 +169,25 @@ export function BudgetGeneratorPage() {
         <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
           <BudgetHeader />
 
+          {catalogs.length > 0 && (
+            <div className="mt-4 no-print">
+              <label className="block text-xs font-medium text-gray-600">{t('budget.catalogForBudget')}</label>
+              <select
+                value={activeBudget?.catalogId ?? activeCatalogId ?? ''}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  setBudgetCatalog(e.target.value);
+                }}
+                className="mt-1 h-11 w-full max-w-sm appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                {catalogs.map((catalog) => (
+                  <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">{t('budget.catalogForBudgetHint')}</p>
+            </div>
+          )}
+
           <button
             onClick={togglePartidas}
             className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
@@ -174,7 +197,7 @@ export function BudgetGeneratorPage() {
             {t('budget.workItems')}
           </button>
 
-          <div className={`collapsible ${showPartidas ? 'open' : ''} print:!grid-rows-[1fr]`}>
+          <div className={`collapsible ${showPartidas ? 'open' : ''} print:grid-rows-[1fr]!`}>
             <div>
               <BudgetEditor />
 

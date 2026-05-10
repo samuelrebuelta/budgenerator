@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { RENOVATION_CATEGORIES } from '@/entities/tariff';
+import { RENOVATION_CATEGORIES } from '@/entities/catalog';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 

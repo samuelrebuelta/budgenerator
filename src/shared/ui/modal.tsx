@@ -1,12 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { cn } from '@/shared/lib';
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  overlayClassName?: string;
+  panelClassName?: string;
 }
 
-export function Modal({ open, onClose, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  children,
+  overlayClassName,
+  panelClassName,
+}: ModalProps) {
   const [visible, setVisible] = useState(false);
 
   // Close on Escape
@@ -35,14 +44,20 @@ export function Modal({ open, onClose, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print"
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center bg-black/40 no-print',
+        overlayClassName,
+      )}
       style={{ opacity: visible ? 1 : 0, transition: 'opacity 200ms' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4"
+        className={cn(
+          'bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-sm mx-4',
+          panelClassName,
+        )}
         style={{
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateY(0)' : 'translateY(2rem)',
