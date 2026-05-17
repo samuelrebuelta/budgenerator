@@ -16,7 +16,7 @@ import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { t } from '@/shared/i18n';
 
-export function BudgetGeneratorPage() {
+export function BudgetDetailPage() {
   const { budgetId } = useParams<{ budgetId: string }>();
   const navigate = useNavigate();
   const isDraft = budgetId === 'new';

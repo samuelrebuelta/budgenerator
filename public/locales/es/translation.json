@@ -208,17 +208,26 @@
     "poweredBy": "Generado con Budgenerator"
   },
   "templates": {
+    "title": "Plantillas",
     "saveAsTemplate": "Guardar como plantilla",
     "saving": "Guardando...",
     "saved": "Plantilla guardada",
     "namePlaceholder": "Nombre de la plantilla",
+    "nameLabel": "Nombre de la plantilla",
     "loadTemplate": "Cargar plantilla",
     "noTemplates": "No hay plantillas guardadas",
     "noTemplatesHint": "Guarda un presupuesto como plantilla para reutilizarlo.",
     "deleteConfirmTitle": "¿Eliminar plantilla?",
     "deleteConfirmMessage": "Se eliminará la plantilla de forma permanente.",
     "workItems_one": "{{count}} partida",
-    "workItems_other": "{{count}} partidas"
+    "workItems_other": "{{count}} partidas",
+    "count_one": "{{count}} plantilla",
+    "count_other": "{{count}} plantillas",
+    "backToTemplates": "Volver a plantillas",
+    "detailTitle": "Editar plantilla",
+    "newTitle": "Nueva plantilla",
+    "newTemplate": "Nueva plantilla",
+    "untitled": "Plantilla sin nombre"
   },
   "admin": {
     "title": "Panel de administración",

@@ -8,6 +8,7 @@ interface TemplateState {
   loaded: boolean;
   loadTemplates: (uid: string) => Promise<void>;
   addTemplate: (template: BudgetTemplate) => Promise<void>;
+  updateTemplate: (template: BudgetTemplate) => Promise<void>;
   removeTemplate: (id: string) => Promise<void>;
 }
 
@@ -35,6 +36,13 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     if (!uid) throw new Error('User is not authenticated');
     await saveTemplate(uid, template);
     set({ templates: [...get().templates, template] });
+  },
+
+  updateTemplate: async (template) => {
+    const uid = getUid();
+    if (!uid) throw new Error('User is not authenticated');
+    await saveTemplate(uid, template);
+    set({ templates: get().templates.map((t) => (t.id === template.id ? template : t)) });
   },
 
   removeTemplate: async (id) => {

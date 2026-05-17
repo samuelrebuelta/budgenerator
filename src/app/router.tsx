@@ -1,12 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { BudgetListPage } from '@/pages/budget-list';
-import { BudgetGeneratorPage } from '@/pages/budget-generator';
+import { BudgetsPage } from '@/pages/budgets';
+import { BudgetDetailPage } from '@/pages/budget-detail';
 import { CatalogsPage } from '@/pages/catalogs';
 import { ProfilePage } from '@/pages/profile';
 import { AccountPage, ChangePasswordPage } from '@/pages/account';
 import { LoginPage } from '@/pages/login';
 import { BudgetViewerPage } from '@/pages/budget-viewer';
 import { AdminPage } from '@/pages/admin';
+import { TemplatesPage } from '@/pages/templates';
+import { TemplateDetailPage } from '@/pages/template-detail';
 import { AuthGuard } from './AuthGuard';
 import { AdminGuard } from './AdminGuard';
 import { ErrorPage } from './ErrorPage';
@@ -21,7 +23,7 @@ export const router = createBrowserRouter([
     errorElement,
     element: (
       <AuthGuard>
-        <BudgetListPage />
+        <BudgetsPage />
       </AuthGuard>
     ),
   },
@@ -30,7 +32,7 @@ export const router = createBrowserRouter([
     errorElement,
     element: (
       <AuthGuard>
-        <BudgetGeneratorPage />
+        <BudgetDetailPage />
       </AuthGuard>
     ),
   },
@@ -40,6 +42,24 @@ export const router = createBrowserRouter([
     element: (
       <AuthGuard>
         <CatalogsPage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: '/templates',
+    errorElement,
+    element: (
+      <AuthGuard>
+        <TemplatesPage />
+      </AuthGuard>
+    ),
+  },
+  {
+    path: '/templates/:templateId',
+    errorElement,
+    element: (
+      <AuthGuard>
+        <TemplateDetailPage />
       </AuthGuard>
     ),
   },

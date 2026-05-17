@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, CircleUserRound } from 'lucide-react';
+import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, CircleUserRound, LayoutTemplate } from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
 import { formatCurrency, CONTACT_EMAIL } from '@/shared/lib';
 import { Button, BudgetLimitReached, ConfirmModal, Modal } from '@/shared/ui';
-import { BudgetListSkeleton } from './components/BudgetListSkeleton';
+import { BudgetsSkeleton } from './components/BudgetsSkeleton';
 import { t } from '@/shared/i18n';
 
-export function BudgetListPage() {
+export function BudgetsPage() {
   const budgets = useBudgetStore((s) => s.budgets);
   const loaded = useBudgetStore((s) => s.loaded);
   const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
@@ -142,6 +142,13 @@ export function BudgetListPage() {
                     {t('budgetList.catalog')}
                   </button>
                   <button
+                    onClick={() => { setShowMenu(false); navigate('/templates'); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <LayoutTemplate size={16} className="text-gray-400" />
+                    {t('templates.title')}
+                  </button>
+                  <button
                     onClick={() => { setShowMenu(false); navigate('/account'); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                   >
@@ -163,7 +170,7 @@ export function BudgetListPage() {
         </div>
 
         {!loaded ? (
-          <BudgetListSkeleton />
+          <BudgetsSkeleton />
         ) : budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />

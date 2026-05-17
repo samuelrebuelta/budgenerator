@@ -90,6 +90,7 @@ interface BudgetState {
   // Draft lifecycle
   startDraft: (defaultCatalogId?: string) => void;
   startDraftFromTemplate: (template: BudgetTemplate) => void;
+  loadTemplateForEditing: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
 
@@ -203,6 +204,19 @@ export const useBudgetStore = create<BudgetState>()(
           tasks: wi.tasks.map((task) => ({ ...task, id: generateId() })),
         }));
         if (template.adjustment) draft.adjustment = template.adjustment;
+        return { draftBudget: draft, activeBudgetId: null };
+      }),
+
+    loadTemplateForEditing: (template) =>
+      set(() => {
+        const draft: Budget = {
+          id: template.id,
+          info: { clientName: '', address: '', date: '', budgetNumber: '' },
+          workItems: template.workItems,
+          catalogId: template.catalogId,
+          adjustment: template.adjustment,
+          createdAt: template.createdAt,
+        };
         return { draftBudget: draft, activeBudgetId: null };
       }),
 

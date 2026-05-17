@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonList } from '@/shared/ui';
 
-export function BudgetListSkeleton() {
+export function BudgetsSkeleton() {
   return (
     <SkeletonList count={4} className="space-y-3">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex items-center justify-between">
