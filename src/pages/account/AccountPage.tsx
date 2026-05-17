@@ -15,7 +15,7 @@ export function AccountPage() {
   const isExpired = plan === 'premium' && !!premiumExpiresAt && new Date(premiumExpiresAt) < new Date();
 
   return (
-    <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')}>
+    <PageLayout>
       <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('account.title')}</h1>
           <p className="text-sm text-gray-500 mb-6">{email}</p>
@@ -49,14 +49,14 @@ export function AccountPage() {
               </div>
               <p className="text-sm text-blue-600 mb-2">{t('account.freeUpgradeHint')}</p>
               <p className="text-sm text-blue-700">
-                {t('budgetList.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
+                {t('budgets.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
                 <a
                   href={`mailto:${CONTACT_EMAIL}`}
                   className="font-medium underline hover:text-blue-900"
                 >
                   {CONTACT_EMAIL}
                 </a>
-                {t('budgetList.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
+                {t('budgets.limitReachedContact', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
               </p>
             </div>
           )}

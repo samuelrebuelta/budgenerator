@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, ChevronDown, ChevronRight, Search, Info, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Search, Info, Trash2 } from 'lucide-react';
 import { useCatalogStore, RENOVATION_CATEGORIES } from '@/entities/catalog';
 import { UNIT_LABELS } from '@/shared/types';
 import type { Unit } from '@/shared/types';
@@ -32,12 +31,12 @@ export function CatalogsPage() {
   const selectCatalog = useCatalogStore((s) => s.selectCatalog);
   const renameCatalog = useCatalogStore((s) => s.renameCatalog);
   const deleteCatalog = useCatalogStore((s) => s.deleteCatalog);
-  const navigate = useNavigate();
 
   const [showAdd, setShowAdd] = useState(false);
   const [showSelectCatalog, setShowSelectCatalog] = useState(false);
   const [showDeleteCatalogConfirm, setShowDeleteCatalogConfirm] = useState(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+  const [isSwitchingCatalog, setIsSwitchingCatalog] = useState(false);
   const [isRenamingCatalog, setIsRenamingCatalog] = useState(false);
   const [catalogNameDraft, setCatalogNameDraft] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -164,7 +163,7 @@ export function CatalogsPage() {
   };
 
   return (
-    <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')} maxWidth="4xl">
+    <PageLayout>
 
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -174,13 +173,9 @@ export function CatalogsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowSelectCatalog(true)}>
-              <RotateCcw size={16} />
-              <span className="hidden sm:inline">{t('catalog.createFromBase')}</span>
-            </Button>
-            <Button onClick={() => setShowAdd(true)}>
+            <Button onClick={() => setShowSelectCatalog(true)}>
               <Plus size={16} />
-              <span className="hidden sm:inline">{t('catalog.addTask')}</span>
+              <span className="hidden sm:inline">{t('catalog.createFromBase')}</span>
             </Button>
           </div>
         </div>
@@ -198,9 +193,14 @@ export function CatalogsPage() {
                   <label className="text-xs font-medium text-gray-600">{t('catalog.activeCatalog')}</label>
                   <select
                     value={activeCatalogId ?? ''}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       if (!e.target.value) return;
-                      void selectCatalog(e.target.value);
+                      setIsSwitchingCatalog(true);
+                      try {
+                        await selectCatalog(e.target.value);
+                      } finally {
+                        setIsSwitchingCatalog(false);
+                      }
                     }}
                     className="mt-1 h-11 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   >
@@ -242,6 +242,15 @@ export function CatalogsPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {loaded && catalogs.length > 0 && (
+          <div className="mb-4">
+            <Button variant="secondary" onClick={() => setShowAdd(true)}>
+              <Plus size={16} />
+              {t('catalog.addTask')}
+            </Button>
           </div>
         )}
 
@@ -338,7 +347,7 @@ export function CatalogsPage() {
           </div>
         )}
 
-        {!loaded ? (
+        {!loaded || isSwitchingCatalog ? (
           <CatalogSkeleton />
         ) : (
         <>

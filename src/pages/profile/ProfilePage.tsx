@@ -26,7 +26,7 @@ export function ProfilePage() {
     setSaving(true);
     await saveProfile();
     setSaving(false);
-    navigate('/');
+    navigate('/budgets');
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +55,7 @@ export function ProfilePage() {
   }
 
   return (
-    <PageLayout onBack={() => navigate('/')} backLabel={t('common.back')}>
+    <PageLayout>
       <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.title')}</h1>
           <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">

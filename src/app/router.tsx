@@ -18,8 +18,9 @@ const errorElement = <ErrorPage />;
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage />, errorElement },
   { path: '/shared/:token', element: <BudgetViewerPage />, errorElement },
+  { path: '/', element: <Navigate to="/budgets" replace /> },
   {
-    path: '/',
+    path: '/budgets',
     errorElement,
     element: (
       <AuthGuard>

@@ -83,7 +83,7 @@ export function BudgetsPage() {
             className="mb-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-blue-400 transition-colors"
           >
             <ShieldCheck size={18} className="text-blue-600 shrink-0" />
-            <p className="text-sm text-blue-800 font-medium flex-1">{t('budgetList.adminBanner')}</p>
+            <p className="text-sm text-blue-800 font-medium flex-1">{t('budgets.adminBanner')}</p>
             <span className="text-blue-400 text-sm">&rarr;</span>
           </div>
         )}
@@ -92,34 +92,34 @@ export function BudgetsPage() {
           <div className="mb-4 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
             <Sparkles size={18} className="text-amber-500 mt-0.5 shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-semibold">{t('budgetList.upgradeBannerTitle')}</span>{' '}
-              {t('budgetList.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
+              <span className="font-semibold">{t('budgets.upgradeBannerTitle')}</span>{' '}
+              {t('budgets.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
                 className="font-medium text-amber-700 underline hover:text-amber-900"
               >
                 {CONTACT_EMAIL}
               </a>
-              {t('budgetList.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
+              {t('budgets.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
             </p>
           </div>
         )}
 
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('budgetList.title')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('budgets.title')}</h1>
             <p className="text-sm text-gray-500 mt-1">
               {!loaded
                 ? '\u00A0'
                 : budgets.length === 0
-                  ? t('budgetList.empty')
-                  : t('budgetList.count', { count: budgets.length })}
+                  ? t('budgets.empty')
+                  : t('budgets.count', { count: budgets.length })}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button onClick={handleCreate}>
               <Plus size={16} />
-              <span className="hidden sm:inline">{t('budgetList.newBudget')}</span>
+              <span className="hidden sm:inline">{t('budgets.newBudget')}</span>
             </Button>
             <div className="relative" ref={menuRef}>
               <Button variant="secondary" onClick={() => setShowMenu(!showMenu)} title={t('settings.title')}>
@@ -139,7 +139,7 @@ export function BudgetsPage() {
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
                   >
                     <BookOpen size={16} className="text-gray-400" />
-                    {t('budgetList.catalog')}
+                    {t('budgets.catalog')}
                   </button>
                   <button
                     onClick={() => { setShowMenu(false); navigate('/templates'); }}
@@ -161,7 +161,7 @@ export function BudgetsPage() {
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
                   >
                     <LogOut size={16} className="text-red-400" />
-                    {t('budgetList.signOut')}
+                    {t('budgets.signOut')}
                   </button>
                 </div>
               )}
@@ -174,13 +174,13 @@ export function BudgetsPage() {
         ) : budgets.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-lg text-gray-500">{t('budgetList.emptyTitle')}</p>
+            <p className="text-lg text-gray-500">{t('budgets.emptyTitle')}</p>
             <p className="text-sm text-gray-400 mt-1">
-              {t('budgetList.emptySubtitle')}
+              {t('budgets.emptySubtitle')}
             </p>
             <Button onClick={handleCreate} className="mt-6">
               <Plus size={16} />
-              {t('budgetList.createBudget')}
+              {t('budgets.createBudget')}
             </Button>
           </div>
         ) : (
@@ -207,17 +207,17 @@ export function BudgetsPage() {
                     </div>
                     <div className="min-w-0 overflow-hidden">
                       <p className="font-semibold text-gray-900 truncate">
-                        {budget.info.clientName || t('budgetList.noName')}
+                        {budget.info.clientName || t('budgets.noName')}
                       </p>
                       {budget.info.address && (
                         <p className="text-xs text-gray-400 truncate overflow-hidden text-ellipsis whitespace-nowrap">{budget.info.address}</p>
                       )}
                       <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
                         {budget.info.budgetNumber && (
-                          <span>{t('budgetList.budgetNumber', { 0: budget.info.budgetNumber })}</span>
+                          <span>{t('budgets.budgetNumber', { 0: budget.info.budgetNumber })}</span>
                         )}
                         <span>{date}</span>
-                        <span>{t('budgetList.workItems', { count: budget.workItems.length })}</span>
+                        <span>{t('budgets.workItems', { count: budget.workItems.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -237,9 +237,9 @@ export function BudgetsPage() {
       <ConfirmModal
         open={showLogout}
         onClose={() => setShowLogout(false)}
-        title={t('budgetList.logoutConfirmTitle')}
-        message={t('budgetList.logoutConfirmMessage')}
-        confirmLabel={t('budgetList.signOut')}
+        title={t('budgets.logoutConfirmTitle')}
+        message={t('budgets.logoutConfirmMessage')}
+        confirmLabel={t('budgets.signOut')}
         onConfirm={signOut}
       />
 
@@ -267,7 +267,7 @@ export function BudgetsPage() {
         </div>
         <Button onClick={handleBlank} className="w-full">
           <Plus size={16} />
-          {t('budgetList.newBudget')}
+          {t('budgets.newBudget')}
         </Button>
       </Modal>
 
