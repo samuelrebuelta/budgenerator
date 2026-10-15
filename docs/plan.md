@@ -11,6 +11,7 @@ Actualizado: 2026-10-15. Fuente operativa de tareas; los documentos técnicos ex
 | BG-003 | Completado | Alta | 23 pruebas unitarias de cálculos, IVA, redondeos, stores y PWA; 12 de reglas y 7 de navegador. |
 | BG-004 | En revisión | Media | README, reglas, scripts y contratos técnicos reconciliados. Mantener free/premium y administración hasta decidir su alcance de producto. |
 | BG-005 | Por definir | Media | Delimitar el encaje de Web Factory Lite dentro del ecosistema (starter + Codex, Sanity, Cloudflare), sin añadir CRM, facturación o automatización comercial. |
+| BG-006 | Pendiente | Alta | Generación asistida de presupuestos mediante texto/voz a partir del catálogo y plantillas del usuario. SDD contrastado con el código en [`docs/specs/BG-006-ai-budget-generation.md`](specs/BG-006-ai-budget-generation.md); implementación separada por PR, no iniciada. |
 
 ## Flujo mínimo
 
