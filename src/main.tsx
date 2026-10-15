@@ -1,17 +1,14 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import { App } from './app/App'
-import { i18nReady } from '@/shared/i18n'
-
-i18nReady.then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
-})
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
-}
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import { App } from './app/App';
+import { i18nReady } from '@/shared/i18n';
+import { registerPwa } from './app/pwa';
+void i18nReady.catch((error) => console.error('No se han podido cargar las traducciones', error));
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+window.dispatchEvent(new Event('cimbra:mounted'));
+registerPwa();

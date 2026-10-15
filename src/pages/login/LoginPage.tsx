@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
-import { useUserStore } from '@/entities/user';
+import { Brand } from '@/shared/ui/Brand';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
@@ -31,7 +31,6 @@ export function LoginPage() {
   const error = useAuthStore((s) => s.error);
   const loading = useAuthStore((s) => s.loading);
   const clearError = useAuthStore((s) => s.clearError);
-  const init = useAuthStore((s) => s.init);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const { checks, score } = usePasswordStrength(password);
@@ -43,27 +42,9 @@ export function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Initialize auth listener so loading becomes false
   useEffect(() => {
-    const unsubscribe = init();
-    return unsubscribe;
-  }, [init]);
-
-  // Redirect if already logged in
-  const userData = useUserStore((s) => s.userData);
-  const userLoaded = useUserStore((s) => s.loaded);
-
-  useEffect(() => {
-    if (user && !userLoaded) {
-      useUserStore.getState().loadUserData(user.uid, user.email ?? '');
-    }
-  }, [user, userLoaded]);
-
-  useEffect(() => {
-    if (user && userData) {
-      navigate('/', { replace: true });
-    }
-  }, [user, userData, navigate]);
+    if (user) navigate('/budgets', { replace: true });
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,132 +82,144 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t('login.title')}</h1>
-          <p className="text-sm text-gray-500 mt-2">{t('login.subtitle')}</p>
+    <div className="login-page">
+      <aside className="login-story">
+        <Brand light />
+        <div className="login-story-copy">
+          <h1>Budgenerator</h1>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {isRegister ? t('login.signUp') : t('login.signIn')}
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                {t('login.email')}
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('login.emailPlaceholder')}
-                required
-                autoComplete="email"
-              />
+        <div className="architectural-art" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <i />
+        </div>
+      </aside>
+      <main className="login-form-area">
+        <div className="w-full max-w-sm login-form">
+          <div className="mb-8">
+            <div className="mobile-login-brand">
+              <Brand />
             </div>
+            <h2 className="login-welcome">{isRegister ? t('login.signUp') : t('login.signIn')}</h2>
+          </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                {t('login.password')}
-              </label>
-              <div className="relative">
+          <div className="login-form-panel">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('login.email')}
+                </label>
                 <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t('login.passwordPlaceholder')}
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t('login.emailPlaceholder')}
                   required
-                  minLength={6}
-                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  autoComplete="email"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('login.password')}
+                </label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={isRegister ? t('login.passwordPlaceholder') : undefined}
+                    required
+                    minLength={6}
+                    autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {isRegister && password.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full transition-colors ${
+                            i <= score
+                              ? score <= 1
+                                ? 'bg-red-400'
+                                : score <= 2
+                                  ? 'bg-orange-400'
+                                  : score <= 3
+                                    ? 'bg-yellow-400'
+                                    : 'bg-green-500'
+                              : 'bg-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <ul className="space-y-0.5">
+                      {checks.map((c) => (
+                        <li
+                          key={c.label}
+                          className={`flex items-center gap-1.5 text-xs ${
+                            c.met ? 'text-green-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {c.met ? <Check size={12} /> : <X size={12} />}
+                          {c.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full justify-center"
+                disabled={loading || (isRegister && !allChecksMet)}
+              >
+                {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
+                {isRegister ? t('login.register') : t('login.enter')}
+              </Button>
+            </form>
+
+            {!isRegister && (
+              <div className="mt-3 text-center">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={openResetModal}
+                  className="text-sm text-gray-500 hover:text-blue-600 cursor-pointer"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {t('login.forgotPassword')}
                 </button>
               </div>
-              {isRegister && password.length > 0 && (
-                <div className="mt-2 space-y-1.5">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className={`h-1.5 flex-1 rounded-full transition-colors ${
-                          i <= score
-                            ? score <= 1
-                              ? 'bg-red-400'
-                              : score <= 2
-                                ? 'bg-orange-400'
-                                : score <= 3
-                                  ? 'bg-yellow-400'
-                                  : 'bg-green-500'
-                            : 'bg-gray-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <ul className="space-y-0.5">
-                    {checks.map((c) => (
-                      <li
-                        key={c.label}
-                        className={`flex items-center gap-1.5 text-xs ${
-                          c.met ? 'text-green-600' : 'text-gray-400'
-                        }`}
-                      >
-                        {c.met ? <Check size={12} /> : <X size={12} />}
-                        {c.label}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                {error}
-              </p>
             )}
 
-            <Button type="submit" className="w-full justify-center" disabled={loading || (isRegister && !allChecksMet)}>
-              {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
-              {isRegister ? t('login.register') : t('login.enter')}
-            </Button>
-          </form>
-
-          {!isRegister && (
-            <div className="mt-3 text-center">
+            <div className="mt-4 text-center">
               <button
                 type="button"
-                onClick={openResetModal}
-                className="text-sm text-gray-500 hover:text-blue-600 cursor-pointer"
+                onClick={toggleMode}
+                className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
               >
-                {t('login.forgotPassword')}
+                {isRegister ? t('login.hasAccount') : t('login.noAccount')}
               </button>
             </div>
-          )}
-
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
-            >
-              {isRegister
-                ? t('login.hasAccount')
-                : t('login.noAccount')}
-            </button>
           </div>
         </div>
-      </div>
-
+      </main>
       <Modal open={showReset} onClose={() => setShowReset(false)}>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
           <KeyRound size={18} className="inline mr-2" />

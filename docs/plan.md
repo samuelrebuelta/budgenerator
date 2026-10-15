@@ -1,15 +1,15 @@
 # BudGenerator — Plan SDD
 
-Actualizado: 2026-10-14. Fuente operativa de tareas; los documentos técnicos existentes explican el sistema, no sustituyen este plan. El ecosistema incluye BudGenerator (presupuestos) y Web Factory Lite (generación de webs mediante starter + Codex con CMS Sanity y despliegue Cloudflare); sin monorepo ni integración de código obligatoria.
+Actualizado: 2026-10-15. Fuente operativa de tareas; los documentos técnicos existentes explican el sistema, no sustituyen este plan. El ecosistema incluye BudGenerator (presupuestos) y Web Factory Lite (generación de webs mediante starter + Codex con CMS Sanity y despliegue Cloudflare); sin monorepo ni integración de código obligatoria.
 
 ## Prioridades
 
 | ID | Estado | Prioridad | Entrega |
 | --- | --- | --- | --- |
-| BG-001 | Pendiente | Crítica | Corregir Firestore Rules: los usuarios pueden escribir `users/{uid}.accountData.isAdmin` y elevar permisos. Separar autorización admin en fuente de confianza; probar con Emulator Suite sin afectar datos reales. |
-| BG-002 | Pendiente | Alta | Completar refactor visual revisado; ver `docs/specs/BG-002-refactor-ui.md`. |
-| BG-003 | Pendiente | Alta | Tests unitarios de cálculos, IVA, descuentos/recargos y redondeos; pruebas de reglas de seguridad. |
-| BG-004 | Pendiente | Media | Reconciliar README, Firebase Rules, scripts y contratos de producto; verificar si free/premium, límites y administración siguen en alcance antes de eliminarlos. |
+| BG-001 | Completado | Crítica | Firestore Rules protegen roles, cuotas y enlaces públicos; 12 pruebas contra Emulator Suite. |
+| BG-002 | Completado | Alta | Refactor visual y observaciones de revisión aplicados; ver `docs/specs/BG-002-refactor-ui.md` y `docs/sdd-plan.md`. |
+| BG-003 | Completado | Alta | 23 pruebas unitarias de cálculos, IVA, redondeos, stores y PWA; 12 de reglas y 7 de navegador. |
+| BG-004 | En revisión | Media | README, reglas, scripts y contratos técnicos reconciliados. Mantener free/premium y administración hasta decidir su alcance de producto. |
 | BG-005 | Por definir | Media | Delimitar el encaje de Web Factory Lite dentro del ecosistema (starter + Codex, Sanity, Cloudflare), sin añadir CRM, facturación o automatización comercial. |
 
 ## Flujo mínimo

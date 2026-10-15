@@ -1,273 +1,248 @@
 import { jsPDF } from 'jspdf';
-import type { Budget, CompanyProfile, WorkItem } from '@/shared/types';
+import type { Budget, PublicBudget, CompanyProfile } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
-
+import { assertBudget, budgetTotals, taskAmount, unitPrice, workItemAmount } from './budgetMath';
 interface PdfData {
-  budget: Budget;
+  budget: Budget | PublicBudget;
   company?: CompanyProfile;
   pdfWindow?: Window | null;
 }
-
-function fmt(n: number): string {
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fmt = (value: number) =>
+  value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+async function loadLogo(
+  url: string,
+): Promise<{ data: string; width: number; height: number } | null> {
+  if (!url.startsWith('data:image/')) return null;
+  return new Promise((resolve) => {
+    const image = new Image();
+    const timer = setTimeout(() => resolve(null), 4000);
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(1, 1024 / Math.max(image.width, image.height));
+        canvas.width = Math.max(1, Math.round(image.width * ratio));
+        canvas.height = Math.max(1, Math.round(image.height * ratio));
+        canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve({ data: canvas.toDataURL('image/png'), width: image.width, height: image.height });
+      } catch {
+        resolve(null);
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      resolve(null);
+    };
+    image.src = url;
+  });
 }
-
-async function loadImage(url: string): Promise<{ data: string; width: number; height: number } | null> {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const data: string = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    // Get natural dimensions
-    const dims: { width: number; height: number } = await new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => resolve({ width: 1, height: 1 });
-      img.src = data;
-    });
-    return { data, width: dims.width, height: dims.height };
-  } catch {
-    return null;
-  }
-}
-
-export async function generateBudgetPdf({ budget, company, pdfWindow }: PdfData) {
-  const ivaRate = budget.ivaRate ?? 0.10;
+/** Shared renderer for private and public documents. All amounts use the same money policy. */
+export function buildBudgetDocument(
+  budget: Budget | PublicBudget,
+  company?: CompanyProfile,
+  logo?: { data: string; width: number; height: number } | null,
+) {
+  assertBudget(budget, true);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 18;
-  const contentWidth = pageWidth - margin * 2;
-  let y = margin;
-
-  function ensureSpace(needed: number) {
-    if (y + needed > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-  }
-
-  // ─── Company Header ───
-  if (company?.name) {
-    let logoOffset = 0;
-
-    if (company.logo) {
-      const img = await loadImage(company.logo);
-      if (img) {
-        const logoHeight = 16;
-        const logoWidth = (img.width / img.height) * logoHeight;
-        doc.addImage(img.data, 'JPEG', margin, y, logoWidth, logoHeight);
-        logoOffset = logoWidth + 4;
-      }
-    }
-
-    const textX = margin + logoOffset;
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 30, 30);
-    doc.text(company.name, textX, y + 5);
-    y += 10;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    if (company.cif) { doc.text(`CIF: ${company.cif}`, textX, y); y += 4; }
-    if (company.address) { doc.text(company.address, textX, y); y += 4; }
-    const contactLine: string[] = [];
-    if (company.phone) contactLine.push(`Tel: ${company.phone}`);
-    if (company.email) contactLine.push(company.email);
-    if (contactLine.length) { doc.text(contactLine.join('    '), textX, y); y += 4; }
-
-    if (logoOffset > 0) {
-      y = Math.max(y, margin + 18);
-    }
-  }
-
-  // ─── Separator ───
-  y += 4;
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 10;
-
-  // ─── Title ───
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 30, 30);
-  doc.text('Presupuesto de Reforma', margin, y);
-  y += 9;
-
-  // ─── Client Info ───
-  doc.setFontSize(9.5);
-  const infoFields: [string, string][] = [];
-  if (budget.info.clientName) infoFields.push(['Nombre del cliente:', budget.info.clientName]);
-  if (budget.info.address) infoFields.push(['Dirección de la vivienda:', budget.info.address]);
-  if (budget.info.date) infoFields.push(['Fecha:', budget.info.date]);
-  if (budget.info.budgetNumber) infoFields.push(['Nº Presupuesto:', budget.info.budgetNumber]);
-
-  infoFields.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(120, 120, 120);
-    doc.text(label, margin, y);
-    const labelWidth = doc.getTextWidth(label) + 2;
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 30, 30);
-    doc.text(value, margin + labelWidth, y);
-    y += 5.5;
-  });
-
-  y += 8;
-
-  // ─── Work Items ───
+  const left = 18,
+    right = 192,
+    bottom = 272;
+  let y = 22;
   const multiplier = budget.adjustment?.multiplier ?? 1;
-
-  budget.workItems.forEach((wi: WorkItem) => {
-    const wiSubtotal = wi.tasks.reduce(
-      (sum, task) => sum + task.quantity * task.price * (multiplier > 1 ? multiplier : 1),
-      0,
-    );
-
-    // Estimate space: header(10) + tasks * 14 + padding(8)
-    const estimatedHeight = 10 + wi.tasks.length * 14 + 8;
-    ensureSpace(estimatedHeight);
-
-    const cardX = margin;
-    const cardStartY = y;
-    const innerLeft = cardX + 5;
-    const innerRight = cardX + contentWidth - 5;
-
-    // ─ Card header with gray background (bg-gray-50) ─
-    const headerHeight = 10;
-    doc.setFillColor(249, 250, 251); // gray-50
-    doc.rect(cardX, y, contentWidth, headerHeight, 'F');
-    y += 6.5;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(40, 40, 40);
-    doc.text(wi.name.toUpperCase(), innerLeft, y);
-
-    doc.setTextColor(107, 114, 128); // gray-500 like the web
-    doc.text(fmt(wiSubtotal), innerRight, y, { align: 'right' });
-    y = cardStartY + headerHeight;
-
-    // Header separator (at the bottom edge of the gray area)
-    doc.setDrawColor(220, 220, 220);
+  const ink = () => doc.setTextColor(24, 62, 59);
+  const muted = () => doc.setTextColor(104, 117, 110);
+  const line = () => {
+    doc.setDrawColor(226, 227, 216);
     doc.setLineWidth(0.2);
-    doc.line(cardX, y, cardX + contentWidth, y);
-    y += 7;
-
-    // ─ Tasks ─
-    wi.tasks.forEach((task, idx) => {
-      ensureSpace(14);
-      const amount = task.quantity * task.price * (multiplier > 1 ? multiplier : 1);
-
-      // Description + amount
-      doc.setFontSize(9.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(40, 40, 40);
-      doc.text(task.description, innerLeft, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(fmt(amount), innerRight, y, { align: 'right' });
-      y += 4.5;
-
-      // Detail line
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(140, 140, 140);
-      const detail = `${task.quantity} ${UNIT_LABELS[task.unit] || task.unit} × ${fmt(task.price)}`;
-      doc.text(detail, innerLeft, y);
-      y += 4;
-
-      // Separator between tasks (not after last)
-      if (idx < wi.tasks.length - 1) {
-        doc.setDrawColor(240, 240, 240);
-        doc.setLineWidth(0.15);
-        doc.line(innerLeft, y, innerRight, y);
-        y += 6;
-      }
-    });
-
-    y += 4;
-
-    // ─ Draw card border ─
-    const cardHeight = y - cardStartY;
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(cardX, cardStartY, contentWidth, cardHeight, 2, 2, 'S');
-
-    y += 8;
-  });
-
-  // ─── Totals ───
-  const rawSubtotal = budget.workItems.reduce(
-    (sum, wi) => sum + wi.tasks.reduce((s, task) => s + task.quantity * task.price, 0),
-    0,
-  );
-  const subtotal = rawSubtotal * multiplier;
-  const iva = subtotal * ivaRate;
-  const total = subtotal + iva;
-
-  ensureSpace(40);
-
-  // Separator
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 8;
-
-  const labelX = pageWidth - margin - 60;
-  const valueX = pageWidth - margin;
-
-  doc.setFontSize(9.5);
-
-  // Adjustment line (only discount)
-  if (multiplier < 1) {
-    const pct = Math.round((multiplier - 1) * 100);
+    doc.line(left, y, right, y);
+  };
+  const newPage = () => {
+    doc.addPage();
+    y = 20;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    ink();
+    doc.text(company?.name || 'budgenerator', left, y);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Descuento (${pct}%)`, labelX, y);
-    doc.setTextColor(40, 40, 40);
-    doc.text(fmt(subtotal - rawSubtotal), valueX, y, { align: 'right' });
-    y += 6;
+    doc.setFontSize(8);
+    muted();
+    doc.text(`Presupuesto ${budget.info.budgetNumber}`, right, y, { align: 'right' });
+    y += 5;
+    line();
+    y += 10;
+  };
+  const ensure = (height: number) => {
+    if (y + height > bottom) newPage();
+  };
+  // Restrict the logo to a real box regardless of its aspect ratio.
+  let titleLeft = left;
+  if (logo) {
+    const scale = Math.min(32 / logo.width, 19 / logo.height);
+    const w = logo.width * scale,
+      h = logo.height * scale;
+    doc.addImage(logo.data, 'PNG', left, y - 5, w, h);
+    titleLeft += w + 7;
   }
-
-  // Subtotal
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Subtotal', labelX, y);
-  doc.setTextColor(40, 40, 40);
-  doc.text(fmt(subtotal), valueX, y, { align: 'right' });
-  y += 6;
-
-  // IVA
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`IVA (${Math.round(ivaRate * 100)}%):`, labelX, y);
-  doc.setTextColor(40, 40, 40);
-  doc.text(fmt(iva), valueX, y, { align: 'right' });
-  y += 8;
-
-  // TOTAL — #263f80
-  doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(38, 63, 128);
-  doc.text('TOTAL', labelX, y);
-  doc.text(fmt(total), valueX, y, { align: 'right' });
-
-  // ─── Output ───
-  const filename = budget.info.clientName
-    ? `presupuesto-${budget.info.clientName.toLowerCase().replace(/\s+/g, '-')}.pdf`
-    : 'presupuesto.pdf';
-
-  if (pdfWindow) {
-    const blob = doc.output('blob');
-    const url = URL.createObjectURL(blob);
-    pdfWindow.location.href = url;
-  } else {
-    doc.save(filename);
+  doc.setFontSize(17);
+  ink();
+  const companyLines = doc.splitTextToSize(company?.name || 'budgenerator', right - titleLeft);
+  doc.text(companyLines, titleLeft, y);
+  y += Math.max(14, companyLines.length * 7 + 3);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  muted();
+  for (const value of [
+    company?.cif ? `CIF: ${company.cif}` : '',
+    company?.address,
+    [company?.phone, company?.email].filter(Boolean).join(' · '),
+  ]) {
+    if (value) {
+      const lines = doc.splitTextToSize(value, right - left);
+      ensure(lines.length * 4 + 3);
+      doc.text(lines, left, y);
+      y += lines.length * 4 + 2;
+    }
   }
+  y += 7;
+  line();
+  y += 12;
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  ink();
+  doc.text('Presupuesto', left, y);
+  y += 9;
+  doc.setFontSize(8);
+  muted();
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Nº ${budget.info.budgetNumber || '—'}  /  ${budget.info.date}`, left, y);
+  y += 12;
+  for (const [label, value] of [
+    ['CLIENTE', budget.info.clientName],
+    ['PROYECTO', budget.info.address],
+  ] as const) {
+    if (!value) continue;
+    doc.setFontSize(7);
+    muted();
+    ensure(16);
+    doc.text(label, left, y);
+    y += 5;
+    doc.setFontSize(10);
+    ink();
+    const lines = doc.splitTextToSize(value, right - left);
+    for (const text of lines) {
+      ensure(6);
+      doc.text(text, left, y);
+      y += 5;
+    }
+    y += 4;
+  }
+  y += 5;
+  budget.workItems.forEach((item, index) => {
+    const itemHeader = (continued = false) => {
+      const heading = doc
+        .splitTextToSize(
+          `${String(index + 1).padStart(2, '0')}  ${item.name}${continued ? ' (continúa)' : ''}`,
+          130,
+        )
+        .slice(0, 3);
+      const height = heading.length * 5 + 10;
+      ensure(height + 20);
+      doc.setFillColor(236, 241, 231);
+      doc.rect(left, y - 4, right - left, height, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      ink();
+      doc.text(heading, left + 4, y + 2);
+      doc.setFontSize(9);
+      doc.text(fmt(workItemAmount(item, multiplier)), right - 4, y + 2, { align: 'right' });
+      y += height + 4;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      muted();
+      doc.text('CONCEPTO', left, y);
+      doc.text('CANT.', 120, y, { align: 'right' });
+      doc.text('UD.', 131, y, { align: 'center' });
+      doc.text('PRECIO', 161, y, { align: 'right' });
+      doc.text('IMPORTE', right, y, { align: 'right' });
+      y += 6;
+    };
+    itemHeader();
+    for (const task of item.tasks) {
+      doc.setFontSize(9);
+      const lines: string[] = doc.splitTextToSize(task.description, 87);
+      let offset = 0;
+      while (offset < lines.length) {
+        if (y + 14 > bottom) {
+          newPage();
+          itemHeader(true);
+        }
+        const capacity = Math.max(1, Math.floor((bottom - y - 9) / 3.81));
+        const fragment = lines.slice(offset, offset + capacity);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        ink();
+        doc.text(fragment, left, y, { lineHeightFactor: 1.2 });
+        if (offset === 0) {
+          doc.setFontSize(8.5);
+          doc.text(task.quantity.toLocaleString('es-ES'), 120, y, { align: 'right' });
+          doc.text(UNIT_LABELS[task.unit], 131, y, { align: 'center' });
+          doc.text(fmt(unitPrice(task, multiplier)), 161, y, { align: 'right' });
+          doc.setFont('helvetica', 'bold');
+          doc.text(fmt(taskAmount(task, multiplier)), right, y, { align: 'right' });
+        }
+        y += fragment.length * 3.81 + 5;
+        offset += fragment.length;
+        if (offset < lines.length) {
+          newPage();
+          itemHeader(true);
+        }
+      }
+      line();
+      y += 7;
+    }
+    y += 6;
+  });
+  const totals = budgetTotals(budget);
+  ensure(65);
+  y += 5;
+  const summary = (label: string, value: number, strong = false) => {
+    doc.setFontSize(strong ? 14 : 9);
+    doc.setFont('helvetica', strong ? 'bold' : 'normal');
+    ink();
+    doc.text(label, 118, y);
+    doc.text(fmt(value), right, y, { align: 'right' });
+    y += strong ? 10 : 7;
+  };
+  if (multiplier < 1) {
+    summary('Base', totals.raw);
+    summary(`Descuento ${Math.round((1 - multiplier) * 100)}%`, totals.discount);
+  }
+  summary('Subtotal', totals.subtotal);
+  summary(`IVA ${Math.round((budget.ivaRate ?? 0.1) * 100)}%`, totals.iva);
+  line();
+  y += 9;
+  summary('TOTAL', totals.total, true);
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page++) {
+    doc.setPage(page);
+    doc.setDrawColor(226, 227, 216);
+    doc.line(left, 282, right, 282);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    muted();
+    doc.text('Preparado con budgenerator', left, 287);
+    doc.text(`${page} / ${pages}`, right, 287, { align: 'right' });
+  }
+  return doc;
+}
+export async function generateBudgetPdf({ budget, company, pdfWindow }: PdfData) {
+  const logo = company?.logo ? await loadLogo(company.logo) : null;
+  const doc = buildBudgetDocument(budget, company, logo);
+  if (pdfWindow) {
+    const url = URL.createObjectURL(doc.output('blob'));
+    pdfWindow.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } else doc.save(`presupuesto-${budget.info.budgetNumber || 'budgenerator'}.pdf`);
 }

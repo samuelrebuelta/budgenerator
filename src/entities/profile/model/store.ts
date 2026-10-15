@@ -1,11 +1,20 @@
 import { create } from 'zustand';
 import { fetchProfile, saveProfile } from '@/entities/profile/api/firestore';
+import { WriteQueue } from '@/shared/lib/writeQueue';
+import { withTimeout, isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import type { CompanyProfile } from '@/shared/types';
 
-let getUid: (() => string) | null = null;
+const writes = new WriteQueue<CompanyProfile>('profile:', (uid, profile) =>
+  saveProfile(uid, profile),
+);
 
-export function setProfileAuthGetter(fn: () => string) {
-  getUid = fn;
+export function setProfileAuthGetter(_fn: () => string) {
+  void _fn;
+}
+const getUid = sessionUid;
+export function resetProfileStore() {
+  writes.clear();
+  useProfileStore.setState({ profile: { ...EMPTY_PROFILE }, loaded: false });
 }
 
 const EMPTY_PROFILE: CompanyProfile = {
@@ -16,13 +25,23 @@ const EMPTY_PROFILE: CompanyProfile = {
   email: '',
 };
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+async function fileToBase64(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await withTimeout(image.decode(), 5000);
+    const ratio = Math.min(1, 1024 / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * ratio));
+    canvas.height = Math.max(1, Math.round(image.height * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Imagen no compatible.');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 interface ProfileState {
@@ -40,7 +59,9 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   loaded: false,
 
   loadProfile: async (uid, authEmail?: string) => {
+    const revision = sessionRevision();
     const data = await fetchProfile(uid);
+    if (!isSessionCurrent(uid, revision)) return;
     const profile = data ?? { ...EMPTY_PROFILE };
     if (authEmail) profile.email = authEmail;
     set({ profile, loaded: true });
@@ -54,21 +75,24 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     const uid = getUid?.();
     if (!uid) return;
     const { profile } = get();
-    await saveProfile(uid, profile);
+    writes.schedule(uid, profile);
+    await withTimeout(writes.flush());
   },
 
   uploadLogo: async (file) => {
     const uid = getUid?.();
     if (!uid) return;
+    const revision = sessionRevision();
     const dataUrl = await fileToBase64(file);
+    if (!isSessionCurrent(uid, revision)) return;
     set((s) => ({ profile: { ...s.profile, logo: dataUrl } }));
-    await saveProfile(uid, get().profile);
+    await get().saveProfile();
   },
 
   removeLogo: async () => {
     const uid = getUid?.();
     if (!uid) return;
     set((s) => ({ profile: { ...s.profile, logo: '' } }));
-    await saveProfile(uid, get().profile);
+    await get().saveProfile();
   },
 }));

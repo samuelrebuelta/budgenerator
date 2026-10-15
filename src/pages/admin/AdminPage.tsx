@@ -36,39 +36,71 @@ export function AdminPage() {
   const setPremiumExpiry = useUserStore((s) => s.setPremiumExpiry);
   const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [expiryInput, setExpiryInput] = useState('');
 
   useEffect(() => {
-    loadAllUsers();
+    void loadAllUsers().catch(() => setError('No se han podido cargar los usuarios.'));
   }, [loadAllUsers]);
 
   const handleTogglePlan = async (user: UserData) => {
     setSaving(true);
     const newPlan = (user.accountData.plan === 'premium' ? 'free' : 'premium') as UserPlan;
-    const newExpiresAt = newPlan === 'premium'
-      ? (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString(); })()
-      : undefined;
-    await setUserPlan(user.uid, newPlan);
-    const updated = { ...user, accountData: { ...user.accountData, plan: newPlan, premiumExpiresAt: newExpiresAt } };
-    setSelectedUser(updated);
-    setExpiryInput(newExpiresAt ? newExpiresAt.slice(0, 10) : '');
-    setSaving(false);
+    const newExpiresAt =
+      newPlan === 'premium'
+        ? (() => {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() + 1);
+            return d.toISOString();
+          })()
+        : undefined;
+    try {
+      await setUserPlan(user.uid, newPlan);
+      const updated = {
+        ...user,
+        accountData: { ...user.accountData, plan: newPlan, premiumExpiresAt: newExpiresAt },
+      };
+      setSelectedUser(updated);
+      setExpiryInput(newExpiresAt ? newExpiresAt.slice(0, 10) : '');
+    } catch {
+      setError('No se ha podido cambiar el plan.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleExpiryChange = async (user: UserData, value: string) => {
     setExpiryInput(value);
     if (!value) return;
-    const iso = new Date(value).toISOString();
+    const iso = new Date(value + 'T23:59:59.999Z').toISOString();
     setSaving(true);
-    await setPremiumExpiry(user.uid, iso);
-    setSelectedUser({ ...user, accountData: { ...user.accountData, premiumExpiresAt: iso } });
-    setSaving(false);
+    try {
+      await setPremiumExpiry(user.uid, iso);
+      setSelectedUser({ ...user, accountData: { ...user.accountData, premiumExpiresAt: iso } });
+    } catch {
+      setError('No se ha podido actualizar la fecha.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-white sm:bg-gray-100">
       <div className="max-w-5xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
+        {error && (
+          <p className="field-error" role="alert">
+            {error}{' '}
+            <button
+              onClick={() => {
+                setError('');
+                void loadAllUsers().catch(() => setError('No se han podido cargar los usuarios.'));
+              }}
+            >
+              Reintentar
+            </button>
+          </p>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <button
@@ -118,7 +150,16 @@ export function AdminPage() {
                       }}
                       className="hover:bg-blue-50 cursor-pointer transition-colors"
                     >
-                      <td className="px-4 py-3 text-left font-medium text-blue-700">{user.email}</td>
+                      <td className="px-4 py-3 text-left font-medium text-blue-700">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setExpiryInput(user.accountData.premiumExpiresAt?.slice(0, 10) ?? '');
+                          }}
+                        >
+                          {user.email}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -128,10 +169,14 @@ export function AdminPage() {
                           }`}
                         >
                           {user.accountData.plan === 'premium' && <Crown size={12} />}
-                          {user.accountData.plan === 'premium' ? t('admin.premium') : t('admin.free')}
+                          {user.accountData.plan === 'premium'
+                            ? t('admin.premium')
+                            : t('admin.free')}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-gray-600">{user.totalBudgetsCreated}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">
+                        {user.totalBudgetsCreated}
+                      </td>
                       <td className="px-4 py-3 text-right text-gray-500">
                         {formatRelativeDate(user.createdAt)}
                       </td>
@@ -158,7 +203,9 @@ export function AdminPage() {
               </div>
               <div>
                 <span className="text-xs text-gray-500 uppercase">{t('admin.budgetsCreated')}</span>
-                <p className="text-sm font-medium text-gray-900">{selectedUser.totalBudgetsCreated}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {selectedUser.totalBudgetsCreated}
+                </p>
               </div>
               <div>
                 <span className="text-xs text-gray-500 uppercase">{t('admin.registeredAt')}</span>
@@ -188,7 +235,9 @@ export function AdminPage() {
               </div>
               {selectedUser.accountData.plan === 'premium' && (
                 <div className="pt-2">
-                  <span className="text-xs text-gray-500 uppercase">{t('admin.premiumExpiresAt')}</span>
+                  <span className="text-xs text-gray-500 uppercase">
+                    {t('admin.premiumExpiresAt')}
+                  </span>
                   <input
                     type="date"
                     value={expiryInput}
@@ -196,9 +245,10 @@ export function AdminPage() {
                     disabled={saving}
                     className="mt-1 block w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
-                  {selectedUser.accountData.premiumExpiresAt && new Date(selectedUser.accountData.premiumExpiresAt) < new Date() && (
-                    <p className="text-xs text-red-500 mt-1">{t('admin.premiumExpired')}</p>
-                  )}
+                  {selectedUser.accountData.premiumExpiresAt &&
+                    new Date(selectedUser.accountData.premiumExpiresAt) < new Date() && (
+                      <p className="text-xs text-red-500 mt-1">{t('admin.premiumExpired')}</p>
+                    )}
                 </div>
               )}
             </div>

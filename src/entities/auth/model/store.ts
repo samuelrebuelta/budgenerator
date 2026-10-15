@@ -7,6 +7,8 @@ import {
   onAuthChange,
 } from '@/entities/auth/api/firebase';
 
+import { flushWrites } from '@/shared/model/sync';
+import { withTimeout } from '@/shared/model/session';
 import { t } from '@/shared/i18n';
 
 function mapAuthError(e: unknown): string {
@@ -71,6 +73,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   signOut: async () => {
+    await withTimeout(flushWrites());
     await fbSignOut();
   },
 

@@ -17,6 +17,7 @@ export function ProfilePage() {
   const removeLogo = useProfileStore((s) => s.removeLogo);
   const authEmail = useAuthStore((s) => s.user?.email ?? '');
   const navigate = useNavigate();
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showRemoveLogoConfirm, setShowRemoveLogoConfirm] = useState(false);
@@ -24,9 +25,15 @@ export function ProfilePage() {
 
   const handleSave = async () => {
     setSaving(true);
-    await saveProfile();
-    setSaving(false);
-    navigate('/budgets');
+    setError('');
+    try {
+      await saveProfile();
+      navigate('/budgets');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se han podido guardar los datos.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,16 +45,28 @@ export function ProfilePage() {
       return;
     }
     setUploading(true);
-    await storeUploadLogo(file);
-    setUploading(false);
+    setError('');
+    try {
+      await storeUploadLogo(file);
+    } catch {
+      setError('No se ha podido guardar el logo. Prueba con otra imagen.');
+    } finally {
+      setUploading(false);
+    }
     if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleRemoveLogo = async () => {
     setShowRemoveLogoConfirm(false);
     setUploading(true);
-    await removeLogo();
-    setUploading(false);
+    setError('');
+    try {
+      await removeLogo();
+    } catch {
+      setError('No se ha podido eliminar el logo. Vuelve a intentarlo.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!loaded) {
@@ -56,7 +75,13 @@ export function ProfilePage() {
 
   return (
     <PageLayout>
-      <div>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
+      <fieldset disabled={saving || uploading} className="min-w-0">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.title')}</h1>
           <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
             <Info size={16} className="shrink-0 mt-0.5" />
@@ -65,7 +90,9 @@ export function ProfilePage() {
 
           {/* Logo */}
           <div className="mb-6">
-            <label className="text-sm font-medium text-gray-700 block mb-2">{t('profile.logo')}</label>
+            <label className="text-sm font-medium text-gray-700 block mb-2">
+              {t('profile.logo')}
+            </label>
             {profile.logo ? (
               <div className="flex items-center gap-4">
                 <img
@@ -149,15 +176,16 @@ export function ProfilePage() {
             </Button>
           </div>
         </div>
+      </fieldset>
 
-        <ConfirmModal
-          open={showRemoveLogoConfirm}
-          onClose={() => setShowRemoveLogoConfirm(false)}
-          title={t('profile.removeLogoTitle')}
-          message={t('profile.removeLogoMessage')}
-          confirmLabel={t('common.delete')}
-          onConfirm={handleRemoveLogo}
-        />
+      <ConfirmModal
+        open={showRemoveLogoConfirm}
+        onClose={() => setShowRemoveLogoConfirm(false)}
+        title={t('profile.removeLogoTitle')}
+        message={t('profile.removeLogoMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={handleRemoveLogo}
+      />
     </PageLayout>
   );
 }

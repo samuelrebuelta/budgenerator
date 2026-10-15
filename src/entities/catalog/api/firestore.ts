@@ -44,7 +44,11 @@ export async function saveTariffCatalog(uid: string, catalog: TariffCatalog) {
   await setDoc(doc(catalogsCol(uid), catalog.id), catalog);
 }
 
-export async function updateTariffCatalogDoc(uid: string, catalogId: string, data: Partial<TariffCatalog>) {
+export async function updateTariffCatalogDoc(
+  uid: string,
+  catalogId: string,
+  data: Partial<TariffCatalog>,
+) {
   await updateDoc(doc(catalogsCol(uid), catalogId), data);
 }
 

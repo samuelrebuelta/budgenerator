@@ -1,292 +1,225 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, BookOpen, LogOut, Building2, Trash2, Sparkles, ShieldCheck, User, CircleUserRound, LayoutTemplate } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Plus,
+  ArrowUpRight,
+  FileText,
+  Layers3,
+  Wallet,
+  Search,
+  ChevronRight,
+  ArrowRight,
+} from 'lucide-react';
 import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
-import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
-import { formatCurrency, CONTACT_EMAIL } from '@/shared/lib';
-import { Button, BudgetLimitReached, ConfirmModal, Modal } from '@/shared/ui';
-import { BudgetsSkeleton } from './components/BudgetsSkeleton';
-import { t } from '@/shared/i18n';
-
+import { useCatalogStore } from '@/entities/catalog';
+import { formatCurrency } from '@/shared/lib';
+import { Button, BudgetLimitReached, Modal } from '@/shared/ui';
 export function BudgetsPage() {
   const budgets = useBudgetStore((s) => s.budgets);
-  const loaded = useBudgetStore((s) => s.loaded);
-  const getBudgetTotal = useBudgetStore((s) => s.getBudgetTotal);
-  const startDraftFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
+  const startFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
   const templates = useTemplateStore((s) => s.templates);
-  const removeTemplate = useTemplateStore((s) => s.removeTemplate);
-  const signOut = useAuthStore((s) => s.signOut);
-  const canCreateBudget = useUserStore((s) => s.canCreateBudget);
-  const userData = useUserStore((s) => s.userData);
+  const catalogs = useCatalogStore((s) => s.catalogs);
+  const account = useUserStore((s) => s.userData);
+  const canCreate = useUserStore((s) => s.canCreateBudget);
+  const total = useBudgetStore((s) => s.getBudgetTotal);
   const navigate = useNavigate();
-  const [showLogout, setShowLogout] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
-  const [showLimitReached, setShowLimitReached] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMenu]);
-
-  const handleCreate = () => {
-    if (!canCreateBudget()) {
-      setShowLimitReached(true);
-      return;
-    }
-    if (templates.length > 0) {
-      setShowTemplates(true);
-    } else {
-      navigate('/budget/new');
-    }
+  const [chooseTemplate, setChooseTemplate] = useState(false);
+  const [limit, setLimit] = useState(false);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const totalValue = budgets.reduce((sum, b) => sum + total(b.id), 0);
+  const filtered = [...budgets]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .filter((b) =>
+      `${b.info.clientName} ${b.info.address} ${b.info.budgetNumber}`
+        .toLocaleLowerCase('es')
+        .includes(search.toLocaleLowerCase('es')),
+    );
+  const safePage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 8) - 1));
+  const visible = filtered.slice(safePage * 8, safePage * 8 + 8);
+  const create = () => {
+    if (!canCreate()) setLimit(true);
+    else if (templates.length) setChooseTemplate(true);
+    else navigate('/budget/new');
   };
-
-  const handleBlank = () => {
-    setShowTemplates(false);
-    navigate('/budget/new');
-  };
-
-  const handleFromTemplate = (templateId: string) => {
-    const tpl = templates.find((t) => t.id === templateId);
-    if (!tpl) return;
-    startDraftFromTemplate(tpl);
-    setShowTemplates(false);
-    navigate('/budget/new');
-  };
-
-  const handleDeleteTemplate = async () => {
-    if (!templateToDelete) return;
-    await removeTemplate(templateToDelete);
-    setTemplateToDelete(null);
-  };
-
-  const handleOpen = (id: string) => {
-    navigate(`/budget/${id}`);
-  };
-
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-
-        {userData?.accountData.isAdmin && (
-          <div
-            onClick={() => navigate('/admin')}
-            className="mb-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-blue-400 transition-colors"
-          >
-            <ShieldCheck size={18} className="text-blue-600 shrink-0" />
-            <p className="text-sm text-blue-800 font-medium flex-1">{t('budgets.adminBanner')}</p>
-            <span className="text-blue-400 text-sm">&rarr;</span>
+    <div className="page-container">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">RESUMEN</p>
+          <h1>Presupuestos</h1>
+          <p>Consulta y gestiona tus presupuestos.</p>
+        </div>
+        <Button onClick={create}>
+          <Plus size={17} />
+          Nuevo presupuesto
+        </Button>
+      </div>
+      <section className="overview-grid" aria-label="Resumen de actividad">
+        <div className="overview-card featured">
+          <p>Valor presupuestado</p>
+          <Wallet />
+          <strong>{formatCurrency(totalValue)}</strong>
+          <small>Total de tus presupuestos, IVA incluido</small>
+        </div>
+        <div className="overview-card">
+          <p>Presupuestos</p>
+          <FileText />
+          <strong>{String(budgets.length).padStart(2, '0')}</strong>
+          <small>Presupuestos guardados</small>
+        </div>
+        <div className="overview-card">
+          <p>Tu biblioteca</p>
+          <Layers3 />
+          <strong>{String(catalogs.length + templates.length).padStart(2, '0')}</strong>
+          <small>
+            {catalogs.length} catálogos · {templates.length} plantillas
+          </small>
+        </div>
+      </section>
+      <section aria-labelledby="budget-list-heading">
+        <div className="list-heading">
+          <h2 id="budget-list-heading">
+            Tus presupuestos<span>{budgets.length}</span>
+          </h2>
+          <div className="search-box">
+            <Search size={14} />
+            <input
+              aria-label="Buscar presupuestos"
+              placeholder="Busca un cliente, dirección o número"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+            />
           </div>
-        )}
-
-        {userData?.accountData.plan === 'free' && (
-          <div className="mb-4 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
-            <Sparkles size={18} className="text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">{t('budgets.upgradeBannerTitle')}</span>{' '}
-              {t('budgets.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[0]}
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="font-medium text-amber-700 underline hover:text-amber-900"
-              >
-                {CONTACT_EMAIL}
-              </a>
-              {t('budgets.upgradeBannerMessage', { email: CONTACT_EMAIL }).split(CONTACT_EMAIL)[1]}
-            </p>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('budgets.title')}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {!loaded
-                ? '\u00A0'
-                : budgets.length === 0
-                  ? t('budgets.empty')
-                  : t('budgets.count', { count: budgets.length })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button onClick={handleCreate}>
-              <Plus size={16} />
-              <span className="hidden sm:inline">{t('budgets.newBudget')}</span>
-            </Button>
-            <div className="relative" ref={menuRef}>
-              <Button variant="secondary" onClick={() => setShowMenu(!showMenu)} title={t('settings.title')}>
-                <User size={16} />
-              </Button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                  <button
-                    onClick={() => { setShowMenu(false); navigate('/profile'); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <Building2 size={16} className="text-gray-400" />
-                    {t('profile.title')}
-                  </button>
-                  <button
-                    onClick={() => { setShowMenu(false); navigate('/catalogs'); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <BookOpen size={16} className="text-gray-400" />
-                    {t('budgets.catalog')}
-                  </button>
-                  <button
-                    onClick={() => { setShowMenu(false); navigate('/templates'); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <LayoutTemplate size={16} className="text-gray-400" />
-                    {t('templates.title')}
-                  </button>
-                  <button
-                    onClick={() => { setShowMenu(false); navigate('/account'); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <CircleUserRound size={16} className="text-gray-400" />
-                    {t('account.title')}
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { setShowMenu(false); setShowLogout(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
-                  >
-                    <LogOut size={16} className="text-red-400" />
-                    {t('budgets.signOut')}
-                  </button>
-                </div>
+        </div>
+        <div className="budget-list">
+          {visible.length ? (
+            <>
+              <div className="budget-list-head">
+                <span>PROYECTO / CLIENTE</span>
+                <span>FECHA</span>
+                <span className="text-right">IMPORTE TOTAL</span>
+                <span />
+              </div>
+              {visible.map((b) => (
+                <Link to={`/budget/${b.id}`} key={b.id} className="budget-list-row">
+                  <div className="budget-identity">
+                    <span className="document-number">{b.info.budgetNumber || '—'}</span>
+                    <div className="min-w-0">
+                      <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
+                      <p>{b.info.address || `${b.workItems.length} partidas de trabajo`}</p>
+                    </div>
+                  </div>
+                  <span className="budget-date">
+                    {b.info.date
+                      ? new Date(b.info.date + 'T12:00:00').toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : 'Sin fecha'}
+                  </span>
+                  <strong className="budget-amount">{formatCurrency(total(b.id))}</strong>
+                  <ArrowUpRight size={17} className="text-gray-400" />
+                </Link>
+              ))}
+            </>
+          ) : (
+            <div className="empty-workspace">
+              <FileText size={35} />
+              <h2>{search ? 'Sin resultados' : 'No hay presupuestos'}</h2>
+              <p>
+                {search
+                  ? 'No encontramos presupuestos con esos datos.'
+                  : 'Crea un presupuesto para empezar.'}
+              </p>
+              {!search && (
+                <Button onClick={create}>
+                  Crear mi primer presupuesto
+                  <ArrowRight size={16} />
+                </Button>
               )}
             </div>
-          </div>
+          )}
         </div>
-
-        {!loaded ? (
-          <BudgetsSkeleton />
-        ) : budgets.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-lg text-gray-500">{t('budgets.emptyTitle')}</p>
-            <p className="text-sm text-gray-400 mt-1">
-              {t('budgets.emptySubtitle')}
-            </p>
-            <Button onClick={handleCreate} className="mt-6">
-              <Plus size={16} />
-              {t('budgets.createBudget')}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {[...budgets].reverse().map((budget) => {
-              const total = getBudgetTotal(budget.id);
-              const date = budget.info.date
-                ? new Date(budget.info.date).toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })
-                : '—';
-
-              return (
-                <div
-                  key={budget.id}
-                  onClick={() => handleOpen(budget.id)}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-blue-300 hover:shadow transition-all"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                      <FileText size={20} />
-                    </div>
-                    <div className="min-w-0 overflow-hidden">
-                      <p className="font-semibold text-gray-900 truncate">
-                        {budget.info.clientName || t('budgets.noName')}
-                      </p>
-                      {budget.info.address && (
-                        <p className="text-xs text-gray-400 truncate overflow-hidden text-ellipsis whitespace-nowrap">{budget.info.address}</p>
-                      )}
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
-                        {budget.info.budgetNumber && (
-                          <span>{t('budgets.budgetNumber', { 0: budget.info.budgetNumber })}</span>
-                        )}
-                        <span>{date}</span>
-                        <span>{t('budgets.workItems', { count: budget.workItems.length })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span className="text-lg font-bold text-blue-700">
-                      {formatCurrency(total)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <ConfirmModal
-        open={showLogout}
-        onClose={() => setShowLogout(false)}
-        title={t('budgets.logoutConfirmTitle')}
-        message={t('budgets.logoutConfirmMessage')}
-        confirmLabel={t('budgets.signOut')}
-        onConfirm={signOut}
-      />
-
-      <Modal open={showTemplates} onClose={() => setShowTemplates(false)}>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('templates.loadTemplate')}</h3>
-        <div className="space-y-2 mb-4">
-          {templates.map((tpl) => (
-            <div
-              key={tpl.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 p-3 hover:border-blue-300 cursor-pointer transition-colors"
-              onClick={() => handleFromTemplate(tpl.id)}
-            >
-              <div>
-                <p className="font-medium text-gray-900">{tpl.name}</p>
-                <p className="text-xs text-gray-500">{t('templates.workItems', { count: tpl.workItems.length })}</p>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); setTemplateToDelete(tpl.id); }}
-                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+        <div className="list-bottom">
+          <span>
+            {filtered.length
+              ? `${safePage * 8 + 1}–${Math.min((safePage + 1) * 8, filtered.length)} de ${filtered.length} presupuestos`
+              : '0 presupuestos'}
+          </span>
+          {filtered.length > 8 && (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                disabled={safePage === 0}
+                onClick={() => setPage(safePage - 1)}
               >
-                <Trash2 size={16} />
-              </button>
+                Anterior
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={(safePage + 1) * 8 >= filtered.length}
+                onClick={() => setPage(safePage + 1)}
+              >
+                Siguiente
+                <ChevronRight size={14} />
+              </Button>
             </div>
+          )}
+        </div>
+      </section>
+      <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-5 mt-5">
+        <p className="text-xs text-gray-500">Gestiona los precios desde tus catálogos.</p>
+        <Link
+          className="text-xs text-blue-700 font-semibold flex items-center gap-2"
+          to="/catalogs"
+        >
+          Explora tus catálogos
+          <ArrowUpRight size={14} />
+        </Link>
+      </div>
+      <Modal open={chooseTemplate} onClose={() => setChooseTemplate(false)}>
+        <h2 className="font-display text-2xl mb-2">Crear presupuesto</h2>
+        <p className="text-xs text-gray-500 mb-5">
+          Reutiliza lo que funciona o empieza desde cero.
+        </p>
+        <div className="space-y-2">
+          {templates.map((t) => (
+            <button
+              className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50"
+              key={t.id}
+              onClick={() => {
+                startFromTemplate(t);
+                navigate('/budget/new');
+              }}
+            >
+              <strong className="text-sm">{t.name}</strong>
+              <span className="block text-xs text-gray-500 mt-1">
+                {t.workItems.length} partidas
+              </span>
+            </button>
           ))}
         </div>
-        <Button onClick={handleBlank} className="w-full">
+        <Button className="mt-5 w-full justify-center" onClick={() => navigate('/budget/new')}>
           <Plus size={16} />
-          {t('budgets.newBudget')}
+          Empezar en blanco
         </Button>
       </Modal>
-
-      <ConfirmModal
-        open={!!templateToDelete}
-        onClose={() => setTemplateToDelete(null)}
-        title={t('templates.deleteConfirmTitle')}
-        message={t('templates.deleteConfirmMessage')}
-        confirmLabel={t('common.delete')}
-        onConfirm={handleDeleteTemplate}
-      />
-
-      <Modal open={showLimitReached} onClose={() => setShowLimitReached(false)}>
-        <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />
-        <div className="flex justify-center mt-6">
-          <Button variant="secondary" onClick={() => setShowLimitReached(false)}>
-            {t('common.cancel')}
-          </Button>
-        </div>
+      <Modal open={limit} onClose={() => setLimit(false)}>
+        <BudgetLimitReached totalBudgetsCreated={account?.totalBudgetsCreated ?? 0} />
+        <Button
+          variant="secondary"
+          className="mt-5 w-full justify-center"
+          onClick={() => setLimit(false)}
+        >
+          Volver a mis proyectos
+        </Button>
       </Modal>
     </div>
   );

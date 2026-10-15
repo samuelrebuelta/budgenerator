@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export const CONTACT_EMAIL = 'budgenerator@gmail.com';
+export const FREE_BUDGET_LIMIT = 3;
 export const MAX_LOGO_SIZE = 500 * 1024;
 
 export function cn(...inputs: ClassValue[]) {

@@ -11,9 +11,7 @@ export function AddTaskButton({ workItemId }: AddTaskButtonProps) {
   const addTask = useBudgetStore((s) => s.addTask);
   const budget = useActiveBudget();
   const workItem = budget?.workItems.find((wi) => wi.id === workItemId);
-  const hasDraft = workItem?.tasks.some(
-    (t) => !t.description && t.quantity === 0 && t.price === 0,
-  );
+  const hasDraft = workItem?.tasks.some((t) => !t.description && t.quantity === 0 && t.price === 0);
 
   return (
     <Button

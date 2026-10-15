@@ -6,14 +6,7 @@ interface SkeletonProps {
 
 /** A single animated placeholder block. Compose these to build page skeletons. */
 export function Skeleton({ className }: SkeletonProps) {
-  return (
-    <div
-      className={cn(
-        'animate-pulse rounded-md bg-gray-200',
-        className,
-      )}
-    />
-  );
+  return <div className={cn('animate-pulse rounded-md bg-gray-200', className)} />;
 }
 
 /** Repeats children `count` times inside an optional wrapper className. */

@@ -1,104 +1,93 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { BudgetsPage } from '@/pages/budgets';
-import { BudgetDetailPage } from '@/pages/budget-detail';
-import { CatalogsPage } from '@/pages/catalogs';
-import { ProfilePage } from '@/pages/profile';
-import { AccountPage, ChangePasswordPage } from '@/pages/account';
-import { LoginPage } from '@/pages/login';
-import { BudgetViewerPage } from '@/pages/budget-viewer';
-import { AdminPage } from '@/pages/admin';
-import { TemplatesPage } from '@/pages/templates';
-import { TemplateDetailPage } from '@/pages/template-detail';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AuthGuard } from './AuthGuard';
 import { AdminGuard } from './AdminGuard';
+import { LoadingScreen } from '@/shared/ui/LoadingScreen';
 import { ErrorPage } from './ErrorPage';
-
 const errorElement = <ErrorPage />;
-
+const hydrateFallbackElement = <LoadingScreen />;
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage />, errorElement },
-  { path: '/shared/:token', element: <BudgetViewerPage />, errorElement },
+  {
+    path: '/login',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/login')).LoginPage }),
+  },
+  {
+    path: '/shared/:token',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/budget-viewer')).BudgetViewerPage }),
+  },
   { path: '/', element: <Navigate to="/budgets" replace /> },
   {
-    path: '/budgets',
-    errorElement,
     element: (
       <AuthGuard>
-        <BudgetsPage />
+        <Outlet />
       </AuthGuard>
     ),
+    errorElement,
+    hydrateFallbackElement,
+    children: [
+      {
+        path: '/budgets',
+        lazy: async () => ({ Component: (await import('@/pages/budgets')).BudgetsPage }),
+      },
+      {
+        path: '/budget/:budgetId',
+        lazy: async () => ({ Component: (await import('@/pages/budget-detail')).BudgetDetailPage }),
+      },
+      {
+        path: '/catalogs',
+        lazy: async () => ({ Component: (await import('@/pages/catalogs')).CatalogsPage }),
+      },
+      {
+        path: '/catalogs/:catalogId',
+        lazy: async () => ({
+          Component: (await import('@/pages/catalogs/CatalogDetailPage')).CatalogDetailPage,
+        }),
+      },
+      {
+        path: '/templates',
+        lazy: async () => ({ Component: (await import('@/pages/templates')).TemplatesPage }),
+      },
+      {
+        path: '/templates/:templateId',
+        lazy: async () => ({
+          Component: (await import('@/pages/template-detail')).TemplateDetailPage,
+        }),
+      },
+      {
+        path: '/profile',
+        lazy: async () => ({ Component: (await import('@/pages/profile')).ProfilePage }),
+      },
+      {
+        path: '/account',
+        lazy: async () => ({
+          Component: (await import('@/pages/account/AccountPage')).AccountPage,
+        }),
+      },
+      {
+        path: '/account/password',
+        lazy: async () => ({
+          Component: (await import('@/pages/account/ChangePasswordPage')).ChangePasswordPage,
+        }),
+      },
+    ],
   },
   {
-    path: '/budget/:budgetId',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <BudgetDetailPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/catalogs',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <CatalogsPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/templates',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <TemplatesPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/templates/:templateId',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <TemplateDetailPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/profile',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <ProfilePage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/account',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <AccountPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/account/password',
-    errorElement,
-    element: (
-      <AuthGuard>
-        <ChangePasswordPage />
-      </AuthGuard>
-    ),
-  },
-  {
-    path: '/admin',
-    errorElement,
     element: (
       <AdminGuard>
-        <AdminPage />
+        <Outlet />
       </AdminGuard>
     ),
+    errorElement,
+    hydrateFallbackElement,
+    children: [
+      {
+        path: '/admin',
+        lazy: async () => ({ Component: (await import('@/pages/admin')).AdminPage }),
+      },
+    ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <Navigate to="/budgets" replace /> },
 ]);

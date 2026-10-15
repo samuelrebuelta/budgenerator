@@ -1,26 +1,87 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Check if the authenticated user has isAdmin flag in their own user doc
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    // Existing role documents are trusted only for the designated admin identity.
+    // New roles must be provisioned with Admin SDK; no client may assign isAdmin.
     function isAdmin() {
-      return request.auth != null
+      return signedIn() && request.auth.token.email == 'budgenerator@gmail.com'
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountData.isAdmin == true;
     }
-
-    // User-scoped data: only authenticated owner or admin
+    function canUse(uid) { return owner(uid) || isAdmin(); }
+    function validAccount(a) {
+      return a.keys().hasOnly(['isAdmin', 'plan', 'premiumExpiresAt', 'premiumExpiresAtMillis'])
+        && a.isAdmin is bool && a.plan in ['free', 'premium']
+        && (a.get('premiumExpiresAtMillis', null) == null || a.premiumExpiresAtMillis is int);
+    }
+    function premium(a) {
+      return a.plan == 'premium' && (
+        a.get('premiumExpiresAt', null) == null
+        || (a.get('premiumExpiresAtMillis', 0) is int && a.get('premiumExpiresAtMillis', 0) > request.time.toMillis())
+      );
+    }
+    function validCreationCount(uid) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let id = after.lastCreatedBudgetId;
+      return after.diff(before).affectedKeys().hasOnly(['totalBudgetsCreated', 'lastCreatedBudgetId'])
+        && after.totalBudgetsCreated == before.totalBudgetsCreated + 1
+        && (premium(before.accountData) || before.totalBudgetsCreated < 3)
+        && id is string && id.size() > 0
+        && !exists(/databases/$(database)/documents/users/$(uid)/budgets/$(id))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.id == id;
+    }
     match /users/{uid} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow get: if canUse(uid);
+      allow list: if isAdmin();
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'accountData', 'totalBudgetsCreated', 'createdAt'])
+        && request.resource.data.uid == uid && request.resource.data.email == request.auth.token.email
+        && request.resource.data.totalBudgetsCreated == 0
+        && request.resource.data.createdAt is string
+        && request.resource.data.accountData == {'isAdmin': false, 'plan': 'free'};
+      allow update: if (owner(uid) && validCreationCount(uid)) || (
+        isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['accountData'])
+        && validAccount(request.resource.data.accountData)
+        && request.resource.data.accountData.isAdmin == resource.data.accountData.isAdmin
+      );
+      allow delete: if false;
+      match /budgets/{id} {
+        allow read, delete: if canUse(uid);
+        allow create: if owner(uid)
+          && request.resource.data.id == id && request.resource.data.info is map
+          && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200
+          && getAfter(/databases/$(database)/documents/users/$(uid)).data.lastCreatedBudgetId == id
+          && getAfter(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated == get(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated + 1;
+        allow update: if canUse(uid) && request.resource.data.id == id
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200;
+      }
+      match /{collectionName}/{documentId} {
+        allow read: if canUse(uid) && collectionName in ['tariffCatalogs', 'templates', 'profile', 'settings', 'tariffs'];
+        allow write: if canUse(uid) && (
+          collectionName in ['tariffCatalogs', 'templates', 'profile']
+          || (collectionName == 'settings' && documentId in ['profile', 'tariffCatalog'])
+        );
+        allow delete: if canUse(uid) && collectionName == 'tariffs';
+      }
     }
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && (request.auth.uid == uid || isAdmin());
-    }
-
-    // Shared budgets: anyone can read, only authenticated users can create
     match /sharedBudgets/{token} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if false;
+      // Legacy snapshots may contain costs: fail closed until safely republished.
+      allow get: if resource.data.schemaVersion == 2 && resource.data.expiresAt > request.time.toMillis();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'ownerUid', 'expiresAt', 'budget', 'company', 'ivaRate', 'sharedAt'])
+        && request.resource.data.schemaVersion == 2 && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.expiresAt is int
+        && request.resource.data.expiresAt > request.time.toMillis()
+        && request.resource.data.expiresAt <= request.time.toMillis() + 2678400000
+        && request.resource.data.budget.keys().hasOnly(['id', 'info', 'workItems', 'createdAt', 'ivaRate', 'adjustment'])
+        && request.resource.data.budget.workItems is list
+        && request.resource.data.company.keys().hasOnly(['name', 'cif', 'address', 'phone', 'email', 'logo']);
+      allow update: if false;
+      allow delete: if signedIn() && (resource.data.get('ownerUid', '') == request.auth.uid || isAdmin());
     }
   }
 }

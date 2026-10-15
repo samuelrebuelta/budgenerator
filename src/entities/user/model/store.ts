@@ -3,14 +3,14 @@ import type { UserData, UserPlan } from '@/shared/types';
 import {
   fetchUserData,
   saveUserData,
-  incrementBudgetCount,
   fetchAllUsers,
   adminUpdateUserPlan,
   adminUpdatePremiumExpiry,
 } from '@/entities/user/api/firestore';
-import { CONTACT_EMAIL } from '@/shared/lib';
+import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 
-export const FREE_BUDGET_LIMIT = 3;
+export { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
+import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 
 interface UserState {
   userData: UserData | null;
@@ -26,14 +26,14 @@ interface UserState {
   setPremiumExpiry: (uid: string, premiumExpiresAt: string) => Promise<void>;
 }
 
-let _getUid: (() => string) | null = null;
-
-export function setUserAuthGetter(fn: () => string) {
-  _getUid = fn;
+export function setUserAuthGetter(_fn: () => string) {
+  void _fn;
 }
-
 export function getUserUid(): string {
-  return _getUid?.() ?? '';
+  return sessionUid() ?? '';
+}
+export function resetUserStore() {
+  useUserStore.setState({ userData: null, loaded: false, allUsers: [], allUsersLoaded: false });
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -43,19 +43,20 @@ export const useUserStore = create<UserState>((set, get) => ({
   allUsersLoaded: false,
 
   loadUserData: async (uid, email) => {
+    const revision = sessionRevision();
     let data = await fetchUserData(uid);
     if (!data) {
-      const isAdmin = email === CONTACT_EMAIL;
+      const isAdmin = false;
       data = {
         uid,
         email,
-        accountData: { isAdmin, plan: isAdmin ? 'premium' : 'free' },
+        accountData: { isAdmin, plan: 'free' },
         totalBudgetsCreated: 0,
         createdAt: new Date().toISOString(),
       };
       await saveUserData(uid, data);
     }
-    set({ userData: data, loaded: true });
+    if (isSessionCurrent(uid, revision)) set({ userData: data, loaded: true });
   },
 
   canCreateBudget: () => {
@@ -69,28 +70,31 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   onBudgetCreated: async (uid) => {
-    await incrementBudgetCount(uid);
-    const { userData } = get();
-    if (userData) {
-      set({ userData: { ...userData, totalBudgetsCreated: userData.totalBudgetsCreated + 1 } });
-    }
+    await get().loadUserData(uid, get().userData?.email ?? '');
   },
 
   loadAllUsers: async () => {
-    try {
-      const users = await fetchAllUsers();
-      set({ allUsers: users, allUsersLoaded: true });
-    } catch (e) {
-      console.error('Failed to load users:', e);
-      set({ allUsers: [], allUsersLoaded: true });
-    }
+    const uid = sessionUid();
+    const revision = sessionRevision();
+    if (!uid) return;
+    const users = await fetchAllUsers();
+    if (isSessionCurrent(uid, revision)) set({ allUsers: users, allUsersLoaded: true });
   },
 
   setUserPlan: async (uid, plan, premiumExpiresAt?) => {
+    const revision = sessionRevision();
+    const actor = sessionUid();
     await adminUpdateUserPlan(uid, plan, premiumExpiresAt);
-    const expiresAt = plan === 'premium'
-      ? (premiumExpiresAt ?? (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString(); })())
-      : undefined;
+    if (!actor || !isSessionCurrent(actor, revision)) return;
+    const expiresAt =
+      plan === 'premium'
+        ? (premiumExpiresAt ??
+          (() => {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() + 1);
+            return d.toISOString();
+          })())
+        : undefined;
     set((s) => ({
       allUsers: s.allUsers.map((u) =>
         u.uid === uid
@@ -101,12 +105,13 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   setPremiumExpiry: async (uid, premiumExpiresAt) => {
+    const revision = sessionRevision();
+    const actor = sessionUid();
     await adminUpdatePremiumExpiry(uid, premiumExpiresAt);
+    if (!actor || !isSessionCurrent(actor, revision)) return;
     set((s) => ({
       allUsers: s.allUsers.map((u) =>
-        u.uid === uid
-          ? { ...u, accountData: { ...u.accountData, premiumExpiresAt } }
-          : u,
+        u.uid === uid ? { ...u, accountData: { ...u.accountData, premiumExpiresAt } } : u,
       ),
     }));
   },
