@@ -20,7 +20,9 @@ export const CatalogSelector = memo(function CatalogSelector({
   const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
   const activeBudget = useActiveBudget();
 
-  const selectedCatalogId = activeBudget?.catalogId ?? activeCatalogId;
+  const selectedCatalogId = catalogs.some((c) => c.id === activeBudget?.catalogId)
+    ? activeBudget?.catalogId
+    : activeCatalogId;
   const tariffs = useMemo(() => {
     if (!selectedCatalogId) return [];
     return catalogs.find((catalog) => catalog.id === selectedCatalogId)?.tariffs ?? [];
@@ -68,6 +70,7 @@ export const CatalogSelector = memo(function CatalogSelector({
   return (
     <div className="relative shrink-0 no-print">
       <select
+        aria-label="Aplicar tarifa del catálogo"
         onChange={handleSelect}
         defaultValue=""
         disabled={tariffs.length === 0}
@@ -92,7 +95,7 @@ export const CatalogSelector = memo(function CatalogSelector({
               </optgroup>
             ))}
       </select>
-      <div className="pointer-events-none flex items-center rounded-md border border-gray-300 bg-gray-50 p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700">
+      <div className="pointer-events-none min-h-11 min-w-11 justify-center flex items-center rounded-md border border-gray-300 bg-gray-50 p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700">
         <ListPlus size={14} />
       </div>
     </div>

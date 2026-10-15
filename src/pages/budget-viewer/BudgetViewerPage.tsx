@@ -1,31 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchSharedBudget } from '@/entities/budget/api/firestore';
-import type { SharedBudget, WorkItem, BudgetTask } from '@/shared/types';
+import type { SharedBudget } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Card, ExportPdfButton } from '@/shared/ui';
+import { Card, ExportPdfButton, Skeleton } from '@/shared/ui';
+import {
+  taskAmount as getTaskAmount,
+  workItemAmount as getWorkItemSubtotal,
+  budgetTotals,
+} from '@/shared/lib/budgetMath';
+import { withTimeout } from '@/shared/model/session';
+import { Brand } from '@/shared/ui/Brand';
 import { t } from '@/shared/i18n';
 
-function getTaskAmount(task: BudgetTask, multiplier: number): number {
-  const raw = task.quantity * task.price;
-  return raw * (multiplier > 1 ? multiplier : 1);
-}
-
-function getWorkItemSubtotal(wi: WorkItem, multiplier: number): number {
-  return wi.tasks.reduce((sum, task) => sum + getTaskAmount(task, multiplier), 0);
-}
-
 export function BudgetViewerPage() {
-  const { token } = useParams<{ token: string }>();
+  const { token = '' } = useParams<{ token: string }>();
+  return <PublicViewer key={token} token={token} />;
+}
+function PublicViewer({ token }: { token: string }) {
   const [data, setData] = useState<SharedBudget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-    fetchSharedBudget(token)
+    let cancelled = false;
+    const title = document.title;
+    withTimeout(fetchSharedBudget(token))
       .then((result) => {
+        if (cancelled) return;
         if (result) {
           setData(result);
           const name = result.company?.name;
@@ -34,14 +38,37 @@ export function BudgetViewerPage() {
           setError(true);
         }
       })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      document.title = title;
+    };
   }, [token]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-pulse text-gray-400">{t('common.loading')}</div>
+      <div
+        className="min-h-screen bg-gray-100 px-4 py-8"
+        role="status"
+        aria-label="Cargando presupuesto"
+      >
+        <span className="sr-only">Cargando presupuesto</span>
+        <div className="max-w-5xl mx-auto bg-white rounded-xl border border-gray-200 p-6 sm:p-8">
+          <Skeleton className="h-8 w-52 max-w-full mb-8" />
+          <div className="space-y-3 mb-10">
+            <Skeleton className="h-4 w-64 max-w-full" />
+            <Skeleton className="h-4 w-48 max-w-full" />
+          </div>
+          {[0, 1, 2].map((item) => (
+            <Skeleton key={item} className="h-20 w-full mb-3" />
+          ))}
+          <Skeleton className="h-8 w-44 ml-auto mt-8" />
+        </div>
       </div>
     );
   }
@@ -58,19 +85,19 @@ export function BudgetViewerPage() {
   }
 
   const { budget, company } = data;
-  const ivaRate = data.ivaRate ?? 0.10;
+  const ivaRate = data.ivaRate ?? 0.1;
   const multiplier = budget.adjustment?.multiplier ?? 1;
-  const rawSubtotal = budget.workItems.reduce(
-    (sum, wi) => sum + wi.tasks.reduce((s, t) => s + t.quantity * t.price, 0),
-    0,
-  );
-  const subtotal = rawSubtotal * multiplier;
+  const { raw: rawSubtotal, subtotal, iva, total } = budgetTotals({ ...budget, ivaRate });
   const isDiscount = multiplier < 1;
   const adjustmentPercent = Math.round((multiplier - 1) * 100);
-  const iva = subtotal * ivaRate;
-  const total = subtotal + iva;
 
-  const hasCompanyInfo = company.name || company.cif || company.address || company.phone || company.email || company.logo;
+  const hasCompanyInfo =
+    company.name ||
+    company.cif ||
+    company.address ||
+    company.phone ||
+    company.email ||
+    company.logo;
 
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white">
@@ -88,17 +115,27 @@ export function BudgetViewerPage() {
               )}
               <div>
                 {company.name && <p className="font-semibold text-gray-900">{company.name}</p>}
-                {company.cif && <p>{t('profile.cif')}: {company.cif}</p>}
+                {company.cif && (
+                  <p>
+                    {t('profile.cif')}: {company.cif}
+                  </p>
+                )}
                 {company.address && <p>{company.address}</p>}
                 <div className="flex gap-4 flex-wrap">
-                  {company.phone && <p>{t('profile.phoneLabel')}: {company.phone}</p>}
+                  {company.phone && (
+                    <p>
+                      {t('profile.phoneLabel')}: {company.phone}
+                    </p>
+                  )}
                   {company.email && <p className="break-all">{company.email}</p>}
                 </div>
               </div>
             </div>
           )}
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">{t('header.title')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">
+            {t('header.title')}
+          </h1>
 
           {/* Client Info */}
           <div className="flex flex-col gap-1 mb-6 text-sm">
@@ -118,7 +155,11 @@ export function BudgetViewerPage() {
               <p>
                 <span className="text-gray-500">{t('header.date')}:</span>{' '}
                 <span className="font-medium text-gray-900">
-                  {new Date(budget.info.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  {new Date(budget.info.date).toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
                 </span>
               </p>
             )}
@@ -160,16 +201,27 @@ export function BudgetViewerPage() {
                       <div className="hidden sm:grid grid-cols-[1fr_10%_10%_12%_12%] gap-px px-4 py-2 text-sm border-b border-gray-50 last:border-b-0">
                         <span className="text-gray-800">{task.description}</span>
                         <span className="text-right text-gray-600">{task.quantity}</span>
-                        <span className="text-center text-gray-600">{UNIT_LABELS[task.unit] ?? task.unit}</span>
-                        <span className="text-right text-gray-600">{formatCurrency(task.price)}</span>
-                        <span className="text-right font-medium text-gray-700">{formatCurrency(amount)}</span>
+                        <span className="text-center text-gray-600">
+                          {UNIT_LABELS[task.unit] ?? task.unit}
+                        </span>
+                        <span className="text-right text-gray-600">
+                          {formatCurrency(task.price)}
+                        </span>
+                        <span className="text-right font-medium text-gray-700">
+                          {formatCurrency(amount)}
+                        </span>
                       </div>
                       {/* Mobile */}
                       <div className="sm:hidden px-4 py-3 border-b border-gray-50 last:border-b-0 space-y-1">
                         <p className="text-sm font-medium text-gray-800">{task.description}</p>
                         <div className="flex justify-between text-xs text-gray-500">
-                          <span>{task.quantity} {UNIT_LABELS[task.unit] ?? task.unit} × {formatCurrency(task.price)}</span>
-                          <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span>
+                          <span>
+                            {task.quantity} {UNIT_LABELS[task.unit] ?? task.unit} ×{' '}
+                            {formatCurrency(task.price)}
+                          </span>
+                          <span className="font-semibold text-gray-700">
+                            {formatCurrency(amount)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -193,8 +245,8 @@ export function BudgetViewerPage() {
                 <div className="flex justify-between w-full max-w-72">
                   <span className="text-gray-600">
                     {t('summary.discount')}
-                    {budget.adjustment?.reason ? ` (${budget.adjustment.reason})` : ''}
-                    {' '}{adjustmentPercent}%:
+                    {budget.adjustment?.reason ? ` (${budget.adjustment.reason})` : ''}{' '}
+                    {adjustmentPercent}%:
                   </span>
                   <span className="font-medium text-green-600">
                     {formatCurrency(subtotal - rawSubtotal)}
@@ -210,7 +262,9 @@ export function BudgetViewerPage() {
                 <span className="font-medium">{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between w-full max-w-72">
-                <span className="text-gray-600">{t('summary.iva', { 0: Math.round(ivaRate * 100) })}</span>
+                <span className="text-gray-600">
+                  {t('summary.iva', { 0: Math.round(ivaRate * 100) })}
+                </span>
                 <span className="font-medium">{formatCurrency(iva)}</span>
               </div>
               <div className="flex justify-between w-full max-w-72 border-t border-gray-300 pt-2 mt-1">
@@ -222,13 +276,16 @@ export function BudgetViewerPage() {
 
           {/* Export PDF button */}
           <div className="mt-6 flex justify-end">
-            <ExportPdfButton budget={{ ...data.budget, ivaRate: data.ivaRate ?? data.budget.ivaRate }} company={data.company} />
+            <ExportPdfButton
+              budget={{ ...data.budget, ivaRate: data.ivaRate ?? data.budget.ivaRate }}
+              company={data.company}
+            />
           </div>
         </Card>
 
         {/* Powered by */}
         <p className="text-center text-xs text-gray-400 mt-4 no-print">
-          {t('share.poweredBy')}
+          <Brand />
         </p>
       </div>
     </div>

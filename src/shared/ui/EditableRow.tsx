@@ -18,7 +18,13 @@ export interface ColumnDef {
 
 export type CellDef =
   | { type: 'text'; value: string; onChange: (v: string) => void; placeholder?: string }
-  | { type: 'number'; value: number; onChange: (v: string) => void; placeholder?: string; integer?: boolean }
+  | {
+      type: 'number';
+      value: number;
+      onChange: (v: string) => void;
+      placeholder?: string;
+      integer?: boolean;
+    }
   | { type: 'unit-select'; value: string; onChange: (v: string) => void }
   | { type: 'display'; content: ReactNode };
 
@@ -32,10 +38,7 @@ export function EditableRowHeader({ columns }: { columns: ColumnDef[] }) {
       style={{ gridTemplateColumns: grid }}
     >
       {columns.map((col) => (
-        <div
-          key={col.key}
-          className={`px-4 py-2 ${align(col.align)} ${col.className ?? ''}`}
-        >
+        <div key={col.key} className={`px-4 py-2 ${align(col.align)} ${col.className ?? ''}`}>
           {col.label}
         </div>
       ))}
@@ -56,7 +59,13 @@ interface EditableRowProps {
   mobileFooter?: { label: string; value: ReactNode };
 }
 
-export function EditableRow({ columns, cells, onDelete, headerExtra, mobileFooter }: EditableRowProps) {
+export function EditableRow({
+  columns,
+  cells,
+  onDelete,
+  headerExtra,
+  mobileFooter,
+}: EditableRowProps) {
   const grid = columns.map((c) => c.width).join(' ') + ' 48px';
   const descCell = cells.description;
   const mobileFields = columns.filter((c) => !c.mobileHidden && c.key !== 'description');
@@ -73,22 +82,26 @@ export function EditableRow({ columns, cells, onDelete, headerExtra, mobileFoote
           if (!cell) return <div key={col.key} />;
           const isDesc = col.key === 'description';
           return (
-            <div key={col.key} className={`px-2 sm:px-4 py-2 ${align(col.align)} ${col.className ?? ''}`}>
+            <div
+              key={col.key}
+              className={`px-2 sm:px-4 py-2 ${align(col.align)} ${col.className ?? ''}`}
+            >
               {isDesc ? (
                 <div className="flex items-start gap-2">
-                  {desktopCell(cell)}
+                  {desktopCell(cell, col.label)}
                   {headerExtra}
                 </div>
               ) : (
-                desktopCell(cell)
+                desktopCell(cell, col.label)
               )}
             </div>
           );
         })}
         <div className="px-2 sm:px-4 py-2 text-center no-print">
           <button
+            aria-label="Eliminar concepto"
             onClick={onDelete}
-            className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+            className="min-h-11 min-w-11 p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
           >
             <Trash2 size={14} />
           </button>
@@ -102,14 +115,16 @@ export function EditableRow({ columns, cells, onDelete, headerExtra, mobileFoote
             <input
               value={descCell.value}
               onChange={(e) => descCell.onChange(e.target.value)}
+              aria-label="Descripción del concepto"
               placeholder={descCell.placeholder}
               className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
             />
           )}
           {headerExtra}
           <button
+            aria-label="Eliminar concepto"
             onClick={onDelete}
-            className="p-2 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+            className="min-h-11 min-w-11 p-2 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
           >
             <Trash2 size={16} />
           </button>
@@ -121,7 +136,7 @@ export function EditableRow({ columns, cells, onDelete, headerExtra, mobileFoote
             return (
               <div key={col.key}>
                 <label className="text-[10px] text-gray-500 uppercase">{col.label}</label>
-                {mobileCell(cell)}
+                {mobileCell(cell, col.label)}
               </div>
             );
           })}
@@ -140,18 +155,49 @@ export function EditableRow({ columns, cells, onDelete, headerExtra, mobileFoote
 /* ── Helpers ── */
 
 const ALIGN = { left: '', center: 'text-center', right: 'text-right' } as const;
-function align(a?: 'left' | 'center' | 'right') { return ALIGN[a ?? 'left']; }
+function align(a?: 'left' | 'center' | 'right') {
+  return ALIGN[a ?? 'left'];
+}
 
-function desktopCell(cell: CellDef): ReactNode {
+function desktopCell(cell: CellDef, label: string): ReactNode {
   switch (cell.type) {
     case 'text':
-      return <input value={cell.value} onChange={(e) => cell.onChange(e.target.value)} placeholder={cell.placeholder} className="w-full bg-transparent border-none outline-none text-sm min-w-0" />;
+      return (
+        <input
+          aria-label={label}
+          value={cell.value}
+          onChange={(e) => cell.onChange(e.target.value)}
+          placeholder={cell.placeholder}
+          className="w-full bg-transparent border-none outline-none text-sm min-w-0"
+        />
+      );
     case 'number':
-      return <input type="number" min={0} step={cell.integer ? '1' : '0.01'} value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full bg-transparent border-none outline-none text-right text-sm" placeholder={cell.placeholder ?? '0'} />;
+      return (
+        <input
+          aria-label={label}
+          inputMode="decimal"
+          type="number"
+          min={0}
+          step={cell.integer ? '1' : 'any'}
+          value={cell.value || ''}
+          onChange={(e) => cell.onChange(e.target.value)}
+          className="w-full bg-transparent border-none outline-none text-right text-sm"
+          placeholder={cell.placeholder ?? '0'}
+        />
+      );
     case 'unit-select':
       return (
-        <select value={cell.value} onChange={(e) => cell.onChange(e.target.value)} className="bg-transparent border-none outline-none text-sm text-center cursor-pointer print:appearance-none">
-          {Object.entries(UNIT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        <select
+          aria-label={label}
+          value={cell.value}
+          onChange={(e) => cell.onChange(e.target.value)}
+          className="bg-transparent border-none outline-none text-sm text-center cursor-pointer print:appearance-none"
+        >
+          {Object.entries(UNIT_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
         </select>
       );
     case 'display':
@@ -159,16 +205,45 @@ function desktopCell(cell: CellDef): ReactNode {
   }
 }
 
-function mobileCell(cell: CellDef): ReactNode {
+function mobileCell(cell: CellDef, label: string): ReactNode {
   switch (cell.type) {
     case 'text':
-      return <input value={cell.value} onChange={(e) => cell.onChange(e.target.value)} placeholder={cell.placeholder} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" />;
+      return (
+        <input
+          aria-label={label}
+          value={cell.value}
+          onChange={(e) => cell.onChange(e.target.value)}
+          placeholder={cell.placeholder}
+          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm"
+        />
+      );
     case 'number':
-      return <input type="number" min={0} step={cell.integer ? '1' : '0.01'} value={cell.value || ''} onChange={(e) => cell.onChange(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right" placeholder={cell.placeholder ?? '0'} />;
+      return (
+        <input
+          aria-label={label}
+          inputMode="decimal"
+          type="number"
+          min={0}
+          step={cell.integer ? '1' : 'any'}
+          value={cell.value || ''}
+          onChange={(e) => cell.onChange(e.target.value)}
+          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right"
+          placeholder={cell.placeholder ?? '0'}
+        />
+      );
     case 'unit-select':
       return (
-        <select value={cell.value} onChange={(e) => cell.onChange(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm cursor-pointer">
-          {Object.entries(UNIT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        <select
+          aria-label={label}
+          value={cell.value}
+          onChange={(e) => cell.onChange(e.target.value)}
+          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm cursor-pointer"
+        >
+          {Object.entries(UNIT_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
         </select>
       );
     case 'display':

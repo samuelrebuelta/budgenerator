@@ -15,8 +15,8 @@
     "margin": "Margen"
   },
   "login": {
-    "title": "Budgenerator",
-    "subtitle": "Generador de presupuestos",
+    "title": "budgenerator",
+    "subtitle": "Gestión de presupuestos",
     "signIn": "Iniciar sesión",
     "signUp": "Crear cuenta",
     "email": "Email",
@@ -144,6 +144,10 @@
   "catalog": {
     "title": "Catálogos de tarifas",
     "stats": "{{0}} conceptos · {{1}} categorías",
+    "conceptsCount_one": "{{count}} concepto",
+    "conceptsCount_other": "{{count}} conceptos",
+    "categoriesCount_one": "{{count}} categoría",
+    "categoriesCount_other": "{{count}} categorías",
     "activeCatalog": "Catálogo activo",
     "catalogName": "Nombre del catálogo",
     "catalogNamePlaceholder": "Escribe un nombre",
@@ -172,7 +176,22 @@
     "resetConfirmMessage": "Se eliminarán todas las tarifas personalizadas y se restaurarán las tarifas por defecto. Esta acción no se puede deshacer.",
     "reset": "Restaurar",
     "items": "elementos",
-    "disclaimer": "Los cambios en los catálogos solo afectan a los presupuestos nuevos. Los presupuestos existentes no se modifican."
+    "disclaimer": "Los cambios en los catálogos solo afectan a los presupuestos nuevos. Los presupuestos existentes no se modifican.",
+    "libraryEyebrow": "CATÁLOGOS",
+    "listDescription": "Tus tarifas, organizadas. Abre un catálogo para editarlo.",
+    "savedCatalogs": "Tus catálogos",
+    "defaultCatalog": "Por defecto",
+    "useAsDefault": "Usar por defecto",
+    "backToList": "Todos los catálogos",
+    "detailEyebrow": "EDITOR DE CATÁLOGO",
+    "notFound": "Catálogo no encontrado",
+    "emptyTitle": "No hay catálogos",
+    "emptyDescription": "Crea un catálogo para organizar conceptos y precios.",
+    "createFirst": "Crear mi primer catálogo",
+    "noConcepts": "Este catálogo aún no tiene conceptos.",
+    "noConceptsHint": "Añade el primero con el botón «Añadir concepto».",
+    "createError": "No se ha podido crear el catálogo. Comprueba la conexión y reintenta.",
+    "selectError": "No se ha podido cambiar el catálogo por defecto."
   },
   "catalogSelector": {
     "placeholder": "Seleccionar concepto del catálogo"
@@ -205,7 +224,7 @@
     "pageTitle": "Presupuesto de {{0}}",
     "notFound": "Presupuesto no encontrado",
     "notFoundHint": "El enlace no es válido o el presupuesto ya no está disponible.",
-    "poweredBy": "Generado con Budgenerator"
+    "poweredBy": "budgenerator"
   },
   "templates": {
     "title": "Plantillas",

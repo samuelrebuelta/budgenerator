@@ -1,109 +1,95 @@
-# Budgenerator
+# budgenerator
 
-Aplicación web para generar y gestionar presupuestos de reformas de viviendas. Permite crear presupuestos detallados por partidas, aplicar tarifas de un catálogo personalizable, calcular márgenes de beneficio, gestionar descuentos/recargos y exportar a PDF profesional con datos de empresa.
+Aplicación web para profesionales que preparan presupuestos de servicios y reformas. El proyecto conserva el nombre **budgenerator**. La nueva identidad visual se aplica a acceso, navegación, panel, editores, PDF e instalación PWA.
 
-## Funcionalidades
+Producción: [budgenerator.web.app](https://budgenerator.web.app/). El identificador técnico de Firebase sigue siendo `budgenerator`.
 
-- **Gestión de presupuestos**: Crear, editar y eliminar presupuestos con información de cliente, partidas y conceptos de trabajo.
-- **Catálogo de tarifas**: +250 tarifas predefinidas organizadas en 28 categorías de reformas. Totalmente personalizable (añadir, editar, eliminar, restaurar por defecto).
-- **Cálculos automáticos**: Subtotales por partida, subtotal general, IVA (10%), total. Margen de beneficio por concepto y global.
-- **Descuentos y recargos**: Recargos se aplican directamente en cada concepto (transparente al cliente). Descuentos aparecen como línea separada en el PDF.
-- **Perfil de empresa**: Nombre, CIF, dirección, teléfono, email y logo. Los datos aparecen en la cabecera del PDF.
-- **Exportación PDF**: Impresión directa del navegador con layout A4 apaisado. Inputs ocultos, company info visible, diseño limpio.
-- **Autenticación**: Email + contraseña con Firebase Auth. Registro con indicador de seguridad de contraseña.
-- **Multi-tenant**: Cada usuario tiene sus propios presupuestos, tarifas y perfil, aislados por UID.
-- **Secciones colapsables**: Partidas, información del cliente y secciones del editor se pueden colapsar/expandir. Estado persistido en localStorage.
-- **Mobile-first**: Layout responsive con cards en móvil y CSS Grid en escritorio. Componente compartido `EditableRow` para ambos layouts. Touch targets de 44px mínimo.
-- **Internacionalización**: Todos los textos extraídos a claves i18n. Español por defecto, preparado para añadir idiomas.
+## Producto
 
-## Stack tecnológico
+- Presupuestos con cliente, partidas, conceptos, costes internos, IVA y descuentos/recargos.
+- Valores decimales y cálculos monetarios compartidos por editor, visor público y PDF.
+- Catálogos múltiples, 21 bases —incluida una vacía— y 211 tarifas sumadas entre las bases.
+- Plantillas editables con catálogo, partidas, ajuste e IVA.
+- Perfil de empresa y logo normalizado a PNG.
+- PDF A4 con descripciones que se ajustan y cabeceras de continuación.
+- Enlaces públicos sin costes internos, con caducidad de 30 días y revocación.
+- Cuenta free con tres creaciones acumuladas y cuenta premium administrada manualmente.
+- PWA con shell precacheado por versión, actualización controlada, indicador de conexión y recuperación de arranque.
 
-| Tecnología | Versión | Uso |
-|---|---|---|
-| **React** | 19.2 | UI con componentes funcionales y hooks |
-| **TypeScript** | 6.0 | Tipado estricto (strict + noUncheckedIndexedAccess) |
-| **Vite** | 8.0 | Bundler y servidor de desarrollo |
-| **Zustand** | 5.0 | Estado global (budgets, tariffs, auth, profile) |
-| **Firebase** | 12.12 | Auth (email/password) + Firestore (base de datos) |
-| **Tailwind CSS** | 4.2 | Estilos utility-first con plugin Vite nativo |
-| **React Router** | 7.14 | Enrutamiento SPA con guards de autenticación |
-| **Lucide React** | 1.8 | Iconos SVG |
-| **clsx + tailwind-merge** | — | Composición de clases CSS condicionales |
-| **pnpm** | 10.x | Gestor de paquetes |
+## Stack
 
-## Arquitectura
+React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Zustand 5, Firebase 12 —Auth, Firestore y Hosting—, React Router 7, i18next y jsPDF 4. Tipografías Manrope y Fraunces alojadas con el proyecto. Tests con Vitest, Firebase Emulator Suite y Playwright.
 
-Feature-Sliced Design (FSD) adaptado:
+Node >=22.12 y pnpm 10.33.0, fijado mediante `packageManager`.
 
-```
-src/
-├── app/                  # App shell, router, AuthGuard
-├── entities/             # Dominio: stores y modelos de negocio
-│   ├── auth/             #   Autenticación (Firebase Auth)
-│   ├── budget/           #   Presupuestos (CRUD + cálculos)
-│   ├── tariff/           #   Tarifas y catálogo
-│   └── profile/          #   Perfil de empresa
-├── pages/                # Páginas (una por ruta)
-│   ├── login/
-│   ├── budget-list/
-│   ├── budget/
-│   ├── catalog/
-│   └── profile/
-└── shared/               # Código compartido
-    ├── firebase/         #   Configuración y servicios Firebase
-    ├── i18n/             #   Traducciones (es.ts) y helper t
-    ├── types/            #   TypeScript interfaces
-    ├── lib/              #   Utilidades (cn, formatCurrency, generateId)
-    └── ui/               #   Componentes UI reutilizables (Button, Input, Select, Modal, EditableRow)
-```
-
-## Inicio rápido
+## Desarrollo
 
 ```bash
-# Instalar dependencias
-pnpm install
-
-# Desarrollo local
+pnpm install --frozen-lockfile
+# Copiar .env.example a .env.local y rellenar la configuración.
 pnpm dev
+```
 
-# Build de producción
+Vite sirve [localhost:3000](http://localhost:3000/). Se requieren las seis variables `VITE_FIREBASE_*` de `.env.example`. No versionar los valores privados de acceso a la cuenta ni archivos `.env` locales.
+
+Para desarrollo aislado, utilizar un proyecto cuyo ID empiece por `demo-`, `VITE_USE_FIREBASE_EMULATORS=true` y:
+
+```bash
+pnpm firebase:emulators
+```
+
+Sin ese flag, la app accede al proyecto configurado en las variables locales. El worker de producción se desactiva durante desarrollo para no interferir con Vite.
+
+## Validación
+
+```bash
+pnpm lint
+pnpm test
+pnpm exec playwright install chromium
+pnpm test:integration
 pnpm build
-
-# Deploy a Firebase Hosting
-pnpm deploy
+pnpm preview
 ```
 
-## Variables de entorno
+`test:integration` inicia emuladores, prueba reglas y ejecuta el navegador contra un build real con configuración demo. Las cuentas y datos son ficticios. El build genera iconos, rutas separadas y un worker ligado al contenido de la versión. CI ejecuta las comprobaciones sin publicar.
 
-La configuración de Firebase está hardcodeada en `src/shared/firebase/config.ts`. Para usar tu propio proyecto Firebase:
+## Despliegue
 
-1. Crea un proyecto en [Firebase Console](https://console.firebase.google.com)
-2. Activa **Authentication** (proveedor Email/Password)
-3. Activa **Cloud Firestore** (modo producción, reglas según tu necesidad)
-4. Activa **Hosting** si vas a desplegar
-5. Sustituye las credenciales en `config.ts`
+Con el CLI autenticado en el proyecto correcto:
 
-## Modelo de datos (Firestore)
-
+```bash
+# Solo Hosting
+pnpm firebase:deploy
+# Entrega coordinada de Hosting y reglas
+pnpm firebase:deploy:all
 ```
-users/{uid}/
-├── budgets/{budgetId}     # Documento Budget completo
-├── tariffs/{tariffId}     # Una tarifa del catálogo
-└── settings/
-    └── profile            # CompanyProfile (incluye logo en base64)
+
+Los scripts comprueban variables y proyecto y rechazan configuraciones de emulador. La cuenta administradora de la app no es una credencial del CLI de Firebase.
+
+La entrega de seguridad cambia el acceso a enlaces legacy y la representación del vencimiento premium. Revisar [Estabilización y entrega](docs/stability-and-release.md) antes de publicarla. Los snapshots inseguros antiguos se deben volver a compartir; las fechas premium antiguas se pueden volver a guardar desde administración para añadir su valor numérico.
+
+## Estructura
+
+```text
+src/
+├── app/          Sesión, guards, shell, router y PWA
+├── pages/        Pantallas por ruta
+├── features/     Editor reutilizable de presupuestos y plantillas
+├── entities/     Auth, budget, catalog, template, profile y user
+└── shared/       Tipos, Firebase, cálculos, colas, UI e i18n
+scripts/          Build de iconos/worker, entorno de pruebas y comprobación de deploy
+tests/           Regresión de stores, cálculos, privacidad, worker, reglas y navegador
 ```
 
 ## Documentación
 
-Consulta la carpeta [`/docs`](docs/) para documentación técnica detallada:
+- [Plan SDD de interfaz](docs/sdd-plan.md) — Observaciones de revisión, decisiones y criterios de aceptación.
+- [Propuesta visual aplicada](docs/design-proposal.md) — Marca, paleta, logo, decisiones y capturas.
+- [Estabilización y entrega](docs/stability-and-release.md) — Correcciones, PWA, validación y transición de datos.
+- [Despliegue y pruebas](docs/testing.md) — URL pública y acceso local para pruebas.
+- [Arquitectura](docs/architecture.md), [estado](docs/state-and-cache.md), [Firebase](docs/firebase.md), [PDF](docs/pdf-export.md), [rendimiento](docs/performance.md) y [estilos](docs/styles-and-responsive.md).
+- [Análisis inicial](docs/project-analysis.md) — Auditoría histórica del código anterior; sus hallazgos se contrastan con la entrega actual.
 
-- [Arquitectura](docs/architecture.md) — Estructura del proyecto y flujo de datos
-- [Estado y caché](docs/state-and-cache.md) — Stores Zustand, sincronización con Firestore, caché
-- [Rendimiento](docs/performance.md) — Memoización, debounce, optimizaciones
-- [Estilos y responsive](docs/styles-and-responsive.md) — Tailwind CSS, mobile-first, print styles
-- [Backend Firebase](docs/firebase.md) — Auth, Firestore, modelo de datos, reglas de seguridad
-- [Exportación PDF](docs/pdf-export.md) — Configuración de impresión, layout A4, estilos print
-
-## Licencia
+Cuenta admin de pruebas de producción: `budgenerator@gmail.com`. La contraseña está en `docs/testing-access.local.md`, excluida de Git. Las pruebas automatizadas no utilizan esa contraseña ni acceden a producción.
 
 Proyecto privado.

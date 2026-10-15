@@ -7,10 +7,7 @@ export function ErrorPage() {
   const error = useRouteError();
   const navigate = useNavigate();
 
-  const message =
-    error instanceof Error
-      ? error.message
-      : t('error.unknownError');
+  const message = error instanceof Error ? error.message : t('error.unknownError');
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">

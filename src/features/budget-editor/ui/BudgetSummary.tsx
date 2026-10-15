@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
+import { budgetCost, money } from '@/shared/lib/budgetMath';
 import { formatCurrency } from '@/shared/lib';
 import { Info, Minus, Plus, X } from 'lucide-react';
 import { t } from '@/shared/i18n';
@@ -30,11 +31,8 @@ export function BudgetSummary() {
   const isDiscount = hasAdjustment && adjustment.multiplier < 1;
 
   // Calculate total cost and margin
-  const totalCost = budget.workItems.reduce(
-    (sum, wi) => sum + wi.tasks.reduce((ts, t) => ts + t.cost * t.quantity, 0),
-    0,
-  );
-  const marginAmount = subtotal - totalCost;
+  const totalCost = budgetCost(budget.workItems);
+  const marginAmount = money(subtotal - totalCost);
   const marginPercent = subtotal > 0 ? (marginAmount / subtotal) * 100 : 0;
 
   const adjustmentPercent = adjustment ? Math.round((adjustment.multiplier - 1) * 100) : 0;
@@ -46,9 +44,11 @@ export function BudgetSummary() {
   };
 
   const applyEdit = () => {
-    const pct = parseInt(editPercent, 10) || 0;
-    if (pct === 0) return;
-    const multiplier = editingType === 'descuento' ? 1 - Math.abs(pct) / 100 : 1 + Math.abs(pct) / 100;
+    const pct = Number(editPercent);
+    if (!Number.isFinite(pct) || pct <= 0 || pct > (editingType === 'descuento' ? 100 : 1000))
+      return;
+    const multiplier =
+      editingType === 'descuento' ? 1 - Math.abs(pct) / 100 : 1 + Math.abs(pct) / 100;
     updateAdjustment({ multiplier, reason: editReason });
     setEditingType(null);
   };
@@ -72,10 +72,12 @@ export function BudgetSummary() {
           <div className="flex justify-between w-full max-w-72 no-print">
             <span className="text-gray-600 flex items-center gap-1">
               {t('summary.surcharge')}
-              {adjustment.reason ? ` (${adjustment.reason})` : ''}
-              {' '}+{adjustmentPercent}%:
+              {adjustment.reason ? ` (${adjustment.reason})` : ''} +{adjustmentPercent}%:
               <button
-                onClick={() => { setShowToast(true); setTimeout(() => setShowToast(false), 4000); }}
+                onClick={() => {
+                  setShowToast(true);
+                  setTimeout(() => setShowToast(false), 4000);
+                }}
                 className="text-gray-400 hover:text-blue-500 cursor-pointer"
                 type="button"
                 aria-label="Info"
@@ -100,8 +102,7 @@ export function BudgetSummary() {
           <div className="flex justify-between w-full max-w-72">
             <span className="text-gray-600">
               {t('summary.discount')}
-              {adjustment.reason ? ` (${adjustment.reason})` : ''}
-              {' '}{adjustmentPercent}%:
+              {adjustment.reason ? ` (${adjustment.reason})` : ''} {adjustmentPercent}%:
             </span>
             <span className="font-medium text-green-600">
               {formatCurrency(subtotal - rawSubtotal)}
@@ -121,10 +122,11 @@ export function BudgetSummary() {
             IVA (
             <input
               type="number"
+              aria-label="IVA, porcentaje"
               min="0"
               max="100"
               step="1"
-              value={Math.round((budget.ivaRate ?? 0.10) * 100)}
+              value={Math.round((budget.ivaRate ?? 0.1) * 100)}
               onChange={(e) => {
                 const val = Math.max(0, Math.min(100, Number(e.target.value)));
                 updateIvaRate(val / 100);
@@ -132,7 +134,9 @@ export function BudgetSummary() {
               className="w-10 text-center border border-gray-300 rounded px-1 py-0 text-sm no-print"
             />
             <span className="print:hidden">%):</span>
-            <span className="hidden print:inline">{Math.round((budget.ivaRate ?? 0.10) * 100)}%):</span>
+            <span className="hidden print:inline">
+              {Math.round((budget.ivaRate ?? 0.1) * 100)}%):
+            </span>
           </span>
           <span className="font-medium">{formatCurrency(iva)}</span>
         </div>
@@ -176,9 +180,14 @@ export function BudgetSummary() {
             <div className="border border-gray-200 rounded-lg p-3 mt-1 bg-gray-50 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-700">
-                  {editingType === 'descuento' ? t('summary.newDiscount') : t('summary.newSurcharge')}
+                  {editingType === 'descuento'
+                    ? t('summary.newDiscount')
+                    : t('summary.newSurcharge')}
                 </span>
-                <button onClick={() => setEditingType(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <button
+                  onClick={() => setEditingType(null)}
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                >
                   <X size={14} />
                 </button>
               </div>
@@ -188,7 +197,8 @@ export function BudgetSummary() {
                   <input
                     type="number"
                     min="1"
-                    step="1"
+                    max={editingType === 'descuento' ? 100 : 1000}
+                    step="0.01"
                     value={editPercent}
                     onChange={(e) => setEditPercent(e.target.value)}
                     className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
@@ -207,6 +217,11 @@ export function BudgetSummary() {
                 </div>
               </div>
               <button
+                disabled={
+                  !Number.isFinite(Number(editPercent)) ||
+                  Number(editPercent) <= 0 ||
+                  Number(editPercent) > (editingType === 'descuento' ? 100 : 1000)
+                }
                 onClick={applyEdit}
                 className={`text-xs font-medium cursor-pointer ${
                   editingType === 'descuento'
@@ -214,7 +229,9 @@ export function BudgetSummary() {
                     : 'text-red-600 hover:text-red-800'
                 }`}
               >
-                {editingType === 'descuento' ? t('summary.applyDiscount') : t('summary.applySurcharge')}
+                {editingType === 'descuento'
+                  ? t('summary.applyDiscount')
+                  : t('summary.applySurcharge')}
               </button>
             </div>
           )}
@@ -223,7 +240,9 @@ export function BudgetSummary() {
         {totalCost > 0 && (
           <div className="flex justify-between w-full max-w-72 border-t border-dashed border-gray-200 pt-2 mt-2 no-print">
             <span className="text-gray-500 text-xs">{t('summary.profitMargin')}</span>
-            <span className={`text-xs font-semibold ${marginAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            <span
+              className={`text-xs font-semibold ${marginAmount >= 0 ? 'text-green-600' : 'text-red-500'}`}
+            >
               {formatCurrency(marginAmount)} ({marginPercent.toFixed(1)}%)
             </span>
           </div>

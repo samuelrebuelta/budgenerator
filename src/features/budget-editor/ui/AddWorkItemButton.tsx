@@ -12,10 +12,7 @@ export function AddWorkItemButton() {
   const addWorkItem = useBudgetStore((s) => s.addWorkItem);
   const budget = useActiveBudget();
 
-  const usedNames = useMemo(
-    () => new Set(budget?.workItems.map((wi) => wi.name) ?? []),
-    [budget],
-  );
+  const usedNames = useMemo(() => new Set(budget?.workItems.map((wi) => wi.name) ?? []), [budget]);
 
   const availableCategories = useMemo(
     () => RENOVATION_CATEGORIES.filter((c) => !usedNames.has(c)),
@@ -107,7 +104,14 @@ export function AddWorkItemButton() {
       )}
 
       <div className="flex justify-end">
-        <Button variant="ghost" onClick={() => { setIsOpen(false); setName(''); setMode('catalog'); }}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setIsOpen(false);
+            setName('');
+            setMode('catalog');
+          }}
+        >
           {t('common.cancel')}
         </Button>
       </div>

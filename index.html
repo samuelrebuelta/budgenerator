@@ -2,21 +2,22 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/brand/icon.svg" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#2f4e9e" />
+    <meta name="theme-color" content="#183E3B" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Budgenerator</title>
-    <meta property="og:title" content="Presupuesto de reforma" />
-    <meta property="og:description" content="Consulta los detalles del presupuesto" />
+    <title>budgenerator · Presupuestos</title>
+    <meta property="og:title" content="budgenerator · Presupuestos" />
+    <meta property="og:description" content="Crea, organiza y comparte tus presupuestos." />
+    <meta property="og:image" content="https://budgenerator.web.app/brand/social-preview.png" />
     <meta property="og:type" content="website" />
-    <meta name="description" content="Generador de presupuestos de reforma" />
+    <meta name="description" content="Crea y gestiona presupuestos, catálogos de precios y plantillas." />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><main style="min-height:90vh;display:grid;place-content:center;text-align:center;padding:24px;color:#183e3b;font-family:system-ui;background:#f5f2eb"><p style="font:32px system-ui;margin:0">budgenerator<span style="color:#c65d3b">.</span></p><p>Abriendo tu espacio de trabajo…</p><section id="boot-recovery" hidden><p>La aplicación no ha podido arrancar. Comprueba tu conexión.</p><button id="repair-app" style="padding:14px;border:0;border-radius:12px;background:#183e3b;color:white">Reparar instalación y reintentar</button><p>Tus documentos guardados se conservan.</p></section></main></div><script src="/recovery.js" defer></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

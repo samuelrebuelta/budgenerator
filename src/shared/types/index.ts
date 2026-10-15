@@ -73,14 +73,22 @@ export interface CompanyProfile {
   logo?: string;
 }
 
+export type PublicTask = Omit<BudgetTask, 'cost'>;
+export type PublicBudget = Omit<Budget, 'workItems' | 'catalogId'> & {
+  workItems: { id: string; name: string; tasks: PublicTask[] }[];
+};
 export interface SharedBudget {
-  budget: Budget;
+  schemaVersion: 2;
+  ownerUid: string;
+  expiresAt: number;
+  budget: PublicBudget;
   company: CompanyProfile;
   ivaRate: number;
   sharedAt: string;
 }
 
 export interface BudgetTemplate {
+  ivaRate?: number;
   id: string;
   name: string;
   workItems: WorkItem[];
@@ -94,7 +102,8 @@ export type UserPlan = 'free' | 'premium';
 export interface AccountData {
   isAdmin: boolean;
   plan: UserPlan;
-  premiumExpiresAt?: string;
+  premiumExpiresAt?: string | null;
+  premiumExpiresAtMillis?: number | null;
 }
 
 export interface UserData {
@@ -102,5 +111,6 @@ export interface UserData {
   email: string;
   accountData: AccountData;
   totalBudgetsCreated: number;
+  lastCreatedBudgetId?: string;
   createdAt: string;
 }

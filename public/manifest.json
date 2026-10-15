@@ -1,11 +1,11 @@
 {
-  "name": "Budgenerator",
-  "short_name": "Budgenerator",
-  "description": "Generador de presupuestos de reforma",
+  "name": "budgenerator · Presupuestos",
+  "short_name": "budgenerator",
+  "description": "Tu oficio, tus números. Presupuestos profesionales con personalidad.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2f4e9e",
+  "background_color": "#F5F2EB",
+  "theme_color": "#183E3B",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -18,10 +18,31 @@
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/brand/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "id": "/",
+  "scope": "/",
+  "lang": "es",
+  "orientation": "any",
+  "display_override": ["standalone"],
+  "shortcuts": [
+    {
+      "name": "Nuevo presupuesto",
+      "url": "/budget/new",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mis presupuestos",
+      "url": "/budgets"
     }
   ]
 }

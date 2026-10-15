@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.firebase/
+test-artifacts/
+playwright-report/
+tmp/
+docs/testing-access.local.md
+pnpm-lock.yaml

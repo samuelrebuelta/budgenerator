@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Trash2, LayoutTemplate, Plus } from 'lucide-react';
 import { useTemplateStore } from '@/entities/template';
-import { Button, ConfirmModal } from '@/shared/ui';
+import { Button, ConfirmModal, Skeleton } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function TemplatesPage() {
@@ -46,7 +46,23 @@ export function TemplatesPage() {
           </Button>
         </div>
 
-        {loaded && templates.length === 0 ? (
+        {!loaded ? (
+          <div className="space-y-3" role="status" aria-label="Cargando plantillas">
+            <span className="sr-only">Cargando plantillas</span>
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                className="bg-white rounded-lg border border-gray-200 p-5 flex items-center gap-4"
+              >
+                <Skeleton className="h-10 w-10 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40 max-w-full" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : templates.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <LayoutTemplate size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-lg text-gray-500">{t('templates.noTemplates')}</p>
@@ -57,10 +73,12 @@ export function TemplatesPage() {
             {templates.map((tpl) => (
               <div
                 key={tpl.id}
-                onClick={() => navigate(`/templates/${tpl.id}`)}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-blue-300 hover:shadow transition-all"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <Link
+                  to={`/templates/${tpl.id}`}
+                  className="flex flex-1 items-center gap-4 min-w-0"
+                >
                   <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
                     <FileText size={20} />
                   </div>
@@ -70,9 +88,13 @@ export function TemplatesPage() {
                       {t('templates.workItems', { count: tpl.workItems.length })}
                     </p>
                   </div>
-                </div>
+                </Link>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setTemplateToDelete(tpl.id); }}
+                  aria-label={`Eliminar plantilla ${tpl.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTemplateToDelete(tpl.id);
+                  }}
                   className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
                 >
                   <Trash2 size={16} />

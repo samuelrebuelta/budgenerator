@@ -15,6 +15,7 @@ export async function saveTemplate(uid: string, template: BudgetTemplate) {
   const data: BudgetTemplate = {
     id: template.id,
     name: template.name,
+    ...(template.ivaRate !== undefined ? { ivaRate: template.ivaRate } : {}),
     workItems: template.workItems,
     ...(template.catalogId ? { catalogId: template.catalogId } : {}),
     ...(template.adjustment ? { adjustment: template.adjustment } : {}),

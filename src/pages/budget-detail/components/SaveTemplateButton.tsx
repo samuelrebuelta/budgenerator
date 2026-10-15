@@ -71,19 +71,30 @@ export function SaveTemplateButton() {
           <Button onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? t('templates.saving') : t('common.save')}
           </Button>
-          <Button variant="ghost" onClick={() => { setShowInput(false); setName(''); setSaveError(null); }}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowInput(false);
+              setName('');
+              setSaveError(null);
+            }}
+          >
             {t('common.cancel')}
           </Button>
         </div>
-        {saveError ? (
-          <p className="text-sm text-red-600">{saveError}</p>
-        ) : null}
+        {saveError ? <p className="text-sm text-red-600">{saveError}</p> : null}
       </div>
     );
   }
 
   return (
-    <Button variant="secondary" onClick={() => { setShowInput(true); setSaveError(null); }}>
+    <Button
+      variant="secondary"
+      onClick={() => {
+        setShowInput(true);
+        setSaveError(null);
+      }}
+    >
       <BookmarkPlus size={16} />
       {t('templates.saveAsTemplate')}
     </Button>

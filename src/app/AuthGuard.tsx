@@ -1,44 +1,23 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth';
-import { useBudgetStore, setBudgetAuthGetter } from '@/entities/budget';
-import { useCatalogStore, setCatalogAuthGetter } from '@/entities/catalog';
-import { useProfileStore, setProfileAuthGetter } from '@/entities/profile';
-import { useTemplateStore, setTemplateAuthGetter } from '@/entities/template';
-import { useUserStore, setUserAuthGetter } from '@/entities/user';
-
+import { LoadingScreen } from '@/shared/ui/LoadingScreen';
+import { useSessionStore, loadSession } from './session';
+import { AppShell } from './AppShell';
 export function AuthGuard({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
-  const init = useAuthStore((s) => s.init);
-
-  useEffect(() => {
-    const unsubscribe = init();
-    return unsubscribe;
-  }, [init]);
-
-  // Wire up auth getter for stores and load data when user logs in
-  useEffect(() => {
-    if (!user) return;
-    setBudgetAuthGetter(() => user.uid);
-    setCatalogAuthGetter(() => user.uid);
-    setProfileAuthGetter(() => user.uid);
-    setTemplateAuthGetter(() => user.uid);
-    setUserAuthGetter(() => user.uid);
-    useBudgetStore.getState().loadBudgets(user.uid);
-    useCatalogStore.getState().loadCatalogs(user.uid);
-    useProfileStore.getState().loadProfile(user.uid, user.email ?? '');
-    useTemplateStore.getState().loadTemplates(user.uid);
-    useUserStore.getState().loadUserData(user.uid, user.email ?? '');
-  }, [user]);
-
-  if (loading) {
-    return <div className="min-h-screen bg-white sm:bg-gray-100" />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  const session = useSessionStore();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (session.uid !== user.uid || session.status !== 'ready')
+    return (
+      <LoadingScreen
+        error={session.error}
+        onRetry={() => {
+          void loadSession(user, true);
+        }}
+      />
+    );
+  return <AppShell>{children}</AppShell>;
 }

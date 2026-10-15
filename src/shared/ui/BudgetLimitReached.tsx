@@ -1,6 +1,6 @@
 import { Lock } from 'lucide-react';
 import { t } from '@/shared/i18n';
-import { FREE_BUDGET_LIMIT } from '@/entities/user';
+import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 import { CONTACT_EMAIL } from '@/shared/lib';
 
 interface BudgetLimitReachedProps {

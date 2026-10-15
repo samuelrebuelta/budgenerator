@@ -1,148 +1,31 @@
-# Arquitectura del proyecto
+# Arquitectura actual
 
-## Feature-Sliced Design (FSD)
+Actualizado el 14 de octubre de 2026 para budgenerator.
 
-El proyecto sigue una versión adaptada de [Feature-Sliced Design](https://feature-sliced.design), una metodología de organización de código frontend que divide la aplicación en capas con responsabilidades claras.
+## Capas
 
-### Capas
+`app → pages → features → entities → shared`. Las páginas son entradas por ruta; `features/budget-editor` contiene el editor compartido por presupuesto y plantilla. Los adaptadores de Firebase viven dentro de su entidad. `shared` no importa entidades.
 
-```
-src/
-├── app/          → Shell de la aplicación (bootstrap, routing, guards)
-├── entities/     → Dominio de negocio (stores, modelos)
-├── pages/        → Vistas completas (una por ruta)
-└── shared/       → Código reutilizable sin dependencia de dominio
-```
+## Arranque y sesión
 
-### Regla de dependencias
+`main.tsx` monta React sin esperar traducciones por red. `App` mantiene una única suscripción de autenticación. El coordinador `app/session.ts` asigna el UID, reinicia los stores al cambiar de cuenta y carga las entidades. Los guards no crean listeners ni recargan listas durante la navegación. Una página privada se monta cuando la sesión está lista; los fallos de carga tienen un límite de tiempo y un botón para reintentar.
 
-Las capas solo pueden importar de capas inferiores:
+Los loaders capturan una revisión de sesión y descartan respuestas de una cuenta anterior. Los módulos compartidos `shared/model/session.ts` y `shared/model/sync.ts` no dependen de entidades. El auth store vacía escrituras pendientes antes de cerrar sesión.
 
-```
-pages → entities → shared
-app → pages, entities, shared
-```
+## Rutas
 
-**Prohibido**: `shared` nunca importa de `entities` o `pages`. `entities` nunca importa de `pages`.
+Públicas: `/login` y `/shared/:token`. Privadas: `/budgets`, `/budget/:budgetId`, `/catalogs`, `/catalogs/:catalogId`, `/templates`, `/templates/:templateId`, `/profile`, `/account` y `/account/password`. `/catalogs` muestra la biblioteca y cada `:catalogId` abre su editor. `new` identifica un borrador de presupuesto o plantilla. `/admin` requiere el rol existente y protegido. `/` redirige a `/budgets`.
 
-## Capa `app/`
+Las páginas se cargan con `lazy`. Un fallback visible evita pantallas vacías durante la resolución inicial. AppShell conserva navegación, estado de guardado y acceso a cuenta. El permiso real lo decide Firestore.
 
-Contiene el bootstrap de la aplicación:
+## Presupuestos y plantillas
 
-| Archivo | Responsabilidad |
-|---|---|
-| `App.tsx` | Monta el `RouterProvider` |
-| `router.tsx` | Define todas las rutas con `createBrowserRouter` |
-| `AuthGuard.tsx` | Componente wrapper que protege rutas, inicializa auth, y carga datos de usuario |
-| `AdminGuard.tsx` | Protege la ruta `/admin`, verifica `accountData.isAdmin` |
-| `ErrorPage.tsx` | Página de error global (`errorElement` en todas las rutas) |
+El store de budget gestiona un documento activo o un draft. Las recargas de lista no eliminan el draft. Este se recuerda temporalmente por UID en sessionStorage; las plantillas tienen su propia clave. Los componentes de edición son comunes y el IVA se conserva al guardar y reutilizar una plantilla.
 
-### AuthGuard
+La creación usa un ID idempotente y una transacción de presupuesto y contador. Las modificaciones usan una cola por documento y updateDoc. El borrado cancela la cola y espera una escritura en curso antes de eliminar.
 
-Es el punto de entrada para la sesión del usuario. Al detectar un `user` autenticado:
+Los cálculos residen en `shared/lib/budgetMath.ts`. El DTO de publicación se construye mediante una lista explícita de campos. El PDF comparte la política de cálculo y acepta tanto documentos privados como públicos.
 
-1. Inyecta el UID en los stores via `setXxxAuthGetter()` (patrón de inyección para evitar dependencias circulares)
-2. Dispara `loadBudgets()`, `loadTariffs()`, `loadProfile()` en paralelo
-3. Muestra "Cargando..." mientras `loading === true`
-4. Redirige a `/login` si no hay usuario
+## PWA
 
-## Capa `entities/`
-
-Cada entidad tiene su propia carpeta con:
-
-```
-entities/
-└── budget/
-    ├── index.ts        → Barrel export (API pública)
-    └── model/
-        └── store.ts    → Zustand store con estado + acciones
-```
-
-### Entidades
-
-| Entidad | Responsabilidad |
-|---|---|
-| `auth` | Estado de autenticación (user, loading, error). Wrapper de Firebase Auth. |
-| `budget` | Estado completo de presupuestos: lista, borrador, presupuesto activo. CRUD + cálculos (subtotales, IVA, total, margen). |
-| `tariff` | Catálogo de tarifas con CRUD. Seed de defaults. Cache con flag `loaded`. |
-| `profile` | Perfil de empresa. Logo almacenado como base64. CRUD simple. |
-| `user` | Datos de cuenta del usuario: plan (free/premium), isAdmin, totalBudgetsCreated. Gestión de usuarios (admin). |
-
-### Patrón de inyección de auth
-
-Los stores de `budget`, `tariff` y `profile` necesitan el UID del usuario para las operaciones de Firestore. Para evitar dependencias circulares con `auth`, se usa un patrón de inyección:
-
-```typescript
-// En cada entity store:
-let _getUid: (() => string | null) | null = null;
-export function setBudgetAuthGetter(fn: () => string | null) {
-  _getUid = fn;
-}
-
-// En AuthGuard, al detectar usuario:
-setBudgetAuthGetter(() => user.uid);
-```
-
-## Capa `pages/`
-
-Cada página corresponde a una ruta:
-
-| Ruta | Página | Descripción |
-|---|---|---|
-| `/login` | `LoginPage` | Login + registro con email/password + reset de contraseña |
-| `/` | `BudgetListPage` | Lista de presupuestos del usuario |
-| `/budget/:budgetId` | `BudgetPage` | Editor de presupuesto (o borrador si `budgetId === 'new'`) |
-| `/catalog` | `CatalogPage` | Gestión del catálogo de tarifas |
-| `/profile` | `ProfilePage` | Datos de empresa y logo |
-| `/admin` | `AdminPage` | Panel de administración (solo admin). Gestión de planes de usuarios. |
-| `/shared/:token` | `SharedBudgetPage` | Vista pública de presupuesto compartido (sin auth) |
-
-### Componentes de página
-
-Las páginas complejas (como `BudgetPage`) dividen su UI en componentes internos dentro de `components/`:
-
-```
-pages/budget/
-├── BudgetPage.tsx
-├── index.ts
-└── components/
-    ├── BudgetHeader.tsx      → Info cliente + datos empresa (print)
-    ├── BudgetEditor.tsx      → Tabla/cards de partidas y conceptos (usa EditableRow)
-    ├── BudgetSummary.tsx     → Subtotales, IVA, total, descuentos/recargos
-    ├── AddWorkItemButton.tsx → Selector de categoría para nueva partida
-    ├── AddTaskButton.tsx     → Botón para añadir fila (deshabilitado si hay borrador)
-    ├── TariffSelector.tsx    → Dropdown para aplicar tarifa a una fila
-    └── ExportPdfButton.tsx   → Botón de impresión/exportación PDF
-```
-
-## Capa `shared/`
-
-Código sin dependencia de dominio:
-
-| Módulo | Contenido |
-|---|---|
-| `firebase/` | Configuración Firebase, funciones CRUD de Firestore, auth helpers |
-| `i18n/` | Traducciones (`es.ts`) y export `t` para acceso directo a claves |
-| `types/` | Interfaces TypeScript (`Budget`, `Tariff`, `CompanyProfile`, etc.) |
-| `lib/` | Utilidades: `cn()` (clsx+twMerge), `formatCurrency()`, `generateId()` |
-| `ui/` | Componentes UI genéricos: `Button`, `Input`, `Select`, `Modal`, `EditableRow` |
-
-## Flujo de datos
-
-```
-Usuario → Componente React → Zustand Store → (debounce 1s) → Firestore
-                                  ↑
-                                  │
-Firebase Auth ─→ AuthGuard ─→ loadData() ─→ Firestore → Store → React
-```
-
-1. El usuario interactúa con la UI
-2. El componente llama a una acción del store Zustand
-3. Zustand actualiza el estado inmediatamente (optimista)
-4. El store programa un `syncToFirestore` con debounce de 1 segundo
-5. Firestore persiste los datos en la nube
-
-Al cargar la app:
-1. Firebase Auth detecta la sesión
-2. AuthGuard carga datos de Firestore a los stores
-3. React se re-renderiza con los datos frescos
+`scripts/build-sw.mjs` genera el worker a partir del build y del código del worker. Se precachean recursos estáticos, nunca documentos Firebase. La actualización espera al usuario y al guardado de cambios. Ver la guía de estabilización para el alcance offline y la recuperación.
