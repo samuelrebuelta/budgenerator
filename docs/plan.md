@@ -8,19 +8,26 @@ Actualizado: 2026-10-18. Fuente operativa de tareas. La especificación y el có
 
 1. **BG-007 y BG-008:** entregas funcionales completadas e integradas en `main`; la comprobación en PWA física queda como seguimiento opcional, sin bloquear el cierre. No quedan tareas de merge o despliegue de esta entrega.
 2. **IA:** fuera del roadmap vigente por decisión del usuario (18-10-2026). El wizard es el flujo actual de creación guiada; no hay integración de IA planificada ni trabajo abierto de BG-006.
-3. BG-004 sigue en revisión y BG-005 requiere definición; no introducir cambios de planes, administración, CRM o facturación como parte de UX.
+3. **BG-009:** diseño listo para iniciar en su propio chat; no depende de BG-004 ni BG-005. Las decisiones de detalle se resolverán al preparar su implementación. BG-004 y BG-005 quedan documentados para abordar después.
 
 ## Estado
 
-| ID     | Estado      | Prioridad                | Entrega                                                                                                                                                                                                                  |
-| ------ | ----------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BG-001 | Completado  | Crítica                  | Reglas de Firestore y 12 pruebas de emulador.                                                                                                                                                                            |
-| BG-002 | Completado  | Alta                     | Skeletons, textos, navegación de cuenta y estado de guardado. Ver `docs/specs/BG-002-refactor-ui.md` y `docs/sdd-plan.md`.                                                                                               |
-| BG-003 | Completado  | Alta                     | Base de pruebas de cálculos, stores, PDF y PWA.                                                                                                                                                                          |
-| BG-004 | En revisión | Media                    | Documentación y contratos reconciliados; pendiente decidir alcance de free/premium y administración.                                                                                                                     |
-| BG-005 | Pendiente   | Media                    | Definir encaje de Web Factory Lite en el ecosistema, sin integración de código ni monorepo implícitos.                                                                                                                   |
-| BG-007 | Completado  | Alta · Cerrado           | UX y navegación desplegadas; queda como seguimiento opcional verificar teclado, safe-area y gestos en PWA física. Ver `docs/specs/BG-007-design-ux-consistency.md` y `docs/specs/BG-007-execution.md`.                    |
-| BG-008 | Completado  | Alta · Cerrado           | Código integrado en `main` local y remoto y desplegado en Hosting; catálogo, importación selectiva, wizard y tour publicados. Verificación automática completa. Ver `docs/specs/BG-008-catalogo-unico-y-creacion-guiada.md`. |
+| ID     | Estado                                     | Prioridad      | Entrega                                                                                                                                                                                                                      |
+| ------ | ------------------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BG-001 | Completado                                 | Crítica        | Reglas de Firestore y 12 pruebas de emulador.                                                                                                                                                                                |
+| BG-002 | Completado                                 | Alta           | Skeletons, textos, navegación de cuenta y estado de guardado. Ver `docs/specs/BG-002-refactor-ui.md` y `docs/sdd-plan.md`.                                                                                                   |
+| BG-003 | Completado                                 | Alta           | Base de pruebas de cálculos, stores, PDF y PWA.                                                                                                                                                                              |
+| BG-004 | Diseño preparado; concretar al implementar | Alta           | Free con máximo de 3 presupuestos, sin límites de catálogos ni plantillas; BudGenerator Pro a 19,99 €/mes + IVA con Stripe. Ver `docs/superpowers/specs/2026-10-17-bg-004-planes-y-suscripcion-design.md`.                   |
+| BG-005 | Diseño preparado; concretar al implementar | Alta           | Landing sencilla editable con ayuda de IA, estimación basada en el catálogo de la empresa y solicitudes privadas en BudGenerator. Ver `docs/superpowers/specs/2026-10-17-bg-005-landings-y-solicitudes-design.md`.           |
+| BG-007 | Completado                                 | Alta · Cerrado | UX y navegación desplegadas; queda como seguimiento opcional verificar teclado, safe-area y gestos en PWA física. Ver `docs/specs/BG-007-design-ux-consistency.md` y `docs/specs/BG-007-execution.md`.                       |
+| BG-008 | Completado                                 | Alta · Cerrado | Código integrado en `main` local y remoto y desplegado en Hosting; catálogo, importación selectiva, wizard y tour publicados. Verificación automática completa. Ver `docs/specs/BG-008-catalogo-unico-y-creacion-guiada.md`. |
+| BG-009 | Diseño preparado; concretar al implementar | Media          | Aceptar un presupuesto, convertirlo en proyecto y seguir el avance de partidas y conceptos. Ver `docs/superpowers/specs/2026-10-17-bg-009-seguimiento-de-proyectos-design.md`.                                               |
+
+## Alcance preparado
+
+BG-004 define la oferta Free/Pro y la suscripción con Stripe. BG-005 propone landings editables, textos iniciales asistidos por IA y solicitudes con una estimación calculada de forma determinista usando el catálogo del usuario. BG-009 cubre la aceptación de presupuestos y el seguimiento de proyectos. La generación de presupuestos con IA sigue retirada del roadmap.
+
+Las propuestas y sus cuestiones de producto se concretarán al redactar el plan técnico de cada iniciativa; no bloquean iniciar BG-009.
 
 ## Reconciliación del 16 de octubre
 
