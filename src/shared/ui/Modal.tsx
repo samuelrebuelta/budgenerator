@@ -22,9 +22,20 @@ export function Modal({
     if (!open || !dialog) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const scroll = document.body.style.overflow;
+    dialog.dataset.keyboardNavigation = String(previous?.matches(':focus-visible') ?? false);
+    const markKeyboardNavigation = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') dialog.dataset.keyboardNavigation = 'true';
+    };
+    const markPointerNavigation = () => {
+      dialog.dataset.keyboardNavigation = 'false';
+    };
+    dialog.addEventListener('keydown', markKeyboardNavigation);
+    dialog.addEventListener('pointerdown', markPointerNavigation);
     dialog.showModal();
     document.body.style.overflow = 'hidden';
     return () => {
+      dialog.removeEventListener('keydown', markKeyboardNavigation);
+      dialog.removeEventListener('pointerdown', markPointerNavigation);
       dialog.close();
       document.body.style.overflow = scroll;
       previous?.focus();

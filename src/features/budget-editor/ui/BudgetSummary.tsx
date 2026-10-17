@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { budgetCost, money } from '@/shared/lib/budgetMath';
 import { formatCurrency } from '@/shared/lib';
-import { Info, Minus, Plus, X } from 'lucide-react';
+import { Minus, Plus, X } from 'lucide-react';
+import { InfoPopover } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function BudgetSummary() {
@@ -17,7 +18,6 @@ export function BudgetSummary() {
   const [editingType, setEditingType] = useState<'descuento' | 'recargo' | null>(null);
   const [editPercent, setEditPercent] = useState('');
   const [editReason, setEditReason] = useState('');
-  const [showToast, setShowToast] = useState(false);
 
   if (!budget || budget.workItems.length === 0) return null;
 
@@ -61,6 +61,14 @@ export function BudgetSummary() {
   return (
     <div className="border-t border-gray-200 pt-4 mt-6 section-break-avoid">
       <div className="flex flex-col items-end gap-1 text-sm">
+        <p className="context-hint no-print">
+          IVA y ajustes
+          <InfoPopover label="IVA y ajustes">
+            El IVA se aplica al subtotal ajustado. El descuento reduce ese subtotal; el recargo se
+            incorpora al precio de las partidas. Revisa el tipo de IVA que corresponde al trabajo
+            antes de guardar.
+          </InfoPopover>
+        </p>
         {/* ── Surcharge: info on screen only (concepts already include it) ── */}
         {isSurcharge && (
           <div className="flex justify-between w-full max-w-72 no-print">
@@ -73,17 +81,9 @@ export function BudgetSummary() {
             <span className="text-gray-600 flex items-center gap-1">
               {t('summary.surcharge')}
               {adjustment.reason ? ` (${adjustment.reason})` : ''} +{adjustmentPercent}%:
-              <button
-                onClick={() => {
-                  setShowToast(true);
-                  setTimeout(() => setShowToast(false), 4000);
-                }}
-                className="text-gray-400 hover:text-blue-500 cursor-pointer"
-                type="button"
-                aria-label="Info"
-              >
-                <Info size={13} />
-              </button>
+              <InfoPopover label="Recargo">
+                {t('summary.surchargeInTasks', { pct: adjustmentPercent })}
+              </InfoPopover>
             </span>
             <span className="font-medium text-red-600">
               +{formatCurrency(subtotal - rawSubtotal)}
@@ -248,12 +248,6 @@ export function BudgetSummary() {
           </div>
         )}
       </div>
-
-      {showToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-4 py-2.5 rounded-lg shadow-lg z-50 max-w-xs text-center no-print">
-          {t('summary.surchargeInTasks', { pct: adjustmentPercent })}
-        </div>
-      )}
     </div>
   );
 }

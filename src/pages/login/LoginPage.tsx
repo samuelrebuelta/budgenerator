@@ -8,6 +8,7 @@ import { Modal } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
 import { sendPasswordReset } from '@/entities/auth/api/firebase';
+import { markWelcomeTourPending } from '@/features/app-tour/model';
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
@@ -50,7 +51,8 @@ export function LoginPage() {
     e.preventDefault();
     if (isRegister && !allChecksMet) return;
     if (isRegister) {
-      await signUp(email, password);
+      const uid = await signUp(email, password);
+      if (uid) markWelcomeTourPending(uid);
     } else {
       await signIn(email, password);
     }

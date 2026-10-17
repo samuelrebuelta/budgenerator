@@ -78,3 +78,21 @@ Consultar el [informe de análisis del proyecto](project-analysis.md) para las c
 ## Comprobaciones de la entrega (15 de octubre de 2026)
 
 La revisión posterior y sus correcciones se validan con tests unitarios, reglas en emulador y navegador automatizado: `pnpm test` y `pnpm test:integration`. Las pruebas no utilizan la cuenta de producción; crean cuentas y datos ficticios en `demo-cimbra`.
+
+
+## BG-007 (16 de octubre de 2026)
+
+24 unitarias y 12 reglas correctas; 15 recorridos de navegador correctos en emuladores `demo-cimbra`, incluidos gestos con Input.dispatchTouchEvent de Chromium (scroll vertical, reveal y bloqueo de navegación accidental), teclado/modal, rutas/drafts, logo fallido/apaisado, ayuda y matriz responsive. Lint, build/TypeScript y formato correctos. Capturas `bg007-*.png` inspeccionadas en desktop y móvil. Revisión independiente sin bloqueantes. Ninguna prueba usó datos de producción. Pendiente QA táctil de iOS Safari/PWA y Android físico; no se presume a partir de Chromium.
+
+
+## BG-008 (16 de octubre de 2026)
+
+`codex/bg008-catalog`: lint, build y formato correctos; 45 unitarias, 14 pruebas de Firestore y 19 E2E correctos. Emuladores exclusivamente demo. Las nuevas comprobaciones cubren inicialización concurrente/idempotente y aislamiento, reintentos de limpieza, búsqueda/orden, ruta única y enlaces antiguos, tarifas sobre presupuesto con referencia histórica, plantilla responsive, asistente con cancelación/retroceso/confirmación, medición pendiente bloqueando PDF, recuperación y sugerencias por historial, instalación PWA simulada y descarte. Se mantienen los recorridos de navegación, cuotas, teclado, gestos, PDF público, offline y actualización.
+
+Capturas específicas `docs/testing-evidence/bg008-*`: catálogo y revisión de estructura a 320 px/escritorio, selección de trabajos a 390 px/escritorio y formulario de plantilla a 320 px. Inspección visual realizada; detector de Impeccable sin hallazgos. Pendiente prueba de instalación en dispositivos reales; no se ha desplegado esta entrega ni se han usado datos de producción en las pruebas.
+
+## BG-008: catálogo Partidas/Conceptos (17 de octubre de 2026)
+
+La ampliación local conserva el catálogo como partidas con conceptos y adapta catálogos planos durante la carga. Los editores siguen guardando snapshots; las nuevas selecciones conservan IDs de origen opcionales y privados. El flujo guiado elige partidas y después sus conceptos, y calcula sugerencias por ID con fallback histórico para snapshots antiguos.
+
+Verificado: 52 unitarias, 16 pruebas de reglas/emulador, 21 E2E, `pnpm lint`, `pnpm build` (PWA `925c1b35fa760bb8`) y `pnpm format:check`. La integración pasó completa en emuladores `demo-cimbra`; el flujo guiado y el guardado de partidas/conceptos también se comprobaron en E2E. La revisión independiente no encontró hallazgos pendientes. Desplegada sólo a Hosting el 17-10-2026 en https://budgenerator.web.app. HTML y service worker remotos coinciden con el build. No se cambiaron reglas ni se usaron datos de producción en las pruebas. La validación física PWA permanece pendiente.

@@ -10,6 +10,7 @@ export const UNIT_LABELS: Record<Unit, string> = {
 
 export interface BudgetTask {
   id: string;
+  catalogConceptId?: string;
   description: string;
   quantity: number;
   unit: Unit;
@@ -20,6 +21,7 @@ export interface BudgetTask {
 export interface WorkItem {
   id: string;
   name: string;
+  catalogPartId?: string;
   tasks: BudgetTask[];
 }
 
@@ -53,13 +55,25 @@ export interface Tariff {
   basePrice: number;
   cost: number;
   category: string;
+  /** Membership in the catalog tree; populated on flattened client views. */
+  partId?: string;
+}
+
+export type CatalogConcept = Omit<Tariff, 'category' | 'partId'>;
+
+export interface CatalogPart {
+  id: string;
+  name: string;
+  concepts: CatalogConcept[];
 }
 
 export interface TariffCatalog {
   id: string;
   name: string;
   baseCatalogId?: string;
-  tariffs: Tariff[];
+  parts: CatalogPart[];
+  /** Legacy flat representation; accepted only while reading older catalogs. */
+  tariffs?: Tariff[];
   createdAt: string;
   updatedAt: string;
 }
@@ -73,7 +87,7 @@ export interface CompanyProfile {
   logo?: string;
 }
 
-export type PublicTask = Omit<BudgetTask, 'cost'>;
+export type PublicTask = Omit<BudgetTask, 'cost' | 'catalogConceptId'>;
 export type PublicBudget = Omit<Budget, 'workItems' | 'catalogId'> & {
   workItems: { id: string; name: string; tasks: PublicTask[] }[];
 };

@@ -6,7 +6,7 @@ import { CatalogSelector } from './CatalogSelector';
 import type { Unit, BudgetTask as BudgetTaskType } from '@/shared/types';
 import { decimal, money, unitPrice } from '@/shared/lib/budgetMath';
 import { formatCurrency } from '@/shared/lib';
-import { Button, ConfirmModal, EditableRow, EditableRowHeader } from '@/shared/ui';
+import { Button, ConfirmModal, EditableRow, EditableRowHeader, InfoPopover } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
@@ -157,6 +157,14 @@ export function BudgetEditor() {
 
   return (
     <div className="space-y-6">
+      <p className="context-hint no-print">
+        Mediciones y unidades
+        <InfoPopover label="Unidades de las partidas">
+          Indica la medición de cada concepto: m² para superficies, m³ para volumen, ML para metros
+          lineales, Ud. para unidades y Hr para horas. La cantidad se multiplica por el precio de
+          esa unidad.
+        </InfoPopover>
+      </p>
       {workItems.map((workItem) => (
         <div
           key={workItem.id}

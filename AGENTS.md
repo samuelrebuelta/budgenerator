@@ -17,5 +17,5 @@ No decidir unilateralmente la eliminación del modelo de planes, administración
 
 ## Ejecución
 Una tarea por PR, salvo cambios cohesivos. Delimitar objetivo, exclusiones, criterios de aceptación, riesgos y tests. Para tareas menores no se necesita spec adicional. Agentes paralelos sólo con archivos independientes; no compartir checkout para escrituras simultáneas. Evitar refactors no solicitados.
-Primero checks específicos, luego `pnpm lint` y `pnpm build` y tests disponibles para cerrar. El repositorio todavía no define script `test`; no inventar resultados. Cambios de Firestore Rules exigen tests reales contra emuladores antes de considerarlos seguros.
+Primero checks específicos, luego `pnpm lint` y `pnpm build` y tests disponibles para cerrar. Hay scripts reales `test`, `test:rules`, `test:e2e` y `test:integration`; registrar resultados ejecutados y no inventarlos. Cambios de Firestore Rules exigen tests reales contra emuladores antes de considerarlos seguros.
 Actualizar `docs/plan.md` y contrato técnico pertinente; registrar qué se verificó y qué quedó pendiente. No auto-merge ni despliegues sin instrucción explícita.

@@ -9,3 +9,35 @@ Button, Input y otros controles proporcionan alturas táctiles cómodas. Editabl
 Las secciones usan grid-template-rows para colapsar; sus preferencias se recuerdan por documento. Las páginas de presupuesto se montan por ID para no reutilizar el estado de una fila anterior. La impresión del navegador oculta shell, navegación, botones y márgenes de beneficio. El PDF de jsPDF tiene su propio layout independiente.
 
 Las capturas de escritorio y móvil se generan con datos ficticios en la suite de navegador. Además del viewport y la ausencia de desbordamiento horizontal, revisar visualmente importes largos, foco y navegación con teclado al introducir cambios nuevos.
+
+La PWA declara `viewport-fit=cover`. La barra flotante queda a `env(safe-area-inset-bottom, 0px)` del borde inferior, tomando únicamente el margen comunicado por el navegador, sin separación inferior adicional ni valores por modelo de dispositivo. La comprobación en PWA instalada sigue pendiente.
+
+## BG-007 — jerarquía y navegación
+
+`PageHeader` unifica pretítulo, h1 (32 px desktop / 28 px móvil), descripción y acciones de todas las páginas con shell. `BackButton` es un enlace circular de 44 px a la ruta padre, sin depender del historial. Las raíces no tienen retorno; los bloqueos existentes de draft siguen activos. `PageLayout` sólo proporciona el contenedor; no añade navegación implícita. Los skeletons de documento usan la misma jerarquía. Login y el visor público mantienen su composición propia, y el título documental del presupuesto se conserva al imprimir.
+
+`line-field` fija en 44 px las cantidades, unidades y precios en tabla y cards; no cambia parseo ni importes. Los estados hover/pressed/selected/disabled/pending y el foco usan tokens comunes. El foco visible dentro de un dialog aparece al navegar con teclado; abrirlo con puntero mantiene oculto el outline inicial. Escape y restitución de foco se conservan.
+
+Los `<select>` muestran outline de marca mientras tienen foco, también si se activan con puntero. Las partidas contraídas esconden “Añadir concepto” en móvil; escritorio conserva la acción en la misma fila y expande la partida al activarla.
+
+`CompanyAvatar` presenta el logo con contain y usa la inicial al faltar/fallar la imagen. La cuenta sigue exclusivamente en sidebar en escritorio y menú superior en móvil. La tabbar móvil conserva cuatro destinos, flota con safe-area y fondo sólido de fallback, y usa blur sólo bajo @supports; visualViewport la oculta cuando el teclado reduce el área disponible al editar. El contenido reserva margen inferior. Queda pendiente comprobar estos detalles en dispositivo físico.
+
+`SwipeActions` acepta acciones sin conocer entidades. El gesto horizontal deliberado sólo revela una acción; el vertical sigue desplazando. El menú alternativo de puntos permanece disponible con teclado/mouse/tap. Los popovers nativos salen del recorte del listado y cierran por Escape o fuera. Borrar exige ConfirmModal; predeterminado sólo existe para catálogos. `InfoPopover` usa la misma API nativa y etiqueta accesible. `/help` contiene FAQ locales versionadas y enlaces a flujos reales.
+
+### Navegación en segundo nivel
+
+Los detalles `/budget/:id`, `/catalogs/:id`, `/templates/:id` (incluido `new`) y `/account/password` ocultan la cabecera global sólo en móvil y no muestran la navegación móvil. En escritorio la cabecera global permanece visible en todos los niveles. PageHeader coloca únicamente el botón de volver en la fila superior y debajo el título, descripción y acciones; conserva su retorno seguro; en escritorio permanece la sidebar. El estado de guardado/reintento se muestra fuera de la cabecera cuando corresponde. En móvil el espacio inferior se reduce a 24 px más safe-area; las pantallas raíz mantienen las tabs y su reserva de espacio.
+
+Ajustes de interacción: el gesto izquierdo ya no revela borrado; eliminar queda en el menú con confirmación. Se conserva el gesto derecho para predeterminado. La tab actual hace scroll al inicio (`smooth`, o `instant` con reduced-motion), sin navegar de nuevo. Los detalles usan padding superior 26 px desktop y 12 px móvil, además del safe-area de la shell.
+
+Al cambiar de ruta a una pestaña raíz se reinicia el scroll a 0 antes de pintar, también al navegar desde sidebar. Se aplica al cambio de pathname, sin interferir en anclas internas. Al pulsar la pestaña ya activa se conserva el scroll suave.
+
+BG-008: las tarjetas individuales de presupuestos y plantillas tienen bordes de 14 px, incluyendo el contenedor de acciones. El campo de guardar como plantilla puede encoger y sus botones pasan a otra fila en móvil. La búsqueda de catálogo usa un diálogo nativo para evitar recorte por filas/overflow del editor, con resultados alfabéticos y filtro accesible. El asistente de estructura conserva la paleta, limita el scroll del cuerpo, enfoca el título de cada paso y devuelve foco al cerrar. El banner PWA se coloca en el flujo de la shell, sin superposición y oculto al imprimir.
+
+En `/catalog`, “Contraer todo” y “Expandir todo” afectan a todas las partidas, incluidas las que no están visibles por el filtro actual. En modales, los outlines sólo se muestran tras iniciar navegación con Tab; abrir con ratón no enseña el contorno inicial, y un clic posterior vuelve al modo de puntero.
+
+Refinamiento de navegación y listas: las cabeceras no muestran pretítulos; las acciones de creación quedan junto al título, con botón circular de icono en móvil y texto visible en escritorio. La búsqueda de presupuestos centra la lupa y se combina con un filtro anual. En el borrador nuevo, el aviso ocupa el ancho del contenido y las acciones “Descartar” y “Guardar” comparten ancho. La navegación móvil prioriza Presupuestos, Plantillas y Catálogo.
+
+Catálogo único: la shell ya no incluye un footer global y el contenido reserva sólo la altura de la cabecera (o la franja de sincronización en detalles móviles). El importador por categoría deja fijos el contexto y las acciones principales, y mantiene un único scroll para categorías o partidas/conceptos. Sus filas pasan a dos niveles en móvil para no comprimir nombre, recuento ni acción. El diálogo limita su altura al viewport.
+
+La guía de bienvenida deja utilizables las páginas y la navegación real: el foco visual no intercepta clics y la tarjeta es la única superficie interactiva de la capa. En móvil se sitúa sobre la tabbar y respeta el área segura; el movimiento del personaje y del foco se desactiva con `prefers-reduced-motion`.

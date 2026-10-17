@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '@/entities/auth/api/firebase';
-import { Button, Input, PageLayout } from '@/shared/ui';
+import { Button, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function ChangePasswordPage() {
@@ -54,6 +54,12 @@ export function ChangePasswordPage() {
   if (success) {
     return (
       <PageLayout>
+        <PageHeader
+          title={t('settings.changePasswordTitle')}
+          description="Confirma tu contraseña actual para establecer una nueva."
+          backTo="/account"
+          backLabel="Volver a mi cuenta"
+        />
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
             <Check size={24} className="text-green-600" />
@@ -71,9 +77,12 @@ export function ChangePasswordPage() {
   return (
     <PageLayout>
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          {t('settings.changePasswordTitle')}
-        </h1>
+        <PageHeader
+          title={t('settings.changePasswordTitle')}
+          description="Confirma tu contraseña actual para establecer una nueva."
+          backTo="/account"
+          backLabel="Volver a mi cuenta"
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">

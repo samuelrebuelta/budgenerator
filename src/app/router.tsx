@@ -37,15 +37,11 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('@/pages/budget-detail')).BudgetDetailPage }),
       },
       {
-        path: '/catalogs',
+        path: '/catalog',
         lazy: async () => ({ Component: (await import('@/pages/catalogs')).CatalogsPage }),
       },
-      {
-        path: '/catalogs/:catalogId',
-        lazy: async () => ({
-          Component: (await import('@/pages/catalogs/CatalogDetailPage')).CatalogDetailPage,
-        }),
-      },
+      { path: '/catalogs', element: <Navigate to="/catalog" replace /> },
+      { path: '/catalogs/:catalogId', element: <Navigate to="/catalog" replace /> },
       {
         path: '/templates',
         lazy: async () => ({ Component: (await import('@/pages/templates')).TemplatesPage }),
@@ -55,6 +51,10 @@ export const router = createBrowserRouter([
         lazy: async () => ({
           Component: (await import('@/pages/template-detail')).TemplateDetailPage,
         }),
+      },
+      {
+        path: '/help',
+        lazy: async () => ({ Component: (await import('@/pages/help/HelpPage')).HelpPage }),
       },
       {
         path: '/profile',

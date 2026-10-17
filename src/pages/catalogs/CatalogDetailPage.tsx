@@ -2,24 +2,53 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Check,
-  Plus,
   ChevronDown,
   ChevronRight,
-  Search,
+  Download,
   Info,
+  Plus,
+  Search,
   Trash2,
+  X,
 } from 'lucide-react';
-import { useCatalogStore, RENOVATION_CATEGORIES } from '@/entities/catalog';
+import {
+  compareSpanish,
+  normalizeCatalogText,
+  searchCatalogParts,
+  TRADE_CATALOGS,
+  useCatalogStore,
+} from '@/entities/catalog';
 import { UNIT_LABELS } from '@/shared/types';
-import type { Unit, TariffCatalog } from '@/shared/types';
-import { Button, ConfirmModal, EditableRow, EditableRowHeader, PageLayout } from '@/shared/ui';
+import type { CatalogPart, Unit, TariffCatalog } from '@/shared/types';
+import type { BaseCatalog } from '@/entities/catalog';
+import type { TradeImportScope } from '@/entities/catalog';
+import {
+  Button,
+  ConfirmModal,
+  EditableRow,
+  EditableRowHeader,
+  PageLayout,
+  PageHeader,
+  PageHeaderSkeleton,
+  Modal,
+} from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { withTimeout } from '@/shared/model/session';
 import { decimal } from '@/shared/lib/budgetMath';
 import { t } from '@/shared/i18n';
 import { catalogSummary } from './catalogSummary';
+
+function getTradeParts(trade: BaseCatalog) {
+  const groups = new Map<string, { name: string; concepts: BaseCatalog['tariffs'] }>();
+  for (const tariff of trade.tariffs) {
+    const name = tariff.category.trim() || trade.name;
+    const key = normalizeCatalogText(name);
+    const group = groups.get(key) ?? { name, concepts: [] };
+    group.concepts.push(tariff);
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => compareSpanish(a.name, b.name));
+}
 
 function getCatalogColumns(): ColumnDef[] {
   return [
@@ -32,536 +61,718 @@ function getCatalogColumns(): ColumnDef[] {
 }
 
 function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
-  const navigate = useNavigate();
-  const tariffs = catalog.tariffs;
-  const catalogId = catalog.id;
-  const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
-  const addTariff = useCatalogStore((s) => s.addTariff);
-  const updateTariff = useCatalogStore((s) => s.updateTariff);
-  const removeTariff = useCatalogStore((s) => s.removeTariff);
-  const selectCatalog = useCatalogStore((s) => s.selectCatalog);
-  const renameCatalog = useCatalogStore((s) => s.renameCatalog);
-  const deleteCatalog = useCatalogStore((s) => s.deleteCatalog);
-
-  const [error, setError] = useState('');
-  const [showAdd, setShowAdd] = useState(false);
-  const [showDeleteCatalogConfirm, setShowDeleteCatalogConfirm] = useState(false);
-  const [isSwitchingCatalog, setIsSwitchingCatalog] = useState(false);
-  const [isRenamingCatalog, setIsRenamingCatalog] = useState(false);
-  const [catalogNameEdits, setCatalogNameEdits] = useState<Record<string, string>>({});
-  const [newDesc, setNewDesc] = useState('');
+  const addPart = useCatalogStore((s) => s.addPart);
+  const importTrade = useCatalogStore((s) => s.importTrade);
+  const renamePart = useCatalogStore((s) => s.renamePart);
+  const removePart = useCatalogStore((s) => s.removePart);
+  const addConcept = useCatalogStore((s) => s.addConcept);
+  const updateConcept = useCatalogStore((s) => s.updateConcept);
+  const removeConcept = useCatalogStore((s) => s.removeConcept);
+  const [showAddPart, setShowAddPart] = useState(false);
+  const [newPartName, setNewPartName] = useState('');
+  const [addingToPartId, setAddingToPartId] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState('');
   const [newUnit, setNewUnit] = useState<Unit>('m2');
   const [newPrice, setNewPrice] = useState('');
   const [newCost, setNewCost] = useState('');
-  const [newCategory, setNewCategory] = useState('');
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [activePartId, setActivePartId] = useState<string | null>(null);
+  const [partToDelete, setPartToDelete] = useState<CatalogPart | null>(null);
+  const [showTradeImporter, setShowTradeImporter] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
+  const [expandedTradeParts, setExpandedTradeParts] = useState<Set<string>>(new Set());
+  const [importMessage, setImportMessage] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 200);
+    const timer = setTimeout(() => setDebouncedQuery(query), 200);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [query]);
 
-  const handleAdd = () => {
-    const desc = newDesc.trim();
-    const cat = newCategory.trim();
-    if (!desc || !cat) return;
-    addTariff(
+  const filteredParts = useMemo(
+    () => searchCatalogParts(catalog.parts, debouncedQuery),
+    [catalog.parts, debouncedQuery],
+  );
+  const visibleParts = filteredParts.filter((part) => !activePartId || part.id === activePartId);
+  const allPartsCollapsed =
+    catalog.parts.length > 0 && catalog.parts.every((part) => collapsed.has(part.id));
+  const filteredCategories = useMemo(() => {
+    const words = normalizeCatalogText(categoryQuery).split(/\s+/).filter(Boolean);
+    return TRADE_CATALOGS.filter((trade) => {
+      const searchable = normalizeCatalogText(`${trade.name} ${trade.description}`);
+      return words.every((word) => searchable.includes(word));
+    }).sort((a, b) => compareSpanish(a.name, b.name));
+  }, [categoryQuery]);
+  const selectedCategory = TRADE_CATALOGS.find((trade) => trade.id === selectedTradeId);
+  const selectedCategoryParts = selectedCategory ? getTradeParts(selectedCategory) : [];
+
+  const submitPart = () => {
+    const name = newPartName.trim();
+    if (!name) return;
+    addPart(name, catalog.id);
+    setNewPartName('');
+    setShowAddPart(false);
+  };
+
+  const submitConcept = (partId: string) => {
+    const description = newDescription.trim();
+    if (!description) return;
+    addConcept(
+      partId,
       {
-        description: desc,
+        description,
         unit: newUnit,
         basePrice: decimal(newPrice),
         cost: decimal(newCost),
-        category: cat,
       },
-      catalogId,
+      catalog.id,
     );
-    setNewDesc('');
+    setNewDescription('');
     setNewUnit('m2');
     setNewPrice('');
     setNewCost('');
-    setNewCategory('');
-    setIsCustomCategory(false);
-    setShowAdd(false);
+    setAddingToPartId(null);
   };
 
-  const allCategories = useMemo(() => {
-    const cats = [...new Set([...RENOVATION_CATEGORIES, ...tariffs.map((t) => t.category)])];
-    return cats.sort((a, b) => a.localeCompare(b, 'es'));
-  }, [tariffs]);
+  const toggleAllParts = () =>
+    setCollapsed(allPartsCollapsed ? new Set() : new Set(catalog.parts.map((part) => part.id)));
 
-  const grouped = useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
-    const filtered = q
-      ? tariffs.filter(
-          (t) => t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q),
-        )
-      : tariffs;
-
-    const map = new Map<string, typeof tariffs>();
-    for (const t of filtered) {
-      const list = map.get(t.category) ?? [];
-      list.push(t);
-      map.set(t.category, list);
-    }
-
-    // Sort categories using the canonical order from RENOVATION_CATEGORIES first,
-    // then any custom categories alphabetically
-    const catOrder = new Map<string, number>(RENOVATION_CATEGORIES.map((c, i) => [c, i]));
-    return [...map.entries()].sort(([a], [b]) => {
-      const ia = catOrder.get(a) ?? 999;
-      const ib = catOrder.get(b) ?? 999;
-      if (ia !== ib) return ia - ib;
-      return a.localeCompare(b, 'es');
-    });
-  }, [tariffs, debouncedSearch]);
-
-  const toggleCategory = (cat: string) => {
-    setCollapsedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) {
-        next.delete(cat);
-      } else {
-        next.add(cat);
-      }
+  const togglePart = (partId: string) =>
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (next.has(partId)) next.delete(partId);
+      else next.add(partId);
       return next;
     });
+
+  const openTradeImporter = () => {
+    setCategoryQuery('');
+    setSelectedTradeId(null);
+    setExpandedTradeParts(new Set());
+    setImportMessage('');
+    setShowTradeImporter(true);
   };
 
-  const collapseAll = () => setCollapsedCats(new Set(grouped.map(([cat]) => cat)));
-  const expandAll = () => setCollapsedCats(new Set());
-
-  const catalogNameDraft = catalogNameEdits[catalogId] ?? catalog.name;
-
-  const handleRenameCatalog = async () => {
-    if (!catalogId) return;
-    const nextName = catalogNameDraft.trim();
-    if (!nextName || nextName === catalog.name) return;
-
-    setIsRenamingCatalog(true);
-    try {
-      await renameCatalog(catalogId, nextName);
-    } catch {
-      setError('No se ha podido renombrar el catálogo.');
-    } finally {
-      setIsRenamingCatalog(false);
+  const submitCategoryImport = (category: BaseCatalog, scope: TradeImportScope) => {
+    const result = importTrade(category.id, catalog.id, scope);
+    const selectedName =
+      scope.type === 'category'
+        ? category.name
+        : scope.type === 'part'
+          ? scope.partName
+          : scope.description;
+    const message =
+      result.addedConcepts > 0
+        ? scope.type === 'concept'
+          ? `Se añadió «${selectedName}» al catálogo de tu empresa.`
+          : scope.type === 'part'
+            ? `Se añadieron ${result.addedConcepts} conceptos de «${selectedName}».`
+            : `Se importaron ${result.addedConcepts} conceptos de ${selectedName} y ${result.addedParts} partidas nuevas.`
+        : scope.type === 'concept'
+          ? `«${selectedName}» ya está en el catálogo.`
+          : `Todo lo de «${selectedName}» ya estaba en el catálogo.`;
+    setImportMessage(message);
+    if (scope.type === 'category') {
+      setSelectedTradeId(null);
+      setShowTradeImporter(false);
     }
   };
 
   return (
-    <PageLayout showBack={false}>
-      <Link to="/catalogs" className="catalog-back">
-        <ArrowLeft size={16} />
-        {t('catalog.backToList')}
-      </Link>
-      <div className="catalog-detail-heading">
-        <div className="min-w-0">
-          <p className="eyebrow mb-2">{t('catalog.detailEyebrow')}</p>
-          <h1 className="break-words">{catalog.name}</h1>
-          <p className="text-sm text-gray-500 mt-2">{catalogSummary(tariffs)}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <PageLayout>
+      <PageHeader
+        title="Catálogo"
+        description={catalogSummary(catalog.parts)}
+        actions={
           <Button
-            variant="secondary"
-            disabled={isSwitchingCatalog || activeCatalogId === catalogId}
-            onClick={async () => {
-              setError('');
-              setIsSwitchingCatalog(true);
-              try {
-                await withTimeout(selectCatalog(catalogId));
-              } catch {
-                setError(t('catalog.selectError'));
-              } finally {
-                setIsSwitchingCatalog(false);
-              }
-            }}
+            className="page-create-button"
+            aria-label="Añadir partida"
+            onClick={() => setShowAddPart(true)}
           >
-            {activeCatalogId === catalogId && <Check size={16} />}
-            {activeCatalogId === catalogId
-              ? t('catalog.defaultCatalog')
-              : t('catalog.useAsDefault')}
+            <Plus size={16} />
+            <span className="page-create-label">Añadir partida</span>
           </Button>
-          <Button
-            variant="danger"
-            aria-label={t('catalog.deleteCatalog')}
-            onClick={() => setShowDeleteCatalogConfirm(true)}
-          >
-            <Trash2 size={16} />
-            {t('common.delete')}
-          </Button>
-        </div>
-      </div>
-      {error && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="catalog-name-panel">
-        <div className="flex-1 min-w-0">
-          <label htmlFor="catalog-name" className="text-xs font-medium text-gray-600">
-            {t('catalog.catalogName')}
-          </label>
-          <input
-            id="catalog-name"
-            value={catalogNameDraft}
-            onChange={(e) =>
-              setCatalogNameEdits((edits) => ({ ...edits, [catalogId]: e.target.value }))
-            }
-            className="mt-1 h-11 w-full rounded-md border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500"
-            disabled={isRenamingCatalog}
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => void handleRenameCatalog()}
-          disabled={
-            isRenamingCatalog ||
-            !catalogNameDraft.trim() ||
-            catalogNameDraft.trim() === catalog.name
-          }
-        >
-          {t('common.save')}
-        </Button>
-      </div>
-      <div className="flex items-start gap-2 text-gray-500 text-xs mb-6">
+        }
+      />
+      <div className="mb-6 flex items-start gap-2 text-xs text-gray-500">
         <Info size={16} className="shrink-0" />
         <span>{t('catalog.disclaimer')}</span>
       </div>
-      <div className="mb-4">
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus size={16} />
-          {t('catalog.addTask')}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button variant="secondary" data-tour="category-import" onClick={openTradeImporter}>
+          <Download size={16} /> Importar por categoría
         </Button>
+        {catalog.parts.length > 0 && (
+          <Button variant="secondary" onClick={toggleAllParts}>
+            {allPartsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            {allPartsCollapsed ? 'Expandir todo' : 'Contraer todo'}
+          </Button>
+        )}
       </div>
-      {/* Add form */}
-      {showAdd && (
-        <div className="bg-white rounded-lg border border-blue-200 p-4 mb-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('catalog.newTask')}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
-            <div className="sm:col-span-2">
-              <label htmlFor="new-description" className="text-xs font-medium text-gray-600">
-                {t('common.description')}
-              </label>
-              <input
-                id="new-description"
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                placeholder={t('catalog.descriptionPlaceholder')}
-                autoFocus
-              />
-            </div>
-            <div className={isCustomCategory ? '' : 'sm:col-span-1'}>
-              <label htmlFor="new-category" className="text-xs font-medium text-gray-600">
-                {t('catalog.category')}
-              </label>
-              <select
-                id="new-category"
-                value={isCustomCategory ? '__custom__' : newCategory}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') {
-                    setIsCustomCategory(true);
-                    setNewCategory('');
-                  } else {
-                    setIsCustomCategory(false);
-                    setNewCategory(e.target.value);
-                  }
-                }}
-                className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">{t('catalog.categoryPlaceholder')}</option>
-                {allCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                <option value="__custom__">{t('addWorkItem.custom')}</option>
-              </select>
-            </div>
-            {isCustomCategory && (
-              <div>
-                <label htmlFor="new-custom-category" className="text-xs font-medium text-gray-600">
-                  {t('addWorkItem.custom')}
-                </label>
-                <input
-                  id="new-custom-category"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                  placeholder={t('addWorkItem.customPlaceholder')}
-                  autoFocus
-                />
-              </div>
-            )}
-            <div>
-              <label htmlFor="new-unit" className="text-xs font-medium text-gray-600">
-                {t('common.unit')}
-              </label>
-              <select
-                id="new-unit"
-                value={newUnit}
-                onChange={(e) => setNewUnit(e.target.value as Unit)}
-                className="mt-1 w-full appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              >
-                {Object.entries(UNIT_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="new-cost" className="text-xs font-medium text-gray-600">
-                {t('common.cost')}
-              </label>
-              <input
-                id="new-cost"
-                type="number"
-                min={0}
-                step="0.01"
-                value={newCost}
-                onChange={(e) => setNewCost(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                placeholder={t('catalog.costPlaceholder')}
-              />
-            </div>
-            <div>
-              <label htmlFor="new-pvp" className="text-xs font-medium text-gray-600">
-                {t('common.pvp')}
-              </label>
-              <input
-                id="new-pvp"
-                type="number"
-                min={0}
-                step="0.01"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
-                placeholder={t('catalog.pricePlaceholder')}
-              />
-            </div>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button onClick={handleAdd}>{t('common.add')}</Button>
-            <Button variant="ghost" onClick={() => setShowAdd(false)}>
-              {t('common.cancel')}
-            </Button>
-          </div>
-        </div>
+      {importMessage && !showTradeImporter && (
+        <p role="status" className="mb-4 text-sm text-green-800">
+          {importMessage}
+        </p>
+      )}
+      {showAddPart && (
+        <form
+          className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-blue-200 bg-white p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitPart();
+          }}
+        >
+          <label className="min-w-48 flex-1 text-xs font-medium text-gray-600">
+            Nombre de la partida
+            <input
+              autoFocus
+              value={newPartName}
+              onChange={(event) => setNewPartName(event.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              placeholder="Ej. Fontanería"
+            />
+          </label>
+          <Button type="submit" disabled={!newPartName.trim()}>
+            <Plus size={16} /> Añadir
+          </Button>
+          <Button variant="ghost" type="button" onClick={() => setShowAddPart(false)}>
+            Cancelar
+          </Button>
+        </form>
       )}
 
-      {tariffs.length > 0 && (
-        <>
-          {/* Search + collapse controls */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-            <div className="relative flex-1 w-full max-w-md">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('catalog.search')}
-                className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-500"
-              />
-            </div>
-            <div className="flex gap-1">
-              <button
-                onClick={expandAll}
-                className="text-xs text-blue-600 hover:underline cursor-pointer"
-              >
-                {t('catalog.expandAll')}
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                onClick={collapseAll}
-                className="text-xs text-blue-600 hover:underline cursor-pointer"
-              >
-                {t('catalog.collapseAll')}
-              </button>
-            </div>
-          </div>
+      <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <label className="relative w-full max-w-md flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="Buscar partidas y conceptos"
+            placeholder="Buscar partida o concepto…"
+            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+          />
+        </label>
+        {catalog.parts.length > 0 && (
+          <select
+            aria-label="Filtrar por partida"
+            value={activePartId ?? ''}
+            onChange={(event) => setActivePartId(event.target.value || null)}
+            className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:w-auto"
+          >
+            <option value="">Todas las partidas ({catalog.parts.length})</option>
+            {[...catalog.parts]
+              .sort((a, b) => compareSpanish(a.name, b.name))
+              .map((part) => (
+                <option key={part.id} value={part.id}>
+                  {part.name} ({part.concepts.length})
+                </option>
+              ))}
+          </select>
+        )}
+      </div>
 
-          {/* Category sidebar pills */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            <button
-              onClick={() => setActiveCategory(null)}
-              className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
-                activeCategory === null
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-              }`}
-            >
-              Todas ({tariffs.length})
-            </button>
-            {grouped.map(([cat, items]) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-                className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
-                  activeCategory === cat
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                }`}
+      {visibleParts.length > 0 ? (
+        <div className="space-y-3">
+          {visibleParts.map((part) => {
+            const isCollapsed = collapsed.has(part.id);
+            return (
+              <section
+                key={part.id}
+                className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
               >
-                {cat} ({items.length})
-              </button>
-            ))}
-          </div>
-
-          {/* Grouped tariffs */}
-          <div className="space-y-3">
-            {grouped
-              .filter(([cat]) => !activeCategory || cat === activeCategory)
-              .map(([cat, items]) => {
-                const isCollapsed = collapsedCats.has(cat);
-                return (
-                  <div
-                    key={cat}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3">
+                  <button
+                    type="button"
+                    aria-label={`${isCollapsed ? 'Expandir' : 'Contraer'} ${part.name}`}
+                    aria-expanded={!isCollapsed}
+                    onClick={() => togglePart(part.id)}
+                    className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-200"
                   >
-                    {/* Category header */}
-                    <button
-                      onClick={() => toggleCategory(cat)}
-                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        {isCollapsed ? (
-                          <ChevronRight size={16} className="text-gray-400" />
-                        ) : (
-                          <ChevronDown size={16} className="text-gray-400" />
-                        )}
-                        <span className="text-sm font-semibold text-gray-800">{cat}</span>
-                        <span className="text-xs text-gray-400 bg-gray-200 rounded-full px-2 py-0.5">
-                          {items.length}
-                        </span>
-                      </div>
-                    </button>
+                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  <input
+                    key={`${part.id}-${part.name}`}
+                    aria-label="Nombre de la partida"
+                    defaultValue={part.name}
+                    onBlur={(event) => {
+                      const value = event.currentTarget.value.trim();
+                      if (value && value !== part.name) renamePart(part.id, value, catalog.id);
+                      else event.currentTarget.value = part.name;
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur();
+                    }}
+                    className="min-w-32 flex-1 bg-transparent text-sm font-semibold text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-500">
+                    {part.concepts.length} {part.concepts.length === 1 ? 'concepto' : 'conceptos'}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    className={isCollapsed ? 'hidden min-[801px]:inline-flex' : undefined}
+                    onClick={() => {
+                      if (isCollapsed) togglePart(part.id);
+                      setAddingToPartId(part.id);
+                    }}
+                    aria-label={`Añadir concepto a ${part.name}`}
+                  >
+                    <Plus size={15} /> Añadir concepto
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-label={`Eliminar partida ${part.name}`}
+                    onClick={() => setPartToDelete(part)}
+                  >
+                    <Trash2 size={15} />
+                  </Button>
+                </div>
 
-                    {/* Category items */}
-                    <div className={`collapsible ${!isCollapsed ? 'open' : ''}`}>
-                      <div className="overflow-hidden">
+                {!isCollapsed && (
+                  <div>
+                    {addingToPartId === part.id && (
+                      <form
+                        className="flex flex-wrap items-end gap-2 border-b border-gray-100 p-3"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          submitConcept(part.id);
+                        }}
+                      >
+                        <label className="min-w-48 flex-1 text-xs text-gray-600">
+                          Nombre del concepto
+                          <input
+                            autoFocus
+                            value={newDescription}
+                            onChange={(event) => setNewDescription(event.target.value)}
+                            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          Unidad
+                          <select
+                            value={newUnit}
+                            onChange={(event) => setNewUnit(event.target.value as Unit)}
+                            className="mt-1 block rounded-md border border-gray-300 bg-white px-2 py-2 text-sm"
+                          >
+                            {Object.entries(UNIT_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          Coste
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={newCost}
+                            onChange={(event) => setNewCost(event.target.value)}
+                            className="mt-1 block w-24 rounded-md border border-gray-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="text-xs text-gray-600">
+                          Precio
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={newPrice}
+                            onChange={(event) => setNewPrice(event.target.value)}
+                            className="mt-1 block w-24 rounded-md border border-gray-300 px-2 py-2 text-sm"
+                          />
+                        </label>
+                        <Button type="submit" disabled={!newDescription.trim()}>
+                          <Plus size={15} /> Añadir
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => setAddingToPartId(null)}
+                          aria-label="Cancelar"
+                        >
+                          <X size={16} />
+                        </Button>
+                      </form>
+                    )}
+                    {part.concepts.length > 0 ? (
+                      <>
                         <EditableRowHeader columns={getCatalogColumns()} />
-                        <div className="space-y-2 sm:space-y-0 p-3 sm:p-0">
-                          {items.map((tariff) => {
-                            const margin =
-                              tariff.basePrice > 0
-                                ? ((tariff.basePrice - tariff.cost) / tariff.basePrice) * 100
-                                : 0;
-                            return (
-                              <EditableRow
-                                key={tariff.id}
-                                columns={getCatalogColumns()}
-                                cells={{
-                                  description: {
-                                    type: 'text',
-                                    value: tariff.description,
-                                    onChange: (v) =>
-                                      updateTariff(tariff.id, { description: v }, catalogId),
-                                  },
-                                  unit: {
-                                    type: 'unit-select',
-                                    value: tariff.unit,
-                                    onChange: (v) =>
-                                      updateTariff(tariff.id, { unit: v as Unit }, catalogId),
-                                  },
-                                  cost: {
-                                    type: 'number',
-                                    value: tariff.cost,
-                                    onChange: (v) =>
-                                      updateTariff(tariff.id, { cost: decimal(v) }, catalogId),
-                                  },
-                                  pvp: {
-                                    type: 'number',
-                                    value: tariff.basePrice,
-                                    onChange: (v) =>
-                                      updateTariff(tariff.id, { basePrice: decimal(v) }, catalogId),
-                                  },
-                                  margin: {
-                                    type: 'display',
-                                    content: (
+                        <div className="space-y-2 p-3 sm:space-y-0 sm:p-0">
+                          {part.concepts
+                            .sort((a, b) => compareSpanish(a.description, b.description))
+                            .map((concept) => {
+                              const margin =
+                                concept.basePrice > 0
+                                  ? ((concept.basePrice - concept.cost) / concept.basePrice) * 100
+                                  : 0;
+                              return (
+                                <EditableRow
+                                  key={concept.id}
+                                  columns={getCatalogColumns()}
+                                  cells={{
+                                    description: {
+                                      type: 'text',
+                                      value: concept.description,
+                                      onChange: (value) =>
+                                        updateConcept(
+                                          part.id,
+                                          concept.id,
+                                          { description: value },
+                                          catalog.id,
+                                        ),
+                                    },
+                                    unit: {
+                                      type: 'unit-select',
+                                      value: concept.unit,
+                                      onChange: (value) =>
+                                        updateConcept(
+                                          part.id,
+                                          concept.id,
+                                          { unit: value as Unit },
+                                          catalog.id,
+                                        ),
+                                    },
+                                    cost: {
+                                      type: 'number',
+                                      value: concept.cost,
+                                      onChange: (value) =>
+                                        updateConcept(
+                                          part.id,
+                                          concept.id,
+                                          { cost: decimal(value) },
+                                          catalog.id,
+                                        ),
+                                    },
+                                    pvp: {
+                                      type: 'number',
+                                      value: concept.basePrice,
+                                      onChange: (value) =>
+                                        updateConcept(
+                                          part.id,
+                                          concept.id,
+                                          { basePrice: decimal(value) },
+                                          catalog.id,
+                                        ),
+                                    },
+                                    margin: {
+                                      type: 'display',
+                                      content: (
+                                        <span
+                                          className={`text-xs font-medium ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}
+                                        >
+                                          {margin.toFixed(1)}%
+                                        </span>
+                                      ),
+                                    },
+                                  }}
+                                  onDelete={() => removeConcept(part.id, concept.id, catalog.id)}
+                                  mobileFooter={{
+                                    label: t('common.margin'),
+                                    value: (
                                       <span
-                                        className={`text-xs font-medium ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}
+                                        className={`text-xs font-semibold ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}
                                       >
                                         {margin.toFixed(1)}%
                                       </span>
                                     ),
-                                  },
-                                }}
-                                onDelete={() => removeTariff(tariff.id, catalogId)}
-                                mobileFooter={{
-                                  label: t('common.margin'),
-                                  value: (
-                                    <span
-                                      className={`text-xs font-semibold ${margin > 0 ? 'text-green-600' : 'text-gray-400'}`}
-                                    >
-                                      {margin.toFixed(1)}%
-                                    </span>
-                                  ),
-                                }}
-                              />
-                            );
-                          })}
+                                  }}
+                                />
+                              );
+                            })}
                         </div>
-                      </div>
-                    </div>
+                      </>
+                    ) : (
+                      <p className="px-4 py-5 text-sm text-gray-500">
+                        Esta partida aún no tiene conceptos.
+                      </p>
+                    )}
                   </div>
-                );
-              })}
-          </div>
-
-          {grouped.length === 0 && search && (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-sm">{t('catalog.noResults', { 0: search })}</p>
-            </div>
-          )}
-        </>
-      )}
-
-      {tariffs.length === 0 && !showAdd && (
+                )}
+              </section>
+            );
+          })}
+        </div>
+      ) : (
         <div className="catalog-empty">
-          <h2>{t('catalog.noConcepts')}</h2>
-          <p>{t('catalog.noConceptsHint')}</p>
+          <h2>{query ? 'No hay resultados' : 'Aún no hay partidas'}</h2>
+          <p>
+            {query
+              ? 'Prueba con otro nombre de partida o concepto.'
+              : 'Añade una partida para organizar sus conceptos.'}
+          </p>
         </div>
       )}
+
       <ConfirmModal
-        open={showDeleteCatalogConfirm}
-        onClose={() => setShowDeleteCatalogConfirm(false)}
-        title={t('catalog.deleteCatalogConfirmTitle')}
-        message={t('catalog.deleteCatalogConfirmMessage', { 0: catalog.name })}
-        confirmLabel={t('catalog.deleteCatalogConfirmAction')}
-        onConfirm={async () => {
-          await withTimeout(deleteCatalog(catalogId));
-          navigate('/catalogs', { replace: true });
+        open={!!partToDelete}
+        onClose={() => setPartToDelete(null)}
+        title="¿Eliminar partida?"
+        message={`Se eliminará «${partToDelete?.name ?? ''}» y sus ${partToDelete?.concepts.length ?? 0} conceptos del catálogo. Los presupuestos ya creados conservarán sus datos.`}
+        confirmLabel="Eliminar partida"
+        onConfirm={() => {
+          if (partToDelete) removePart(partToDelete.id, catalog.id);
+          setPartToDelete(null);
         }}
       />
+      <Modal
+        open={showTradeImporter}
+        onClose={() => setShowTradeImporter(false)}
+        title="Importar por categoría"
+        panelClassName="category-import-panel max-w-3xl"
+      >
+        <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Importar por categoría</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Explora una categoría y elige cuánto quieres incorporar.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            aria-label="Cerrar importador"
+            onClick={() => setShowTradeImporter(false)}
+          >
+            <X size={18} />
+          </Button>
+        </div>
+
+        <p className="shrink-0 text-sm leading-6 text-gray-600">
+          Estas categorías pueden servirte de inspiración: puedes añadir y personalizar más partidas
+          y conceptos según tu forma de trabajar.
+        </p>
+        <p className="mt-3 shrink-0 rounded-lg bg-gray-50 px-3 py-2 text-sm leading-5 text-gray-700">
+          Todo lo que importes se añadirá al catálogo de tu empresa para utilizarlo en tus
+          presupuestos.
+        </p>
+
+        {!selectedCategory && (
+          <label className="mb-3 mt-4 block shrink-0 text-sm font-medium text-gray-700">
+            Buscar categoría
+            <span className="relative mt-1 block">
+              <Search
+                size={15}
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="search"
+                aria-label="Buscar categoría"
+                value={categoryQuery}
+                onChange={(event) => setCategoryQuery(event.target.value)}
+                placeholder="Albañilería, fontanería, electricidad…"
+                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+              />
+            </span>
+          </label>
+        )}
+
+        {importMessage && showTradeImporter && (
+          <p role="status" className="my-3 shrink-0 text-sm text-green-800">
+            {importMessage}
+          </p>
+        )}
+
+        {selectedCategory && (
+          <>
+            <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
+              <Button
+                variant="ghost"
+                aria-label="Volver a categorías"
+                onClick={() => setSelectedTradeId(null)}
+              >
+                <ArrowLeft size={16} /> Categorías
+              </Button>
+              <Button
+                aria-label={`Importar categoría ${selectedCategory.name}`}
+                onClick={() => submitCategoryImport(selectedCategory, { type: 'category' })}
+              >
+                <Download size={15} /> Importar categoría
+              </Button>
+            </div>
+            <div className="mb-3 shrink-0">
+              <h3 className="text-lg font-semibold text-gray-900">{selectedCategory.name}</h3>
+              <p className="mt-1 text-sm text-gray-600">{selectedCategory.description}</p>
+              <p className="mt-2 text-xs text-gray-500">
+                {selectedCategoryParts.length} partidas · {selectedCategory.tariffs.length}{' '}
+                conceptos
+              </p>
+            </div>
+          </>
+        )}
+
+        <div data-category-import-scroll className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {selectedCategory ? (
+            <div>
+              <div className="space-y-2 py-1">
+                {selectedCategoryParts.map((part) => {
+                  const partKey = normalizeCatalogText(part.name);
+                  const isExpanded = expandedTradeParts.has(partKey);
+                  const existingPart = catalog.parts.find(
+                    (item) => normalizeCatalogText(item.name) === partKey,
+                  );
+                  const importedConcepts = part.concepts.filter((concept) =>
+                    existingPart?.concepts.some(
+                      (item) =>
+                        item.unit === concept.unit &&
+                        normalizeCatalogText(item.description) ===
+                          normalizeCatalogText(concept.description),
+                    ),
+                  ).length;
+                  const partIsImported = importedConcepts === part.concepts.length;
+                  return (
+                    <section key={partKey} className="overflow-hidden rounded-lg bg-gray-50">
+                      <div className="grid grid-cols-1 items-center gap-2 p-2 min-[640px]:grid-cols-[minmax(0,1fr)_auto]">
+                        <button
+                          type="button"
+                          aria-label={`${isExpanded ? 'Ocultar' : 'Mostrar'} conceptos de ${part.name}`}
+                          aria-expanded={isExpanded}
+                          onClick={() =>
+                            setExpandedTradeParts((previous) => {
+                              const next = new Set(previous);
+                              if (next.has(partKey)) next.delete(partKey);
+                              else next.add(partKey);
+                              return next;
+                            })
+                          }
+                          className="grid min-h-10 min-w-0 grid-cols-[16px_minmax(0,1fr)] items-center gap-x-2 rounded-md px-2 text-left hover:bg-white min-[640px]:flex"
+                        >
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          <span className="min-w-0 text-sm font-semibold text-gray-800 min-[640px]:flex-1">
+                            {part.name}
+                          </span>
+                          <span className="col-start-2 text-xs text-gray-500 min-[640px]:whitespace-nowrap">
+                            {part.concepts.length}{' '}
+                            {part.concepts.length === 1 ? 'concepto' : 'conceptos'}
+                          </span>
+                        </button>
+                        <Button
+                          variant="secondary"
+                          disabled={partIsImported}
+                          className="justify-self-start min-[640px]:col-start-2 min-[640px]:row-start-1 min-[640px]:justify-self-auto"
+                          aria-label={`${partIsImported ? 'Partida importada' : 'Importar partida'} ${part.name}`}
+                          onClick={() =>
+                            submitCategoryImport(selectedCategory, {
+                              type: 'part',
+                              partName: part.name,
+                            })
+                          }
+                        >
+                          {partIsImported ? <Check size={15} /> : <Download size={15} />}
+                          {partIsImported ? 'En catálogo' : 'Importar partida'}
+                        </Button>
+                      </div>
+                      {isExpanded && (
+                        <ul className="space-y-1 px-3 pb-3">
+                          {part.concepts.map((concept) => {
+                            const isImported = existingPart?.concepts.some(
+                              (item) =>
+                                item.unit === concept.unit &&
+                                normalizeCatalogText(item.description) ===
+                                  normalizeCatalogText(concept.description),
+                            );
+                            return (
+                              <li
+                                key={`${normalizeCatalogText(concept.description)}-${concept.unit}`}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2"
+                              >
+                                <span className="min-w-0 flex-1 text-sm text-gray-700">
+                                  {concept.description}
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    {UNIT_LABELS[concept.unit]}
+                                  </span>
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  disabled={isImported}
+                                  aria-label={`${isImported ? 'Concepto importado' : 'Importar concepto'} ${concept.description}`}
+                                  onClick={() =>
+                                    submitCategoryImport(selectedCategory, {
+                                      type: 'concept',
+                                      partName: part.name,
+                                      description: concept.description,
+                                      unit: concept.unit,
+                                    })
+                                  }
+                                >
+                                  {isImported ? <Check size={15} /> : <Download size={15} />}
+                                  {isImported ? 'En catálogo' : 'Importar'}
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+              <p className="mt-4 text-sm leading-5 text-gray-600">
+                Las unidades y tarifas iniciales se pueden editar después. Los elementos que ya
+                tengas se conservan.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 pb-1">
+              {filteredCategories.map((category) => {
+                const parts = getTradeParts(category);
+                return (
+                  <article
+                    key={category.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-gray-900">{category.name}</h3>
+                      <p className="mt-1 text-sm text-gray-600">{category.description}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {parts.length} partidas · {category.tariffs.length} conceptos
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        aria-label={`Ver detalle ${category.name}`}
+                        onClick={() => {
+                          setSelectedTradeId(category.id);
+                          setExpandedTradeParts(new Set());
+                        }}
+                      >
+                        Ver detalle
+                      </Button>
+                      <Button
+                        aria-label={`Importar categoría ${category.name}`}
+                        onClick={() => submitCategoryImport(category, { type: 'category' })}
+                      >
+                        <Download size={15} /> Importar categoría
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+              {filteredCategories.length === 0 && (
+                <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
+                  No hay categorías que coincidan con esa búsqueda.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </PageLayout>
   );
 }
 
 export function CatalogDetailPage() {
-  const { catalogId } = useParams();
   const loaded = useCatalogStore((state) => state.loaded);
-  const catalog = useCatalogStore((state) => state.catalogs.find((item) => item.id === catalogId));
-  if (!loaded)
+  const catalog = useCatalogStore((state) => state.catalogs[0]);
+  if (!loaded || !catalog)
     return (
-      <PageLayout showBack={false}>
+      <PageLayout>
+        <PageHeaderSkeleton />
         <CatalogSkeleton />
-      </PageLayout>
-    );
-  if (!catalog)
-    return (
-      <PageLayout showBack={false}>
-        <div className="catalog-empty">
-          <h1>{t('catalog.notFound')}</h1>
-          <Link to="/catalogs" className="catalog-back">
-            {t('catalog.backToList')}
-          </Link>
-        </div>
       </PageLayout>
     );
   return <CatalogEditor key={catalog.id} catalog={catalog} />;

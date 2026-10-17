@@ -61,7 +61,9 @@ export function BudgetHeader() {
           </div>
         </div>
       )}
-      <h1 className="text-2xl font-bold text-gray-900 mb-4 print:text-xl">{t('header.title')}</h1>
+      <h1 className="hidden print:block text-2xl font-bold text-gray-900 mb-4 print:text-xl">
+        {t('header.title')}
+      </h1>
       <button
         onClick={toggleClientInfo}
         className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"

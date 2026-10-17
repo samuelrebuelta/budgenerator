@@ -1,12 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
-import { ArrowLeft, Save, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
 import { AddWorkItemButton } from '@/features/budget-editor/ui/AddWorkItemButton';
 import { BudgetSummary } from '@/features/budget-editor/ui/BudgetSummary';
-import { Button, Card, ConfirmModal, Input, Skeleton } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  ConfirmModal,
+  Input,
+  Skeleton,
+  PageHeader,
+  PageHeaderSkeleton,
+} from '@/shared/ui';
 import { generateId } from '@/shared/lib';
 import type { BudgetTemplate } from '@/shared/types';
 import { t } from '@/shared/i18n';
@@ -127,15 +135,14 @@ function TemplateEditor({
   };
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-5xl mx-auto sm:py-8 sm:px-6">
-        <button
-          onClick={() => navigate('/templates')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 px-4 pt-4 sm:px-0 sm:pt-0 cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('templates.backToTemplates')}
-        </button>
+    <div className="page-container">
+      <div className="template-document-content">
+        <PageHeader
+          title={isNew ? t('templates.newTitle') : t('templates.detailTitle')}
+          description="Define las partidas que reutilizarás en tus presupuestos."
+          backTo="/templates"
+          backLabel={t('templates.backToTemplates')}
+        />
 
         {saveError && (
           <p className="field-error" role="alert">
@@ -144,10 +151,6 @@ function TemplateEditor({
         )}
         <fieldset disabled={saving} className="min-w-0">
           <Card className="p-4 sm:p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              {isNew ? t('templates.newTitle') : t('templates.detailTitle')}
-            </h1>
-
             <div className="max-w-sm mb-6">
               <Input
                 id="templateName"
@@ -186,7 +189,7 @@ function TemplateEditor({
                     {t('common.delete')}
                   </Button>
                 )}
-                <Button onClick={handleSave} disabled={saving} className={isNew ? 'ml-auto' : ''}>
+                <Button onClick={handleSave} loading={saving} className={isNew ? 'ml-auto' : ''}>
                   <Save size={16} />
                   {saving ? t('common.saving') : t('common.save')}
                 </Button>
@@ -223,9 +226,9 @@ function TemplateEditor({
 
 function TemplateDetailSkeleton() {
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-5xl mx-auto sm:py-8 sm:px-6">
-        <Skeleton className="h-4 w-32 mb-4 mx-4 mt-4 sm:mx-0 sm:mt-0" />
+    <div className="page-container">
+      <div className="template-document-content">
+        <PageHeaderSkeleton />
         <Card className="p-4 sm:p-8 space-y-6">
           <Skeleton className="h-7 w-48" />
           <div className="max-w-sm space-y-2">

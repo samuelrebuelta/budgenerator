@@ -1,6 +1,6 @@
 # BG-007 — Mejoras de diseño y experiencia de usuario (SDD)
-Estado: Especificado | Prioridad: Alta | Fecha: 2026-10-15
-Alcance: documentación de planificación. No autoriza implementar, hacer merge de código funcional ni desplegar.
+Estado: En revisión (implementación local) | Prioridad: Alta | Fecha: 2026-10-15
+Autorización de ejecución: solicitud del usuario del 16-10-2026 de priorizar e implementar BG-007. No autoriza merge ni despliegue. Plan por fases y evidencia en `BG-007-execution.md`.
 
 ## Objetivo
 Conseguir una UI más compacta, coherente y accesible en desktop y móvil/PWA. Mantener los flujos de negocio, arquitectura FSD, Tailwind CSS 4 y los tokens de marca actuales. Inspiración Liquid Glass solo para navegación móvil, con fallback legible.
@@ -86,3 +86,8 @@ Las fases .3, .4 y .5 podrán paralelizarse evitando ediciones conflictivas del 
 
 ## Definition of Done
 R01–R12 aceptados; capturas antes/después y pruebas adjuntas; sin regresión ni nuevas dependencias pesadas; actualizar `docs/styles-and-responsive.md`, traducciones y documentación de ayuda en la fase final. Sin cambios de datos, facturación, backend ni lógica de presupuestos.
+
+
+## Resultado local del 16 de octubre
+
+R01–R12 implementados en la copia aislada `feat/bg-007-design-ux`; registro de ejecución y comprobaciones en `BG-007-execution.md`. La revisión estática independiente no detectó bloqueantes. Siguen pendientes revisión de usuario, QA físico Safari/PWA y publicación autorizada. Entrega fe20837 fusionada en main local y desplegada en Hosting el 16-10-2026. Push/PR/merge remoto pendientes por rechazo 403 de GitHub; QA físico pendiente.

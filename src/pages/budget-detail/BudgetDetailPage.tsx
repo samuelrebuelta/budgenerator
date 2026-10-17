@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { BudgetStructureButton } from '@/features/budget-structure/BudgetStructureButton';
 import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
 import { BudgetSummary } from '@/features/budget-editor/ui/BudgetSummary';
@@ -11,9 +12,9 @@ import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useCatalogStore } from '@/entities/catalog';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
-import { Button, Card, ConfirmModal, BudgetLimitReached } from '@/shared/ui';
+import { Button, Card, ConfirmModal, BudgetLimitReached, PageHeader } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
-import { Trash2, ArrowLeft, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Trash2, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { t } from '@/shared/i18n';
 
 export function BudgetDetailPage() {
@@ -26,7 +27,6 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
 
   const setActiveBudget = useBudgetStore((s) => s.setActiveBudget);
   const startDraft = useBudgetStore((s) => s.startDraft);
-  const setBudgetCatalog = useBudgetStore((s) => s.setBudgetCatalog);
   const savingDraft = useBudgetStore((s) => s.savingDraft);
   const [saveError, setSaveError] = useState('');
   const saveDraft = useBudgetStore((s) => s.saveDraft);
@@ -51,7 +51,6 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       return !prev;
     });
   const activeBudget = useActiveBudget();
-  const catalogs = useCatalogStore((s) => s.catalogs);
   const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
   const profile = useProfileStore((s) => s.profile);
   const budgetExists = useBudgetStore((s) => s.budgets.some((b) => b.id === budgetId));
@@ -136,14 +135,15 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
 
   if (isDraft && !canCreateBudget()) {
     return (
-      <div className="min-h-screen bg-white sm:bg-gray-100 flex items-center justify-center px-4">
+      <div className="page-container">
+        <PageHeader
+          title="Nuevo presupuesto"
+          description="Consulta las condiciones de tu plan antes de crear otro presupuesto."
+          backTo="/budgets"
+          backLabel="Volver a presupuestos"
+        />
         <div className="w-full max-w-sm">
           <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />
-          <div className="flex justify-center mt-6">
-            <Button variant="secondary" onClick={() => navigate('/')}>
-              {t('common.back')}
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -152,19 +152,17 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   if (isDraft && !draftBudget) return null;
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100 print:bg-white">
-      <div className="max-w-5xl mx-auto sm:py-8 sm:px-6 print:max-w-none print:py-0 print:px-0 print:p-[10mm]">
-        {/* Back link */}
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 px-4 pt-4 sm:px-0 sm:pt-0 no-print cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('budget.backToBudgets')}
-        </button>
+    <div className="page-container budget-document">
+      <div className="budget-document-content print:p-[10mm]">
+        <PageHeader
+          title={isDraft ? 'Nuevo presupuesto' : 'Presupuesto'}
+          description="Define las partidas, revisa los importes y completa los datos del cliente."
+          backTo="/budgets"
+          backLabel="Volver a presupuestos"
+        />
 
         {isDraft && (
-          <div className="mb-4 mx-4 sm:mx-0 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 no-print">
+          <div className="draft-banner mb-4 w-full rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 no-print">
             {t('budget.draftBanner')} <strong>{t('budget.draftBannerBold')}</strong>.
           </div>
         )}
@@ -177,34 +175,12 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
         )}
         <fieldset disabled={savingDraft} className="min-w-0">
           <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
-            <BudgetHeader key={activeBudget?.id || 'new'} />
-
-            {catalogs.length > 0 && (
-              <div className="mt-4 no-print">
-                <label className="block text-xs font-medium text-gray-600">
-                  {t('budget.catalogForBudget')}
-                </label>
-                <select
-                  value={
-                    (catalogs.some((c) => c.id === activeBudget?.catalogId)
-                      ? activeBudget?.catalogId
-                      : activeCatalogId) ?? ''
-                  }
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    setBudgetCatalog(e.target.value);
-                  }}
-                  className="mt-1 h-11 w-full max-w-sm appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-size-[16px] bg-position-[right_8px_center] bg-no-repeat pr-8 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                >
-                  {catalogs.map((catalog) => (
-                    <option key={catalog.id} value={catalog.id}>
-                      {catalog.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">{t('budget.catalogForBudgetHint')}</p>
+            {isDraft && (
+              <div className="mb-5 no-print">
+                <BudgetStructureButton />
               </div>
             )}
+            <BudgetHeader key={activeBudget?.id || 'new'} />
 
             <button
               onClick={togglePartidas}
@@ -230,14 +206,18 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
             {/* Actions Bar */}
             <div className="mt-8 border-t border-gray-200 pt-6 no-print">
               {isDraft ? (
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="danger" onClick={handleDiscard}>
+                <div className="draft-actions flex items-center justify-end gap-2">
+                  <Button className="draft-action-button" variant="danger" onClick={handleDiscard}>
                     <X size={16} />
                     {t('budget.discard')}
                   </Button>
-                  <Button onClick={() => void handleSave()} disabled={savingDraft}>
+                  <Button
+                    className="draft-action-button"
+                    onClick={() => void handleSave()}
+                    loading={savingDraft}
+                  >
                     <Save size={16} />
-                    {savingDraft ? 'Guardando…' : t('budget.saveBudget')}
+                    {savingDraft ? 'Guardando…' : 'Guardar'}
                   </Button>
                 </div>
               ) : (

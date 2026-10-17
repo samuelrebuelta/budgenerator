@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Trash2, LayoutTemplate, Plus } from 'lucide-react';
+import { FileText, LayoutTemplate, Plus } from 'lucide-react';
 import { useTemplateStore } from '@/entities/template';
-import { Button, ConfirmModal, Skeleton } from '@/shared/ui';
+import { Button, ConfirmModal, Skeleton, PageHeader, SwipeActions } from '@/shared/ui';
+import type { SwipeDirection } from '@/shared/ui';
+import { withTimeout } from '@/shared/model/session';
 import { t } from '@/shared/i18n';
 
 export function TemplatesPage() {
@@ -10,41 +12,33 @@ export function TemplatesPage() {
   const loaded = useTemplateStore((s) => s.loaded);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
   const navigate = useNavigate();
+  const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
 
   const handleDelete = async () => {
     if (!templateToDelete) return;
-    await removeTemplate(templateToDelete);
+    await withTimeout(removeTemplate(templateToDelete));
     setTemplateToDelete(null);
   };
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 sm:px-6">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 cursor-pointer"
-        >
-          <ArrowLeft size={14} />
-          {t('common.back')}
-        </button>
-
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{t('templates.title')}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {!loaded
-                ? '\u00A0'
-                : templates.length === 0
-                  ? t('templates.noTemplates')
-                  : t('templates.count', { count: templates.length })}
-            </p>
-          </div>
-          <Button onClick={() => navigate('/templates/new')}>
-            <Plus size={16} />
-            <span className="hidden sm:inline">{t('templates.newTemplate')}</span>
-          </Button>
-        </div>
+    <div className="page-container">
+      <div className="template-library">
+        <PageHeader
+          title={t('templates.title')}
+          description="Guarda las partidas que reutilizas en tus presupuestos."
+          actions={
+            <Button
+              className="page-create-button"
+              data-tour="template-create"
+              aria-label="Crear plantilla"
+              onClick={() => navigate('/templates/new')}
+            >
+              <Plus size={16} />
+              <span className="page-create-label">Crear plantilla</span>
+            </Button>
+          }
+        />
 
         {!loaded ? (
           <div className="space-y-3" role="status" aria-label="Cargando plantillas">
@@ -66,19 +60,25 @@ export function TemplatesPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <LayoutTemplate size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-lg text-gray-500">{t('templates.noTemplates')}</p>
-            <p className="text-sm text-gray-400 mt-1">{t('templates.noTemplatesHint')}</p>
+            <p className="text-sm text-gray-500 mt-1 mb-4">{t('templates.noTemplatesHint')}</p>
+            <Button onClick={() => navigate('/templates/new')}>
+              <Plus size={16} />
+              Crear plantilla
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
             {templates.map((tpl) => (
-              <div
+              <SwipeActions
                 key={tpl.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:border-blue-300 hover:shadow transition-all"
+                label={tpl.name}
+                openDirection={revealed?.id === tpl.id ? revealed.direction : null}
+                onReveal={(direction) => setRevealed(direction ? { id: tpl.id, direction } : null)}
+                actions={[
+                  { id: 'delete', label: 'Eliminar', onAction: () => setTemplateToDelete(tpl.id) },
+                ]}
               >
-                <Link
-                  to={`/templates/${tpl.id}`}
-                  className="flex flex-1 items-center gap-4 min-w-0"
-                >
+                <Link to={`/templates/${tpl.id}`} className="template-list-row">
                   <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
                     <FileText size={20} />
                   </div>
@@ -89,17 +89,7 @@ export function TemplatesPage() {
                     </p>
                   </div>
                 </Link>
-                <button
-                  aria-label={`Eliminar plantilla ${tpl.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTemplateToDelete(tpl.id);
-                  }}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              </SwipeActions>
             ))}
           </div>
         )}

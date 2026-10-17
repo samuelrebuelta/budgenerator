@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BookmarkPlus, Check } from 'lucide-react';
 import { useActiveBudget } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
@@ -10,6 +10,7 @@ import type { BudgetTemplate } from '@/shared/types';
 export function SaveTemplateButton() {
   const budget = useActiveBudget();
   const addTemplate = useTemplateStore((s) => s.addTemplate);
+  const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showInput, setShowInput] = useState(false);
@@ -17,7 +18,8 @@ export function SaveTemplateButton() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!budget || !name.trim()) return;
+    if (!budget || !name.trim() || savingRef.current) return;
+    savingRef.current = true;
     setSaveError(null);
     setSaving(true);
     try {
@@ -25,6 +27,7 @@ export function SaveTemplateButton() {
         id: generateId(),
         name: name.trim(),
         workItems: budget.workItems,
+        ...(budget.ivaRate !== undefined ? { ivaRate: budget.ivaRate } : {}),
         ...(budget.catalogId ? { catalogId: budget.catalogId } : {}),
         ...(budget.adjustment ? { adjustment: budget.adjustment } : {}),
         createdAt: new Date().toISOString(),
@@ -40,6 +43,7 @@ export function SaveTemplateButton() {
       console.error('Failed to save template', error);
       setSaveError(t('error.unknownError'));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -55,9 +59,14 @@ export function SaveTemplateButton() {
 
   if (showInput) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
+      <div className="save-template-form">
+        <div className="save-template-fields">
+          <label className="sr-only" htmlFor="save-template-name">
+            Nombre de la plantilla
+          </label>
           <input
+            id="save-template-name"
+            disabled={saving}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -66,13 +75,14 @@ export function SaveTemplateButton() {
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder={t('templates.namePlaceholder')}
             autoFocus
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-11"
+            className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-11"
           />
           <Button onClick={handleSave} disabled={saving || !name.trim()}>
             {saving ? t('templates.saving') : t('common.save')}
           </Button>
           <Button
             variant="ghost"
+            disabled={saving}
             onClick={() => {
               setShowInput(false);
               setName('');

@@ -40,7 +40,8 @@ interface BudgetState {
   getTotal: () => number;
   getTaskAmount: (task: BudgetTask) => number;
   updateInfo: (info: Partial<BudgetInfo>) => void;
-  addWorkItem: (name: string) => void;
+  addWorkItem: (name: string, catalogPartId?: string) => void;
+  appendStructure: (items: WorkItem[], expected: Budget) => void;
   removeWorkItem: (id: string) => void;
   renameWorkItem: (id: string, name: string) => void;
   addTask: (id: string) => void;
@@ -49,6 +50,8 @@ interface BudgetState {
   applyTariff: (
     workItemId: string,
     id: string,
+    catalogPartId: string,
+    catalogConceptId: string,
     description: string,
     unit: Unit,
     price: number,
@@ -286,11 +289,31 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     getTotal: () => totals().total,
     getTaskAmount: (task) => taskAmount(task, active(get())?.adjustment?.multiplier),
     updateInfo: (info) => edit((b) => ({ ...b, info: { ...b.info, ...info } })),
-    addWorkItem: (name) =>
+    addWorkItem: (name, catalogPartId) =>
       edit((b) => ({
         ...b,
-        workItems: [...b.workItems, { id: generateId(), name, tasks: [emptyTask()] }],
+        workItems: [
+          ...b.workItems,
+          {
+            id: generateId(),
+            name,
+            ...(catalogPartId ? { catalogPartId } : {}),
+            tasks: [emptyTask()],
+          },
+        ],
       })),
+    appendStructure: (items, expected) => {
+      if (active(get()) !== expected || get().savingDraft || !sessionUid())
+        throw new Error('El presupuesto ha cambiado. Vuelve a revisar la estructura.');
+      if (!items.length || items.some((item) => !item.name.trim() || !item.tasks.length))
+        throw new Error('Selecciona al menos un concepto.');
+      const additions = items.map((item) => ({
+        ...item,
+        id: generateId(),
+        tasks: item.tasks.map((task) => ({ ...task, id: generateId() })),
+      }));
+      edit((b) => ({ ...b, workItems: [...b.workItems, ...additions] }));
+    },
     removeWorkItem: (id) =>
       edit((b) => ({ ...b, workItems: b.workItems.filter((wi) => wi.id !== id) })),
     renameWorkItem: (id, name) => modifyItem(id, (wi) => ({ ...wi, name })),
@@ -302,8 +325,24 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
         ...wi,
         tasks: wi.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
       })),
-    applyTariff: (workItemId, id, description, unit, price, cost) =>
-      get().updateTask(workItemId, id, { description, unit, price, cost }),
+    applyTariff: (
+      workItemId,
+      id,
+      catalogPartId,
+      catalogConceptId,
+      description,
+      unit,
+      price,
+      cost,
+    ) => {
+      modifyItem(workItemId, (workItem) => ({
+        ...workItem,
+        catalogPartId,
+        tasks: workItem.tasks.map((task) =>
+          task.id === id ? { ...task, catalogConceptId, description, unit, price, cost } : task,
+        ),
+      }));
+    },
     updateAdjustment: (adjustment) => edit((b) => ({ ...b, adjustment })),
     updateIvaRate: (rate) => edit((b) => ({ ...b, ivaRate: rate })),
     setBudgetCatalog: (id) => edit((b) => ({ ...b, catalogId: id })),

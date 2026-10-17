@@ -23,6 +23,7 @@ import type {
 
 interface FirestoreTask {
   id: string;
+  catalogConceptId?: string;
   description: string;
   quantity: number;
   unit: string;
@@ -33,6 +34,7 @@ interface FirestoreTask {
 interface FirestoreWorkItem {
   id: string;
   name: string;
+  catalogPartId?: string;
   rows?: FirestoreTask[];
   concepts?: FirestoreTask[];
   tasks?: FirestoreTask[];
@@ -57,6 +59,7 @@ function mapFromFirestore(raw: FirestoreBudget): Budget {
     workItems: items.map((wi): WorkItem => ({
       id: wi.id,
       name: wi.name,
+      ...(wi.catalogPartId ? { catalogPartId: wi.catalogPartId } : {}),
       tasks: (wi.tasks ?? wi.concepts ?? wi.rows ?? []).map((task) => ({
         ...task,
         cost: task.cost ?? 0,
@@ -76,6 +79,7 @@ function mapToFirestore(budget: Budget): FirestoreBudget {
     workItems: budget.workItems.map((wi) => ({
       id: wi.id,
       name: wi.name,
+      ...(wi.catalogPartId ? { catalogPartId: wi.catalogPartId } : {}),
       tasks: wi.tasks,
     })),
     createdAt: budget.createdAt,

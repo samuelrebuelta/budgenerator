@@ -13,14 +13,24 @@ const variantStyles: Record<Variant, string> = {
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   ref?: Ref<HTMLButtonElement>;
+  loading?: boolean;
 }
 
-export function Button({ variant = 'primary', className, ref, ...props }: ButtonProps) {
+export function Button({
+  variant = 'primary',
+  className,
+  ref,
+  loading = false,
+  disabled,
+  ...props
+}: ButtonProps) {
   return (
     <button
       ref={ref}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]',
+        'ui-button inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]',
         variantStyles[variant],
         className,
       )}

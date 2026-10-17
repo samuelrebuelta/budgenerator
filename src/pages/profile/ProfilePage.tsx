@@ -4,7 +4,7 @@ import { Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
-import { Button, ConfirmModal, Input, PageLayout } from '@/shared/ui';
+import { Button, ConfirmModal, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
 
@@ -81,100 +81,102 @@ export function ProfilePage() {
         </p>
       )}
       <fieldset disabled={saving || uploading} className="min-w-0">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.title')}</h1>
-          <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
-            <Info size={16} className="shrink-0 mt-0.5" />
-            <span>{t('profile.disclaimer')}</span>
-          </div>
+        <PageHeader
+          title={t('profile.title')}
+          description="Estos datos aparecen en tus presupuestos y documentos."
+        />
+        <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
+          <Info size={16} className="shrink-0 mt-0.5" />
+          <span>{t('profile.disclaimer')}</span>
+        </div>
 
-          {/* Logo */}
-          <div className="mb-6">
-            <label className="text-sm font-medium text-gray-700 block mb-2">
-              {t('profile.logo')}
-            </label>
-            {profile.logo ? (
-              <div className="flex items-center gap-4">
-                <img
-                  src={profile.logo}
-                  alt="Logo de empresa"
-                  className="h-16 w-auto object-contain rounded border border-gray-200 bg-white p-1"
-                />
-                <button
-                  onClick={() => setShowRemoveLogoConfirm(true)}
-                  disabled={uploading}
-                  className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
-                >
-                  <Trash2 size={14} />
-                  {t('profile.removeLogo')}
-                </button>
-              </div>
-            ) : (
-              <div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                  className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors disabled:opacity-50"
-                >
-                  <Upload size={16} />
-                  {uploading ? t('profile.uploading') : t('profile.uploadLogo')}
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Logo */}
+        <div className="mb-6">
+          <label className="text-sm font-medium text-gray-700 block mb-2">
+            {t('profile.logo')}
+          </label>
+          {profile.logo ? (
+            <div className="flex items-center gap-4">
+              <img
+                src={profile.logo}
+                alt="Logo de empresa"
+                className="h-16 w-auto object-contain rounded border border-gray-200 bg-white p-1"
+              />
+              <button
+                onClick={() => setShowRemoveLogoConfirm(true)}
+                disabled={uploading}
+                className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                {t('profile.removeLogo')}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors disabled:opacity-50"
+              >
+                <Upload size={16} />
+                {uploading ? t('profile.uploading') : t('profile.uploadLogo')}
+              </button>
+            </div>
+          )}
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              id="companyName"
-              label={t('profile.companyName')}
-              value={profile.name}
-              onChange={(e) => updateProfile({ name: e.target.value })}
-              placeholder={t('profile.companyNamePlaceholder')}
-            />
-            <Input
-              id="cif"
-              label={t('profile.cif')}
-              value={profile.cif}
-              onChange={(e) => updateProfile({ cif: e.target.value })}
-              placeholder={t('profile.cifPlaceholder')}
-            />
-            <Input
-              id="companyAddress"
-              label={t('profile.address')}
-              value={profile.address}
-              onChange={(e) => updateProfile({ address: e.target.value })}
-              placeholder={t('profile.addressPlaceholder')}
-            />
-            <Input
-              id="phone"
-              label={t('profile.phone')}
-              type="tel"
-              value={profile.phone}
-              onChange={(e) => updateProfile({ phone: e.target.value })}
-              placeholder={t('profile.phonePlaceholder')}
-            />
-            <Input
-              id="companyEmail"
-              label={t('profile.email')}
-              type="email"
-              value={authEmail}
-              readOnly
-              className="bg-gray-100 text-gray-500 cursor-not-allowed"
-            />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            id="companyName"
+            label={t('profile.companyName')}
+            data-tour="company-profile"
+            value={profile.name}
+            onChange={(e) => updateProfile({ name: e.target.value })}
+            placeholder={t('profile.companyNamePlaceholder')}
+          />
+          <Input
+            id="cif"
+            label={t('profile.cif')}
+            value={profile.cif}
+            onChange={(e) => updateProfile({ cif: e.target.value })}
+            placeholder={t('profile.cifPlaceholder')}
+          />
+          <Input
+            id="companyAddress"
+            label={t('profile.address')}
+            value={profile.address}
+            onChange={(e) => updateProfile({ address: e.target.value })}
+            placeholder={t('profile.addressPlaceholder')}
+          />
+          <Input
+            id="phone"
+            label={t('profile.phone')}
+            type="tel"
+            value={profile.phone}
+            onChange={(e) => updateProfile({ phone: e.target.value })}
+            placeholder={t('profile.phonePlaceholder')}
+          />
+          <Input
+            id="companyEmail"
+            label={t('profile.email')}
+            type="email"
+            value={authEmail}
+            readOnly
+            className="bg-gray-100 text-gray-500 cursor-not-allowed"
+          />
+        </div>
 
-          <div className="mt-8 flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? t('common.saving') : t('common.save')}
-            </Button>
-          </div>
+        <div className="mt-8 flex justify-end">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? t('common.saving') : t('common.save')}
+          </Button>
         </div>
       </fieldset>
 

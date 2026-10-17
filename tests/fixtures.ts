@@ -37,14 +37,19 @@ export const catalog = (): TariffCatalog => ({
   name: 'Base de prueba',
   createdAt: '2026-10-14',
   updatedAt: '2026-10-14',
-  tariffs: [
+  parts: [
     {
-      id: 'tariff-a',
-      description: 'Original',
-      unit: 'm2',
-      basePrice: 10.75,
-      cost: 4.5,
-      category: 'Pintura',
+      id: 'part-pintura',
+      name: 'Pintura',
+      concepts: [
+        {
+          id: 'tariff-a',
+          description: 'Original',
+          unit: 'm2',
+          basePrice: 10.75,
+          cost: 4.5,
+        },
+      ],
     },
   ],
 });

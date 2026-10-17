@@ -1,11 +1,11 @@
 # BG-006 — Generación asistida de presupuestos por IA (SDD)
-Estado: Pendiente · Prioridad: Alta · Fecha: 2026-10-15
-Alcance: especificación aprobada para planificación; NO autoriza implementación, despliegue ni cambios de facturación.
+Estado: Archivado · Fuera del roadmap vigente desde 2026-10-18
+Alcance: el usuario retiró la integración de IA del plan. Este documento se conserva como referencia histórica; sus etapas, contratos y criterios no representan trabajo aprobado o pendiente. No se implementará ni desplegará IA bajo este plan.
 
 ## Objetivo y alcance
-Generar un **borrador editable** de presupuesto a partir de texto o audio transcrito, utilizando exclusivamente tarifas pertenecientes a un catálogo autorizado del usuario y reutilizando la plantilla existente seleccionada. Flujo: transcripción (solo voz) → normalización estructurada → recuperación de candidatos → selección IA → validación determinista → editor habitual → guardado explícito.
+Generar un **borrador editable** de presupuesto a partir de texto o audio transcrito, priorizando tarifas pertenecientes a un catálogo autorizado del usuario y reutilizando la plantilla existente seleccionada. Cuando falte cobertura, podrá proponer conceptos nuevos para revisión y cumplimentación explícita por el usuario. Flujo: transcripción (solo voz) → normalización estructurada → recuperación de candidatos → selección IA → validación determinista → editor habitual → guardado explícito.
 
-No incluye generación de nuevas tarifas o plantillas, CRM, pagos automáticos, modificación del motor de cálculo, ni cambios en Web Factory Lite.
+No incluye creación automática de tarifas persistidas en el catálogo o plantillas, CRM, pagos automáticos, modificación del motor de cálculo, ni cambios en Web Factory Lite.
 
 ## Contraste con el repositorio (2026-10-15)
 - Arquitectura FSD `app → pages → features → entities → shared` en `docs/architecture.md`; el editor compartido está en `src/features/budget-editor`.
@@ -88,7 +88,7 @@ Los identificadores candidatos son efímeros, no IDs de presupuesto. El servidor
 - **Despliegue:** no activar Functions ni tocar producción hasta autorización y pruebas de emulador.
 
 ## Criterios de aceptación verificables
-- 100% de partidas aceptadas tienen tarifa del catálogo del UID autenticado; cero precios inventados.
+- Toda línea de catálogo aceptada referencia una tarifa del UID autenticado. Los conceptos sin tarifa se identifican como nuevos, requieren confirmación y precio/coste/unidad/cantidad completados por el usuario; cero precios inventados.
 - No se envía `cost` ni PII de cliente a OpenAI en generación ordinaria.
 - Se preservan IVA, ajuste y tareas de plantilla, sin duplicados introducidos silenciosamente.
 - Sin cantidades inferidas silenciosamente: `null`/pregunta/revisión cuando falta medición.
@@ -98,4 +98,38 @@ Los identificadores candidatos son efímeros, no IDs de presupuesto. El servidor
 - Métricas reales: coste por presupuesto, latencia p50/p95, selección correcta de tarifas en evals predefinidos y tasa de correcciones; fijar umbral de precisión después de crear dataset representativo.
 
 ## Definition of Done
-Cada PR incluye tests ejecutados con resultados, modificaciones mínimas, doc/ADR actualizados y compatibilidad con datos existentes. Esta spec es solo plan; el desarrollo necesita autorización específica. M7 queda fuera del alcance.
+Cada PR incluye tests ejecutados con resultados, modificaciones mínimas, doc/ADR actualizados y compatibilidad con datos existentes. Ejecución local autorizada el 16-10-2026; activar proveedor, facturación o desplegar IA requiere autorización específica. M7 queda fuera del alcance.
+
+## Preparación local BG-006.0
+
+Decisiones y evaluación en `BG-006-baseline.md`; contratos detallados en `BG-006-contracts.md`. Corpus sintético de 13 casos y evaluador offline en scripts/ai-baseline. Prueba real 1 vs 2 pasadas pendiente de clave de servidor y modelo/tarifas verificados; no hay resultados reales ni UI de IA en producción.
+
+## Nota de archivo (18-10-2026)
+
+El wizard guiado de BG-008 es el flujo vigente para elegir partidas, conceptos y cantidades. No hay una tarea posterior de IA ni una reevaluación programada. Si el usuario vuelve a solicitarla, habrá que definir un alcance nuevo antes de implementar.
+
+## Ampliación solicitada — conceptos sin tarifa (16-10-2026)
+
+Si la petición contiene un trabajo que no tiene tarifa adecuada, no omitirlo ni forzar una coincidencia. Proponerlo en un bloque separado con distintivo **«Concepto nuevo · No está en tu catálogo»**, motivo y acción **«Completar y añadir»**. La IA puede sugerir descripción y partida de agrupación; cualquier unidad/cantidad sugerida debe revisarse. Precio y coste interno quedan vacíos, sin estimaciones generadas ni ceros por defecto. El coste interno no se muestra en salida al cliente.
+
+El concepto sólo se incorpora al borrador después de que el usuario confirme descripción, partida, unidad, cantidad positiva, precio y coste válidos. Precio/coste cero sólo mediante entrada explícita del usuario. Mientras esté incompleto no se incluye en totales ni se presenta como presupuesto completo; la revisión muestra cuántos conceptos siguen pendientes. Descartarlo exige acción explícita y no borra el requisito silenciosamente. Si falta información sobre qué trabajo se solicita, preguntar antes de proponerlo.
+
+Distinguir falta de cobertura de falta de categoría/partida: si existe una tarifa adecuada pero falta su agrupación, crear únicamente el WorkItem necesario, reutilizando el precio real del catálogo. Si se trata de un concepto nuevo, añadirlo al presupuesto no modifica el catálogo. Guardar para reutilizar es una acción opcional e independiente, incluida en la ampliación siguiente.
+
+Esto amplía la restricción inicial de «sólo tarifas de catálogo», conservando la prohibición de inventar referencias y precios. Los contratos v1 y el evaluador actuales sólo cubren líneas de catálogo: diseñar v2 antes de implementar esta UI o evaluar cobertura completa. Casos pendientes: petición mixta conocida/nueva, concepto totalmente nuevo, agrupación nueva con tarifa existente, coincidencia dudosa, precio vacío frente a cero explícito, descartar, completar y doble incorporación.
+
+## Ampliación solicitada — reutilizar conceptos nuevos (16-10-2026)
+
+Después de completar y aceptar un concepto nuevo, ofrecer **«Guardar para reutilizar»**, con destinos independientes y desmarcados inicialmente:
+
+- **Guardar en catálogo**: elegir catálogo propio; revisar descripción, categoría, unidad, precio base y coste interno. No copiar total de línea, cantidad, IVA ni el ajuste del presupuesto al precio base.
+- **Añadir a plantilla**: elegir plantilla propia y partida de destino, o crear una partida indicando nombre. Mostrar la tarea que se añadirá. No copiar cantidades específicas de la obra por defecto: cantidad reutilizable confirmada por el usuario, o cantidad pendiente (0 en el dominio actual, mostrada vacía). Conservar todas las demás tareas, IVA, ajuste y catálogo de la plantilla.
+- Se pueden seleccionar ambos destinos o ninguno. Una opción adicional **«Crear plantilla nueva»** solicita nombre y preview de los conceptos seleccionados; sólo incluir esos conceptos, nunca cliente, dirección ni el presupuesto completo sin selección explícita. Crear un catálogo nuevo no forma parte de esta ampliación.
+
+Un botón explícito **«Guardar en los destinos seleccionados»** muestra el resumen y realiza las escrituras. Añadir al borrador de presupuesto no escribe por sí mismo en catálogo ni plantilla. Guardar recursos reutilizables no guarda el presupuesto ni consume su cuota; la UI explica que esos recursos se conservan aunque después se descarte el borrador.
+
+Validar nuevamente UID, propiedad, snapshots y posibles coincidencias de descripción/unidad en cada destino. Ante duplicado, mostrar el concepto existente y permitir omitir; nunca reemplazar silenciosamente. Si hay tarifas parecidas con distinto precio, el usuario revisa la diferencia antes de crear una nueva. Si el catálogo asociado a la plantilla difiere del seleccionado, advertir y exigir resolver destinos; no reasignar catalogId automáticamente.
+
+Crear IDs nuevos y operaciones idempotentes por concepto/destino; deshabilitar doble envío. Ante error parcial, mostrar por separado **«Catálogo: guardado» / «Plantilla: pendiente»**, conservar el borrador y reintentar sólo el destino fallido sin duplicados. No afirmar guardado hasta confirmación de persistencia. Un cambio de sesión cancela/ignora respuestas tardías y elimina estado pendiente del usuario anterior.
+
+No enviar los datos manuales ni costes internos de esta reutilización al modelo. Son escrituras de biblioteca bajo control del usuario. Requiere ampliar contratos v2 y APIs de stores con inserción aditiva/conflictos (las APIs actuales escriben documentos completos y no garantizan concurrencia). Pruebas pendientes: cada destino y ambos, ninguno, plantilla nueva, cantidades pendientes, precio base frente a ajuste/IVA, duplicados, cambios concurrentes, permisos, fallo parcial, reintento, recarga y cambio de UID. Validación real con emuladores antes de considerar seguro el guardado.

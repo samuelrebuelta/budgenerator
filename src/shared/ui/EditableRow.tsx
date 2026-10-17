@@ -181,7 +181,7 @@ function desktopCell(cell: CellDef, label: string): ReactNode {
           step={cell.integer ? '1' : 'any'}
           value={cell.value || ''}
           onChange={(e) => cell.onChange(e.target.value)}
-          className="w-full bg-transparent border-none outline-none text-right text-sm"
+          className="line-field text-right"
           placeholder={cell.placeholder ?? '0'}
         />
       );
@@ -191,7 +191,7 @@ function desktopCell(cell: CellDef, label: string): ReactNode {
           aria-label={label}
           value={cell.value}
           onChange={(e) => cell.onChange(e.target.value)}
-          className="bg-transparent border-none outline-none text-sm text-center cursor-pointer print:appearance-none"
+          className="line-field text-center print:appearance-none"
         >
           {Object.entries(UNIT_LABELS).map(([v, l]) => (
             <option key={v} value={v}>
@@ -227,7 +227,7 @@ function mobileCell(cell: CellDef, label: string): ReactNode {
           step={cell.integer ? '1' : 'any'}
           value={cell.value || ''}
           onChange={(e) => cell.onChange(e.target.value)}
-          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm text-right"
+          className="line-field text-right"
           placeholder={cell.placeholder ?? '0'}
         />
       );
@@ -237,7 +237,7 @@ function mobileCell(cell: CellDef, label: string): ReactNode {
           aria-label={label}
           value={cell.value}
           onChange={(e) => cell.onChange(e.target.value)}
-          className="w-full border border-gray-200 rounded px-2 py-1.5 text-sm cursor-pointer"
+          className="line-field"
         >
           {Object.entries(UNIT_LABELS).map(([v, l]) => (
             <option key={v} value={v}>

@@ -3,10 +3,14 @@ import { toPublicBudget } from '../src/entities/budget/model/publicBudget';
 import { budget } from './fixtures';
 it('allowlists every public field, including legacy budgets with undefined optional fields', () => {
   const b = { ...budget(), catalogId: undefined, ivaRate: undefined, adjustment: undefined };
+  b.workItems[0]!.catalogPartId = 'private-part-id';
+  b.workItems[0]!.tasks[0]!.catalogConceptId = 'private-concept-id';
   const publicData = toPublicBudget(b);
   const serialized = JSON.stringify(publicData);
   expect(serialized).not.toContain('cost');
   expect(serialized).not.toContain('catalogId');
+  expect(serialized).not.toContain('private-part-id');
+  expect(serialized).not.toContain('private-concept-id');
   expect(publicData.workItems[0]!.tasks[0]).toEqual({
     id: 'task',
     description: 'Pintura de paredes',

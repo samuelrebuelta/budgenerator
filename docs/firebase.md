@@ -11,10 +11,10 @@ Servicios utilizados: Authentication con email/contraseña, Firestore y Hosting.
 ```text
 users/{uid}                            Cuenta, plan y contador acumulado
 ├── budgets/{id}                       Partidas y tareas embebidas
-├── tariffCatalogs/{id}                Catálogo con array de tarifas
+├── tariffCatalogs/main-v1             Catálogo único: partidas con conceptos embebidos
 ├── templates/{id}                     Partidas, catálogo, ajuste e IVA
 ├── profile/data                      Datos de empresa y logo PNG como data URL
-└── settings/tariffCatalog             Catálogo activo
+└── settings/tariffCatalog             Referencia compatible al catálogo único
 sharedBudgets/{token}                  DTO público v2 con propietario y caducidad
 ```
 
@@ -35,3 +35,7 @@ Se siguen leyendo nombres antiguos de partidas/tareas. El perfil antiguo en sett
 ## Pruebas y publicación
 
 `pnpm test:integration` ejecuta reglas y navegador sobre emuladores. `pnpm firebase:deploy` publica solo Hosting; `pnpm firebase:deploy:all` publica reglas y Hosting después de validar el entorno y construir. CI no despliega. La cuenta admin de la aplicación no autentica al CLI.
+
+BG-008: inicialización idempotente en transacción sobre `tariffCatalogs/main-v1` y `settings/tariffCatalog`. Datos actuales de prueba: se copia el catálogo activo antes de borrar sobrantes; las tarifas legacy tienen prioridad sobre la base inicial si no existe catálogo. Un fallo de creación no borra fuentes; un fallo de limpieza admite reintento y conserva el destino. No cambian las reglas ni los permisos. La unicidad es un contrato de la aplicación; clientes antiguos aún pueden escribir otros IDs bajo las reglas actuales. No se ejecuta un borrado global ni una migración remota mediante scripts.
+
+La extensión de BG-008 persiste `parts[]`, con conceptos anidados y sin categoría redundante. El adaptador agrupa catálogos planos antiguos por `Tariff.category` y asigna IDs deterministas; la escritura canónica ocurre durante la carga idempotente del catálogo. Los presupuestos y plantillas mantienen sus snapshots históricos: sólo las nuevas selecciones guardan `catalogPartId` y `catalogConceptId` opcionales. Esos IDs son privados y se omiten de los DTO públicos.

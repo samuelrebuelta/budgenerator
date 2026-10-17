@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { RENOVATION_CATEGORIES } from '@/entities/catalog';
+import { compareSpanish, useCatalogStore } from '@/entities/catalog';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
@@ -11,12 +11,20 @@ export function AddWorkItemButton() {
   const [mode, setMode] = useState<'catalog' | 'custom'>('catalog');
   const addWorkItem = useBudgetStore((s) => s.addWorkItem);
   const budget = useActiveBudget();
+  const catalogParts = useCatalogStore((s) => s.catalogs[0]?.parts ?? []);
 
-  const usedNames = useMemo(() => new Set(budget?.workItems.map((wi) => wi.name) ?? []), [budget]);
-
-  const availableCategories = useMemo(
-    () => RENOVATION_CATEGORIES.filter((c) => !usedNames.has(c)),
-    [usedNames],
+  const availableParts = useMemo(
+    () =>
+      [...catalogParts]
+        .filter(
+          (part) =>
+            !budget?.workItems.some(
+              (item) =>
+                item.catalogPartId === part.id || (!item.catalogPartId && item.name === part.name),
+            ),
+        )
+        .sort((a, b) => compareSpanish(a.name, b.name)),
+    [catalogParts, budget],
   );
 
   const handleAdd = () => {
@@ -28,9 +36,10 @@ export function AddWorkItemButton() {
     setMode('catalog');
   };
 
-  const handleSelectCategory = (cat: string) => {
-    if (!cat) return;
-    addWorkItem(cat);
+  const handleSelectPart = (partId: string) => {
+    const part = catalogParts.find((item) => item.id === partId);
+    if (!part) return;
+    addWorkItem(part.name, part.id);
     setName('');
     setIsOpen(false);
     setMode('catalog');
@@ -73,20 +82,22 @@ export function AddWorkItemButton() {
 
       {mode === 'catalog' ? (
         <div>
-          {availableCategories.length > 0 ? (
+          {availableParts.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
-              {availableCategories.map((cat) => (
+              {availableParts.map((part) => (
                 <button
-                  key={cat}
-                  onClick={() => handleSelectCategory(cat)}
+                  key={part.id}
+                  onClick={() => handleSelectPart(part.id)}
                   className="text-sm px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 cursor-pointer transition-colors"
                 >
-                  {cat}
+                  {part.name} · {part.concepts.length} conceptos
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">{t('addWorkItem.allAdded')}</p>
+            <p className="text-xs text-gray-400">
+              Todas las partidas del catálogo ya están añadidas.
+            </p>
           )}
         </div>
       ) : (

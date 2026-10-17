@@ -1629,3 +1629,7 @@ export const BASE_CATALOGS: BaseCatalog[] = [
     ],
   },
 ];
+
+export const TRADE_CATALOGS = BASE_CATALOGS.filter(
+  (catalog) => catalog.id !== 'en_blanco' && catalog.id !== 'reformas_integrales',
+);

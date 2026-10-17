@@ -14,8 +14,17 @@ import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useUserStore } from '@/entities/user';
 import { useCatalogStore } from '@/entities/catalog';
+import type { SwipeDirection } from '@/shared/ui';
+import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
-import { Button, BudgetLimitReached, Modal } from '@/shared/ui';
+import {
+  Button,
+  BudgetLimitReached,
+  Modal,
+  PageHeader,
+  SwipeActions,
+  ConfirmModal,
+} from '@/shared/ui';
 export function BudgetsPage() {
   const budgets = useBudgetStore((s) => s.budgets);
   const startFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
@@ -23,20 +32,30 @@ export function BudgetsPage() {
   const catalogs = useCatalogStore((s) => s.catalogs);
   const account = useUserStore((s) => s.userData);
   const canCreate = useUserStore((s) => s.canCreateBudget);
+  const deleteBudget = useBudgetStore((s) => s.deleteBudget);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const total = useBudgetStore((s) => s.getBudgetTotal);
   const navigate = useNavigate();
   const [chooseTemplate, setChooseTemplate] = useState(false);
   const [limit, setLimit] = useState(false);
   const [search, setSearch] = useState('');
+  const [year, setYear] = useState('');
   const [page, setPage] = useState(0);
   const totalValue = budgets.reduce((sum, b) => sum + total(b.id), 0);
+  const years = [...new Set(budgets.map((budget) => budget.info.date.slice(0, 4)))]
+    .filter((value) => /^\d{4}$/.test(value))
+    .sort((a, b) => b.localeCompare(a));
   const filtered = [...budgets]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .filter((b) =>
-      `${b.info.clientName} ${b.info.address} ${b.info.budgetNumber}`
-        .toLocaleLowerCase('es')
-        .includes(search.toLocaleLowerCase('es')),
+    .filter(
+      (b) =>
+        (!year || b.info.date.startsWith(year)) &&
+        `${b.info.clientName} ${b.info.address} ${b.info.budgetNumber}`
+          .toLocaleLowerCase('es')
+          .includes(search.toLocaleLowerCase('es')),
     );
+  const hasFilters = !!search || !!year;
   const safePage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 8) - 1));
   const visible = filtered.slice(safePage * 8, safePage * 8 + 8);
   const create = () => {
@@ -46,17 +65,21 @@ export function BudgetsPage() {
   };
   return (
     <div className="page-container">
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">RESUMEN</p>
-          <h1>Presupuestos</h1>
-          <p>Consulta y gestiona tus presupuestos.</p>
-        </div>
-        <Button onClick={create}>
-          <Plus size={17} />
-          Nuevo presupuesto
-        </Button>
-      </div>
+      <PageHeader
+        title="Presupuestos"
+        description="Consulta y gestiona tus presupuestos."
+        actions={
+          <Button
+            className="page-create-button"
+            data-tour="budget-create"
+            aria-label="Crear presupuesto"
+            onClick={create}
+          >
+            <Plus size={17} />
+            <span className="page-create-label">Nuevo presupuesto</span>
+          </Button>
+        }
+      />
       <section className="overview-grid" aria-label="Resumen de actividad">
         <div className="overview-card featured">
           <p>Valor presupuestado</p>
@@ -75,7 +98,7 @@ export function BudgetsPage() {
           <Layers3 />
           <strong>{String(catalogs.length + templates.length).padStart(2, '0')}</strong>
           <small>
-            {catalogs.length} catálogos · {templates.length} plantillas
+            {catalogs.length} catálogo · {templates.length} plantillas
           </small>
         </div>
       </section>
@@ -84,17 +107,34 @@ export function BudgetsPage() {
           <h2 id="budget-list-heading">
             Tus presupuestos<span>{budgets.length}</span>
           </h2>
-          <div className="search-box">
-            <Search size={14} />
-            <input
-              aria-label="Buscar presupuestos"
-              placeholder="Busca un cliente, dirección o número"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+          <div className="budget-list-filters">
+            <div className="search-box">
+              <Search size={14} />
+              <input
+                aria-label="Buscar presupuestos"
+                placeholder="Busca un cliente, dirección o número"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+            <select
+              aria-label="Filtrar presupuestos por año"
+              value={year}
+              onChange={(event) => {
+                setYear(event.target.value);
                 setPage(0);
               }}
-            />
+            >
+              <option value="">Todos los años</option>
+              {years.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="budget-list">
@@ -107,38 +147,46 @@ export function BudgetsPage() {
                 <span />
               </div>
               {visible.map((b) => (
-                <Link to={`/budget/${b.id}`} key={b.id} className="budget-list-row">
-                  <div className="budget-identity">
-                    <span className="document-number">{b.info.budgetNumber || '—'}</span>
-                    <div className="min-w-0">
-                      <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
-                      <p>{b.info.address || `${b.workItems.length} partidas de trabajo`}</p>
+                <SwipeActions
+                  key={b.id}
+                  label={b.info.clientName || 'Proyecto sin nombre'}
+                  openDirection={revealed?.id === b.id ? revealed.direction : null}
+                  onReveal={(direction) => setRevealed(direction ? { id: b.id, direction } : null)}
+                  actions={[{ id: 'delete', label: 'Eliminar', onAction: () => setDeleting(b.id) }]}
+                >
+                  <Link to={`/budget/${b.id}`} className="budget-list-row">
+                    <div className="budget-identity">
+                      <span className="document-number">{b.info.budgetNumber || '—'}</span>
+                      <div className="min-w-0">
+                        <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
+                        <p>{b.info.address || `${b.workItems.length} partidas de trabajo`}</p>
+                      </div>
                     </div>
-                  </div>
-                  <span className="budget-date">
-                    {b.info.date
-                      ? new Date(b.info.date + 'T12:00:00').toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })
-                      : 'Sin fecha'}
-                  </span>
-                  <strong className="budget-amount">{formatCurrency(total(b.id))}</strong>
-                  <ArrowUpRight size={17} className="text-gray-400" />
-                </Link>
+                    <span className="budget-date">
+                      {b.info.date
+                        ? new Date(b.info.date + 'T12:00:00').toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Sin fecha'}
+                    </span>
+                    <strong className="budget-amount">{formatCurrency(total(b.id))}</strong>
+                    <ArrowUpRight size={17} className="text-gray-400" />
+                  </Link>
+                </SwipeActions>
               ))}
             </>
           ) : (
             <div className="empty-workspace">
               <FileText size={35} />
-              <h2>{search ? 'Sin resultados' : 'No hay presupuestos'}</h2>
+              <h2>{hasFilters ? 'Sin resultados' : 'No hay presupuestos'}</h2>
               <p>
-                {search
+                {hasFilters
                   ? 'No encontramos presupuestos con esos datos.'
                   : 'Crea un presupuesto para empezar.'}
               </p>
-              {!search && (
+              {!hasFilters && (
                 <Button onClick={create}>
                   Crear mi primer presupuesto
                   <ArrowRight size={16} />
@@ -175,15 +223,24 @@ export function BudgetsPage() {
         </div>
       </section>
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-5 mt-5">
-        <p className="text-xs text-gray-500">Gestiona los precios desde tus catálogos.</p>
-        <Link
-          className="text-xs text-blue-700 font-semibold flex items-center gap-2"
-          to="/catalogs"
-        >
-          Explora tus catálogos
+        <p className="text-xs text-gray-500">Gestiona los precios desde tu catálogo.</p>
+        <Link className="text-xs text-blue-700 font-semibold flex items-center gap-2" to="/catalog">
+          Explora tu catálogo
           <ArrowUpRight size={14} />
         </Link>
       </div>
+      <ConfirmModal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="¿Borrar presupuesto?"
+        message="Se eliminará este presupuesto. Esta acción no se puede deshacer."
+        confirmLabel="Borrar presupuesto"
+        onConfirm={async () => {
+          if (!deleting) return;
+          await withTimeout(deleteBudget(deleting));
+          setDeleting(null);
+        }}
+      />
       <Modal open={chooseTemplate} onClose={() => setChooseTemplate(false)}>
         <h2 className="font-display text-2xl mb-2">Crear presupuesto</h2>
         <p className="text-xs text-gray-500 mb-5">

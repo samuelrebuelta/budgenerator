@@ -3,7 +3,7 @@ import { KeyRound, ChevronRight, Crown, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
 import { CONTACT_EMAIL } from '@/shared/lib';
-import { Card, PageLayout } from '@/shared/ui';
+import { Card, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
 export function AccountPage() {
@@ -18,7 +18,10 @@ export function AccountPage() {
   return (
     <PageLayout>
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('account.title')}</h1>
+        <PageHeader
+          title={t('account.title')}
+          description="Gestiona tu acceso y consulta las condiciones de tu plan."
+        />
         <p className="text-sm text-gray-500 mb-6">{email}</p>
 
         {/* Plan info */}

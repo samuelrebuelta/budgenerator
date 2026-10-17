@@ -10,3 +10,9 @@ export { PageLayout } from './PageLayout';
 export { Select } from './Select';
 export { Skeleton, SkeletonList } from './Skeleton';
 export { BudgetLimitReached } from './BudgetLimitReached';
+
+export { PageHeader, BackButton, PageHeaderSkeleton } from './PageHeader';
+export { CompanyAvatar } from './CompanyAvatar';
+export { InfoPopover } from './InfoPopover';
+export { SwipeActions } from './SwipeActions';
+export type { SwipeDirection } from './SwipeActions';

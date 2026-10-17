@@ -78,3 +78,102 @@ it('retains IVA when a template becomes a draft', () => {
   expect(store.getState().draftBudget?.ivaRate).toBe(0.21);
   expect(store.getState().draftBudget?.workItems[0]?.id).not.toBe('work');
 });
+it('appends a reviewed structure atomically, assigns fresh IDs, and rejects stale or repeated confirmations', () => {
+  store.getState().startDraft();
+  store.getState().updateIvaRate(0.21);
+  const snapshot = store.getState().draftBudget!;
+  const items = [
+    {
+      id: 'source',
+      name: 'Pintura',
+      catalogPartId: 'part-pintura',
+      tasks: [
+        {
+          id: 'source-task',
+          catalogConceptId: 'concept-pintura',
+          description: 'Pintura',
+          quantity: 0,
+          unit: 'm2' as const,
+          price: 12,
+          cost: 6,
+        },
+      ],
+    },
+  ];
+  store.getState().appendStructure(items, snapshot);
+  const next = store.getState().draftBudget!;
+  expect(next.workItems).toHaveLength(1);
+  expect(next.workItems[0]?.id).not.toBe('source');
+  expect(next.workItems[0]?.catalogPartId).toBe('part-pintura');
+  expect(next.workItems[0]?.tasks[0]?.catalogConceptId).toBe('concept-pintura');
+  expect(next.workItems[0]?.tasks[0]?.quantity).toBe(0);
+  expect(next.ivaRate).toBe(0.21);
+  expect(() => store.getState().appendStructure(items, snapshot)).toThrow();
+  expect(store.getState().draftBudget?.workItems).toHaveLength(1);
+});
+
+it('keeps the selected catalog part and concept IDs on an editable budget snapshot', () => {
+  store.getState().startDraft();
+  store.getState().addWorkItem('Pintura', 'part-pintura');
+  const part = store.getState().draftBudget!.workItems[0]!;
+  const line = part.tasks[0]!;
+  store
+    .getState()
+    .applyTariff(
+      part.id,
+      line.id,
+      'part-pintura',
+      'concept-paint',
+      'Pintura interior',
+      'm2',
+      18,
+      8,
+    );
+
+  const snapshot = store.getState().draftBudget!.workItems[0]!;
+  expect(snapshot.catalogPartId).toBe('part-pintura');
+  expect(snapshot.tasks[0]).toMatchObject({
+    catalogConceptId: 'concept-paint',
+    description: 'Pintura interior',
+    price: 18,
+  });
+  store.getState().updateTask(snapshot.id, snapshot.tasks[0]!.id, { description: 'Ajuste manual' });
+  expect(store.getState().draftBudget!.workItems[0]!.tasks[0]).toMatchObject({
+    catalogConceptId: 'concept-paint',
+    description: 'Ajuste manual',
+  });
+});
+
+it('keeps a budget snapshot editable after its catalog part has been removed', async () => {
+  const snapshot = {
+    ...budget('orphaned-source'),
+    workItems: [
+      {
+        id: 'snapshot-part',
+        name: 'Pintura histórica',
+        catalogPartId: 'removed-part',
+        tasks: [
+          {
+            id: 'snapshot-concept',
+            catalogConceptId: 'removed-concept',
+            description: 'Acabado guardado',
+            quantity: 3,
+            unit: 'm2' as const,
+            price: 18,
+            cost: 8,
+          },
+        ],
+      },
+    ],
+  };
+  api.fetchBudgets.mockResolvedValue([snapshot]);
+  await store.getState().loadBudgets('alice');
+  store.getState().setActiveBudget('orphaned-source');
+  store.getState().updateTask('snapshot-part', 'snapshot-concept', { quantity: 4 });
+  await flushBudgetWrites();
+  expect(api.saveBudget.mock.calls[0]?.[1].workItems[0]).toMatchObject({
+    catalogPartId: 'removed-part',
+    name: 'Pintura histórica',
+    tasks: [{ catalogConceptId: 'removed-concept', quantity: 4, description: 'Acabado guardado' }],
+  });
+});

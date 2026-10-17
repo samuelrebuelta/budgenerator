@@ -1,5 +1,6 @@
 import {
   collection,
+  runTransaction,
   deleteDoc,
   doc,
   getDoc,
@@ -10,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
 import type { Tariff, TariffCatalog } from '@/shared/types';
+import { catalogParts } from '../model/migrate';
 
 function legacyTariffsCol(uid: string) {
   return collection(db, 'users', uid, 'tariffs');
@@ -65,4 +67,21 @@ export async function fetchActiveTariffCatalogId(uid: string): Promise<string | 
 
 export async function saveActiveTariffCatalogId(uid: string, catalogId: string | null) {
   await setDoc(activeCatalogDoc(uid), { activeCatalogId: catalogId }, { merge: true });
+}
+
+/** The fixed destination is read inside the transaction: concurrent tabs never overwrite it. */
+export async function ensureSingleCatalog(
+  uid: string,
+  initial: TariffCatalog,
+): Promise<TariffCatalog> {
+  return runTransaction(db, async (transaction) => {
+    const ref = doc(catalogsCol(uid), 'main-v1');
+    const snapshot = await transaction.get(ref);
+    const stored = snapshot.exists() ? (snapshot.data() as TariffCatalog) : initial;
+    const catalog = { ...stored, parts: catalogParts(stored) };
+    delete catalog.tariffs;
+    if (!snapshot.exists() || 'tariffs' in stored) transaction.set(ref, catalog as TariffCatalog);
+    transaction.set(activeCatalogDoc(uid), { activeCatalogId: catalog.id }, { merge: true });
+    return catalog;
+  });
 }

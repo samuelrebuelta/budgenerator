@@ -37,7 +37,7 @@ interface AuthState {
   error: string | null;
   init: () => () => void;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -66,9 +66,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
   signUp: async (email, password) => {
     set({ error: null, loading: true });
     try {
-      await signUpWithEmail(email, password);
+      const credential = await signUpWithEmail(email, password);
+      set({ loading: false });
+      return credential.user.uid;
     } catch (e) {
       set({ error: mapAuthError(e), loading: false });
+      return null;
     }
   },
 
