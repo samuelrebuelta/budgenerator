@@ -16,6 +16,8 @@ Los loaders capturan una revisión de sesión y descartan respuestas de una cuen
 
 Públicas: `/login`, `/shared/:token` y `/solicitar-presupuesto/:token`. Privadas: `/projects`, `/projects/:projectId`, `/budgets`, `/budget/:budgetId`, `/catalog` (con redirecciones desde `/catalogs` y `/catalogs/:catalogId`), `/templates`, `/templates/:templateId`, `/profile`, `/estimator` (con redirección desde `/profile/estimador-publico`), `/profile/solicitudes`, `/account`, `/account/password` y `/help`. `/catalog` abre directamente el catálogo único de la cuenta. `new` identifica un borrador de presupuesto o plantilla. `/admin` requiere el rol existente y protegido. `/` redirige a `/projects`, la entrada operativa principal.
 
+La navegación principal ordena `/budgets`, `/projects` y `/profile/solicitudes`. `/catalog` se abre desde el menú de cuenta, debajo de Mi empresa; su `PageHeader` ofrece retorno explícito a `/budgets`.
+
 Las páginas se cargan con `lazy`. Un fallback visible evita pantallas vacías durante la resolución inicial. AppShell conserva navegación, estado de guardado y acceso a cuenta. El permiso real lo decide Firestore.
 
 ## Presupuestos y plantillas

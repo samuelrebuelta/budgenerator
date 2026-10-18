@@ -312,9 +312,8 @@ test('primary routes keep tabs and secondary routes use the common return withou
   await expect(createBudget.getByText('Nuevo presupuesto')).toBeHidden();
   expect(await createBudget.evaluate((button) => button.getBoundingClientRect().width)).toBe(44);
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
-    'Proyectos',
     'Presupuestos',
-    'Catálogo',
+    'Proyectos',
     'Solicitudes',
   ]);
   await page.setViewportSize({ width: 1440, height: 844 });
@@ -387,7 +386,6 @@ test('places budgets first in desktop and mobile navigation', async ({ page }) =
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
     'Presupuestos',
     'Proyectos',
-    'Catálogo',
     'Solicitudes',
   ]);
 });
@@ -619,7 +617,7 @@ test('UX quota and missing catalog screens keep the common header and safe retur
   await expect(page.locator('[data-page-header]')).toBeVisible();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Catálogo');
-  await expect(page.locator('.back-button')).toHaveCount(0);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
 });
 
 test('budget list filters by year and centers its search icon', async ({ page }) => {
@@ -749,10 +747,9 @@ test('UX help has real links and contextual information supports keyboard and Es
   await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const nav = page.getByRole('navigation', { name: 'Navegación móvil' });
-  const rect = await nav.boundingBox();
-  expect(rect!.x).toBeGreaterThan(0);
-  expect(rect!.x + rect!.width).toBeLessThan(320);
+  await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
+  await expect(page.locator('.workspace-header')).toBeHidden();
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
 });
 
 test('UX company avatar contains a wide logo and falls back when the image fails', async ({
@@ -940,7 +937,6 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await expect(accountMenu).toBeFocused();
   const tabs = page.getByRole('navigation', { name: 'Navegación móvil' });
   for (const [name, path] of [
-    ['Catálogo', '/catalog'],
     ['Solicitudes', '/profile/solicitudes'],
     ['Presupuestos', '/budgets'],
   ]) {
@@ -953,6 +949,18 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   }
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  await page
+    .getByRole('dialog', { name: 'Menú de cuenta' })
+    .getByRole('link', { name: 'Catálogo', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/catalog$/);
+  await expect(tabs).toHaveCount(0);
+  await expect(page.locator('.workspace-header')).toBeHidden();
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(tabs).toBeVisible();
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   await page
     .getByRole('dialog', { name: 'Menú de cuenta' })

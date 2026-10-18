@@ -217,7 +217,7 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     page.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('link'),
-  ).toHaveText(['Proyectos', 'Presupuestos', 'Catálogo', 'Solicitudes']);
+  ).toHaveText(['Presupuestos', 'Proyectos', 'Solicitudes']);
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole('button', { name: 'Crear presupuesto', exact: true }).click();
