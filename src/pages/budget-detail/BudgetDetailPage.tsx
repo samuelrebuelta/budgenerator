@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useBlocker, useLocation, Link } from 'react-router-dom';
 import { BudgetStructureButton } from '@/features/budget-structure/BudgetStructureButton';
 import { BudgetHeader } from './components/BudgetHeader';
@@ -24,8 +24,19 @@ import {
 } from '@/entities/quote-estimator';
 import { Button, Card, ConfirmModal, BudgetLimitReached, PageHeader } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
-import { Trash2, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Trash2,
+  Save,
+  X,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  Copy,
+  FolderKanban,
+} from 'lucide-react';
 import { t } from '@/shared/i18n';
+import { getBudgetSlotsUsed } from '@/shared/lib/utils';
+import { useProjectStore } from '@/entities/project';
 
 export function BudgetDetailPage() {
   const { budgetId = 'new' } = useParams<{ budgetId: string }>();
@@ -37,6 +48,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const isDraft = budgetId === 'new';
   const leadId = new URLSearchParams(location.search).get('leadId');
   const uid = useAuthStore((s) => s.user?.uid);
+  const allowDraftNavigation = useRef(false);
 
   const setActiveBudget = useBudgetStore((s) => s.setActiveBudget);
   const startDraft = useBudgetStore((s) => s.startDraft);
@@ -49,10 +61,18 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const saveDraft = useBudgetStore((s) => s.saveDraft);
   const discardDraft = useBudgetStore((s) => s.discardDraft);
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
+  const startDraftFromBudget = useBudgetStore((s) => s.startDraftFromBudget);
+  const acceptBudget = useBudgetStore((s) => s.acceptBudget);
+  const withdrawBudgetAcceptance = useBudgetStore((s) => s.withdrawBudgetAcceptance);
+  const linkProject = useBudgetStore((s) => s.linkProject);
+  const convertBudgetToProject = useProjectStore((s) => s.convertBudgetToProject);
   const draftBudget = useBudgetStore((s) => s.draftBudget);
   const canCreateBudget = useUserStore((s) => s.canCreateBudget);
   const userData = useUserStore((s) => s.userData);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAcceptConfirm, setShowAcceptConfirm] = useState(false);
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
+  const [showConvertConfirm, setShowConvertConfirm] = useState(false);
   const partidasKey = `collapsed-partidas-${budgetId ?? 'new'}`;
   const [showPartidas, setShowPartidas] = useState(() => {
     try {
@@ -72,6 +92,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const profile = useProfileStore((s) => s.profile);
   const budgetExists = useBudgetStore((s) => s.budgets.some((b) => b.id === budgetId));
   const budgetsLoaded = useBudgetStore((s) => s.loaded);
+  const readOnlySource = !!activeBudget?.acceptedAt || !!activeBudget?.projectId;
 
   // Initialize draft or set active budget
   useEffect(() => {
@@ -113,6 +134,10 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   // Block in-app navigation when draft has content
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     if (currentLocation.pathname === nextLocation.pathname) return false;
+    if (allowDraftNavigation.current) {
+      allowDraftNavigation.current = false;
+      return false;
+    }
     const draft = useBudgetStore.getState().draftBudget;
     if (!draft) return false;
     return draft.info.clientName !== '' || draft.info.address !== '' || draft.workItems.length > 0;
@@ -185,7 +210,9 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           backLabel="Volver a presupuestos"
         />
         <div className="w-full max-w-sm">
-          <BudgetLimitReached totalBudgetsCreated={userData?.totalBudgetsCreated ?? 0} />
+          <BudgetLimitReached
+            budgetSlotsUsed={getBudgetSlotsUsed(userData?.totalBudgetsCreated ?? 0)}
+          />
         </div>
       </div>
     );
@@ -216,7 +243,11 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       <div className="budget-document-content print:p-[10mm]">
         <PageHeader
           title={isDraft ? 'Nuevo presupuesto' : 'Presupuesto'}
-          description="Define las partidas, revisa los importes y completa los datos del cliente."
+          description={
+            readOnlySource
+              ? 'Este presupuesto se conserva como referencia de la oferta aceptada.'
+              : 'Define las partidas, revisa los importes y completa los datos del cliente.'
+          }
           backTo="/budgets"
           backLabel="Volver a presupuestos"
         />
@@ -233,8 +264,38 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
             {saveError}
           </p>
         )}
-        <fieldset disabled={savingDraft} className="min-w-0">
-          <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
+        {activeBudget?.projectId && (
+          <div
+            className="mb-4 rounded-xl bg-[#e8eee3] px-4 py-4 text-sm text-[#183e3b]"
+            role="status"
+          >
+            <p className="font-semibold">Presupuesto convertido en proyecto</p>
+            <p className="mt-1">La oferta aceptada permanece aquí como documento de referencia.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 font-semibold text-[#183e3b] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                to={`/projects/${activeBudget.projectId}`}
+              >
+                <FolderKanban size={16} />
+                Abrir proyecto
+              </Link>
+            </div>
+          </div>
+        )}
+        {activeBudget?.acceptedAt && !activeBudget.projectId && (
+          <div
+            className="mb-4 rounded-xl bg-[#f2f2e9] px-4 py-4 text-sm text-[#36473e]"
+            role="status"
+          >
+            <p className="font-semibold">
+              Presupuesto aceptado el{' '}
+              {new Date(activeBudget.acceptedAt).toLocaleDateString('es-ES')}.
+            </p>
+            <p className="mt-1">Puedes retirarlo para volver a editar o convertirlo en proyecto.</p>
+          </div>
+        )}
+        <Card className="p-4 sm:p-8 print:shadow-none print:border-none print:rounded-none">
+          <fieldset disabled={savingDraft || readOnlySource} className="min-w-0">
             {isDraft && (
               <div className="mb-5 no-print">
                 <BudgetStructureButton />
@@ -350,44 +411,74 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
             </div>
 
             <BudgetSummary />
+          </fieldset>
 
-            {/* Actions Bar */}
-            <div className="mt-8 border-t border-gray-200 pt-6 no-print">
-              {isDraft ? (
-                <div className="draft-actions flex items-center justify-end gap-2">
-                  <Button className="draft-action-button" variant="danger" onClick={handleDiscard}>
-                    <X size={16} />
-                    {t('budget.discard')}
-                  </Button>
-                  <Button
-                    className="draft-action-button"
-                    onClick={() => void handleSave()}
-                    loading={savingDraft}
-                  >
-                    <Save size={16} />
-                    {savingDraft ? 'Guardando…' : 'Guardar'}
-                  </Button>
+          {/* Actions Bar */}
+          <div className="mt-8 border-t border-gray-200 pt-6 no-print">
+            {isDraft ? (
+              <div className="draft-actions flex items-center justify-end gap-2">
+                <Button className="draft-action-button" variant="danger" onClick={handleDiscard}>
+                  <X size={16} />
+                  {t('budget.discard')}
+                </Button>
+                <Button
+                  className="draft-action-button"
+                  onClick={() => void handleSave()}
+                  loading={savingDraft}
+                >
+                  <Save size={16} />
+                  {savingDraft ? 'Guardando…' : 'Guardar'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <ShareButton />
+                  {activeBudget && <ExportPdfButton budget={activeBudget} company={profile} />}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <ShareButton />
-                    {activeBudget && <ExportPdfButton budget={activeBudget} company={profile} />}
-                  </div>
-                  <div className="flex justify-end">
-                    <SaveTemplateButton />
-                  </div>
-                  <div className="flex justify-end">
+                <div className="flex justify-end">
+                  <SaveTemplateButton />
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {activeBudget?.projectId ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        allowDraftNavigation.current = true;
+                        startDraftFromBudget(budgetId);
+                        navigate('/budget/new');
+                      }}
+                    >
+                      <Copy size={16} />
+                      Crear copia para editar
+                    </Button>
+                  ) : activeBudget?.acceptedAt ? (
+                    <>
+                      <Button variant="secondary" onClick={() => setShowWithdrawConfirm(true)}>
+                        Retirar aceptación
+                      </Button>
+                      <Button onClick={() => setShowConvertConfirm(true)}>
+                        <FolderKanban size={16} />
+                        Convertir en proyecto
+                      </Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setShowAcceptConfirm(true)}>
+                      <CheckCircle2 size={16} />
+                      Marcar como aceptado
+                    </Button>
+                  )}
+                  {!readOnlySource && (
                     <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
                       <Trash2 size={16} />
                       {t('budget.deleteBudget')}
                     </Button>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </Card>
-        </fieldset>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
 
       <ConfirmModal
@@ -402,6 +493,44 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           }
           setShowDeleteConfirm(false);
           navigate('/', { replace: true });
+        }}
+      />
+      <ConfirmModal
+        open={showAcceptConfirm}
+        onClose={() => setShowAcceptConfirm(false)}
+        title="¿Marcar como aceptado?"
+        message="El presupuesto quedará bloqueado para edición. Podrás retirar la aceptación mientras no se haya convertido en proyecto."
+        confirmLabel="Marcar como aceptado"
+        variant="primary"
+        onConfirm={async () => {
+          await acceptBudget(budgetId);
+          setShowAcceptConfirm(false);
+        }}
+      />
+      <ConfirmModal
+        open={showWithdrawConfirm}
+        onClose={() => setShowWithdrawConfirm(false)}
+        title="¿Retirar la aceptación?"
+        message="El presupuesto volverá a ser editable y podrás modificar la oferta."
+        confirmLabel="Retirar aceptación"
+        variant="primary"
+        onConfirm={async () => {
+          await withdrawBudgetAcceptance(budgetId);
+          setShowWithdrawConfirm(false);
+        }}
+      />
+      <ConfirmModal
+        open={showConvertConfirm}
+        onClose={() => setShowConvertConfirm(false)}
+        title="¿Convertir en proyecto?"
+        message="Se guardará una copia independiente de esta oferta para seguir el avance. El presupuesto quedará como referencia de solo lectura y liberará una plaza de tu plan."
+        confirmLabel="Convertir en proyecto"
+        variant="primary"
+        onConfirm={async () => {
+          const projectId = await convertBudgetToProject(budgetId);
+          linkProject(budgetId, projectId);
+          setShowConvertConfirm(false);
+          navigate(`/projects/${projectId}`);
         }}
       />
     </div>

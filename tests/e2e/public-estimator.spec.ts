@@ -6,6 +6,7 @@ const project = 'demo-cimbra';
 const email = 'estimator-owner@example.test';
 const password = 'Local-emulator-Only-2026';
 let ownerUid = '';
+const previewPort = process.env.E2E_PREVIEW_PORT ?? '4173';
 
 test.beforeAll(async () => {
   if (
@@ -119,10 +120,12 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar y generar enlace', exact: true }).click();
 
-  const publicUrl = page.getByLabel('URL pública', { exact: true });
+  const publicUrl = page.getByLabel('Enlace público', { exact: true });
   await expect(publicUrl).toBeVisible();
   const href = await publicUrl.inputValue();
-  expect(href).toMatch(/^http:\/\/127\.0\.0\.1:4173\/solicitar-presupuesto\/[A-Za-z0-9_-]{32}$/);
+  expect(href).toMatch(
+    new RegExp(`^http://127\\.0\\.0\\.1:${previewPort}/solicitar-presupuesto/[A-Za-z0-9_-]{32}$`),
+  );
   expect(href).not.toContain('estimator-owner');
 
   let publicResponse: unknown;
@@ -152,12 +155,10 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.getByRole('checkbox', { name: 'Baño' }).check();
   await page.getByRole('checkbox', { name: 'Salón' }).check();
   await page.getByRole('radio', { name: 'Reforma integral', exact: true }).check();
-  await expect(
-    page.getByText(/Selecciona las estancias que incluye la reforma integral/),
-  ).toBeVisible();
+  await expect(page.getByText(/Añade cada estancia por separado/)).toBeVisible();
   await page.getByLabel('Calidad · Baño 1', { exact: true }).selectOption('high');
-  await page.getByLabel('Superficie aproximada de baño 1 (m²)', { exact: true }).nth(0).fill('8');
-  await page.getByLabel('Superficie aproximada de baño 1 (m²)', { exact: true }).nth(1).fill('10');
+  await page.getByLabel('Superficie aproximada de baño 1 (m²)', { exact: true }).fill('8');
+  await page.getByLabel('Superficie aproximada de salón 1 (m²)', { exact: true }).fill('10');
   await page.getByLabel('Nombre', { exact: true }).fill('Lucía Martín');
   await page.getByLabel('Email', { exact: true }).fill('lucia@example.test');
   await page.getByLabel('Teléfono', { exact: true }).fill('+34 600 123 456');
@@ -170,8 +171,8 @@ test('owner publishes a simplified public estimate and can revoke its token link
     .getByRole('button', { name: 'Enviar solicitud y ver mi estimación', exact: true })
     .click();
   const result = page.getByRole('region', { name: 'El rango aproximado de tu reforma' });
-  await expect(result).toContainText('204,00');
-  await expect(result).toContainText('292,00');
+  await expect(result).toContainText('276,00');
+  await expect(result).toContainText('364,00');
   await expect(result).not.toContainText('paint');
   await expect(page.getByRole('status')).toContainText('Hemos recibido tu solicitud');
   await expect.poll(() => publicResponse).toBeDefined();
@@ -185,7 +186,7 @@ test('owner publishes a simplified public estimate and can revoke its token link
   expect((publicResponse as { services?: unknown[] }).services).toHaveLength(12);
   expect(leadResponse).toEqual({
     received: true,
-    estimate: { minimumCents: 20400, maximumCents: 29200, currency: 'EUR', includesVat: false },
+    estimate: { minimumCents: 27600, maximumCents: 36400, currency: 'EUR', includesVat: false },
   });
   expect(JSON.stringify(publicResponse)).not.toContain(ownerUid);
   expect(JSON.stringify(publicResponse)).not.toMatch(/cost|basePrice|catalog|paint/i);
@@ -211,12 +212,12 @@ test('owner publishes a simplified public estimate and can revoke its token link
   const accountMenu = page.getByRole('dialog', { name: 'Menú de cuenta' });
   await expect(accountMenu.getByRole('link', { name: 'Mi empresa' })).toBeVisible();
   await expect(accountMenu.getByRole('link', { name: 'Mi cuenta' })).toBeVisible();
-  await expect(accountMenu.getByRole('link', { name: 'Ayuda y guía' })).toBeVisible();
+  await expect(accountMenu.getByRole('link', { name: 'Ayuda' })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     page.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('link'),
-  ).toHaveText(['Presupuestos', 'Plantillas', 'Catálogo', 'Solicitudes']);
+  ).toHaveText(['Proyectos', 'Presupuestos', 'Catálogo', 'Solicitudes']);
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole('button', { name: 'Crear presupuesto', exact: true }).click();
@@ -226,7 +227,7 @@ test('owner publishes a simplified public estimate and can revoke its token link
     'lucia@example.test',
   );
   await expect(page.getByRole('region', { name: 'Contexto de la solicitud' })).toContainText(
-    '204,00',
+    '276,00',
   );
   await expect(page.getByRole('region', { name: 'Contexto de la solicitud' })).toContainText(
     'Inicio previsto: En 1–3 meses',
@@ -241,7 +242,7 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await expect(page.getByText('Lucía Martín', { exact: true })).toHaveCount(0);
 
   await page.goto('/profile/estimador-publico');
-  await page.getByRole('button', { name: 'Revocar', exact: true }).click();
+  await page.getByRole('button', { name: 'Revocar enlace', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Enlace revocado');
   await page.goto(href);
   await expect(

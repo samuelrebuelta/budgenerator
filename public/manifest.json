@@ -27,7 +27,7 @@
   "id": "/",
   "scope": "/",
   "lang": "es",
-  "orientation": "any",
+  "orientation": "portrait",
   "display_override": ["standalone"],
   "shortcuts": [
     {

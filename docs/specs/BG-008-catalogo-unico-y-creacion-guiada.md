@@ -29,6 +29,12 @@ El modal se denomina “Importar por categoría”. Explica que las bases sirven
 
 Tras un registro correcto se inicia una guía breve con un reformista ilustrado que recorre Presupuestos, Catálogo, Plantillas y Mi empresa. Resalta los controles de cada pantalla sin bloquear su interacción, permite avanzar, retroceder u omitir, y se puede repetir desde Ayuda. No se activa al iniciar sesión en una cuenta existente ni guarda progreso en Firebase; el UID pendiente vive en `sessionStorage` y el cierre se recuerda por cuenta en `localStorage`. Respeta movimiento reducido.
 
+## Extensión del catálogo base para BG-009
+
+El importador ofrece 20 bases: la nueva `Reforma general` más los 19 oficios especializados existentes. `Reforma general` contiene ocho familias de trabajo amplias y 19 conceptos de ejemplo; electricidad se presenta como una sola familia. Las cuentas nuevas se inicializan con esta base general. Las cuentas existentes no se migran: pueden importarla manualmente, sin duplicar descripción/unidad ni sustituir precios personalizados. `En blanco` y la antigua base integral no se ofrecen como bases de importación.
+
+El tour de bienvenida incorpora Proyectos como primera parada y explica que el seguimiento parte de aceptar y convertir un presupuesto. Mantiene el recorrido por Presupuestos, Catálogo, Plantillas y Mi empresa, ahora con cinco pantallas.
+
 ## Asistente opcional de estructura
 
 Entrada «Crear paso a paso» en presupuesto nuevo; continuar disponible la edición directa. Sin IA, proveedores ni nuevas dependencias. Separado de BG-006.
@@ -87,3 +93,5 @@ Ampliación Partidas/Conceptos (17-10-2026): esta revisión anida conceptos bajo
 Ajuste y publicación (17-10-2026): footer común eliminado; importador `/catalog` con búsqueda sin tildes y vista previa para los 19 oficios especializados disponibles. Importación categorizada, repetible sin duplicados, conserva conceptos y tarifas existentes y mantiene alta manual. Evidencia: `docs/testing-evidence/bg008-trade-import-desktop.png` y `bg008-trade-import-mobile.png`. Verificados previamente 56 unitarios, 16 reglas, 25 E2E, lint y formato; `pnpm firebase:deploy` volvió a generar el build normal (PWA `0b60a78045085d16`) y publicó sólo Hosting en https://budgenerator.web.app. HTML y service worker remotos coinciden byte a byte con `dist`; sin merge, cambios de reglas ni modificaciones de datos. Prueba física PWA pendiente.
 
 Ajuste y publicación final (18-10-2026): importación selectiva por categoría/partida/concepto y tour de bienvenida para nuevos registros con repetición desde Ayuda. Verificados tras el merge: 60 unitarios, 16 reglas, 27 E2E en `demo-cimbra`, lint, build, formato y detector Impeccable sin hallazgos. Capturas responsive de importador y guía bajo `docs/testing-evidence/bg008-category-import-*` y `bg008-welcome-tour-*`. Integrado en `main` local y remoto y desplegado sólo a Hosting, PWA `b0f3ecf6be0ff903`; HTML y service worker remotos coinciden con `dist`. Sin cambios de reglas ni datos. BG-008 queda cerrado; la comprobación PWA física es un seguimiento opcional, no bloqueante.
+
+Extensión de catálogo general para BG-009 (18-10-2026, local): añade la base común simplificada a las 19 especializadas y la usa al inicializar cuentas nuevas. No modifica catálogos guardados ni se ha desplegado.

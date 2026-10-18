@@ -1,11 +1,17 @@
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, setDoc } from 'firebase/firestore';
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 const email = 'budgenerator@gmail.com';
 const password = 'Local-emulator-Only-2026';
-const project = 'demo-cimbra';
+const project = process.env.E2E_FIREBASE_PROJECT_ID ?? 'demo-cimbra';
+const authEmulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
+const authEmulatorUrl = `http://${authEmulatorHost}`;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 const fakeBudget = (id: string, name: string, address: string, price: number, number: string) => ({
   id,
   info: {
@@ -37,12 +43,12 @@ const fakeBudget = (id: string, name: string, address: string, price: number, nu
 test.beforeAll(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST)
     throw new Error('Only local emulators are allowed.');
-  await fetch(`http://127.0.0.1:9199/emulator/v1/projects/${project}/accounts`, {
+  await fetch(`${authEmulatorUrl}/emulator/v1/projects/${project}/accounts`, {
     method: 'DELETE',
   });
   const account = async (mail: string) => {
     const response = await fetch(
-      'http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key',
+      `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,7 +64,11 @@ test.beforeAll(async () => {
   const quotaUid = await account('quota@example.test');
   const env = await initializeTestEnvironment({
     projectId: project,
-    firestore: { host: '127.0.0.1', port: 8180 },
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
   });
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
@@ -157,7 +167,15 @@ test('UX headers are consistent, roots have no return links and child returns pr
   page,
 }) => {
   await login(page);
-  for (const path of ['/budgets', '/catalogs', '/templates', '/profile', '/account', '/admin']) {
+  for (const path of [
+    '/budgets',
+    '/projects',
+    '/catalogs',
+    '/templates',
+    '/profile',
+    '/account',
+    '/admin',
+  ]) {
     await page.goto(path);
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
@@ -172,8 +190,8 @@ test('UX headers are consistent, roots have no return links and child returns pr
   await expect(createBudget.getByText('Nuevo presupuesto')).toBeHidden();
   expect(await createBudget.evaluate((button) => button.getBoundingClientRect().width)).toBe(44);
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
+    'Proyectos',
     'Presupuestos',
-    'Plantillas',
     'Catálogo',
     'Solicitudes',
   ]);
@@ -183,7 +201,12 @@ test('UX headers are consistent, roots have no return links and child returns pr
   await expect(desktopCreateBudget.getByText('Nuevo presupuesto')).toBeVisible();
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const path of ['/budget/demo-cocina', '/templates/new', '/account/password']) {
+    for (const path of [
+      '/budget/demo-cocina',
+      '/projects/missing',
+      '/templates/new',
+      '/account/password',
+    ]) {
       await page.goto(path);
       await expect(page.locator('[data-page-header]')).toBeVisible();
       await expect(page.locator('.workspace-footer')).toHaveCount(0);
@@ -191,6 +214,14 @@ test('UX headers are consistent, roots have no return links and child returns pr
       else await expect(page.locator('.workspace-header')).toBeHidden();
       await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
       await expect(page.locator('.back-button')).toBeVisible();
+      if (path === '/projects/missing') {
+        await expect(
+          page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: 'No se ha podido cargar el proyecto', exact: true }),
+        ).toHaveCount(0);
+      }
       const backBounds = await page.locator('.back-button').boundingBox();
       const titleBounds = await page.getByRole('heading', { level: 1 }).boundingBox();
       expect(titleBounds!.y).toBeGreaterThanOrEqual(backBounds!.y + backBounds!.height);
@@ -218,7 +249,29 @@ test('UX headers are consistent, roots have no return links and child returns pr
   await expect(page.locator('.back-button')).toHaveAttribute('href', '/account');
 });
 
-test('new registrations get a replayable tour that follows real navigation', async ({ page }) => {
+test('opens projects from the root', async ({ page }) => {
+  await login(page);
+  await page.goto('/');
+
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+});
+
+test('places projects first in desktop and mobile navigation', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await expect(page.locator('.sidebar nav a').first()).toHaveText('Proyectos');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
+    'Proyectos',
+    'Presupuestos',
+    'Catálogo',
+    'Solicitudes',
+  ]);
+});
+
+test('new registrations include the project-first tour and allow replay', async ({ page }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: '¿No tienes cuenta? Regístrate' }).click();
   await page.getByLabel('Email', { exact: true }).fill('new-account-tour@example.test');
@@ -226,41 +279,48 @@ test('new registrations get a replayable tour that follows real navigation', asy
   await page.getByRole('button', { name: 'Registrarse', exact: true }).click();
 
   const tour = page.locator('[data-app-tour]');
-  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(page).toHaveURL(/\/projects$/);
   await expect(tour).toBeVisible();
   await expect(tour).toHaveAttribute('data-step', '1');
+  await expect(
+    tour.getByRole('heading', { name: 'El seguimiento empieza en Proyectos' }),
+  ).toBeVisible();
   await expect
     .poll(async () => {
-      const target = await page.locator('[data-tour="budget-create"]').boundingBox();
+      const target = await page.locator('[data-page-header]').boundingBox();
       const spotlight = await page.locator('.app-tour-spotlight').boundingBox();
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg008-welcome-tour-desktop.png' });
+  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-projects-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(tour).toBeVisible();
   await expect
     .poll(async () => {
-      const target = await page.locator('[data-tour="budget-create"]').boundingBox();
+      const target = await page.locator('[data-page-header]').boundingBox();
       const spotlight = await page.locator('.app-tour-spotlight').boundingBox();
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg008-welcome-tour-mobile.png' });
+  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-projects-mobile.png' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await tour.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(page).toHaveURL(/\/catalog$/);
+  await expect(page).toHaveURL(/\/budgets$/);
   await expect(tour).toHaveAttribute('data-step', '2');
+  await tour.getByRole('button', { name: 'Siguiente' }).click();
+  await expect(page).toHaveURL(/\/catalog$/);
+  await expect(tour).toHaveAttribute('data-step', '3');
 
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   await page
-    .getByRole('navigation', { name: 'Navegación principal' })
-    .getByRole('link', { name: 'Plantillas' })
+    .getByRole('dialog', { name: 'Menú de cuenta' })
+    .getByRole('link', { name: 'Plantillas de presupuestos' })
     .click();
   await expect(page).toHaveURL(/\/templates$/);
-  await expect(tour).toHaveAttribute('data-step', '3');
+  await expect(tour).toHaveAttribute('data-step', '4');
   await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page).toHaveURL(/\/profile$/);
-  await expect(tour).toHaveAttribute('data-step', '4');
+  await expect(tour).toHaveAttribute('data-step', '5');
   const companyTarget = page.locator('[data-tour="company-profile"]');
   await expect(companyTarget).toBeVisible();
   await expect
@@ -270,7 +330,7 @@ test('new registrations get a replayable tour that follows real navigation', asy
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg008-welcome-tour-profile.png' });
+  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-profile.png' });
   await tour.getByRole('button', { name: 'Ir a presupuestos' }).click();
   await expect(tour).toHaveCount(0);
   await page.reload();
@@ -278,10 +338,69 @@ test('new registrations get a replayable tour that follows real navigation', asy
 
   await page.goto('/help');
   await page.getByRole('button', { name: 'Ver guía interactiva' }).click();
-  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(tour).toHaveAttribute('data-step', '1');
   await expect(tour).toBeVisible();
   await tour.getByRole('button', { name: 'Omitir guía' }).click();
   await expect(tour).toHaveCount(0);
+});
+
+test('existing catalog can import the general base with eight broad families', async ({ page }) => {
+  await login(page);
+  await page.goto('/catalog');
+  await page.getByRole('button', { name: 'Importar por categoría' }).click();
+  const importer = page.getByRole('dialog', { name: 'Importar por categoría' });
+  await importer.getByRole('searchbox', { name: 'Buscar categoría' }).fill('reforma general');
+  await importer.getByRole('button', { name: 'Ver detalle Reforma general' }).click();
+  await expect(
+    importer.getByRole('heading', { name: 'Reforma general', exact: true }),
+  ).toBeVisible();
+  await expect(importer).toContainText('8 partidas · 19 conceptos');
+  await expect(
+    importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }),
+  ).toBeVisible();
+  for (const category of ['Circuitos', 'Enchufes', 'Iluminación'])
+    await expect(
+      importer.getByRole('button', { name: `Mostrar conceptos de ${category}`, exact: true }),
+    ).toHaveCount(0);
+
+  await importer.getByRole('button', { name: 'Importar categoría Reforma general' }).click();
+  await expect(importer).toBeHidden();
+  const familyOptions = await page
+    .getByLabel('Filtrar por partida')
+    .locator('option')
+    .allTextContents();
+  expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
+    'Albañilería y tabiquería',
+    'Carpintería',
+    'Demolición y residuos',
+    'Electricidad',
+    'Fontanería y sanitarios',
+    'Pintura',
+    'Servicios auxiliares',
+    'Suelos y revestimientos',
+  ]);
+});
+
+test('an account without a catalog starts with the general renovation families', async ({
+  page,
+}) => {
+  await login(page, 'other@example.test');
+  await page.goto('/catalog');
+  await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
+  const partFilter = page.getByLabel('Filtrar por partida');
+  await expect(partFilter).toBeVisible();
+  const familyOptions = await partFilter.locator('option').allTextContents();
+  expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
+    'Albañilería y tabiquería',
+    'Carpintería',
+    'Demolición y residuos',
+    'Electricidad',
+    'Fontanería y sanitarios',
+    'Pintura',
+    'Servicios auxiliares',
+    'Suelos y revestimientos',
+  ]);
 });
 
 test('catalog imports a category, a part, or one concept from category details', async ({
@@ -444,11 +563,48 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
   await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeFocused();
 });
 
+test('explains project acceptance, supplements, and progress history in help', async ({ page }) => {
+  await login(page);
+  await page.goto('/help');
+  await page
+    .getByRole('navigation', { name: 'Temas de ayuda' })
+    .getByRole('link', { name: 'Proyectos y seguimiento', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/help#proyectos$/);
+
+  const acceptanceQuestion = page
+    .locator('details')
+    .filter({ hasText: '¿Cómo convierto un presupuesto aceptado en proyecto?' });
+  await acceptanceQuestion.locator('summary').click();
+  await expect(acceptanceQuestion).toContainText('Convertir en proyecto');
+  await acceptanceQuestion.getByRole('link', { name: 'Ver presupuestos para aceptar' }).click();
+  await expect(page).toHaveURL(/\/budgets$/);
+
+  await page.goto('/help#proyectos');
+  const supplementQuestion = page
+    .locator('details')
+    .filter({ hasText: '¿Cómo registro un imprevisto y actualizo el total del proyecto?' });
+  await supplementQuestion.locator('summary').click();
+  await expect(supplementQuestion).toContainText('total actualizado');
+  await expect(supplementQuestion).toContainText('anúlala indicando un motivo');
+  await supplementQuestion.getByRole('link', { name: 'Abrir proyectos y ampliaciones' }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+
+  await page.goto('/help#proyectos');
+  const progressQuestion = page
+    .locator('details')
+    .filter({ hasText: '¿Puedo corregir la fecha de un trabajo o ver cómo ha avanzado?' });
+  await progressQuestion.locator('summary').click();
+  await expect(progressQuestion).toContainText('avance acumulado por fecha');
+  await expect(progressQuestion).toContainText('no cambia el avance actual');
+});
+
 test('UX help has real links and contextual information supports keyboard and Escape', async ({
   page,
 }) => {
   await login(page);
-  await page.getByRole('link', { name: 'Ayuda y guía', exact: true }).click();
+  await page.getByRole('link', { name: 'Ayuda', exact: true }).click();
   await expect(page).toHaveURL(/help$/);
   await expect(page.getByRole('heading', { name: 'Ayuda y guía', exact: true })).toBeVisible();
   await page.getByText('¿Cómo preparo mi primer presupuesto?', { exact: true }).click();
@@ -601,6 +757,13 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Mi cuenta', exact: true })).toHaveCount(1);
   await expect(page.getByText('Al día', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  const desktopMenu = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
+  await expect(desktopMenu).toBeVisible();
+  await desktopMenu.locator('.modal-panel').screenshot({
+    path: 'docs/testing-evidence/bg009-account-menu-panel-1440.png',
+  });
+  await page.keyboard.press('Escape');
   await page.screenshot({
     path: 'docs/testing-evidence/budgenerator-dashboard-desktop.png',
     fullPage: true,
@@ -616,10 +779,25 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await accountMenu.click();
   const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
   await expect(dialog).toBeVisible();
+  await dialog.locator('.modal-panel').screenshot({
+    path: 'docs/testing-evidence/bg009-account-menu-panel-390.png',
+  });
   await expect(dialog.getByRole('link', { name: 'Mi empresa', exact: true })).toBeVisible();
-  await expect(dialog.getByRole('link', { name: 'Ayuda y guía', exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole('link', { name: 'Plantillas de presupuestos', exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Estimador público', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Ayuda', exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Mi cuenta', exact: true })).toBeVisible();
-  await expect(dialog.getByRole('link', { name: 'Administración', exact: true })).toBeVisible();
+  const menuBlocks = dialog.locator('.account-menu-section');
+  await expect(menuBlocks).toHaveCount(3);
+  await expect(menuBlocks.nth(0)).toContainText('Panel de administración');
+  await expect(menuBlocks.nth(1)).toContainText('Mi empresa');
+  await expect(menuBlocks.nth(1)).toContainText('Plantillas de presupuestos');
+  await expect(menuBlocks.nth(1)).toContainText('Estimador público');
+  await expect(menuBlocks.nth(2)).toContainText('Mi cuenta');
+  await expect(menuBlocks.nth(2)).toContainText('Ayuda');
+  await expect(menuBlocks.nth(2)).toContainText('Cerrar sesión');
   for (let i = 0; i < 7; i++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
   await page.keyboard.press('Escape');
@@ -628,7 +806,6 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   const tabs = page.getByRole('navigation', { name: 'Navegación móvil' });
   for (const [name, path] of [
     ['Catálogo', '/catalog'],
-    ['Plantillas', '/templates'],
     ['Solicitudes', '/profile/solicitudes'],
     ['Presupuestos', '/budgets'],
   ]) {
@@ -641,6 +818,12 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   }
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  await page
+    .getByRole('dialog', { name: 'Menú de cuenta' })
+    .getByRole('link', { name: 'Plantillas de presupuestos', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/templates$/);
   await page.setViewportSize({ width: 390, height: 500 });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
@@ -653,6 +836,30 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.locator('.back-button').click();
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('regular accounts see the account menu without the admin block', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email', { exact: true }).fill('other@example.test');
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Presupuestos', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.account-menu-section')).toHaveCount(2);
+  await expect(
+    dialog.getByRole('link', { name: 'Panel de administración', exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.getByRole('link', { name: 'Mi empresa', exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole('link', { name: 'Plantillas de presupuestos', exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Estimador público', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Mi cuenta', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Ayuda', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Cerrar sesión', exact: true })).toBeVisible();
 });
 test('direct draft URLs survive reload and template IVA persists', async ({ page }) => {
   await login(page);
@@ -775,7 +982,7 @@ test('single catalog initializes automatically and search is accent insensitive 
   await page.goto('/catalog');
   const search = page.getByRole('textbox', { name: 'Buscar partidas y conceptos', exact: true });
   await search.fill('FONTANERIA');
-  await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(2);
+  await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(4);
   const descriptions = await page
     .getByLabel('Descripción', { exact: true })
     .evaluateAll((inputs) => inputs.map((el) => (el as HTMLInputElement).value));
@@ -785,7 +992,9 @@ test('single catalog initializes automatically and search is accent insensitive 
       a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }),
     ),
   );
-  await page.getByRole('button', { name: 'Añadir concepto a Fontanería', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Añadir concepto a Fontanería y sanitarios', exact: true })
+    .click();
   const conceptForm = page.locator('form').filter({
     has: page.getByLabel('Nombre del concepto', { exact: true }),
   });
@@ -912,7 +1121,9 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await trigger.click();
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 3 · Fontanería');
+  await expect(dialog.getByRole('status').first()).toHaveText(
+    'Paso 2 de 3 · Fontanería y sanitarios',
+  );
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
 });
 
@@ -926,7 +1137,9 @@ test('guided structure has one concept step per selected part and accepts option
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('checkbox', { name: /^Demolición/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 4 · Fontanería');
+  await expect(dialog.getByRole('status').first()).toHaveText(
+    'Paso 2 de 4 · Fontanería y sanitarios',
+  );
   await expect(dialog.getByText('Más utilizadas', { exact: false })).toHaveCount(0);
   const plumbingConcept = dialog.getByRole('checkbox', { name: /Cambio de tuberías \(ml\)/ });
   await plumbingConcept.check();
@@ -934,11 +1147,15 @@ test('guided structure has one concept step per selected part and accepts option
     .getByRole('spinbutton', { name: 'Cantidad para Cambio de tuberías (ml)' })
     .fill('4.5');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 3 de 4 · Demolición');
-  const demolitionConcept = dialog.getByRole('checkbox', { name: /Demolición de tabique/ });
+  await expect(dialog.getByRole('status').first()).toHaveText(
+    'Paso 3 de 4 · Demolición y residuos',
+  );
+  const demolitionConcept = dialog.getByRole('checkbox', {
+    name: /Demolición y retirada de escombros/,
+  });
   await demolitionConcept.check();
   await expect(
-    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición de tabique' }),
+    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición y retirada de escombros' }),
   ).toHaveValue('');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(dialog.getByRole('status').first()).toHaveText('Paso 4 de 4 · Revisión');
@@ -946,7 +1163,7 @@ test('guided structure has one concept step per selected part and accepts option
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(demolitionConcept).toBeChecked();
   await expect(
-    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición de tabique' }),
+    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición y retirada de escombros' }),
   ).toHaveValue('');
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(plumbingConcept).toBeChecked();
@@ -1020,9 +1237,9 @@ test('new budget selects a catalog partida and searches concepts within that par
   await login(page, 'other@example.test');
   await page.goto('/budget/new');
   await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
-  await page.getByRole('button', { name: /Fontanería · \d+ conceptos/ }).click();
+  await page.getByRole('button', { name: /Fontanería y sanitarios · \d+ conceptos/ }).click();
   await expect(page.getByRole('textbox', { name: 'Nombre de la partida' })).toHaveValue(
-    'Fontanería',
+    'Fontanería y sanitarios',
   );
 
   const pickerTrigger = page.getByRole('button', {
@@ -1138,4 +1355,246 @@ test('a missing boot bundle exposes recovery instead of leaving an endless spinn
   await page.unroute(`**${entry}`);
   await page.getByRole('button', { name: 'Reparar instalación y reintentar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible();
+});
+
+test('budget acceptance and supplements keep a distinct, traceable project summary', async ({
+  page,
+}) => {
+  await login(page);
+
+  await page.goto('/budget/demo-estudio');
+  await page.getByRole('button', { name: 'Marcar como aceptado', exact: true }).click();
+  let dialog = page.getByRole('dialog', { name: '¿Marcar como aceptado?', exact: true });
+  await dialog.getByRole('button', { name: 'Marcar como aceptado', exact: true }).click();
+  await expect(page.getByLabel('Nombre del cliente', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Retirar aceptación', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: '¿Retirar la aceptación?', exact: true });
+  await dialog.getByRole('button', { name: 'Retirar aceptación', exact: true }).click();
+  await expect(page.getByLabel('Nombre del cliente', { exact: true })).toBeEnabled();
+
+  await page.goto('/budget/demo-cocina');
+  await page.getByRole('button', { name: 'Marcar como aceptado', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: '¿Marcar como aceptado?', exact: true });
+  await dialog.getByRole('button', { name: 'Marcar como aceptado', exact: true }).click();
+  await page.getByRole('button', { name: 'Convertir en proyecto', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: '¿Convertir en proyecto?', exact: true });
+  await dialog.getByRole('button', { name: 'Convertir en proyecto', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/projects\/.+$/);
+  await expect(page.getByRole('status', { name: 'Estado: Pendiente' })).toBeVisible();
+  await expect(page.locator('[data-project-summary]')).toBeVisible();
+  await expect(page.locator('[data-project-work-items]')).toBeVisible();
+  expect(
+    await page.locator('[data-project-summary]').evaluate((summary) => {
+      const workItems = document.querySelector('[data-project-work-items]');
+      return (
+        workItems &&
+        getComputedStyle(summary).backgroundColor !== getComputedStyle(workItems).backgroundColor
+      );
+    }),
+  ).toBe(true);
+  await expect(
+    page.getByRole('heading', { name: 'Vivienda en Chamberí · Madrid', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel('Avance del proyecto: 0%')).toHaveAttribute('aria-valuenow', '0');
+  await page.getByRole('button', { name: 'Ver progreso', exact: true }).click();
+  await expect(page.getByText('Aún no hay conceptos terminados', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar evolución', exact: true }).click();
+  const finishTask = page.getByRole('button', {
+    name: 'Marcar como terminado: Preparación y acabado de paredes',
+  });
+  await finishTask.focus();
+  await page.keyboard.press('Space');
+  await expect(page.getByLabel('Avance del proyecto: 100%')).toHaveAttribute(
+    'aria-valuenow',
+    '100',
+  );
+  await expect(page.getByRole('status', { name: 'Estado: Completado' })).toBeVisible();
+  await page.waitForTimeout(250);
+  await expect(page.getByText('Completado', { exact: false }).first()).toBeVisible();
+  const taskCompletionDate = page.getByLabel(
+    'Cambiar fecha de finalización: el concepto Preparación y acabado de paredes',
+  );
+  const today = await taskCompletionDate.inputValue();
+  const todayLabel = await page.evaluate(
+    (date) =>
+      new Date(`${date}T12:00:00`).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    today,
+  );
+  await page.getByRole('button', { name: 'Ver progreso', exact: true }).click();
+  const historyTable = page.getByRole('table', { name: 'Detalle diario del avance acumulado' });
+  await expect(
+    page.getByRole('img', { name: /Avance acumulado del proyecto por fecha/ }),
+  ).toBeVisible();
+  await expect(historyTable.getByRole('row')).toHaveCount(2);
+  await expect(historyTable.getByRole('row').nth(1)).toContainText(todayLabel);
+  await page.getByRole('button', { name: 'Cerrar evolución', exact: true }).click();
+
+  await taskCompletionDate.fill('2020-05-04');
+  await expect(taskCompletionDate).toHaveValue('2020-05-04');
+  await expect(page.getByLabel('Avance del proyecto: 100%')).toHaveAttribute(
+    'aria-valuenow',
+    '100',
+  );
+  await expect(page.getByRole('status', { name: 'Estado: Completado' })).toBeVisible();
+
+  const workItemCompletionDate = page.getByLabel(
+    'Cambiar fecha de finalización: la partida Pintura',
+  );
+  await workItemCompletionDate.fill('2020-05-05');
+  await expect(workItemCompletionDate).toHaveValue('2020-05-05');
+  await expect(taskCompletionDate).toHaveValue('2020-05-05');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg009-project-detail-390.png',
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: 'Ver progreso', exact: true }).click();
+  const historyDialog = page.getByRole('dialog', { name: 'Evolución del proyecto', exact: true });
+  const panelBounds = await historyDialog.locator('.modal-panel').evaluate((panel) => {
+    const bounds = panel.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right };
+  });
+  expect(panelBounds.left).toBeGreaterThanOrEqual(0);
+  expect(panelBounds.right).toBeLessThanOrEqual(390);
+  await expect(historyTable.getByRole('row').nth(1)).toContainText('5 de mayo de 2020');
+  await expect(historyTable.getByRole('row').nth(1)).toContainText('100%');
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg009-project-history-390.png',
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: 'Cerrar evolución', exact: true }).click();
+
+  const reopenTask = page.getByRole('button', {
+    name: 'Reabrir: Preparación y acabado de paredes',
+  });
+  await reopenTask.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Avance del proyecto: 0%')).toHaveAttribute('aria-valuenow', '0');
+  await page.getByRole('button', { name: 'Completar partida', exact: true }).click();
+  await expect(page.getByLabel('Avance del proyecto: 100%')).toHaveAttribute(
+    'aria-valuenow',
+    '100',
+  );
+  await page.waitForTimeout(250);
+
+  await page.getByRole('button', { name: 'Nueva ampliación', exact: true }).click();
+  await page.getByLabel('Concepto imprevisto').fill('Punto de luz adicional');
+  await page.getByLabel('Cantidad').fill('2');
+  await page.getByLabel('Precio unitario sin IVA').fill('20');
+  await page.getByRole('button', { name: 'Guardar ampliación', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Estado: En curso' })).toBeVisible();
+  const updatedTotal = page
+    .locator('[data-project-summary] dl div')
+    .filter({ hasText: 'Total actualizado' })
+    .locator('dd')
+    .first();
+  await expect(updatedTotal).toContainText('5384,50');
+  await page.getByRole('button', { name: 'Anular ampliación', exact: true }).click();
+  await page.getByLabel('Motivo de anulación').fill('El cliente cambió el alcance.');
+  await page.getByRole('button', { name: 'Confirmar anulación', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Estado: Completado' })).toBeVisible();
+  await expect(page.getByText('Anulado el', { exact: false })).toContainText(
+    'El cliente cambió el alcance.',
+  );
+  await expect(updatedTotal).toContainText('5336,10');
+
+  const projectId = page.url().split('/').at(-1);
+  for (const width of [320, 390, 430, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(
+      page.getByRole('heading', { name: 'Vivienda en Chamberí · Madrid' }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: `docs/testing-evidence/bg009-project-detail-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.goto('/projects');
+  await expect(page.getByRole('status', { name: 'Estado: Completado' })).toBeVisible();
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: `docs/testing-evidence/bg009-projects-list-${width}.png`,
+      fullPage: true,
+    });
+  }
+
+  await page.goto('/budget/demo-cocina');
+  await expect(page.getByLabel('Nombre del cliente', { exact: true })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Abrir proyecto', exact: false })).toHaveAttribute(
+    'href',
+    `/projects/${projectId}`,
+  );
+  await page.getByRole('button', { name: 'Crear copia para editar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budget\/new$/);
+  const clientName = page.getByLabel('Nombre del cliente', { exact: true });
+  await expect(clientName).toHaveValue('Reforma de cocina');
+  await clientName.fill('Copia editable de cocina');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budget\/[0-9a-f-]+$/);
+  await expect(page.getByLabel('Nombre del cliente', { exact: true })).toHaveValue(
+    'Copia editable de cocina',
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('project load errors are distinct from missing projects and can be retried', async ({
+  page,
+}) => {
+  await login(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/projects/missing');
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
+  ).toBeVisible();
+
+  await page.context().setOffline(true);
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/projects/offline-unloaded');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page).toHaveURL(/\/projects\/offline-unloaded$/);
+  await expect(
+    page.getByRole('heading', { name: 'No se ha podido cargar el proyecto', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('No hay conexión con el servicio.');
+  await expect(page.getByRole('button', { name: 'Reintentar', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg009-project-detail-error-390.png',
+    fullPage: true,
+  });
+
+  await page.context().setOffline(false);
+  await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
+  ).toBeVisible();
 });

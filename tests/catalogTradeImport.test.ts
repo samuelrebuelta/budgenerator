@@ -7,15 +7,70 @@ import {
 import type { BaseCatalog } from '../src/entities/catalog/model/baseCatalogs';
 import type { CatalogPart } from '../src/shared/types';
 
-it('offers specialist trades and leaves general starter catalogs out of the trade picker', () => {
+it('offers the general base and specialist trades while excluding blank and integral sources', () => {
   expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('albanileria');
   expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('fontaneria');
   expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('electricidad');
-  expect(TRADE_CATALOGS).toHaveLength(19);
+  expect(TRADE_CATALOGS).toHaveLength(20);
   expect(TRADE_CATALOGS).not.toContain(BASE_CATALOGS.find((catalog) => catalog.id === 'en_blanco'));
   expect(TRADE_CATALOGS).not.toContain(
     BASE_CATALOGS.find((catalog) => catalog.id === 'reformas_integrales'),
   );
+  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('reforma_general');
+});
+
+it('provides a general importable catalog with eight simplified work families', () => {
+  const general = BASE_CATALOGS.find((catalog) => catalog.id === 'reforma_general');
+  const families = [
+    'Demolición y residuos',
+    'Albañilería y tabiquería',
+    'Suelos y revestimientos',
+    'Pintura',
+    'Electricidad',
+    'Fontanería y sanitarios',
+    'Carpintería',
+    'Servicios auxiliares',
+  ];
+
+  expect(general).toBeDefined();
+  expect(TRADE_CATALOGS).toContain(general);
+  expect(new Set(general?.tariffs.map((tariff) => tariff.category))).toEqual(new Set(families));
+  expect(
+    general?.tariffs.filter((tariff) => tariff.category === 'Electricidad').length,
+  ).toBeGreaterThan(1);
+});
+
+it('imports the general base idempotently without replacing private electrical prices', () => {
+  const general = TRADE_CATALOGS.find((catalog) => catalog.id === 'reforma_general')!;
+  const electrical = general.tariffs.find((tariff) => tariff.category === 'Electricidad')!;
+  const existing: CatalogPart[] = [
+    {
+      id: 'private-electricity',
+      name: 'Electricidad',
+      concepts: [
+        {
+          id: 'private-light',
+          description: electrical.description,
+          unit: electrical.unit,
+          basePrice: 999,
+          cost: 500,
+        },
+      ],
+    },
+  ];
+  let nextId = 0;
+  const createId = () => `general-${++nextId}`;
+
+  const first = mergeTradeIntoParts(existing, general, createId);
+  const second = mergeTradeIntoParts(first.parts, general, createId);
+
+  expect(first.addedConcepts).toBe(general.tariffs.length - 1);
+  expect(second).toMatchObject({ addedParts: 0, addedConcepts: 0 });
+  expect(first.parts.find((part) => part.id === 'private-electricity')?.concepts[0]).toMatchObject({
+    id: 'private-light',
+    basePrice: 999,
+    cost: 500,
+  });
 });
 
 it('imports concepts grouped by category, skips existing concepts, and preserves custom values', () => {

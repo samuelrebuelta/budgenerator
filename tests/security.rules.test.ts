@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -19,10 +19,17 @@ import {
 import { budget, user } from './fixtures';
 import { toPublicBudget } from '../src/entities/budget/model/publicBudget';
 let env: RulesTestEnvironment;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-cimbra-rules',
-    firestore: { host: '127.0.0.1', port: 8180, rules: readFileSync('firestore.rules', 'utf8') },
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
   });
 });
 afterAll(async () => {
@@ -121,6 +128,16 @@ describe('atomic creation and quota', () => {
     await assertSucceeds(deleteDoc(doc(alice(), 'users', 'alice', 'budgets', 'existing')));
     await assertFails(createWithCount(alice(), 'alice', 'fourth', 4));
   });
+  it('does not let legacy conversion releases create new free quota', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) =>
+      updateDoc(doc(ctx.firestore(), 'users', 'alice'), {
+        totalBudgetsCreated: 3,
+        budgetSlotsReleased: 2,
+      }),
+    );
+
+    await assertFails(createWithCount(alice(), 'alice', 'fourth-after-legacy-release', 4));
+  });
   it('uses server time for premium expiry', async () => {
     await env.withSecurityRulesDisabled(async (ctx) =>
       updateDoc(doc(ctx.firestore(), 'users', 'alice'), {
@@ -154,6 +171,88 @@ describe('atomic creation and quota', () => {
         'info.clientName': 'Stale write',
       }),
     );
+  });
+});
+describe('accepted budgets and projects', () => {
+  it('does not allow an account to release budget quota without a linked project', async () => {
+    await assertFails(
+      updateDoc(doc(alice(), 'users', 'alice'), {
+        budgetSlotsReleased: 1,
+        lastConvertedBudgetId: 'existing',
+      }),
+    );
+  });
+
+  it('locks accepted budgets until acceptance is withdrawn', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) =>
+      updateDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'existing'), {
+        acceptedAt: '2026-10-18T09:00:00.000Z',
+      }),
+    );
+    const ref = doc(alice(), 'users', 'alice', 'budgets', 'existing');
+
+    await assertFails(updateDoc(ref, { 'info.clientName': 'Cambio no permitido' }));
+    await assertFails(deleteDoc(ref));
+    await assertSucceeds(updateDoc(ref, { acceptedAt: null }));
+    await assertSucceeds(updateDoc(ref, { 'info.clientName': 'Oferta revisada' }));
+  });
+
+  it('allows the owner to read projects and denies another account access', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'projects', 'project-1'), {
+        id: 'project-1',
+        sourceBudgetId: 'existing',
+      });
+      await setDoc(
+        doc(ctx.firestore(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1'),
+        { id: 'part-1', name: 'Pintura', tasks: [] },
+      );
+    });
+
+    await assertSucceeds(getDocs(collection(alice(), 'users', 'alice', 'projects')));
+    await assertSucceeds(
+      getDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1')),
+    );
+    await assertFails(
+      setDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'extra'), {
+        id: 'extra',
+        name: 'No incluida en el snapshot',
+        tasks: [],
+      }),
+    );
+    await assertFails(getDoc(doc(bob(), 'users', 'alice', 'projects', 'project-1')));
+    await assertFails(
+      getDoc(doc(bob(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1')),
+    );
+    await assertFails(deleteDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1')));
+  });
+
+  it('allows conversion in the same atomic write without changing quota', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', 'alice'), { totalBudgetsCreated: 1 });
+      await updateDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'existing'), {
+        acceptedAt: '2026-10-18T09:00:00.000Z',
+      });
+    });
+    const db = alice();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users', 'alice', 'projects', 'project-1'), {
+      id: 'project-1',
+      sourceBudgetId: 'existing',
+      createdAt: '2026-10-18T10:00:00.000Z',
+    });
+    batch.set(doc(db, 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1'), {
+      id: 'part-1',
+      name: 'Pintura',
+      tasks: [],
+    });
+    batch.update(doc(db, 'users', 'alice', 'budgets', 'existing'), { projectId: 'project-1' });
+
+    await assertSucceeds(batch.commit());
+    expect((await getDoc(doc(db, 'users', 'alice'))).data()).toMatchObject({
+      totalBudgetsCreated: 1,
+      budgetSlotsReleased: 0,
+    });
   });
 });
 function snapshot(ownerUid = 'alice', expiresAt = Date.now() + 86400000) {

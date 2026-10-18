@@ -1,7 +1,7 @@
 # BG-009 — Aceptación de presupuesto y seguimiento del proyecto
 
-**Estado:** diseño preparado; las decisiones operativas se concretarán al preparar la implementación.
-**Fecha:** 2026-10-17.
+**Estado:** base implementada y desplegada para pruebas el 18-10-2026. La extensión aprobada del 18-10-2026 está verificada localmente, pendiente de revisión e integración; no se ha desplegado.
+**Diseño:** 2026-10-17. **Resolución de decisiones:** 2026-10-18.
 
 ## Intención
 
@@ -18,7 +18,7 @@ La conversión es idempotente: un presupuesto sólo puede originar un proyecto e
 
 Propuesta de integridad: mientras esté aceptado, el presupuesto no se podrá editar sin **Retirar aceptación**; esa acción invalida `acceptedAt`. Después de convertirlo, el snapshot se conserva dentro del proyecto y el presupuesto de origen pasa a histórico de sólo lectura; para revisar la oferta se duplica. Así, el proyecto representa la versión aceptada y mantiene su vínculo.
 
-Interacción propuesta con BG-004: el presupuesto deja de ocupar plaza Free al convertirse, pero su snapshot permanece consultable desde el proyecto. La conversión libera cuota y crea el proyecto en una misma operación; reintentar no cuenta ni libera dos veces.
+Decisión de cuota de la base, sustituida por la extensión BG-009 aprobada el 18-10-2026: la primera implementación liberaba al convertir la plaza Free del presupuesto, aunque su snapshot permaneciera consultable desde el proyecto. La regla vigente conserva esa plaza al convertir; ver `2026-10-18-bg-009-proyectos-como-core-design.md`.
 
 ## Modelo de avance
 
@@ -51,10 +51,11 @@ La ruta `/projects` y los documentos se protegen con las mismas reglas de propie
 
 Planificación por calendario, asignación de trabajadores, partes de horas, compras, costes reales, pagos/facturas, mensajes al cliente, colaboración multiusuario, permisos por obra, cronogramas, porcentajes físicos manuales y fusión de varios presupuestos en un proyecto.
 
-## Decisiones para concretar durante el plan técnico
+## Decisiones v1 resueltas
 
-- Confirmar el gráfico ponderado por importe y su fallback por conceptos.
-- Decidir si presupuesto aceptado pero aún no convertido puede seguir editándose; en cualquier caso, el proyecto conserva su snapshot independiente.
-- Confirmar el bloqueo/retiro explícito de aceptación antes de convertir y la conservación permanente del enlace al presupuesto.
-- Definir si el cambio de estado necesita historial auditable; v1 sólo conserva el estado actual y `completedAt`.
-- Verificar los tamaños máximos reales de partida antes de cerrar la conversión por lote.
+- La aceptación se puede retirar mientras el presupuesto no se haya convertido. El bloqueo de edición se mantiene mientras esté aceptado.
+- La conversión es una acción explícita e idempotente. El snapshot del proyecto es independiente y el presupuesto fuente queda permanentemente en solo lectura; se puede crear una copia editable con IDs nuevos.
+- El porcentaje usa importe neto de conceptos, aplicando el redondeo de línea existente y sin IVA ni ajuste global. Si una línea no se puede ponderar, el proyecto completo usa cantidad de conceptos.
+- No se persiste historial de cambios de estado en v1; cada concepto conserva su `completedAt` actual y el proyecto su fecha de finalización actual.
+- Decisión original de la base, sustituida el 18-10-2026: convertir liberaba una plaza Free y escribía `budgetSlotsReleased` junto al vínculo. La regla vigente mantiene la plaza ocupada y deja de incrementar o descontar ese campo; ver `2026-10-18-bg-009-proyectos-como-core-design.md`.
+- Se admiten hasta 200 partidas; cada documento de partida debe quedar por debajo de 900.000 bytes UTF-8. Se rechazan presupuestos sin conceptos terminables y snapshots con IDs vacíos o duplicados.

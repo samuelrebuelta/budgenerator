@@ -311,11 +311,11 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-semibold text-gray-900">Resumen del estimador</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                {token
-                  ? 'Enlace público activo. Puedes abrirlo para revisarlo o copiarlo para tu landing.'
-                  : 'Configuración guardada. Aún no hay un enlace público activo.'}
-              </p>
+              {!token && (
+                <p className="mt-1 text-sm text-gray-600">
+                  Configuración guardada. Aún no hay un enlace público activo.
+                </p>
+              )}
             </div>
             {token && (
               <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">

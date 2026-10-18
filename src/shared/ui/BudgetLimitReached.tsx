@@ -4,10 +4,10 @@ import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 import { CONTACT_EMAIL } from '@/shared/lib';
 
 interface BudgetLimitReachedProps {
-  totalBudgetsCreated: number;
+  budgetSlotsUsed: number;
 }
 
-export function BudgetLimitReached({ totalBudgetsCreated }: BudgetLimitReachedProps) {
+export function BudgetLimitReached({ budgetSlotsUsed }: BudgetLimitReachedProps) {
   const contactText = t('budgets.limitReachedContact', { email: CONTACT_EMAIL });
   const parts = contactText.split(CONTACT_EMAIL);
 
@@ -17,7 +17,7 @@ export function BudgetLimitReached({ totalBudgetsCreated }: BudgetLimitReachedPr
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('budgets.limitReachedTitle')}</h3>
       <p className="text-sm text-gray-600 mb-2">{t('budgets.limitReachedMessage')}</p>
       <p className="text-sm text-gray-500 mb-2">
-        {t('budgets.budgetsUsed', { used: totalBudgetsCreated, limit: FREE_BUDGET_LIMIT })}
+        {t('budgets.budgetsUsed', { used: budgetSlotsUsed, limit: FREE_BUDGET_LIMIT })}
       </p>
       <p className="text-sm text-gray-500">
         {parts[0]}

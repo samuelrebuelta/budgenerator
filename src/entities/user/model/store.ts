@@ -8,6 +8,7 @@ import {
   adminUpdatePremiumExpiry,
 } from '@/entities/user/api/firestore';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
+import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 
 export { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
@@ -52,6 +53,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         email,
         accountData: { isAdmin, plan: 'free' },
         totalBudgetsCreated: 0,
+        budgetSlotsReleased: 0,
         createdAt: new Date().toISOString(),
       };
       await saveUserData(uid, data);
@@ -66,7 +68,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       const { premiumExpiresAt } = userData.accountData;
       if (!premiumExpiresAt || new Date(premiumExpiresAt) > new Date()) return true;
     }
-    return userData.totalBudgetsCreated < FREE_BUDGET_LIMIT;
+    return getBudgetSlotsUsed(userData.totalBudgetsCreated) < FREE_BUDGET_LIMIT;
   },
 
   onBudgetCreated: async (uid) => {

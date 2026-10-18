@@ -113,11 +113,6 @@ export function LeadsPage() {
       <PageHeader
         title="Solicitudes recibidas"
         description="Revisa qué necesita cada cliente y continúa con un presupuesto cuando quieras."
-        actions={
-          <Button variant="secondary" onClick={() => navigate('/profile')}>
-            Mi empresa
-          </Button>
-        }
       />
 
       {error && (

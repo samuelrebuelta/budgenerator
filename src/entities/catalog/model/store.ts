@@ -96,7 +96,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => {
       const legacy = await fetchLegacyTariffs(uid);
       if (!isSessionCurrent(uid, revision)) return;
       const now = new Date().toISOString();
-      const base = BASE_CATALOGS.find((c) => c.id === 'reformas_integrales')!;
+      const base = BASE_CATALOGS.find((c) => c.id === 'reforma_general')!;
       const canonical = await ensureSingleCatalog(uid, {
         id: 'main-v1',
         name: 'Mi catálogo',

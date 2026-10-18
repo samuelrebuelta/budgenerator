@@ -21,7 +21,15 @@ export const functions = getFunctions(app, 'europe-west1');
 if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
   if (!firebaseConfig.projectId?.startsWith('demo-'))
     throw new Error('Los emuladores requieren un proyecto demo- para evitar acceder a producción.');
-  connectAuthEmulator(auth, 'http://127.0.0.1:9199', { disableWarnings: true });
-  connectFirestoreEmulator(db, '127.0.0.1', 8180);
+  connectAuthEmulator(
+    auth,
+    import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? 'http://127.0.0.1:9199',
+    { disableWarnings: true },
+  );
+  connectFirestoreEmulator(
+    db,
+    import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST ?? '127.0.0.1',
+    Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
+  );
   connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 }

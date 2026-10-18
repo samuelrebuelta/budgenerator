@@ -24,7 +24,7 @@ service cloud.firestore {
     function validCreationCount(uid) {
       let before = resource.data;
       let after = request.resource.data;
-      let id = after.lastCreatedBudgetId;
+      let id = after.get('lastCreatedBudgetId', '');
       return after.diff(before).affectedKeys().hasOnly(['totalBudgetsCreated', 'lastCreatedBudgetId'])
         && after.totalBudgetsCreated == before.totalBudgetsCreated + 1
         && (premium(before.accountData) || before.totalBudgetsCreated < 3)
@@ -32,13 +32,227 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/users/$(uid)/budgets/$(id))
         && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.id == id;
     }
+    function validProjectLink(uid, id) {
+      let projectId = request.resource.data.get('projectId', '');
+      let projectAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data;
+      return projectId is string && projectId.size() > 0
+        && projectAfter.sourceBudgetId == id;
+    }
+    function validProjectCreate(uid, projectId) {
+      let budgetId = request.resource.data.get('sourceBudgetId', '');
+      let budgetRef = /databases/$(database)/documents/users/$(uid)/budgets/$(budgetId);
+      let sourceBefore = get(budgetRef).data;
+      let sourceAfter = getAfter(budgetRef).data;
+      return request.resource.data.id == projectId
+        && budgetId is string && budgetId.size() > 0
+        && sourceBefore.get('acceptedAt', null) is string
+        && sourceBefore.get('projectId', null) == null
+        && sourceAfter.get('projectId', null) == projectId;
+    }
+    function closeEnough(actual, expected) {
+      return actual is number && actual >= expected - 0.01 && actual <= expected + 0.01;
+    }
+    function projectProgressStatus(completed, total) {
+      return completed == 0 || total == 0 ? 'pending'
+        : completed == total ? 'completed' : 'in_progress';
+    }
+    function validProjectSupplementUpdate(uid, projectId, supplementId) {
+      let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
+      let before = get(projectPath).data;
+      let after = getAfter(projectPath).data;
+      let supplement = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId)).data;
+      let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
+      let totalConcepts = before.totalConcepts + 1;
+      let totalAmount = before.totalAmount + supplement.subtotal;
+      let completedConcepts = before.completedConcepts;
+      let changed = after.diff(before).affectedKeys();
+      return supplement.id == supplementId
+        && !exists(supplementPath)
+        && after.get('lastSupplementId', '') == supplementId
+        && after.get('lastSupplementAction', '') == 'added'
+        && changed.hasOnly([
+          'supplementsSubtotal', 'supplementsIva', 'updatedTotal', 'workItemCount',
+          'totalConcepts', 'completedConcepts', 'totalAmount', 'completedAmount',
+          'percent', 'status', 'completedAt', 'lastSupplementId', 'lastSupplementAction'
+        ])
+        && closeEnough(after.get('supplementsSubtotal', 0), before.get('supplementsSubtotal', 0) + supplement.subtotal)
+        && closeEnough(after.get('supplementsIva', 0), before.get('supplementsIva', 0) + supplement.iva)
+        && closeEnough(after.get('updatedTotal', before.total), before.get('updatedTotal', before.total) + supplement.total)
+        && after.workItemCount == before.workItemCount + 1
+        && after.totalConcepts == totalConcepts
+        && after.completedConcepts == completedConcepts
+        && closeEnough(after.totalAmount, totalAmount)
+        && closeEnough(after.completedAmount, before.completedAmount)
+        && after.status == projectProgressStatus(completedConcepts, totalConcepts)
+        && after.percent is int && after.percent >= 0 && after.percent < 100
+        && after.get('completedAt', null) == null;
+    }
+    function validSupplementVoidLink(uid, projectId, supplementId) {
+      let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
+      let voidPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId);
+      let workItemId = 'supplement_' + supplementId;
+      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
+      let voidAfter = getAfter(voidPath).data;
+      let workBefore = get(workItemPath).data;
+      let workAfter = getAfter(workItemPath).data;
+      return exists(supplementPath) && !exists(voidPath)
+        && voidAfter.supplementId == supplementId
+        && voidAfter.reason is string && voidAfter.reason.size() > 0 && voidAfter.reason.size() <= 500
+        && voidAfter.voidedAt is string
+        && workBefore.supplementId == supplementId
+        && workBefore.get('voidedAt', null) == null
+        && workAfter.voidedAt == voidAfter.voidedAt
+        && workAfter.tasks == workBefore.tasks;
+    }
+    function validVoidProjectProgress(uid, projectId, supplementId) {
+      let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
+      let workItemId = 'supplement_' + supplementId;
+      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
+      let before = get(projectPath).data;
+      let after = getAfter(projectPath).data;
+      let workItem = get(workItemPath).data;
+      let completed = workItem.tasks[0].get('completedAt', null) is string;
+      let totalConcepts = before.totalConcepts - 1;
+      let completedConcepts = before.completedConcepts - (completed ? 1 : 0);
+      let changed = after.diff(before).affectedKeys();
+      return after.get('lastSupplementId', '') == supplementId
+        && after.get('lastSupplementAction', '') == 'voided'
+        && changed.hasOnly([
+          'supplementsSubtotal', 'supplementsIva', 'updatedTotal', 'workItemCount',
+          'totalConcepts', 'completedConcepts', 'totalAmount', 'completedAmount',
+          'percent', 'status', 'completedAt', 'lastSupplementId', 'lastSupplementAction'
+        ])
+        && after.workItemCount == before.workItemCount - 1
+        && after.totalConcepts == totalConcepts
+        && after.completedConcepts == completedConcepts
+        && after.status == projectProgressStatus(completedConcepts, totalConcepts)
+        && after.percent is int
+        && (after.status == 'completed'
+          ? after.percent == 100 && after.get('completedAt', null) is string
+          : after.percent >= 0 && after.percent < 100 && after.get('completedAt', null) == null);
+    }
+    function validVoidProjectAmounts(uid, projectId, supplementId) {
+      let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
+      let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
+      let before = get(projectPath).data;
+      let after = getAfter(projectPath).data;
+      let supplement = get(supplementPath).data;
+      let workItemId = 'supplement_' + supplementId;
+      let workItem = get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId)).data;
+      let completed = workItem.tasks[0].get('completedAt', null) is string;
+      return closeEnough(after.get('supplementsSubtotal', 0), before.get('supplementsSubtotal', 0) - supplement.subtotal)
+        && closeEnough(after.get('supplementsIva', 0), before.get('supplementsIva', 0) - supplement.iva)
+        && closeEnough(after.get('updatedTotal', before.total), before.get('updatedTotal', before.total) - supplement.total)
+        && closeEnough(after.totalAmount, before.totalAmount - supplement.subtotal)
+        && closeEnough(after.completedAmount, before.completedAmount - (completed ? supplement.subtotal : 0));
+    }
+    function validProjectSupplementVoidUpdate(uid, projectId, supplementId) {
+      return validSupplementVoidLink(uid, projectId, supplementId)
+        && validVoidProjectProgress(uid, projectId, supplementId)
+        && validVoidProjectAmounts(uid, projectId, supplementId);
+    }
+    function validSupplementCreate(uid, projectId, supplementId) {
+      let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
+      let workItemId = 'supplement_' + supplementId;
+      let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
+      let workItemAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId)).data;
+      let projectBefore = get(projectPath).data;
+      let data = getAfter(supplementPath).data;
+      let task = workItemAfter.tasks[0];
+      return data.keys().hasOnly([
+          'id', 'description', 'quantity', 'unit', 'unitPrice', 'vatRate',
+          'subtotal', 'iva', 'total', 'createdAt', 'workItemId'
+        ])
+        && data.id == supplementId && supplementId.matches('^[A-Za-z0-9_-]{1,100}$')
+        && data.description is string && data.description.size() > 0 && data.description.size() <= 300
+        && data.quantity is number && data.quantity > 0 && data.quantity <= 1000000
+        && data.unit in ['m2', 'm3', 'ml', 'unit', 'hour']
+        && data.unitPrice is number && data.unitPrice > 0 && data.unitPrice <= 1000000
+        && data.vatRate == projectBefore.ivaRate
+        && data.subtotal is number && closeEnough(data.subtotal, data.quantity * data.unitPrice)
+        && data.iva is number && closeEnough(data.iva, data.subtotal * data.vatRate)
+        && data.total is number && closeEnough(data.total, data.subtotal + data.iva)
+        && data.createdAt is string && data.workItemId == workItemId
+        && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId))
+        && workItemAfter.id == workItemId
+        && workItemAfter.keys().hasOnly(['id', 'name', 'position', 'supplementId', 'tasks'])
+        && workItemAfter.name == data.description
+        && workItemAfter.position == projectBefore.workItemCount
+        && workItemAfter.supplementId == supplementId
+        && workItemAfter.tasks is list && workItemAfter.tasks.size() == 1
+        && task.keys().hasOnly(['id', 'description', 'quantity', 'unit', 'price', 'cost'])
+        && task.id == 'concept_' + supplementId
+        && task.description == data.description
+        && task.quantity == data.quantity && task.unit == data.unit
+        && task.price == data.unitPrice && task.cost == 0
+        && validProjectSupplementUpdate(uid, projectId, supplementId);
+    }
+    function validSupplementVoidCreate(uid, projectId, supplementId) {
+      let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
+      let workItemId = 'supplement_' + supplementId;
+      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
+      return request.resource.data.keys().hasOnly(['supplementId', 'reason', 'voidedAt'])
+        && request.resource.data.supplementId == supplementId
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 500
+        && request.resource.data.voidedAt is string
+        && exists(supplementPath) && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId))
+        && get(workItemPath).data.get('voidedAt', null) == null
+        && validProjectSupplementVoidUpdate(uid, projectId, supplementId);
+    }
+    function validSupplementTaskUpdate(uid, projectId, workItemId) {
+      let supplementId = resource.data.get('supplementId', '');
+      let supplement = get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId)).data;
+      let task = request.resource.data.tasks[0];
+      return supplementId is string && supplementId.size() > 0
+        && workItemId == 'supplement_' + supplementId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks'])
+        && request.resource.data.id == workItemId
+        && request.resource.data.supplementId == supplementId
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.position == resource.data.position
+        && request.resource.data.tasks is list && request.resource.data.tasks.size() == 1
+        && task.keys().hasOnly(['id', 'description', 'quantity', 'unit', 'price', 'cost', 'completedAt'])
+        && task.id == 'concept_' + supplementId
+        && task.description == supplement.description
+        && task.quantity == supplement.quantity && task.unit == supplement.unit
+        && task.price == supplement.unitPrice && task.cost == 0;
+    }
+    function validSupplementVoidWorkItemUpdate(uid, projectId, workItemId) {
+      let supplementId = resource.data.get('supplementId', '');
+      let voidAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId)).data;
+      return supplementId is string && supplementId.size() > 0
+        && workItemId == 'supplement_' + supplementId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voidedAt'])
+        && request.resource.data.get('voidedAt', null) == voidAfter.voidedAt
+        && request.resource.data.tasks == resource.data.tasks
+        && validProjectSupplementVoidUpdate(uid, projectId, supplementId);
+    }
+    function validBudgetUpdate(uid, id) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let oldAccepted = resource.data.get('acceptedAt', null);
+      let newAccepted = request.resource.data.get('acceptedAt', null);
+      let oldProject = resource.data.get('projectId', null);
+      let newProject = request.resource.data.get('projectId', null);
+      let editable = oldAccepted == null && newAccepted == null && oldProject == null && newProject == null;
+      let acceptanceChange = changed.hasOnly(['acceptedAt']) && oldProject == null && newProject == null
+        && (oldAccepted == null ? newAccepted is string : newAccepted == null);
+      let conversion = changed.hasOnly(['projectId']) && oldAccepted is string && oldProject == null
+        && validProjectLink(uid, id);
+      return canUse(uid) && request.resource.data.id == id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200
+        && (editable || acceptanceChange || conversion);
+    }
     match /users/{uid} {
       allow get: if canUse(uid);
       allow list: if isAdmin();
       allow create: if owner(uid)
-        && request.resource.data.keys().hasOnly(['uid', 'email', 'accountData', 'totalBudgetsCreated', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'accountData', 'totalBudgetsCreated', 'createdAt', 'budgetSlotsReleased'])
         && request.resource.data.uid == uid && request.resource.data.email == request.auth.token.email
         && request.resource.data.totalBudgetsCreated == 0
+        && request.resource.data.get('budgetSlotsReleased', 0) == 0
         && request.resource.data.createdAt is string
         && request.resource.data.accountData == {'isAdmin': false, 'plan': 'free'};
       allow update: if (owner(uid) && validCreationCount(uid)) || (
@@ -48,15 +262,68 @@ service cloud.firestore {
       );
       allow delete: if false;
       match /budgets/{id} {
-        allow read, delete: if canUse(uid);
+        allow read: if canUse(uid);
+        allow delete: if canUse(uid)
+          && resource.data.get('acceptedAt', null) == null
+          && resource.data.get('projectId', null) == null;
         allow create: if owner(uid)
           && request.resource.data.id == id && request.resource.data.info is map
           && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200
+          && request.resource.data.get('acceptedAt', null) == null
+          && request.resource.data.get('projectId', null) == null
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.lastCreatedBudgetId == id
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated == get(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated + 1;
-        allow update: if canUse(uid) && request.resource.data.id == id
+        allow update: if validBudgetUpdate(uid, id);
+      }
+      match /projects/{projectId} {
+        allow read: if canUse(uid);
+        allow create: if owner(uid) && validProjectCreate(uid, projectId);
+        allow update: if canUse(uid)
+          && request.resource.data.id == projectId
+          && request.resource.data.sourceBudgetId == resource.data.sourceBudgetId
           && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200;
+          && (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'completedConcepts', 'completedAmount', 'percent', 'status', 'completedAt'
+            ])
+            || (request.resource.data.get('lastSupplementAction', '') == 'added'
+              && validProjectSupplementUpdate(uid, projectId, request.resource.data.get('lastSupplementId', '')))
+            || (request.resource.data.get('lastSupplementAction', '') == 'voided'
+              && validProjectSupplementVoidUpdate(uid, projectId, request.resource.data.get('lastSupplementId', '')))
+          );
+        allow delete: if false;
+        match /supplements/{supplementId} {
+          allow read: if canUse(uid);
+          allow create: if owner(uid) && validSupplementCreate(uid, projectId, supplementId);
+          allow update, delete: if false;
+        }
+        match /supplementVoids/{supplementId} {
+          allow read: if canUse(uid);
+          allow create: if owner(uid) && validSupplementVoidCreate(uid, projectId, supplementId);
+          allow update, delete: if false;
+        }
+        match /workItems/{workItemId} {
+          allow read: if canUse(uid);
+          allow create: if owner(uid)
+            && request.resource.data.id == workItemId
+            && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId))
+            && (
+              (!exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+                && getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data.id == projectId)
+              || (exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+                && validSupplementCreate(uid, projectId, request.resource.data.get('supplementId', '')))
+            );
+          allow update: if canUse(uid)
+            && get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data.id == projectId
+            && (
+              (resource.data.get('supplementId', null) == null
+                && request.resource.data.id == workItemId
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks']))
+              || validSupplementTaskUpdate(uid, projectId, workItemId)
+              || validSupplementVoidWorkItemUpdate(uid, projectId, workItemId)
+            );
+          allow delete: if false;
+        }
       }
       match /quoteEstimator/{documentId} {
         allow get: if owner(uid) && documentId == 'settings';

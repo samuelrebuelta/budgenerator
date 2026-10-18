@@ -378,6 +378,23 @@
   background: #183e3b;
   box-shadow: 0 3px 8px #183e3b12;
 }
+.account-menu-section + .account-menu-section {
+  border-top: 1px solid #e5e1d8;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.account-menu-heading {
+  margin: 0 15px 7px;
+  color: #6c786f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.account-menu-section .nav-item {
+  margin-bottom: 2px;
+}
 .sidebar-note {
   margin: 36px 13px 24px;
   border-top: 1px solid #d9d6ca;
@@ -1044,7 +1061,7 @@
   }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     position: fixed;
     bottom: 0;
     left: 0;

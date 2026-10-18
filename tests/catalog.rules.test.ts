@@ -8,12 +8,19 @@ import {
 import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
 import type { TariffCatalog } from '../src/shared/types';
 let env: RulesTestEnvironment;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 let adapter: typeof import('../src/entities/catalog/api/firestore');
 beforeAll(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST) throw Error('Only emulators allowed');
   env = await initializeTestEnvironment({
     projectId: 'demo-bg008-catalog',
-    firestore: { host: '127.0.0.1', port: 8180, rules: readFileSync('firestore.rules', 'utf8') },
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
   });
   const db = env.authenticatedContext('alice', { email: 'alice@example.test' }).firestore();
   vi.doMock('../src/shared/firebase/config', () => ({ db }));

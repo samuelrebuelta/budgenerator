@@ -5,6 +5,10 @@ export const CONTACT_EMAIL = 'budgenerator@gmail.com';
 export const FREE_BUDGET_LIMIT = 3;
 export const MAX_LOGO_SIZE = 500 * 1024;
 
+export function getBudgetSlotsUsed(totalBudgetsCreated: number) {
+  return Math.max(0, totalBudgetsCreated);
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

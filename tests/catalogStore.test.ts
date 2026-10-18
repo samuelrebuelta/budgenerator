@@ -32,7 +32,18 @@ it('initializes one deterministic catalog with the general renovation base', asy
   await store.getState().loadCatalogs('alice');
   expect(store.getState().catalogs).toHaveLength(1);
   expect(store.getState().activeCatalogId).toBe('main-v1');
-  expect(store.getState().tariffs.length).toBeGreaterThan(20);
+  expect(new Set(store.getState().tariffs.map((tariff) => tariff.category))).toEqual(
+    new Set([
+      'Demolición y residuos',
+      'Albañilería y tabiquería',
+      'Suelos y revestimientos',
+      'Pintura',
+      'Electricidad',
+      'Fontanería y sanitarios',
+      'Carpintería',
+      'Servicios auxiliares',
+    ]),
+  );
   await store.getState().loadCatalogs('alice');
   expect(api.ensureSingleCatalog).toHaveBeenCalledTimes(1);
 });
