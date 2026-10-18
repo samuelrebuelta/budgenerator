@@ -17,6 +17,7 @@ import { useCatalogStore } from '@/entities/catalog';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
+import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 import {
   Button,
   BudgetLimitReached,
@@ -42,20 +43,29 @@ export function BudgetsPage() {
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('');
   const [page, setPage] = useState(0);
-  const totalValue = budgets.reduce((sum, b) => sum + total(b.id), 0);
   const years = [...new Set(budgets.map((budget) => budget.info.date.slice(0, 4)))]
     .filter((value) => /^\d{4}$/.test(value))
     .sort((a, b) => b.localeCompare(a));
   const filtered = [...budgets]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .filter(
-      (b) =>
-        (!year || b.info.date.startsWith(year)) &&
-        `${b.info.clientName} ${b.info.address} ${b.info.budgetNumber}`
-          .toLocaleLowerCase('es')
-          .includes(search.toLocaleLowerCase('es')),
-    );
+    .filter((budget) => {
+      if (year && !budget.info.date.startsWith(year)) return false;
+      const searchableText = [
+        budget.info.clientName,
+        budget.info.address,
+        budget.info.budgetNumber,
+        ...budget.workItems.flatMap((workItem) => [
+          workItem.name,
+          ...workItem.tasks.map((task) => task.description),
+        ]),
+      ]
+        .join(' ')
+        .toLocaleLowerCase('es');
+      return searchableText.includes(search.toLocaleLowerCase('es'));
+    });
   const hasFilters = !!search || !!year;
+  const totalValue = filtered.reduce((sum, budget) => sum + total(budget.id), 0);
+  const displayedBudgetCount = filtered.length;
   const safePage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 8) - 1));
   const visible = filtered.slice(safePage * 8, safePage * 8 + 8);
   const create = () => {
@@ -85,13 +95,17 @@ export function BudgetsPage() {
           <p>Valor presupuestado</p>
           <Wallet />
           <strong>{formatCurrency(totalValue)}</strong>
-          <small>Total de tus presupuestos, IVA incluido</small>
+          <small>
+            {hasFilters
+              ? 'Suma de los presupuestos filtrados, IVA incluido'
+              : 'Total de tus presupuestos, IVA incluido'}
+          </small>
         </div>
         <div className="overview-card">
           <p>Presupuestos</p>
           <FileText />
-          <strong>{String(budgets.length).padStart(2, '0')}</strong>
-          <small>Presupuestos guardados</small>
+          <strong>{String(displayedBudgetCount).padStart(2, '0')}</strong>
+          <small>{hasFilters ? 'Presupuestos coincidentes' : 'Presupuestos guardados'}</small>
         </div>
         <div className="overview-card">
           <p>Tu biblioteca</p>
@@ -105,14 +119,14 @@ export function BudgetsPage() {
       <section aria-labelledby="budget-list-heading">
         <div className="list-heading">
           <h2 id="budget-list-heading">
-            Tus presupuestos<span>{budgets.length}</span>
+            Tus presupuestos<span>{filtered.length}</span>
           </h2>
           <div className="budget-list-filters">
             <div className="search-box">
               <Search size={14} />
               <input
                 aria-label="Buscar presupuestos"
-                placeholder="Busca un cliente, dirección o número"
+                placeholder="Cliente, dirección, número o concepto"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -150,9 +164,28 @@ export function BudgetsPage() {
                 <SwipeActions
                   key={b.id}
                   label={b.info.clientName || 'Proyecto sin nombre'}
+                  disableSwipe={!!b.acceptedAt || !!b.projectId}
                   openDirection={revealed?.id === b.id ? revealed.direction : null}
                   onReveal={(direction) => setRevealed(direction ? { id: b.id, direction } : null)}
-                  actions={[{ id: 'delete', label: 'Eliminar', onAction: () => setDeleting(b.id) }]}
+                  actions={
+                    b.projectId
+                      ? [
+                          {
+                            id: 'open',
+                            label: 'Abrir proyecto',
+                            onAction: () => navigate(`/projects/${b.projectId}`),
+                          },
+                        ]
+                      : b.acceptedAt
+                        ? [
+                            {
+                              id: 'open',
+                              label: 'Abrir presupuesto',
+                              onAction: () => navigate(`/budget/${b.id}`),
+                            },
+                          ]
+                        : [{ id: 'delete', label: 'Eliminar', onAction: () => setDeleting(b.id) }]
+                  }
                 >
                   <Link to={`/budget/${b.id}`} className="budget-list-row">
                     <div className="budget-identity">
@@ -160,6 +193,11 @@ export function BudgetsPage() {
                       <div className="min-w-0">
                         <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
                         <p>{b.info.address || `${b.workItems.length} partidas de trabajo`}</p>
+                        {b.projectId ? (
+                          <p className="mt-1 font-medium text-[#183e3b]">Proyecto en seguimiento</p>
+                        ) : b.acceptedAt ? (
+                          <p className="mt-1 font-medium text-[#52625a]">Presupuesto aceptado</p>
+                        ) : null}
                       </div>
                     </div>
                     <span className="budget-date">
@@ -269,7 +307,9 @@ export function BudgetsPage() {
         </Button>
       </Modal>
       <Modal open={limit} onClose={() => setLimit(false)}>
-        <BudgetLimitReached totalBudgetsCreated={account?.totalBudgetsCreated ?? 0} />
+        <BudgetLimitReached
+          budgetSlotsUsed={getBudgetSlotsUsed(account?.totalBudgetsCreated ?? 0)}
+        />
         <Button
           variant="secondary"
           className="mt-5 w-full justify-center"

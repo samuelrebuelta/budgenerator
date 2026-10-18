@@ -11,93 +11,14 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '@/shared/firebase/config';
 import { assertBudget } from '@/shared/lib/budgetMath';
+import { FREE_BUDGET_LIMIT, getBudgetSlotsUsed } from '@/shared/lib/utils';
 import { toPublicBudget } from '../model/publicBudget';
-import type {
-  Budget,
-  BudgetTask,
-  CompanyProfile,
-  SharedBudget,
-  WorkItem,
-  UserData,
-} from '@/shared/types';
-
-interface FirestoreTask {
-  id: string;
-  catalogConceptId?: string;
-  description: string;
-  quantity: number;
-  unit: string;
-  price: number;
-  cost: number;
-}
-
-interface FirestoreWorkItem {
-  id: string;
-  name: string;
-  catalogPartId?: string;
-  rows?: FirestoreTask[];
-  concepts?: FirestoreTask[];
-  tasks?: FirestoreTask[];
-}
-
-interface FirestoreBudget {
-  id: string;
-  info: Budget['info'];
-  sections?: FirestoreWorkItem[];
-  workItems?: FirestoreWorkItem[];
-  sourceLeadId?: string;
-  catalogId?: string;
-  adjustment?: Budget['adjustment'];
-  ivaRate?: number;
-  createdAt: string;
-}
-
-function mapFromFirestore(raw: FirestoreBudget): Budget {
-  const items = raw.workItems ?? raw.sections ?? [];
-  return {
-    id: raw.id,
-    info: raw.info,
-    workItems: items.map((wi): WorkItem => ({
-      id: wi.id,
-      name: wi.name,
-      ...(wi.catalogPartId ? { catalogPartId: wi.catalogPartId } : {}),
-      tasks: (wi.tasks ?? wi.concepts ?? wi.rows ?? []).map((task) => ({
-        ...task,
-        cost: task.cost ?? 0,
-      })) as BudgetTask[],
-    })),
-    ...(raw.sourceLeadId ? { sourceLeadId: raw.sourceLeadId } : {}),
-    ...(raw.catalogId ? { catalogId: raw.catalogId } : {}),
-    ...(raw.adjustment ? { adjustment: raw.adjustment } : {}),
-    ...(raw.ivaRate !== undefined ? { ivaRate: raw.ivaRate } : {}),
-    createdAt: raw.createdAt,
-  };
-}
-
-function mapToFirestore(budget: Budget): FirestoreBudget {
-  const data: FirestoreBudget = {
-    id: budget.id,
-    info: budget.info,
-    workItems: budget.workItems.map((wi) => ({
-      id: wi.id,
-      name: wi.name,
-      ...(wi.catalogPartId ? { catalogPartId: wi.catalogPartId } : {}),
-      tasks: wi.tasks,
-    })),
-    ...(budget.sourceLeadId ? { sourceLeadId: budget.sourceLeadId } : {}),
-    createdAt: budget.createdAt,
-  };
-  if (budget.adjustment) {
-    data.adjustment = budget.adjustment;
-  }
-  if (budget.catalogId) {
-    data.catalogId = budget.catalogId;
-  }
-  if (budget.ivaRate !== undefined) {
-    data.ivaRate = budget.ivaRate;
-  }
-  return data;
-}
+import {
+  mapBudgetFromFirestore as mapFromFirestore,
+  mapBudgetToFirestore as mapToFirestore,
+} from '../model/serialization';
+import type { FirestoreBudget } from '../model/serialization';
+import type { Budget, CompanyProfile, SharedBudget, UserData } from '@/shared/types';
 
 function budgetsCol(uid: string) {
   return collection(db, 'users', uid, 'budgets');
@@ -149,7 +70,8 @@ export async function createBudget(uid: string, budget: Budget): Promise<UserDat
     const premium =
       account.plan === 'premium' &&
       (!account.premiumExpiresAt || Date.parse(account.premiumExpiresAt) > Date.now());
-    if (!premium && user.totalBudgetsCreated >= 3)
+    const usedBudgetSlots = getBudgetSlotsUsed(user.totalBudgetsCreated);
+    if (!premium && usedBudgetSlots >= FREE_BUDGET_LIMIT)
       throw new Error('Has alcanzado el límite de tu plan.');
     const updated = {
       ...user,

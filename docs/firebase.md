@@ -11,6 +11,10 @@ Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting y
 ```text
 users/{uid}                            Cuenta, plan y contador acumulado
 ├── budgets/{id}                       Partidas y tareas embebidas
+├── projects/{id}                      Snapshot del proyecto y resumen de avance
+│   ├── workItems/{id}                 Partida y copia de sus conceptos
+│   ├── supplements/{id}                Registro inmutable de una ampliación
+│   └── supplementVoids/{id}            Anulación inmutable con motivo
 ├── tariffCatalogs/main-v1             Catálogo único: partidas con conceptos embebidos
 ├── templates/{id}                     Partidas, catálogo, ajuste e IVA
 ├── profile/data                      Datos de empresa y logo PNG como data URL
@@ -24,13 +28,17 @@ quoteEstimateRateLimits/{token}        Ventana de frecuencia, sólo servidor
 quoteLeadRateLimits/{token}            Límite de envíos de leads, sólo servidor
 ```
 
-Los IDs son UUID y las fechas de documentos son ISO strings. El vencimiento premium añade milisegundos para las reglas; el vencimiento público es numérico.
+Los IDs son UUID y las fechas de auditoría son ISO strings. La fecha de finalización elegida por el usuario se guarda como día local `YYYY-MM-DD` para evitar cambios de día por zona horaria. El vencimiento premium añade milisegundos para las reglas; el vencimiento público es numérico.
 
 ## Autorización y cuota
 
 Las reglas separan la raíz de cuenta de las colecciones editables; no usan un permiso recursivo que pueda reabrir la raíz. Los clientes nuevos solo pueden crear una cuenta free, no-admin y con contador cero. No pueden asignarse un rol, plan o vencimiento. El admin existente está restringido a la identidad designada y al flag protegido. La provisión de roles nuevos requiere una operación de confianza.
 
-La creación de un presupuesto se ejecuta junto al incremento del contador y el último ID creado en una transacción. Las reglas exigen esa relación y aplican la cuota free o el premium vigente usando request.time. Borrar un presupuesto no devuelve cuota. Actualizar un documento existente no consume otra creación.
+La creación de un presupuesto se ejecuta junto al incremento de `totalBudgetsCreated` y `lastCreatedBudgetId` en una transacción. Las reglas limitan Free a tres plazas de creación; borrar un presupuesto no devuelve cuota. Aceptar y convertirlo en proyecto conserva la plaza consumida por el presupuesto origen: la conversión enlaza presupuesto y proyecto de forma atómica, no reduce ni vuelve a incrementar el contador. Los antiguos campos `budgetSlotsReleased` y `lastConvertedBudgetId` pueden seguir presentes en datos previos, pero ya no intervienen en el límite. Actualizar un documento existente no consume otra creación.
+
+BG-009: el presupuesto puede guardar `acceptedAt` y `projectId`. El proyecto conserva el origen (`sourceBudgetId`/`sourceBudgetNumber`), cliente/obra, importes originales (`subtotal`, `iva`, `total`), resumen de ampliaciones (`supplementsSubtotal`, `supplementsIva`, `updatedTotal`) y resumen de progreso (`totalConcepts`, `completedConcepts`, `totalAmount`, `completedAmount`, `percent`, `status`, `completedAt`). Cada `workItem` conserva partida, tareas copiadas y su `completedAt`; las fechas seleccionadas se normalizan a día local y no pueden ser futuras. La aceptación sólo cambia `acceptedAt`; un presupuesto aceptado queda bloqueado hasta retirar la aceptación. La conversión atómica crea el proyecto y sus partidas y guarda `projectId` en el presupuesto, sin alterar la cuota.
+
+Los suplementos viven en `supplements/{id}` junto a una partida de trabajo asociada. El cliente crea el registro una vez; no lo edita ni lo borra. Anularlo crea un documento `supplementVoids/{id}` con motivo y marca la partida como anulada en la misma transacción; el historial queda preservado y las cifras/progreso activos se recalculan. La anulación no es una eliminación. Reglas de propietario/admin limitan el acceso a proyecto y subcolecciones; no se publican ni se borran proyectos desde el cliente. Completar tareas, editar fechas o ampliar trabajo escribe las tareas/partida y el resumen correspondiente en una transacción. Cada partida debe medir menos de 900.000 bytes UTF-8 y la conversión admite como máximo 200 partidas.
 
 Los snapshots públicos permiten get individual, deniegan list y exigen propietario autenticado al crear. Caducan, son inmutables y su propietario puede revocarlos. El DTO elimina costes internos y metadatos privados antes de escribirlo. Los enlaces legacy no seguros quedan bloqueados; revisar la transición en stability-and-release.md.
 
@@ -59,3 +67,5 @@ El 18-10-2026 se corrigió el 403 de los callables del estimador estableciendo `
 BG-008: inicialización idempotente en transacción sobre `tariffCatalogs/main-v1` y `settings/tariffCatalog`. Datos actuales de prueba: se copia el catálogo activo antes de borrar sobrantes; las tarifas legacy tienen prioridad sobre la base inicial si no existe catálogo. Un fallo de creación no borra fuentes; un fallo de limpieza admite reintento y conserva el destino. No cambian las reglas ni los permisos. La unicidad es un contrato de la aplicación; clientes antiguos aún pueden escribir otros IDs bajo las reglas actuales. No se ejecuta un borrado global ni una migración remota mediante scripts.
 
 La extensión de BG-008 persiste `parts[]`, con conceptos anidados y sin categoría redundante. El adaptador agrupa catálogos planos antiguos por `Tariff.category` y asigna IDs deterministas; la escritura canónica ocurre durante la carga idempotente del catálogo. Los presupuestos y plantillas mantienen sus snapshots históricos: sólo las nuevas selecciones guardan `catalogPartId` y `catalogConceptId` opcionales. Esos IDs son privados y se omiten de los DTO públicos.
+
+El 18-10-2026 se desplegó la extensión BG-009 a Hosting y reglas de Firestore en `budgenerator`, después de verificar en emuladores 39 pruebas de reglas y 35 E2E. La base `(default)` se confirmó Standard en `europe-southwest1`. Hosting publica PWA `76226c9116b5a43b`; `index.html` y `sw.js` responden HTTP 200 y sus bytes coinciden con `dist`. No se desplegaron Functions ni se modificaron documentos reales de Firestore. El worktree se actualizó al commit de `main` `0d744fe`, que incluye Leads; los cambios de la extensión no se comprometieron ni fusionaron.

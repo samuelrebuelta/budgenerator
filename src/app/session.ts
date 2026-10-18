@@ -11,6 +11,7 @@ import { useSyncStore, flushWrites } from '@/shared/model/sync';
 import { useBudgetStore, resetBudgetStore } from '@/entities/budget/model/store';
 import { useCatalogStore, resetCatalogStore } from '@/entities/catalog/model/store';
 import { useProfileStore, resetProfileStore } from '@/entities/profile/model/store';
+import { useProjectStore, resetProjectStore } from '@/entities/project';
 import { useTemplateStore, resetTemplateStore } from '@/entities/template/model/store';
 import { useUserStore, resetUserStore } from '@/entities/user/model/store';
 export const useSessionStore = create<{
@@ -25,6 +26,7 @@ export function resetSession(uid: string | null) {
   resetBudgetStore();
   resetCatalogStore();
   resetProfileStore();
+  resetProjectStore();
   resetTemplateStore();
   resetUserStore();
   useSyncStore.setState({ jobs: {} });
@@ -53,6 +55,7 @@ export function loadSession(user: User, retry = false): Promise<void> {
           useBudgetStore.getState().loadBudgets(user.uid),
           useCatalogStore.getState().loadCatalogs(user.uid),
           useProfileStore.getState().loadProfile(user.uid, user.email ?? ''),
+          useProjectStore.getState().loadProjects(user.uid),
           useTemplateStore.getState().loadTemplates(user.uid),
         ]),
       );

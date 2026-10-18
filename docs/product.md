@@ -13,13 +13,13 @@ web
 
 ## Product Purpose
 
-BudGenerator permite a empresas de reformas gestionar un catálogo de precios, preparar presupuestos y plantillas, exportar presupuestos y recibir solicitudes del estimador público.
+BudGenerator permite a empresas de reformas gestionar un catálogo de precios, preparar presupuestos y plantillas, exportar presupuestos y recibir solicitudes del estimador público. Proyectos reúne el trabajo posterior a la aceptación: conserva el presupuesto original, registra suplementos por imprevistos y muestra la evolución por fecha.
 
 **Hipótesis de propósito, pendiente de validación explícita:** reducir el trabajo manual al preparar presupuestos y conservar la información que la empresa necesita para dar seguimiento a cada solicitud. No hay una métrica de éxito acordada.
 
 ## Positioning
 
-El estimador público calcula en Firebase Cloud Functions una horquilla orientativa con precios por m² que configura la empresa. La configuración antigua basada en conceptos de catálogo se conserva para enlaces existentes. El visitante no consulta directamente el catálogo ni recibe precios unitarios internos. Es un mecanismo implementado; no hay una afirmación documentada de diferenciación frente a competidores.
+El estimador público calcula en Firebase Cloud Functions una horquilla orientativa con precios por m² que configura la empresa. La configuración antigua basada en conceptos de catálogo se conserva para enlaces existentes. El visitante no consulta directamente el catálogo ni recibe precios unitarios internos. Es un mecanismo implementado; no hay una afirmación documentada de diferenciación frente a competidores. Proyectos es la entrada operativa principal: el presupuesto aceptado se conserva como referencia inmutable y el proyecto permite registrar suplementos y seguir el avance por concepto y fecha. El plan Free limita a tres plazas compartidas entre presupuestos y proyectos; convertir conserva la plaza ya ocupada por el presupuesto.
 
 ## Operating Context
 
@@ -36,7 +36,7 @@ El estimador público calcula en Firebase Cloud Functions una horquilla orientat
 - Se propone una landing sencilla para cada empresa, redactada con ayuda de IA a partir de información pública de la empresa y sus servicios, y editable por la empresa. El formulario de contacto generaría solicitudes en su perfil; el seguimiento seguiría siendo manual, por teléfono y con estados básicos.
 - Para definir el estilo de esa landing, el flujo deseado es preguntar antes por tipo de empresa, colores, nombre, ubicación y cliente objetivo; afinar las respuestas y presentar una propuesta visual para revisión antes de programarla. Esta landing y su flujo de creación no están implementados y no implican integrar Web Factory Lite en este repositorio.
 - Las solicitudes no requieren un CRM completo, campañas ni automatizaciones. Los precios y partidas se calculan con reglas deterministas y tarifas del catálogo, no con IA; la generación de presupuestos con IA está fuera del roadmap activo.
-- La propuesta comercial documentada contempla Free con hasta 3 presupuestos y sin límites de catálogos o plantillas, y BudGenerator Pro a 19,99 €/mes + IVA mediante Stripe. La interpretación del límite, el acceso a landings y los detalles de facturación siguen abiertos; no se presentan aquí como comportamiento implementado.
+- La propuesta comercial documentada contempla Free con hasta 3 plazas compartidas entre presupuestos y proyectos, sin límites de catálogos o plantillas, y BudGenerator Pro a 19,99 €/mes + IVA mediante Stripe. La conversión conserva la plaza del presupuesto y borrar un documento no devuelve cuota; los detalles de facturación siguen abiertos.
 - Las cuentas `premium` y la administración manual deben conservarse hasta que se defina su transición. Los documentos BG-004, BG-005 y BG-009 son base de sus planes, no autorización de despliegue.
 - Los proyectos son una vista operativa del avance, no un sistema de facturación ni una herramienta completa de gestión de obras.
 

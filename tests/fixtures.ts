@@ -30,6 +30,7 @@ export const user = (uid = 'alice'): UserData => ({
   email: `${uid}@example.test`,
   accountData: { isAdmin: false, plan: 'free' },
   totalBudgetsCreated: 0,
+  budgetSlotsReleased: 0,
   createdAt: '2026-10-14T10:00:00Z',
 });
 export const catalog = (): TariffCatalog => ({

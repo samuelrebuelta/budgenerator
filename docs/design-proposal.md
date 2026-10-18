@@ -71,4 +71,4 @@ Capturas del build real con datos sintéticos y Firebase Emulator Suite; no son 
 
 ## Evolución posible
 
-Para una siguiente iteración, priorizaría información real de estado del presupuesto —borrador, enviado, aceptado— y un seguimiento de proyectos antes de añadir más tarjetas de métricas. Después, una portada PDF configurable y preferencias de marca por empresa. Estos puntos son propuestas futuras: la versión aplicada no inventa esos datos.
+BG-009 incorpora el seguimiento de proyectos y el estado de aceptación del presupuesto. Para una siguiente iteración quedan como propuestas una portada PDF configurable y preferencias de marca por empresa; no forman parte de esta entrega.

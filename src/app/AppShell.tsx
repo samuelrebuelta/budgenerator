@@ -12,6 +12,7 @@ import {
   LogOut,
   ArrowUpRight,
   CircleHelp,
+  Briefcase,
 } from 'lucide-react';
 import { Brand } from '@/shared/ui/Brand';
 import { ConfirmModal, Modal, CompanyAvatar } from '@/shared/ui';
@@ -22,15 +23,15 @@ import { PwaInstallBanner } from './PwaInstallBanner';
 import { SyncStatus } from './SyncStatus';
 import { AppTourProvider } from '@/features/app-tour/AppTour';
 const links = [
+  ['/projects', 'Proyectos', Briefcase],
   ['/budgets', 'Presupuestos', FileText],
-  ['/templates', 'Plantillas', LayoutTemplate],
   ['/catalog', 'Catálogo', BookOpen],
   ['/profile/solicitudes', 'Solicitudes', Inbox],
 ] as const;
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isDetailPage =
-    /^\/(?:budget|catalogs|templates)\/[^/]+\/?$/.test(location.pathname) ||
+    /^\/(?:budget|projects?|catalogs|templates)\/[^/]+\/?$/.test(location.pathname) ||
     location.pathname === '/account/password';
   const activePath = links.find(
     ([path]) =>
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       location.pathname.startsWith(path + '/') ||
       (path === '/budgets' && location.pathname.startsWith('/budget/')),
   )?.[0];
+  const showMobileNav = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
   useLayoutEffect(() => {
     if (links.some(([path]) => path === location.pathname) || location.pathname === '/estimator') {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -79,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           Saltar al contenido
         </a>
         <aside className="sidebar no-print">
-          <Link to="/budgets" aria-label="budgenerator, ir a presupuestos">
+          <Link to="/projects" aria-label="budgenerator, ir a proyectos">
             <Brand />
           </Link>
           <p className="nav-caption">NAVEGACIÓN</p>
@@ -121,7 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
         <div className="workspace">
           <header className="workspace-header no-print">
-            <Link className="mobile-brand" to="/budgets" aria-label="budgenerator, inicio">
+            <Link className="mobile-brand" to="/projects" aria-label="budgenerator, inicio">
               <Brand />
             </Link>
             <span className="desktop-greeting">
@@ -132,11 +134,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                     ? 'Mi empresa'
                     : location.pathname === '/help'
                       ? 'Ayuda'
-                      : location.pathname.startsWith('/estimator')
-                        ? 'Estimador'
-                        : location.pathname.startsWith('/admin')
-                          ? 'Panel de administración'
-                          : 'BudGenerator')}
+                      : location.pathname.startsWith('/templates')
+                        ? 'Plantillas de presupuestos'
+                        : location.pathname.startsWith('/estimator')
+                          ? 'Estimador público'
+                          : location.pathname.startsWith('/admin')
+                            ? 'Panel de administración'
+                            : 'BudGenerator')}
             </span>
             <div className="workspace-actions">
               {!isDetailPage && <SyncStatus />}
@@ -160,7 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PwaInstallBanner />
           <main id="workspace-content">{children}</main>
         </div>
-        {!isDetailPage && (
+        {showMobileNav && (
           <nav
             className="mobile-nav no-print"
             aria-label="Navegación móvil"
@@ -191,37 +195,50 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
         <Modal open={menu} onClose={() => setMenu(false)} title="Menú de cuenta">
           {account?.accountData.isAdmin && (
-            <Link className="nav-item" to="/admin" onClick={() => setMenu(false)}>
-              <ShieldCheck size={18} />
-              Panel de administración
-            </Link>
+            <section className="account-menu-section" aria-label="Administración">
+              <h2 className="account-menu-heading">Administración</h2>
+              <Link className="nav-item" to="/admin" onClick={() => setMenu(false)}>
+                <ShieldCheck size={18} />
+                Panel de administración
+              </Link>
+            </section>
           )}
-          <Link className="nav-item" to="/profile" onClick={() => setMenu(false)}>
-            <Building2 size={18} />
-            Mi empresa
-          </Link>
-          <Link className="nav-item" to="/estimator" onClick={() => setMenu(false)}>
-            <Calculator size={18} />
-            Estimador
-          </Link>
-          <Link className="nav-item" to="/account" onClick={() => setMenu(false)}>
-            <CircleUserRound size={18} />
-            Mi cuenta
-          </Link>
-          <Link className="nav-item" to="/help" onClick={() => setMenu(false)}>
-            <CircleHelp size={18} />
-            Ayuda
-          </Link>
-          <button
-            className="nav-item w-full"
-            onClick={() => {
-              setMenu(false);
-              setLogout(true);
-            }}
-          >
-            <LogOut size={18} />
-            Cerrar sesión
-          </button>
+          <section className="account-menu-section" aria-label="Empresa y herramientas">
+            <h2 className="account-menu-heading">Empresa y herramientas</h2>
+            <Link className="nav-item" to="/profile" onClick={() => setMenu(false)}>
+              <Building2 size={18} />
+              Mi empresa
+            </Link>
+            <Link className="nav-item" to="/templates" onClick={() => setMenu(false)}>
+              <LayoutTemplate size={18} />
+              Plantillas de presupuestos
+            </Link>
+            <Link className="nav-item" to="/estimator" onClick={() => setMenu(false)}>
+              <Calculator size={18} />
+              Estimador público
+            </Link>
+          </section>
+          <section className="account-menu-section" aria-label="Gestión de cuenta y ayuda">
+            <h2 className="account-menu-heading">Gestión de cuenta y ayuda</h2>
+            <Link className="nav-item" to="/account" onClick={() => setMenu(false)}>
+              <CircleUserRound size={18} />
+              Mi cuenta
+            </Link>
+            <Link className="nav-item" to="/help" onClick={() => setMenu(false)}>
+              <CircleHelp size={18} />
+              Ayuda
+            </Link>
+            <button
+              className="nav-item w-full"
+              onClick={() => {
+                setMenu(false);
+                setLogout(true);
+              }}
+            >
+              <LogOut size={18} />
+              Cerrar sesión
+            </button>
+          </section>
         </Modal>
         <ConfirmModal
           open={logout}

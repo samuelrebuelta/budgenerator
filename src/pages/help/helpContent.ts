@@ -37,6 +37,40 @@ export const helpTopics: HelpTopic[] = [
     ],
   },
   {
+    id: 'proyectos',
+    title: 'Proyectos y seguimiento',
+    description: 'Organiza el trabajo aceptado, registra imprevistos y consulta su evolución.',
+    questions: [
+      {
+        question: '¿Cómo convierto un presupuesto aceptado en proyecto?',
+        steps: [
+          'Abre el presupuesto guardado, pulsa Marcar como aceptado y confirma la aceptación del cliente.',
+          'En ese presupuesto, pulsa Convertir en proyecto. Se crea una copia de trabajo y el presupuesto aceptado queda como referencia.',
+          'Abre Proyectos para seguir el avance de las partidas y sus conceptos.',
+        ],
+        link: { to: '/budgets', label: 'Ver presupuestos para aceptar' },
+      },
+      {
+        question: '¿Cómo registro un imprevisto y actualizo el total del proyecto?',
+        steps: [
+          'Abre el proyecto y añade el trabajo en Ampliaciones con su cantidad y precio unitario.',
+          'La ampliación conserva el IVA del presupuesto aceptado; el total original permanece visible junto al total actualizado.',
+          'Si una ampliación no se realiza, anúlala indicando un motivo. El historial se conserva y se resta del trabajo y del importe activos.',
+        ],
+        link: { to: '/projects', label: 'Abrir proyectos y ampliaciones' },
+      },
+      {
+        question: '¿Puedo corregir la fecha de un trabajo o ver cómo ha avanzado?',
+        steps: [
+          'Al marcar un concepto como terminado se guarda la fecha de hoy.',
+          'Pulsa la fecha junto al concepto o la partida completada para corregirla; cambiar una partida actualiza todos sus conceptos.',
+          'Abre el icono de evolución del proyecto para consultar el avance acumulado por fecha. Corregir una fecha no cambia el avance actual.',
+        ],
+        link: { to: '/projects', label: 'Consultar mis proyectos' },
+      },
+    ],
+  },
+  {
     id: 'empresa',
     title: 'Empresa y perfil',
     description: 'Los datos que identifican tus presupuestos.',

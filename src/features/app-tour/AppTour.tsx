@@ -7,6 +7,13 @@ import { isWelcomeTourPending, markWelcomeTourComplete } from './model';
 
 const steps = [
   {
+    path: '/projects',
+    target: '[data-page-header]',
+    title: 'El seguimiento empieza en Proyectos',
+    description:
+      'Al aceptar un presupuesto, conviértelo en proyecto para seguir conceptos, registrar imprevistos y consultar la evolución por fecha.',
+  },
+  {
     path: '/budgets',
     target: '[data-tour="budget-create"]',
     title: 'Tus presupuestos',
@@ -95,7 +102,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
     autoStarted.current = true;
     previousStepPath.current = null;
     setOpen(true);
-    if (location.pathname !== '/budgets') navigate('/budgets', { replace: true });
+    if (location.pathname !== '/projects') navigate('/projects', { replace: true });
   }, [location.pathname, navigate, userId]);
 
   const closeTour = useCallback(() => {
@@ -118,7 +125,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
     previousStepPath.current = null;
     setSpotlight(null);
     setOpen(true);
-    if (location.pathname !== '/budgets') navigate('/budgets');
+    if (location.pathname !== '/projects') navigate('/projects');
   }, [location.pathname, navigate]);
 
   const goToStep = (index: number) => {

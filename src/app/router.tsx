@@ -24,7 +24,7 @@ export const router = createBrowserRouter([
     hydrateFallbackElement,
     lazy: async () => ({ Component: (await import('@/pages/public-quote')).QuoteEstimatorPage }),
   },
-  { path: '/', element: <Navigate to="/budgets" replace /> },
+  { path: '/', element: <Navigate to="/projects" replace /> },
   {
     element: (
       <AuthGuard>
@@ -41,6 +41,16 @@ export const router = createBrowserRouter([
       {
         path: '/budget/:budgetId',
         lazy: async () => ({ Component: (await import('@/pages/budget-detail')).BudgetDetailPage }),
+      },
+      {
+        path: '/projects',
+        lazy: async () => ({ Component: (await import('@/pages/projects')).ProjectsPage }),
+      },
+      {
+        path: '/projects/:projectId',
+        lazy: async () => ({
+          Component: (await import('@/pages/project-detail')).ProjectDetailPage,
+        }),
       },
       {
         path: '/catalog',

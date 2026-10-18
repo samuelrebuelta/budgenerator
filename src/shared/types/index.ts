@@ -47,6 +47,8 @@ export interface Budget {
   adjustment?: BudgetAdjustment;
   ivaRate?: number;
   createdAt: string;
+  acceptedAt?: string;
+  projectId?: string;
 }
 
 export interface Tariff {
@@ -128,6 +130,8 @@ export interface UserData {
   accountData: AccountData;
   totalBudgetsCreated: number;
   lastCreatedBudgetId?: string;
+  budgetSlotsReleased?: number;
+  lastConvertedBudgetId?: string;
   createdAt: string;
 }
 

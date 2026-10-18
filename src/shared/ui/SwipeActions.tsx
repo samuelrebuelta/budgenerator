@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { Ellipsis, Trash2, Check } from 'lucide-react';
+import { Ellipsis, Trash2, Check, ArrowRight } from 'lucide-react';
 import { swipeDirection, type SwipeDirection } from './swipeGesture';
 export type { SwipeDirection } from './swipeGesture';
 export interface SwipeAction {
-  id: 'delete' | 'default';
+  id: 'delete' | 'default' | 'open';
   label: string;
   onAction: () => void;
   disabled?: boolean;
@@ -15,6 +15,7 @@ interface SwipeActionsProps {
   openDirection: SwipeDirection;
   onReveal: (direction: SwipeDirection) => void;
   disabled?: boolean;
+  disableSwipe?: boolean;
 }
 export function SwipeActions({
   label,
@@ -23,6 +24,7 @@ export function SwipeActions({
   openDirection,
   onReveal,
   disabled,
+  disableSwipe,
 }: SwipeActionsProps) {
   const id = useId();
   const row = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ export function SwipeActions({
         suppressClick.current = false;
         if (
           disabled ||
+          disableSwipe ||
           !['touch', 'pen'].includes(event.pointerType) ||
           (event.target as HTMLElement).closest('button, [popover]')
         )
@@ -124,7 +127,13 @@ export function SwipeActions({
           disabled={disabled || selectedAction.disabled}
           onClick={() => run(selectedAction)}
         >
-          {selectedAction.id === 'delete' ? <Trash2 size={18} /> : <Check size={18} />}
+          {selectedAction.id === 'delete' ? (
+            <Trash2 size={18} />
+          ) : selectedAction.id === 'open' ? (
+            <ArrowRight size={18} />
+          ) : (
+            <Check size={18} />
+          )}
           <span>{selectedAction.label}</span>
         </button>
       )}
@@ -165,7 +174,13 @@ export function SwipeActions({
             className={action.id === 'delete' ? 'row-action-delete' : ''}
             onClick={() => run(action)}
           >
-            {action.id === 'delete' ? <Trash2 size={17} /> : <Check size={17} />}
+            {action.id === 'delete' ? (
+              <Trash2 size={17} />
+            ) : action.id === 'open' ? (
+              <ArrowRight size={17} />
+            ) : (
+              <Check size={17} />
+            )}
             {action.label}
           </button>
         ))}

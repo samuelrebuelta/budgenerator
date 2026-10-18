@@ -14,6 +14,7 @@ import { WriteQueue } from '@/shared/lib/writeQueue';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { registerFlusher } from '@/shared/model/sync';
 import { fetchBudgets, saveBudget, createBudget, deleteBudgetDoc } from '../api/firestore';
+import { createBudgetAcceptanceApi } from '../api/acceptance';
 import { useUserStore } from '@/entities/user';
 
 interface BudgetState {
@@ -28,6 +29,10 @@ interface BudgetState {
   startDraft: (catalogId?: string) => void;
   startDraftFromLead: (lead: { id: string; contact: { name: string } }, catalogId?: string) => void;
   startDraftFromTemplate: (template: BudgetTemplate) => void;
+  startDraftFromBudget: (id: string) => void;
+  acceptBudget: (id: string) => Promise<void>;
+  withdrawBudgetAcceptance: (id: string) => Promise<void>;
+  linkProject: (id: string, projectId: string) => void;
   loadTemplateForEditing: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
@@ -102,6 +107,10 @@ const queue = new WriteQueue<Budget>('budget:', async (key, budget) => {
   const uid = key.split('/')[0]!;
   await saveBudget(uid, budget);
 });
+async function getAcceptanceApi() {
+  const { db } = await import('@/shared/firebase/config');
+  return createBudgetAcceptanceApi(db);
+}
 let draftSave: Promise<string> | null = null;
 let creationId: string | null = null;
 registerFlusher(async () => {
@@ -135,7 +144,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
   const edit = (updater: (budget: Budget) => Budget) => {
     if (get().savingDraft) return;
     const current = active(get());
-    if (!current) return;
+    if (!current || current.acceptedAt || current.projectId) return;
     const next = updater(current);
     assertBudget(next);
     if (get().draftBudget) {
@@ -222,6 +231,70 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
       rememberDraft('budget', null);
       openDraft('budget', budget);
     },
+    startDraftFromBudget: (id) => {
+      const source = get().budgets.find((budget) => budget.id === id);
+      if (!source) throw new Error('No se ha encontrado el presupuesto.');
+      const copy: Budget = {
+        ...source,
+        id: '',
+        info: {
+          ...source.info,
+          date: new Date().toLocaleDateString('en-CA'),
+          budgetNumber: String(
+            Math.max(
+              0,
+              ...get().budgets.map((budget) => parseInt(budget.info.budgetNumber, 10) || 0),
+            ) + 1,
+          ),
+        },
+        workItems: source.workItems.map((item) => ({
+          ...item,
+          id: generateId(),
+          tasks: item.tasks.map((task) => ({ ...task, id: generateId() })),
+        })),
+        createdAt: '',
+      };
+      Reflect.deleteProperty(copy, 'acceptedAt');
+      Reflect.deleteProperty(copy, 'projectId');
+      rememberDraft('budget', null);
+      openDraft('budget', copy);
+    },
+    acceptBudget: async (id) => {
+      const uid = sessionUid();
+      if (!uid) throw new Error('Inicia sesión para continuar.');
+      const source = get().budgets.find((budget) => budget.id === id);
+      if (!source) throw new Error('No se ha encontrado el presupuesto.');
+      const acceptedAt = source.acceptedAt ?? new Date().toISOString();
+      const revision = sessionRevision();
+      await (await getAcceptanceApi()).acceptBudget(uid, id, acceptedAt);
+      if (isSessionCurrent(uid, revision))
+        set((state) => ({
+          budgets: state.budgets.map((budget) =>
+            budget.id === id ? { ...budget, acceptedAt } : budget,
+          ),
+        }));
+    },
+    withdrawBudgetAcceptance: async (id) => {
+      const uid = sessionUid();
+      if (!uid) throw new Error('Inicia sesión para continuar.');
+      const revision = sessionRevision();
+      await (await getAcceptanceApi()).withdrawBudgetAcceptance(uid, id);
+      if (isSessionCurrent(uid, revision))
+        set((state) => ({
+          budgets: state.budgets.map((budget) => {
+            if (budget.id !== id) return budget;
+            const updated = { ...budget };
+            Reflect.deleteProperty(updated, 'acceptedAt');
+            return updated;
+          }),
+        }));
+    },
+    linkProject: (id, projectId) =>
+      set((state) => ({
+        budgets: state.budgets.map((budget) =>
+          budget.id === id ? { ...budget, projectId } : budget,
+        ),
+      })),
     loadTemplateForEditing: (template) =>
       openDraft(`template:${template.id || 'new'}`, {
         id: template.id,
@@ -277,6 +350,11 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     deleteBudget: async (id) => {
       const uid = sessionUid();
       if (!uid) throw new Error('Inicia sesión para continuar.');
+      const budget = get().budgets.find((item) => item.id === id);
+      if (budget?.projectId)
+        throw new Error('El presupuesto convertido se conserva como origen del proyecto.');
+      if (budget?.acceptedAt)
+        throw new Error('Retira la aceptación antes de eliminar el presupuesto.');
       const revision = sessionRevision();
       await queue.cancel(`${uid}/${id}`);
       await deleteBudgetDoc(uid, id);
