@@ -1,5 +1,13 @@
 import { onCall } from 'firebase-functions/v2/https';
 import {
+  getNotificationSettings as getNotificationSettingsHandler,
+  registerPushDevice as registerPushDeviceHandler,
+  revokePushDevice as revokePushDeviceHandler,
+  setNotificationPreferences as setNotificationPreferencesHandler,
+  notificationFunctionOptions,
+} from './notifications/preferences.js';
+import { requireNotificationOwnerUid } from './notifications/contracts.js';
+import {
   calculatePublicEstimate as calculatePublicEstimateHandler,
   getOwnerEstimatorStatus as getOwnerEstimatorStatusHandler,
   getPublicEstimator as getPublicEstimatorHandler,
@@ -36,3 +44,22 @@ export const calculatePublicEstimate = onCall(quoteEstimatorFunctionOptions, (re
 export const submitPublicLead = onCall(quoteEstimatorFunctionOptions, (request) =>
   submitPublicLeadHandler(request.data),
 );
+
+export const getNotificationSettings = onCall(notificationFunctionOptions, (request) =>
+  getNotificationSettingsHandler(requireNotificationOwnerUid(request.auth?.uid)),
+);
+
+export const setNotificationPreferences = onCall(notificationFunctionOptions, (request) =>
+  setNotificationPreferencesHandler(requireNotificationOwnerUid(request.auth?.uid), request.data),
+);
+
+export const registerPushDevice = onCall(notificationFunctionOptions, (request) =>
+  registerPushDeviceHandler(requireNotificationOwnerUid(request.auth?.uid), request.data),
+);
+
+export const revokePushDevice = onCall(notificationFunctionOptions, async (request) => ({
+  revoked: await revokePushDeviceHandler(
+    requireNotificationOwnerUid(request.auth?.uid),
+    request.data?.installationId,
+  ),
+}));

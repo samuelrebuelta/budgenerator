@@ -11,6 +11,8 @@
     "firebase:deploy": "node scripts/deploy.mjs hosting",
     "test": "vitest run --config vitest.config.ts",
     "test:rules": "vitest run --config vitest.rules.config.ts",
+    "test:notifications:integration": "vitest run --config vitest.notifications.config.ts",
+    "test:notifications:emulator": "firebase emulators:exec --config firebase.notifications-test.json --project demo-bg010-notifications --only auth,firestore \"pnpm test:notifications:integration && pnpm exec vitest run --config vitest.rules.config.ts tests/notifications.rules.test.ts\"",
     "test:e2e": "playwright test",
     "test:integration": "pnpm build:functions && firebase emulators:exec --project demo-cimbra --only auth,firestore,functions \"FUNCTIONS_EMULATOR_HOST=127.0.0.1:5001 pnpm test:rules && FUNCTIONS_EMULATOR_HOST=127.0.0.1:5001 pnpm test:e2e\"",
     "firebase:emulators": "firebase emulators:start --project demo-cimbra --only auth,firestore,functions",

@@ -130,3 +130,5 @@ export interface UserData {
   lastCreatedBudgetId?: string;
   createdAt: string;
 }
+
+export * from './notifications.js';
