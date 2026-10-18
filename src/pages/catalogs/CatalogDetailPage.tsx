@@ -185,6 +185,8 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
       <PageHeader
         title="Catálogo"
         description={catalogSummary(catalog.parts)}
+        backTo="/budgets"
+        backLabel="Volver a presupuestos"
         actions={
           <Button
             className="page-create-button"

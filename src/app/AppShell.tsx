@@ -23,14 +23,15 @@ import { PwaInstallBanner } from './PwaInstallBanner';
 import { SyncStatus } from './SyncStatus';
 import { AppTourProvider } from '@/features/app-tour/AppTour';
 const links = [
-  ['/projects', 'Proyectos', Briefcase],
   ['/budgets', 'Presupuestos', FileText],
-  ['/catalog', 'Catálogo', BookOpen],
+  ['/projects', 'Proyectos', Briefcase],
   ['/profile/solicitudes', 'Solicitudes', Inbox],
 ] as const;
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const isCatalogPage = location.pathname.replace(/\/+$/, '') === '/catalog';
   const isDetailPage =
+    isCatalogPage ||
     /^\/(?:budget|projects?|catalogs|templates)\/[^/]+\/?$/.test(location.pathname) ||
     location.pathname === '/account/password';
   const activePath = links.find(
@@ -41,10 +42,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   )?.[0];
   const showMobileNav = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
   useLayoutEffect(() => {
-    if (links.some(([path]) => path === location.pathname) || location.pathname === '/estimator') {
+    if (
+      links.some(([path]) => path === location.pathname) ||
+      isCatalogPage ||
+      location.pathname === '/estimator'
+    ) {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
-  }, [location.pathname]);
+  }, [isCatalogPage, location.pathname]);
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const company = useProfileStore((s) => s.profile);
@@ -132,15 +137,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                   ? 'Mi cuenta'
                   : location.pathname.startsWith('/profile')
                     ? 'Mi empresa'
-                    : location.pathname === '/help'
-                      ? 'Ayuda'
-                      : location.pathname.startsWith('/templates')
-                        ? 'Plantillas de presupuestos'
-                        : location.pathname.startsWith('/estimator')
-                          ? 'Estimador público'
-                          : location.pathname.startsWith('/admin')
-                            ? 'Panel de administración'
-                            : 'BudGenerator')}
+                    : isCatalogPage
+                      ? 'Catálogo'
+                      : location.pathname === '/help'
+                        ? 'Ayuda'
+                        : location.pathname.startsWith('/templates')
+                          ? 'Plantillas de presupuestos'
+                          : location.pathname.startsWith('/estimator')
+                            ? 'Estimador público'
+                            : location.pathname.startsWith('/admin')
+                              ? 'Panel de administración'
+                              : 'BudGenerator')}
             </span>
             <div className="workspace-actions">
               {!isDetailPage && <SyncStatus />}
@@ -208,6 +215,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link className="nav-item" to="/profile" onClick={() => setMenu(false)}>
               <Building2 size={18} />
               Mi empresa
+            </Link>
+            <Link className="nav-item" to="/catalog" onClick={() => setMenu(false)}>
+              <BookOpen size={18} />
+              Catálogo
             </Link>
             <Link className="nav-item" to="/templates" onClick={() => setMenu(false)}>
               <LayoutTemplate size={18} />
