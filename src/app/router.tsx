@@ -18,6 +18,12 @@ export const router = createBrowserRouter([
     hydrateFallbackElement,
     lazy: async () => ({ Component: (await import('@/pages/budget-viewer')).BudgetViewerPage }),
   },
+  {
+    path: '/solicitar-presupuesto/:token',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/public-quote')).QuoteEstimatorPage }),
+  },
   { path: '/', element: <Navigate to="/budgets" replace /> },
   {
     element: (
@@ -59,6 +65,17 @@ export const router = createBrowserRouter([
       {
         path: '/profile',
         lazy: async () => ({ Component: (await import('@/pages/profile')).ProfilePage }),
+      },
+      {
+        path: '/estimator',
+        lazy: async () => ({
+          Component: (await import('@/pages/quote-estimator')).QuoteEstimatorSettingsPage,
+        }),
+      },
+      { path: '/profile/estimador-publico', element: <Navigate to="/estimator" replace /> },
+      {
+        path: '/profile/solicitudes',
+        lazy: async () => ({ Component: (await import('@/pages/leads')).LeadsPage }),
       },
       {
         path: '/account',

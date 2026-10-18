@@ -1,6 +1,8 @@
 # BG-005 — Landings y solicitudes de presupuesto
 
-**Estado:** diseño preparado; las decisiones operativas se concretarán al preparar la implementación. No autoriza publicar páginas ni activar un proveedor de IA.
+> Visión original del producto. La entrega acotada en este repositorio implementa el estimador público vinculado al catálogo, la captura y gestión manual de solicitudes y el inicio de un presupuesto relacionado. No crea landings ni usa IA. Para el alcance implementado, ver también `docs/superpowers/specs/2026-10-18-bg-005-estimador-publico-design.md` y `docs/superpowers/specs/2026-10-18-bg-005-captura-de-leads-design.md`.
+
+**Estado:** visión de producto; landing e IA siguen sin implementarse ni autorizadas. El estimador y la captura de solicitudes tienen alcance específico y están implementados localmente, sin despliegue.
 **Fecha:** 2026-10-17.
 
 ## Intención

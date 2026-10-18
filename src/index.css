@@ -447,8 +447,8 @@
   font-size: 11px;
   font-weight: 650;
 }
-.mobile-account-chip {
-  display: none;
+.account-menu-trigger {
+  cursor: pointer;
 }
 .account-chip > span:first-child {
   width: 32px;
@@ -1039,7 +1039,7 @@
   .account-chip-text {
     display: none;
   }
-  .mobile-account-chip {
+  .account-menu-trigger {
     display: inline-flex;
   }
   .mobile-nav {

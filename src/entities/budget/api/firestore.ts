@@ -45,6 +45,7 @@ interface FirestoreBudget {
   info: Budget['info'];
   sections?: FirestoreWorkItem[];
   workItems?: FirestoreWorkItem[];
+  sourceLeadId?: string;
   catalogId?: string;
   adjustment?: Budget['adjustment'];
   ivaRate?: number;
@@ -65,6 +66,7 @@ function mapFromFirestore(raw: FirestoreBudget): Budget {
         cost: task.cost ?? 0,
       })) as BudgetTask[],
     })),
+    ...(raw.sourceLeadId ? { sourceLeadId: raw.sourceLeadId } : {}),
     ...(raw.catalogId ? { catalogId: raw.catalogId } : {}),
     ...(raw.adjustment ? { adjustment: raw.adjustment } : {}),
     ...(raw.ivaRate !== undefined ? { ivaRate: raw.ivaRate } : {}),
@@ -82,6 +84,7 @@ function mapToFirestore(budget: Budget): FirestoreBudget {
       ...(wi.catalogPartId ? { catalogPartId: wi.catalogPartId } : {}),
       tasks: wi.tasks,
     })),
+    ...(budget.sourceLeadId ? { sourceLeadId: budget.sourceLeadId } : {}),
     createdAt: budget.createdAt,
   };
   if (budget.adjustment) {
@@ -129,13 +132,19 @@ export async function createBudget(uid: string, budget: Budget): Promise<UserDat
   return runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', uid);
     const budgetRef = doc(budgetsCol(uid), budget.id);
-    const [userSnap, existing] = await Promise.all([
+    const leadRef = budget.sourceLeadId
+      ? doc(db, 'users', uid, 'leads', budget.sourceLeadId)
+      : null;
+    const [userSnap, existing, leadSnap] = await Promise.all([
       transaction.get(userRef),
       transaction.get(budgetRef),
+      leadRef ? transaction.get(leadRef) : Promise.resolve(null),
     ]);
     if (!userSnap.exists()) throw new Error('No se ha podido cargar tu cuenta.');
     const user = userSnap.data() as UserData;
     if (existing.exists()) return user; // Retry the same creation id without charging quota twice.
+    if (leadRef && !leadSnap?.exists())
+      throw new Error('No se ha encontrado la solicitud de origen.');
     const account = user.accountData;
     const premium =
       account.plan === 'premium' &&
@@ -152,6 +161,7 @@ export async function createBudget(uid: string, budget: Budget): Promise<UserDat
       totalBudgetsCreated: updated.totalBudgetsCreated,
       lastCreatedBudgetId: budget.id,
     });
+    if (leadRef) transaction.update(leadRef, { budgetId: budget.id });
     return updated;
   });
 }

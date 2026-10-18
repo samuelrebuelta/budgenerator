@@ -42,6 +42,7 @@ export interface Budget {
   id: string;
   info: BudgetInfo;
   workItems: WorkItem[];
+  sourceLeadId?: string;
   catalogId?: string;
   adjustment?: BudgetAdjustment;
   ivaRate?: number;
@@ -84,11 +85,12 @@ export interface CompanyProfile {
   address: string;
   phone: string;
   email: string;
+  privacyPolicyUrl?: string;
   logo?: string;
 }
 
 export type PublicTask = Omit<BudgetTask, 'cost' | 'catalogConceptId'>;
-export type PublicBudget = Omit<Budget, 'workItems' | 'catalogId'> & {
+export type PublicBudget = Omit<Budget, 'workItems' | 'catalogId' | 'sourceLeadId'> & {
   workItems: { id: string; name: string; tasks: PublicTask[] }[];
 };
 export interface SharedBudget {

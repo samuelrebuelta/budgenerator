@@ -1,5 +1,9 @@
 import { spawnSync, spawn } from 'node:child_process';
-if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST)
+if (
+  !process.env.FIRESTORE_EMULATOR_HOST ||
+  !process.env.FIREBASE_AUTH_EMULATOR_HOST ||
+  !process.env.FUNCTIONS_EMULATOR_HOST
+)
   throw new Error('Start the local emulators with pnpm test:integration.');
 const env = {
   ...process.env,

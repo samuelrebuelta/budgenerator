@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
+import { isValidPrivacyPolicyUrl } from '@/entities/quote-estimator';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
 import { Button, ConfirmModal, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
@@ -27,6 +28,11 @@ export function ProfilePage() {
     setSaving(true);
     setError('');
     try {
+      const privacyUrl = profile.privacyPolicyUrl?.trim() ?? '';
+      if (privacyUrl && !isValidPrivacyPolicyUrl(privacyUrl)) {
+        setError('El aviso de privacidad debe tener una URL HTTPS válida.');
+        return;
+      }
       await saveProfile();
       navigate('/budgets');
     } catch (e) {
@@ -171,12 +177,52 @@ export function ProfilePage() {
             readOnly
             className="bg-gray-100 text-gray-500 cursor-not-allowed"
           />
+          <Input
+            id="privacyPolicyUrl"
+            label="URL del aviso de privacidad"
+            type="url"
+            value={profile.privacyPolicyUrl ?? ''}
+            onChange={(e) => updateProfile({ privacyPolicyUrl: e.target.value })}
+            placeholder="https://tuempresa.es/privacidad"
+          />
         </div>
+        <p className="mt-2 text-sm text-gray-500">
+          Es necesario para recibir solicitudes desde el formulario público. Solo se aceptan enlaces
+          seguros HTTPS.
+        </p>
 
         <div className="mt-8 flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
             {saving ? t('common.saving') : t('common.save')}
           </Button>
+        </div>
+        <div className="mt-10 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="font-semibold text-gray-900">Estimador público</h2>
+            <p className="mt-1 max-w-xl text-sm text-gray-600">
+              Gestiona las estancias, tarifas y enlace público.
+            </p>
+          </div>
+          <Link
+            to="/estimator"
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+          >
+            Ver
+          </Link>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="font-semibold text-gray-900">Solicitudes recibidas</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Consulta los datos de contacto y el resumen de cada reforma solicitada.
+            </p>
+          </div>
+          <Link
+            to="/profile/solicitudes"
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+          >
+            Ver
+          </Link>
         </div>
       </fieldset>
 

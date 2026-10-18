@@ -26,6 +26,7 @@ interface BudgetState {
   savingDraft: boolean;
   loadBudgets: (uid: string) => Promise<void>;
   startDraft: (catalogId?: string) => void;
+  startDraftFromLead: (lead: { id: string; contact: { name: string } }, catalogId?: string) => void;
   startDraftFromTemplate: (template: BudgetTemplate) => void;
   loadTemplateForEditing: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
@@ -197,6 +198,16 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
       if (!get().draftBudget || get().draftKey !== 'budget')
         openDraft('budget', newDraft(catalogId));
     },
+    startDraftFromLead: (lead, catalogId) => {
+      const key = `budget:lead:${lead.id}`;
+      if (get().draftBudget && get().draftKey === key) return;
+      const draft = newDraft(catalogId);
+      openDraft(key, {
+        ...draft,
+        info: { ...draft.info, clientName: lead.contact.name },
+        sourceLeadId: lead.id,
+      });
+    },
     startDraftFromTemplate: (template) => {
       const budget = {
         ...newDraft(template.catalogId),
@@ -225,7 +236,9 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
       if (draftSave) return draftSave;
       const draft = get().draftBudget;
       const uid = sessionUid();
-      if (!draft || !uid || get().draftKey !== 'budget') return Promise.resolve('');
+      const key = get().draftKey;
+      if (!draft || !uid || (key !== 'budget' && !key?.startsWith('budget:lead:')))
+        return Promise.resolve('');
       if (!useUserStore.getState().canCreateBudget())
         return Promise.reject(new Error('Has alcanzado el límite de tu plan.'));
       assertBudget(draft);

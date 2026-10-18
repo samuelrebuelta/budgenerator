@@ -5,6 +5,8 @@ import {
   BookOpen,
   LayoutTemplate,
   Building2,
+  Inbox,
+  Calculator,
   CircleUserRound,
   ShieldCheck,
   LogOut,
@@ -23,7 +25,7 @@ const links = [
   ['/budgets', 'Presupuestos', FileText],
   ['/templates', 'Plantillas', LayoutTemplate],
   ['/catalog', 'Catálogo', BookOpen],
-  ['/profile', 'Mi empresa', Building2],
+  ['/profile/solicitudes', 'Solicitudes', Inbox],
 ] as const;
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -37,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       (path === '/budgets' && location.pathname.startsWith('/budget/')),
   )?.[0];
   useLayoutEffect(() => {
-    if (links.some(([path]) => path === location.pathname)) {
+    if (links.some(([path]) => path === location.pathname) || location.pathname === '/estimator') {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   }, [location.pathname]);
@@ -97,12 +99,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="sidebar-bottom">
             <NavLink className="nav-item" to="/help">
               <CircleHelp size={18} />
-              Ayuda y guía
+              Ayuda
             </NavLink>
             {account?.accountData.isAdmin && (
               <NavLink className="nav-item" to="/admin">
                 <ShieldCheck size={18} />
-                Administración
+                Panel de administración
               </NavLink>
             )}
             <NavLink className="nav-item" to="/account">
@@ -126,14 +128,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               {links.find(([path]) => path === activePath)?.[1] ??
                 (location.pathname.startsWith('/account')
                   ? 'Mi cuenta'
-                  : location.pathname === '/help'
-                    ? 'Ayuda y guía'
-                    : 'Administración')}
+                  : location.pathname.startsWith('/profile')
+                    ? 'Mi empresa'
+                    : location.pathname === '/help'
+                      ? 'Ayuda'
+                      : location.pathname.startsWith('/estimator')
+                        ? 'Estimador'
+                        : location.pathname.startsWith('/admin')
+                          ? 'Panel de administración'
+                          : 'BudGenerator')}
             </span>
             <div className="workspace-actions">
               {!isDetailPage && <SyncStatus />}
               <button
-                className="account-chip mobile-account-chip"
+                className="account-chip account-menu-trigger"
                 onClick={() => setMenu(true)}
                 aria-label="Abrir menú de cuenta"
               >
@@ -181,21 +189,29 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
         )}
-        <Modal open={menu} onClose={() => setMenu(false)} title="Mi cuenta">
-          <Link className="nav-item" to="/help" onClick={() => setMenu(false)}>
-            <CircleHelp size={18} />
-            Ayuda y guía
+        <Modal open={menu} onClose={() => setMenu(false)} title="Menú de cuenta">
+          {account?.accountData.isAdmin && (
+            <Link className="nav-item" to="/admin" onClick={() => setMenu(false)}>
+              <ShieldCheck size={18} />
+              Panel de administración
+            </Link>
+          )}
+          <Link className="nav-item" to="/profile" onClick={() => setMenu(false)}>
+            <Building2 size={18} />
+            Mi empresa
+          </Link>
+          <Link className="nav-item" to="/estimator" onClick={() => setMenu(false)}>
+            <Calculator size={18} />
+            Estimador
           </Link>
           <Link className="nav-item" to="/account" onClick={() => setMenu(false)}>
             <CircleUserRound size={18} />
             Mi cuenta
           </Link>
-          {account?.accountData.isAdmin && (
-            <Link className="nav-item" to="/admin" onClick={() => setMenu(false)}>
-              <ShieldCheck size={18} />
-              Administración
-            </Link>
-          )}
+          <Link className="nav-item" to="/help" onClick={() => setMenu(false)}>
+            <CircleHelp size={18} />
+            Ayuda
+          </Link>
           <button
             className="nav-item w-full"
             onClick={() => {

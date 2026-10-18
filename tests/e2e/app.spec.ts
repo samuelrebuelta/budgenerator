@@ -175,7 +175,7 @@ test('UX headers are consistent, roots have no return links and child returns pr
     'Presupuestos',
     'Plantillas',
     'Catálogo',
-    'Mi empresa',
+    'Solicitudes',
   ]);
   await page.setViewportSize({ width: 1440, height: 844 });
   const desktopCreateBudget = page.getByRole('button', { name: 'Crear presupuesto', exact: true });
@@ -436,7 +436,7 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
   await page.goto('/templates');
   await expect(page.getByRole('button', { name: 'Crear plantilla', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Mi cuenta', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
   expect(await dialog.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('none');
   for (let index = 0; index < 8; index++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
@@ -598,7 +598,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await login(page);
   await expect(page.locator('[data-app-tour]')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Reforma de cocina/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Mi cuenta', exact: true })).toHaveCount(1);
   await expect(page.getByText('Al día', { exact: true })).toHaveCount(0);
   await page.screenshot({
@@ -614,8 +614,11 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   });
   const accountMenu = page.getByRole('button', { name: 'Abrir menú de cuenta', exact: true });
   await accountMenu.click();
-  const dialog = page.getByRole('dialog', { name: 'Mi cuenta', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Mi empresa', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Ayuda y guía', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Mi cuenta', exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Administración', exact: true })).toBeVisible();
   for (let i = 0; i < 7; i++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
@@ -626,7 +629,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   for (const [name, path] of [
     ['Catálogo', '/catalog'],
     ['Plantillas', '/templates'],
-    ['Mi empresa', '/profile'],
+    ['Solicitudes', '/profile/solicitudes'],
     ['Presupuestos', '/budgets'],
   ]) {
     await page.setViewportSize({ width: 390, height: 500 });

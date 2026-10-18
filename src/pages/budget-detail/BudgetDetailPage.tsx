@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker, useLocation, Link } from 'react-router-dom';
 import { BudgetStructureButton } from '@/features/budget-structure/BudgetStructureButton';
 import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
@@ -12,6 +12,16 @@ import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { useCatalogStore } from '@/entities/catalog';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
+import { useAuthStore } from '@/entities/auth';
+import {
+  fetchLead,
+  ESTIMATOR_QUALITIES,
+  LEGACY_ESTIMATOR_QUALITIES,
+  ESTIMATOR_ROOMS,
+  ESTIMATOR_SCOPES,
+  LEAD_START_TIMINGS,
+  type QuoteLead,
+} from '@/entities/quote-estimator';
 import { Button, Card, ConfirmModal, BudgetLimitReached, PageHeader } from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
 import { Trash2, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
@@ -23,12 +33,19 @@ export function BudgetDetailPage() {
 }
 function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const isDraft = budgetId === 'new';
+  const leadId = new URLSearchParams(location.search).get('leadId');
+  const uid = useAuthStore((s) => s.user?.uid);
 
   const setActiveBudget = useBudgetStore((s) => s.setActiveBudget);
   const startDraft = useBudgetStore((s) => s.startDraft);
+  const startDraftFromLead = useBudgetStore((s) => s.startDraftFromLead);
   const savingDraft = useBudgetStore((s) => s.savingDraft);
   const [saveError, setSaveError] = useState('');
+  const [leadContext, setLeadContext] = useState<QuoteLead | null | undefined>(
+    leadId ? undefined : null,
+  );
   const saveDraft = useBudgetStore((s) => s.saveDraft);
   const discardDraft = useBudgetStore((s) => s.discardDraft);
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
@@ -59,6 +76,22 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   // Initialize draft or set active budget
   useEffect(() => {
     if (isDraft) {
+      if (leadId) {
+        if (!uid) return;
+        let active = true;
+        fetchLead(uid, leadId)
+          .then((lead) => {
+            if (!active) return;
+            setLeadContext(lead);
+            if (lead) startDraftFromLead(lead, activeCatalogId ?? undefined);
+          })
+          .catch(() => {
+            if (active) setLeadContext(null);
+          });
+        return () => {
+          active = false;
+        };
+      }
       startDraft(activeCatalogId ?? undefined);
     } else if (budgetId) {
       setActiveBudget(budgetId);
@@ -66,7 +99,16 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     return () => {
       if (!isDraft) setActiveBudget(null);
     };
-  }, [budgetId, isDraft, setActiveBudget, startDraft, activeCatalogId]);
+  }, [
+    budgetId,
+    isDraft,
+    setActiveBudget,
+    startDraft,
+    startDraftFromLead,
+    activeCatalogId,
+    leadId,
+    uid,
+  ]);
 
   // Block in-app navigation when draft has content
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
@@ -149,6 +191,24 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     );
   }
 
+  if (isDraft && leadId && leadContext === undefined) return <BudgetSkeleton />;
+
+  if (isDraft && leadId && leadContext === null) {
+    return (
+      <div className="page-container">
+        <PageHeader
+          title="Solicitud no disponible"
+          description="No se ha podido abrir el contexto de origen de este borrador."
+          backTo="/profile/solicitudes"
+          backLabel="Volver a solicitudes"
+        />
+        <p className="mt-4 text-sm text-gray-600">
+          No se ha encontrado la solicitud. Puede que se haya borrado o que ya no tengas acceso.
+        </p>
+      </div>
+    );
+  }
+
   if (isDraft && !draftBudget) return null;
 
   return (
@@ -181,6 +241,94 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
               </div>
             )}
             <BudgetHeader key={activeBudget?.id || 'new'} />
+
+            {isDraft && leadContext && draftBudget?.sourceLeadId === leadContext.id && (
+              <section aria-label="Contexto de la solicitud" className="mt-5">
+                <Card className="border-[#cddbd1] bg-[#f8faf7] p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="font-semibold text-gray-900">
+                        Solicitud de {leadContext.contact.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-600">
+                        <a className="underline" href={`mailto:${leadContext.contact.email}`}>
+                          {leadContext.contact.email}
+                        </a>{' '}
+                        ·{' '}
+                        <a
+                          className="underline"
+                          href={`tel:${leadContext.contact.phone.replace(/[^+\d]/g, '')}`}
+                        >
+                          {leadContext.contact.phone}
+                        </a>
+                      </p>
+                    </div>
+                    <Link
+                      to="/profile/solicitudes"
+                      className="text-sm font-medium text-[#426457] underline underline-offset-2"
+                    >
+                      Volver a solicitudes
+                    </Link>
+                  </div>
+                  <ul className="mt-3 space-y-1 text-sm text-gray-700">
+                    {leadContext.selections.map((selection, index) => {
+                      const room = ESTIMATOR_ROOMS.find((item) => item.id === selection.room);
+                      const quantity = selection.quantity ?? 1;
+                      const ordinal = leadContext.selections
+                        .slice(0, index + 1)
+                        .filter(
+                          (item) => item.room === selection.room && Boolean(item.instanceId),
+                        ).length;
+                      const roomLabel = selection.instanceId
+                        ? `${room?.label ?? selection.room} ${ordinal}`
+                        : quantity > 1
+                          ? `${room?.pluralLabel ?? selection.room} (${quantity})`
+                          : room?.label;
+                      const areaLabel =
+                        quantity > 1 && !selection.instanceId
+                          ? `${selection.areaM2} m² c/u (${selection.areaM2 * quantity} m² total)`
+                          : `${selection.areaM2} m²`;
+                      return (
+                        <li key={selection.instanceId ?? `${selection.room}-${index}`}>
+                          {roomLabel} ·{' '}
+                          {ESTIMATOR_SCOPES.find((item) => item.id === selection.scope)?.label} ·
+                          Calidad{' '}
+                          {(leadContext.schemaVersion === 2
+                            ? ESTIMATOR_QUALITIES
+                            : LEGACY_ESTIMATOR_QUALITIES
+                          )
+                            .find((item) => item.id === selection.quality)
+                            ?.label?.toLowerCase()}{' '}
+                          · {areaLabel}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {leadContext.startTiming && (
+                    <p className="mt-3 text-sm text-gray-700">
+                      Inicio previsto:{' '}
+                      {LEAD_START_TIMINGS.find((option) => option.id === leadContext.startTiming)
+                        ?.label ?? leadContext.startTiming}
+                    </p>
+                  )}
+                  <p className="mt-3 text-sm font-medium text-[#426457]">
+                    Horquilla orientativa:{' '}
+                    {(leadContext.estimate.minimumCents / 100).toLocaleString('es-ES', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    })}
+                    {' – '}
+                    {(leadContext.estimate.maximumCents / 100).toLocaleString('es-ES', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    })}
+                    <span className="ml-2 font-normal text-gray-500">
+                      sin IVA · no se copia como precio
+                    </span>
+                  </p>
+                </Card>
+              </section>
+            )}
 
             <button
               onClick={togglePartidas}

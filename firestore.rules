@@ -58,6 +58,21 @@ service cloud.firestore {
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200;
       }
+      match /quoteEstimator/{documentId} {
+        allow get: if owner(uid) && documentId == 'settings';
+        allow list: if false;
+        allow create, update, delete: if owner(uid) && documentId == 'settings';
+      }
+      match /leads/{leadId} {
+        allow get, list: if owner(uid);
+        allow create: if false;
+        allow update: if owner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['budgetId'])
+          && request.resource.data.budgetId is string
+          && request.resource.data.budgetId.size() > 0
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(request.resource.data.budgetId));
+        allow delete: if owner(uid);
+      }
       match /{collectionName}/{documentId} {
         allow read: if canUse(uid) && collectionName in ['tariffCatalogs', 'templates', 'profile', 'settings', 'tariffs'];
         allow write: if canUse(uid) && (
@@ -83,5 +98,10 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn() && (resource.data.get('ownerUid', '') == request.auth.uid || isAdmin());
     }
+    // Token ownership and per-token rate limits are server-only documents.
+    match /publicQuoteTokens/{token} { allow read, write: if false; }
+    match /quoteEstimatorLinks/{uid} { allow read, write: if false; }
+    match /quoteEstimateRateLimits/{token} { allow read, write: if false; }
+    match /quoteLeadRateLimits/{token} { allow read, write: if false; }
   }
 }
