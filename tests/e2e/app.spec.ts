@@ -278,11 +278,11 @@ test('push permission is requested after interaction and account settings are pu
   ).toBe(1);
 });
 
-test('primary routes keep tabs and secondary routes use the common return without app header', async ({
+test('primary routes keep tabs and secondary routes use the common return on mobile', async ({
   page,
 }) => {
   await login(page);
-  for (const path of ['/budgets', '/projects', '/catalog', '/profile/solicitudes']) {
+  for (const path of ['/budgets', '/projects', '/profile/solicitudes']) {
     await page.goto(path);
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
@@ -292,6 +292,7 @@ test('primary routes keep tabs and secondary routes use the common return withou
     await expect(page.locator('.workspace-header')).toBeVisible();
   }
   for (const [path, backTo] of [
+    ['/catalog', '/budgets'],
     ['/templates', '/budgets'],
     ['/profile', '/projects'],
     ['/account', '/projects'],
@@ -301,7 +302,7 @@ test('primary routes keep tabs and secondary routes use the common return withou
     await page.goto(path);
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
-    await expect(page.locator('.workspace-header')).toHaveCount(0);
+    await expect(page.locator('.workspace-header')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
     await expect(page.locator('.back-button')).toHaveAttribute('href', backTo);
   }
@@ -323,6 +324,7 @@ test('primary routes keep tabs and secondary routes use the common return withou
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     for (const path of [
+      '/catalog',
       '/budget/demo-cocina',
       '/projects/missing',
       '/templates/new',
@@ -331,7 +333,11 @@ test('primary routes keep tabs and secondary routes use the common return withou
       await page.goto(path);
       await expect(page.locator('[data-page-header]')).toBeVisible();
       await expect(page.locator('.workspace-footer')).toHaveCount(0);
-      await expect(page.locator('.workspace-header')).toHaveCount(0);
+      if (width <= 800) {
+        await expect(page.locator('.workspace-header')).toBeHidden();
+      } else {
+        await expect(page.locator('.workspace-header')).toBeVisible();
+      }
       await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
       await expect(page.locator('.back-button')).toBeVisible();
       if (path === '/projects/missing') {
@@ -684,7 +690,7 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/templates');
   await expect(page.getByRole('button', { name: 'Crear plantilla', exact: true })).toBeVisible();
-  await expect(page.locator('.workspace-header')).toHaveCount(0);
+  await expect(page.locator('.workspace-header')).toBeVisible();
   await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
   await page.goto('/budgets');
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
