@@ -10,6 +10,8 @@ export function HelpPage() {
       <PageHeader
         title="Ayuda y guía"
         description="Encuentra los pasos para preparar tus presupuestos y resolver las dudas habituales."
+        backTo="/projects"
+        backLabel="Volver a proyectos"
         actions={
           <Button variant="secondary" onClick={startTour}>
             <Play size={16} /> Ver guía interactiva

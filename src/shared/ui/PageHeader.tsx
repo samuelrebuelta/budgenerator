@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { Skeleton } from './Skeleton';
+import { PageHeaderAccessoryContext } from './PageHeaderAccessoryContext';
 
 export function BackButton({ to, label }: { to: string; label: string }) {
   return (
@@ -25,6 +26,8 @@ export function PageHeader({
   backTo,
   backLabel = 'Volver a la página anterior',
 }: PageHeaderProps) {
+  const accessory = useContext(PageHeaderAccessoryContext);
+
   return (
     <header
       className="page-heading unified-page-header no-print"
@@ -38,17 +41,31 @@ export function PageHeader({
           <p>{description}</p>
         </div>
       </div>
+      {backTo && accessory && <div className="page-heading-menu-action">{accessory}</div>}
       {actions && <div className="page-heading-actions">{actions}</div>}
     </header>
   );
 }
-export function PageHeaderSkeleton() {
+export function PageHeaderSkeleton({
+  backTo,
+  backLabel = 'Volver a la página anterior',
+}: {
+  backTo?: string;
+  backLabel?: string;
+} = {}) {
+  const accessory = useContext(PageHeaderAccessoryContext);
+
   return (
-    <div className="page-heading header-skeleton" aria-hidden="true">
-      <div>
-        <Skeleton className="h-9 w-60 max-w-full mb-3" />
+    <div
+      className={`page-heading header-skeleton${backTo ? ' unified-page-header' : ''}`}
+      data-has-back={!!backTo}
+    >
+      {backTo && <BackButton to={backTo} label={backLabel} />}
+      <div className="page-heading-skeleton-copy" aria-hidden="true">
+        <Skeleton className="mb-3 h-9 w-60 max-w-full" />
         <Skeleton className="h-4 w-72 max-w-full" />
       </div>
+      {backTo && accessory && <div className="page-heading-menu-action">{accessory}</div>}
     </div>
   );
 }

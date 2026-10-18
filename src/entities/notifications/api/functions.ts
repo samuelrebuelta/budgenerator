@@ -18,7 +18,10 @@ export async function setNotificationPreferences(preferences: NotificationPrefer
   return (await call(preferences)).data;
 }
 
-export async function registerPushDevice(input: { installationId: string; token: string }) {
+export async function registerPushDevice(input: {
+  installationId: string;
+  registrationToken: string;
+}) {
   const call = httpsCallable<typeof input, { registered: true }>(functions, 'registerPushDevice');
   return (await call(input)).data;
 }

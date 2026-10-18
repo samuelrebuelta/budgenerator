@@ -1,8 +1,16 @@
 {
-  "firestore": { "rules": "firestore.rules" },
+  "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
+    }
+  ],
   "emulators": {
     "auth": { "port": 48399 },
     "firestore": { "port": 48380 },
+    "functions": { "port": 48301 },
     "hub": { "port": 48412 },
     "logging": { "port": 48452 },
     "singleProjectMode": true

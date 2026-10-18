@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, Ref } from 'react';
 import { cn } from '@/shared/lib';
+import { LoadingSpinner } from './LoadingSpinner';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -22,6 +23,7 @@ export function Button({
   ref,
   loading = false,
   disabled,
+  children,
   ...props
 }: ButtonProps) {
   return (
@@ -35,6 +37,9 @@ export function Button({
         className,
       )}
       {...props}
-    />
+    >
+      {loading && <LoadingSpinner />}
+      {children}
+    </button>
   );
 }

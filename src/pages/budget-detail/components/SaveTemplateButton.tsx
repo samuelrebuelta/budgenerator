@@ -77,7 +77,7 @@ export function SaveTemplateButton() {
             autoFocus
             className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-11"
           />
-          <Button onClick={handleSave} disabled={saving || !name.trim()}>
+          <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>
             {saving ? t('templates.saving') : t('common.save')}
           </Button>
           <Button

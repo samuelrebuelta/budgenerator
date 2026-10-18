@@ -3,6 +3,7 @@ import { Printer } from 'lucide-react';
 import { assertBudget } from '@/shared/lib/budgetMath';
 import { t } from '@/shared/i18n';
 import type { Budget, PublicBudget, CompanyProfile } from '@/shared/types';
+import { Button } from './Button';
 
 interface ExportPdfButtonProps {
   budget: Budget | PublicBudget;
@@ -38,15 +39,16 @@ export function ExportPdfButton({ budget, company }: ExportPdfButtonProps) {
 
   return (
     <div className="no-print">
-      <button
+      <Button
         type="button"
-        disabled={loading}
+        variant="secondary"
+        loading={loading}
         onClick={handleExport}
-        className="no-print inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="no-print"
       >
         <Printer size={16} />
         {t('export.button')}
-      </button>
+      </Button>
       {error && (
         <p className="field-error" role="alert">
           {error}

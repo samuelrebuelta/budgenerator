@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type {
@@ -14,6 +13,7 @@ import {
   parsePushDeviceId,
   parsePushDeviceRegistration,
 } from './contracts.js';
+import { skipPendingNotificationJobs } from './jobs.js';
 
 if (getApps().length === 0) initializeApp();
 const firestore = getFirestore();
@@ -35,8 +35,8 @@ function deviceRef(uid: string, installationId: string) {
   return devicesRef(uid).doc(installationId);
 }
 
-function tokenIndexRef(tokenHash: string) {
-  return firestore.doc(`pushTokenIndex/${tokenHash}`);
+function pushInstallationIndexRef(credentialHash: string) {
+  return firestore.doc(`pushInstallationIndex/${credentialHash}`);
 }
 
 function deviceCountRef(uid: string) {
@@ -46,7 +46,7 @@ function deviceCountRef(uid: string) {
 function storedPreferences(
   value: FirebaseFirestore.DocumentData | undefined,
 ): NotificationPreferences {
-  return { emailEnabled: value?.emailEnabled === true, pushEnabled: value?.pushEnabled === true };
+  return { pushEnabled: value?.pushEnabled === true };
 }
 
 function timestampToIso(value: unknown): string | null {
@@ -60,6 +60,7 @@ function mapSafePushDevice(
   return {
     installationId,
     enabled: value.enabled === true,
+    recoveryRequired: value.recoveryRequired === true,
     createdAt: timestampToIso(value.createdAt),
     lastSeenAt: timestampToIso(value.lastSeenAt),
   };
@@ -79,8 +80,7 @@ function sameDevicePath(
 }
 
 export async function getNotificationSettings(uid: string): Promise<NotificationSettingsResponse> {
-  const [user, preferencesSnapshot, devicesSnapshot] = await Promise.all([
-    getAuth().getUser(uid),
+  const [preferencesSnapshot, devicesSnapshot] = await Promise.all([
     preferencesRef(uid).get(),
     devicesRef(uid).get(),
   ]);
@@ -90,10 +90,6 @@ export async function getNotificationSettings(uid: string): Promise<Notification
     .sort((left, right) => (right.lastSeenAt ?? '').localeCompare(left.lastSeenAt ?? ''));
   return {
     preferences,
-    email: {
-      address: typeof user.email === 'string' ? user.email : null,
-      verified: user.emailVerified,
-    },
     devices,
   };
 }
@@ -105,50 +101,60 @@ export async function setNotificationPreferences(uid: string, value: unknown) {
     const snapshot = await transaction.get(ref);
     const current = snapshot.data();
     const wasEnabled = storedPreferences(current);
-    const activationDate = (enabled: boolean, previouslyEnabled: boolean, prior: unknown) => {
-      if (!enabled) return null;
-      return previouslyEnabled && prior ? prior : FieldValue.serverTimestamp();
-    };
-    transaction.set(ref, {
-      ...preferences,
-      emailEnabledAt: activationDate(
-        preferences.emailEnabled,
-        wasEnabled.emailEnabled,
-        current?.emailEnabledAt,
-      ),
-      pushEnabledAt: activationDate(
-        preferences.pushEnabled,
-        wasEnabled.pushEnabled,
-        current?.pushEnabledAt,
-      ),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    const pushEnabledAt = preferences.pushEnabled
+      ? wasEnabled.pushEnabled && current?.pushEnabledAt
+        ? current.pushEnabledAt
+        : FieldValue.serverTimestamp()
+      : null;
+    transaction.set(
+      ref,
+      {
+        ...preferences,
+        emailEnabled: FieldValue.delete(),
+        emailEnabledAt: FieldValue.delete(),
+        pushEnabledAt,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
   });
+  // Retire work queued by the former email channel before continuing push-only.
+  await skipPendingNotificationJobs(uid, 'email');
+  if (!preferences.pushEnabled) {
+    await skipPendingNotificationJobs(uid, 'push');
+  }
   return { preferences };
 }
 
 export async function registerPushDevice(uid: string, value: unknown) {
-  const { installationId, token } = parsePushDeviceRegistration(value);
-  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const registration = parsePushDeviceRegistration(value);
+  const { installationId } = registration;
+  const credentialType = 'fid' in registration ? 'fid' : 'registrationToken';
+  const credential = 'fid' in registration ? registration.fid : registration.registrationToken;
+  const credentialHash = createHash('sha256').update(credential).digest('hex');
   const currentDeviceRef = deviceRef(uid, installationId);
   const currentCountRef = deviceCountRef(uid);
-  const newTokenIndexRef = tokenIndexRef(tokenHash);
+  const newIndexRef = pushInstallationIndexRef(credentialHash);
+  const displacedDeviceToCancel: { value: { uid: string; installationId: string } | null } = {
+    value: null,
+  };
 
   await firestore.runTransaction(async (transaction) => {
-    const [newTokenIndexSnapshot, currentDeviceSnapshot, currentCountSnapshot] = await Promise.all([
-      transaction.get(newTokenIndexRef),
+    const [newIndexSnapshot, currentDeviceSnapshot, currentCountSnapshot] = await Promise.all([
+      transaction.get(newIndexRef),
       transaction.get(currentDeviceRef),
       transaction.get(currentCountRef),
     ]);
-    const newTokenIndex = newTokenIndexSnapshot.data() as
+    const newIndex = newIndexSnapshot.data() as
       { uid?: unknown; installationId?: unknown } | undefined;
     const displacedDevicePath =
-      newTokenIndexSnapshot.exists && !sameDevicePath(uid, installationId, newTokenIndex)
+      newIndexSnapshot.exists && !sameDevicePath(uid, installationId, newIndex)
         ? {
-            uid: String(newTokenIndex?.uid ?? ''),
-            installationId: String(newTokenIndex?.installationId ?? ''),
+            uid: String(newIndex?.uid ?? ''),
+            installationId: String(newIndex?.installationId ?? ''),
           }
         : null;
+    displacedDeviceToCancel.value = displacedDevicePath;
     const displacedRef = displacedDevicePath
       ? deviceRef(displacedDevicePath.uid, displacedDevicePath.installationId)
       : null;
@@ -158,27 +164,28 @@ export async function registerPushDevice(uid: string, value: unknown) {
         ? await Promise.all([transaction.get(displacedRef), transaction.get(displacedCountRef)])
         : [null, null];
 
-    const previousTokenHash = currentDeviceSnapshot.get('tokenHash');
-    const previousTokenIndexRef =
-      typeof previousTokenHash === 'string' && previousTokenHash !== tokenHash
-        ? tokenIndexRef(previousTokenHash)
+    const previousCredentialHash =
+      currentDeviceSnapshot.get('fidHash') ?? currentDeviceSnapshot.get('registrationTokenHash');
+    const previousIndexRef =
+      typeof previousCredentialHash === 'string' && previousCredentialHash !== credentialHash
+        ? pushInstallationIndexRef(previousCredentialHash)
         : null;
-    const previousTokenIndexSnapshot = previousTokenIndexRef
-      ? await transaction.get(previousTokenIndexRef)
-      : null;
-    const previousTokenIndex = previousTokenIndexSnapshot?.data() as
+    const previousIndexSnapshot = previousIndexRef ? await transaction.get(previousIndexRef) : null;
+    const previousIndex = previousIndexSnapshot?.data() as
       { uid?: unknown; installationId?: unknown } | undefined;
 
     const removedFromCurrentUser = Boolean(
       displacedDevicePath &&
       displacedDevicePath.uid === uid &&
       displacedDevicePath.installationId !== installationId &&
-      displacedSnapshot?.exists,
+      displacedSnapshot?.exists &&
+      displacedSnapshot.get('enabled') === true,
     );
     const currentCount = countValue(currentCountSnapshot.data());
     const remainingCount = currentCount - Number(removedFromCurrentUser);
-    const nextCount = remainingCount + Number(!currentDeviceSnapshot.exists);
-    if (!canRegisterPushDevice(remainingCount, currentDeviceSnapshot.exists)) {
+    const currentDeviceEnabled = currentDeviceSnapshot.get('enabled') === true;
+    const nextCount = remainingCount + Number(!currentDeviceEnabled);
+    if (!canRegisterPushDevice(remainingCount, currentDeviceEnabled)) {
       throw new HttpsError(
         'resource-exhausted',
         'Has alcanzado el máximo de 10 dispositivos con avisos push.',
@@ -189,33 +196,54 @@ export async function registerPushDevice(uid: string, value: unknown) {
       transaction.delete(displacedRef);
       if (displacedDevicePath.uid !== uid && displacedCountRef && displacedCountSnapshot) {
         transaction.set(displacedCountRef, {
-          count: Math.max(0, countValue(displacedCountSnapshot.data()) - 1),
+          count: Math.max(
+            0,
+            countValue(displacedCountSnapshot.data()) -
+              Number(displacedSnapshot.get('enabled') === true),
+          ),
           updatedAt: FieldValue.serverTimestamp(),
         });
       }
     }
     if (
-      previousTokenIndexRef &&
-      previousTokenIndexSnapshot?.exists &&
-      sameDevicePath(uid, installationId, previousTokenIndex)
+      previousIndexRef &&
+      previousIndexSnapshot?.exists &&
+      sameDevicePath(uid, installationId, previousIndex)
     ) {
-      transaction.delete(previousTokenIndexRef);
+      transaction.delete(previousIndexRef);
     }
 
-    transaction.set(currentDeviceRef, {
-      token,
-      tokenHash,
-      enabled: true,
-      createdAt: currentDeviceSnapshot.get('createdAt') ?? FieldValue.serverTimestamp(),
-      lastSeenAt: FieldValue.serverTimestamp(),
-    });
-    transaction.set(newTokenIndexRef, {
+    transaction.set(
+      currentDeviceRef,
+      {
+        fid: credentialType === 'fid' ? credential : FieldValue.delete(),
+        fidHash: credentialType === 'fid' ? credentialHash : FieldValue.delete(),
+        registrationToken:
+          credentialType === 'registrationToken' ? credential : FieldValue.delete(),
+        registrationTokenHash:
+          credentialType === 'registrationToken' ? credentialHash : FieldValue.delete(),
+        enabled: true,
+        recoveryRequired: false,
+        createdAt: currentDeviceSnapshot.get('createdAt') ?? FieldValue.serverTimestamp(),
+        lastSeenAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    transaction.set(newIndexRef, {
       uid,
       installationId,
+      credentialType,
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(currentCountRef, { count: nextCount, updatedAt: FieldValue.serverTimestamp() });
   });
+  if (displacedDeviceToCancel.value) {
+    await skipPendingNotificationJobs(
+      displacedDeviceToCancel.value.uid,
+      'push',
+      displacedDeviceToCancel.value.installationId,
+    );
+  }
   return { registered: true } as const;
 }
 
@@ -223,24 +251,83 @@ export async function revokePushDevice(uid: string, value: unknown) {
   const installationId = parsePushDeviceId(value);
   const ref = deviceRef(uid, installationId);
   const countRef = deviceCountRef(uid);
-  return firestore.runTransaction(async (transaction) => {
+  const revoked = await firestore.runTransaction(async (transaction) => {
     const [deviceSnapshot, countSnapshot] = await Promise.all([
       transaction.get(ref),
       transaction.get(countRef),
     ]);
     if (!deviceSnapshot.exists) return false;
-    const tokenHash = deviceSnapshot.get('tokenHash');
-    const indexRef = typeof tokenHash === 'string' ? tokenIndexRef(tokenHash) : null;
+    const credentialHash =
+      deviceSnapshot.get('fidHash') ?? deviceSnapshot.get('registrationTokenHash');
+    const indexRef =
+      typeof credentialHash === 'string' ? pushInstallationIndexRef(credentialHash) : null;
     const indexSnapshot = indexRef ? await transaction.get(indexRef) : null;
     const index = indexSnapshot?.data() as { uid?: unknown; installationId?: unknown } | undefined;
     if (indexRef && sameDevicePath(uid, installationId, index)) transaction.delete(indexRef);
     transaction.delete(ref);
+    transaction.set(countRef, {
+      count: Math.max(
+        0,
+        countValue(countSnapshot.data()) - Number(deviceSnapshot.get('enabled') === true),
+      ),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+  if (revoked) await skipPendingNotificationJobs(uid, 'push', installationId);
+  return revoked;
+}
+
+/** Retire only the credential FCM rejected, preserving an opt-in recovery marker. */
+export async function markPushDeviceUnregistered(
+  uid: string,
+  installationId: string,
+  expectedCredential: { fid: string } | { registrationToken: string },
+) {
+  const ref = deviceRef(uid, installationId);
+  const countRef = deviceCountRef(uid);
+  const marked = await firestore.runTransaction(async (transaction) => {
+    const [deviceSnapshot, countSnapshot] = await Promise.all([
+      transaction.get(ref),
+      transaction.get(countRef),
+    ]);
+    const credentialType = 'fid' in expectedCredential ? 'fid' : 'registrationToken';
+    const hashField = credentialType === 'fid' ? 'fidHash' : 'registrationTokenHash';
+    const credential =
+      'fid' in expectedCredential ? expectedCredential.fid : expectedCredential.registrationToken;
+    if (
+      !deviceSnapshot.exists ||
+      deviceSnapshot.get('enabled') !== true ||
+      deviceSnapshot.get(credentialType) !== credential
+    ) {
+      return false;
+    }
+    const credentialHash = deviceSnapshot.get(hashField);
+    const indexRef =
+      typeof credentialHash === 'string' ? pushInstallationIndexRef(credentialHash) : null;
+    const indexSnapshot = indexRef ? await transaction.get(indexRef) : null;
+    const index = indexSnapshot?.data() as { uid?: unknown; installationId?: unknown } | undefined;
+    if (indexRef && indexSnapshot?.exists && sameDevicePath(uid, installationId, index)) {
+      transaction.delete(indexRef);
+    }
+    transaction.update(ref, {
+      enabled: false,
+      recoveryRequired: true,
+      fid: FieldValue.delete(),
+      fidHash: FieldValue.delete(),
+      registrationToken: FieldValue.delete(),
+      registrationTokenHash: FieldValue.delete(),
+      lastSeenAt: FieldValue.serverTimestamp(),
+      unregisteredAt: FieldValue.serverTimestamp(),
+    });
     transaction.set(countRef, {
       count: Math.max(0, countValue(countSnapshot.data()) - 1),
       updatedAt: FieldValue.serverTimestamp(),
     });
     return true;
   });
+  if (marked) await skipPendingNotificationJobs(uid, 'push', installationId);
+  return marked;
 }
 
 export const notificationFunctionOptions = {

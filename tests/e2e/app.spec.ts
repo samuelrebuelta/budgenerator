@@ -12,6 +12,7 @@ const authEmulatorUrl = `http://${authEmulatorHost}`;
 const firestoreEmulator = new URL(
   `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
 );
+const notificationLeadId = 'a'.repeat(64);
 const fakeBudget = (id: string, name: string, address: string, price: number, number: string) => ({
   id,
   info: {
@@ -148,6 +149,24 @@ test.beforeAll(async () => {
         ivaRate: 0.21,
         createdAt: '2026-10-01',
       });
+    await setDoc(doc(db, 'users', uid, 'leads', notificationLeadId), {
+      schemaVersion: 2,
+      contact: { name: 'Lead aviso demo', email: 'lead@example.test', phone: '+34 600 111 222' },
+      selections: [
+        {
+          room: 'bathroom',
+          scope: 'partial',
+          quality: 'medium',
+          areaM2: 9,
+          instanceId: 'demo-room',
+        },
+      ],
+      startTiming: 'asap',
+      estimate: { minimumCents: 100000, maximumCents: 200000, currency: 'EUR', includesVat: false },
+      createdAt: '2026-10-18T10:00:00Z',
+      consentAt: '2026-10-18T10:00:00Z',
+      privacyPolicyUrl: 'https://example.test/privacy',
+    });
   });
   await env.cleanup();
   await mkdir('docs/testing-evidence', { recursive: true });
@@ -163,25 +182,128 @@ async function editor(page: Page) {
   await page.goto('/budget/new');
   await expect(page.getByLabel('Nombre del cliente', { exact: true })).toBeVisible();
 }
-test('UX headers are consistent, roots have no return links and child returns preserve draft guards', async ({
+
+test('notification request link survives login and shows a safe state in another account', async ({
+  page,
+  browser,
+}) => {
+  const path = `/profile/solicitudes?leadId=${notificationLeadId}`;
+  await page.goto(path);
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(page).toHaveURL(path);
+  const selectedLead = page.getByRole('heading', { name: 'Lead aviso demo' });
+  await expect(selectedLead).toBeVisible();
+  await expect(selectedLead).toBeFocused();
+
+  const otherContext = await browser.newContext({ baseURL: new URL(page.url()).origin });
+  try {
+    const otherPage = await otherContext.newPage();
+    await otherPage.goto(path);
+    await expect(otherPage).toHaveURL(/\/login$/);
+    await otherPage.getByLabel('Email', { exact: true }).fill('other@example.test');
+    await otherPage.getByLabel('Contraseña', { exact: true }).fill(password);
+    await otherPage.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await expect(otherPage).toHaveURL(path);
+    await expect(otherPage.getByRole('status')).toContainText(
+      'La solicitud solicitada no está disponible en esta cuenta.',
+    );
+    await expect(otherPage.getByText('Lead aviso demo')).toHaveCount(0);
+  } finally {
+    await otherContext.close();
+  }
+});
+
+test('push permission is requested after interaction and account settings are push-only', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const browserWindow = window as typeof window & { notificationPermissionRequests?: number };
+    browserWindow.notificationPermissionRequests = 0;
+    if (typeof Notification !== 'undefined') {
+      Object.defineProperty(Notification, 'permission', {
+        configurable: true,
+        get: () => 'default',
+      });
+      Object.defineProperty(Notification, 'requestPermission', {
+        configurable: true,
+        value: () => {
+          browserWindow.notificationPermissionRequests =
+            (browserWindow.notificationPermissionRequests ?? 0) + 1;
+          return Promise.resolve('denied');
+        },
+      });
+    }
+  });
+  await login(page);
+  const startupPrompt = page.getByRole('region', { name: 'Activar notificaciones push' });
+  await expect(startupPrompt).toBeVisible();
+  await expect(
+    startupPrompt.getByRole('button', { name: 'Permitir notificaciones' }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { notificationPermissionRequests?: number })
+          .notificationPermissionRequests,
+    ),
+  ).toBe(0);
+  await startupPrompt.getByRole('button', { name: 'Permitir notificaciones' }).click();
+  await expect(
+    startupPrompt.getByRole('heading', { name: 'Permite los avisos push' }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { notificationPermissionRequests?: number })
+          .notificationPermissionRequests,
+    ),
+  ).toBe(1);
+  await startupPrompt.getByRole('link', { name: 'Abrir Mi cuenta' }).click();
+  await page.goto('/account');
+  await expect(page.getByRole('heading', { name: 'Notificaciones', exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Avisos por correo' })).toHaveCount(0);
+  const pushSwitch = page.getByRole('switch', { name: 'Avisos push' });
+  await expect(pushSwitch).toBeVisible();
+  await pushSwitch.click();
+  await expect(page.getByRole('alert')).toContainText('El permiso está bloqueado');
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { notificationPermissionRequests?: number })
+          .notificationPermissionRequests,
+    ),
+  ).toBe(1);
+});
+
+test('primary routes keep tabs and secondary routes use the common return without app header', async ({
   page,
 }) => {
   await login(page);
-  for (const path of [
-    '/budgets',
-    '/projects',
-    '/catalogs',
-    '/templates',
-    '/profile',
-    '/account',
-    '/admin',
-  ]) {
+  for (const path of ['/budgets', '/projects', '/catalog', '/profile/solicitudes']) {
     await page.goto(path);
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.locator('.eyebrow')).toHaveCount(0);
     await expect(page.locator('.back-button')).toHaveCount(0);
+    await expect(page.locator('.workspace-header')).toBeVisible();
+  }
+  for (const [path, backTo] of [
+    ['/templates', '/budgets'],
+    ['/profile', '/projects'],
+    ['/account', '/projects'],
+    ['/admin', '/projects'],
+    ['/help', '/projects'],
+  ]) {
+    await page.goto(path);
+    await expect(page.locator('[data-page-header]')).toBeVisible();
+    await expect(page.locator('.workspace-footer')).toHaveCount(0);
+    await expect(page.locator('.workspace-header')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
+    await expect(page.locator('.back-button')).toHaveAttribute('href', backTo);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/budgets');
@@ -210,8 +332,7 @@ test('UX headers are consistent, roots have no return links and child returns pr
       await page.goto(path);
       await expect(page.locator('[data-page-header]')).toBeVisible();
       await expect(page.locator('.workspace-footer')).toHaveCount(0);
-      if (width > 800) await expect(page.locator('.workspace-header')).toBeVisible();
-      else await expect(page.locator('.workspace-header')).toBeHidden();
+      await expect(page.locator('.workspace-header')).toHaveCount(0);
       await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
       await expect(page.locator('.back-button')).toBeVisible();
       if (path === '/projects/missing') {
@@ -257,21 +378,21 @@ test('opens projects from the root', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
 });
 
-test('places projects first in desktop and mobile navigation', async ({ page }) => {
+test('places budgets first in desktop and mobile navigation', async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 1440, height: 844 });
-  await expect(page.locator('.sidebar nav a').first()).toHaveText('Proyectos');
+  await expect(page.locator('.sidebar nav a').first()).toHaveText('Presupuestos');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
-    'Proyectos',
     'Presupuestos',
+    'Proyectos',
     'Catálogo',
     'Solicitudes',
   ]);
 });
 
-test('new registrations include the project-first tour and allow replay', async ({ page }) => {
+test('new registrations include the budget-core tour and allow replay', async ({ page }) => {
   await page.goto('/login');
   await page.getByRole('button', { name: '¿No tienes cuenta? Regístrate' }).click();
   await page.getByLabel('Email', { exact: true }).fill('new-account-tour@example.test');
@@ -279,39 +400,36 @@ test('new registrations include the project-first tour and allow replay', async 
   await page.getByRole('button', { name: 'Registrarse', exact: true }).click();
 
   const tour = page.locator('[data-app-tour]');
-  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page).toHaveURL(/\/budgets$/);
   await expect(tour).toBeVisible();
   await expect(tour).toHaveAttribute('data-step', '1');
-  await expect(
-    tour.getByRole('heading', { name: 'El seguimiento empieza en Proyectos' }),
-  ).toBeVisible();
+  await expect(tour.getByRole('heading', { name: 'El presupuesto es el centro' })).toBeVisible();
   await expect
     .poll(async () => {
-      const target = await page.locator('[data-page-header]').boundingBox();
+      const target = await page.locator('[data-tour="budget-create"]').boundingBox();
       const spotlight = await page.locator('.app-tour-spotlight').boundingBox();
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-projects-desktop.png' });
+  await page.screenshot({ path: 'docs/testing-evidence/bg010-welcome-tour-budgets-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(tour).toBeVisible();
   await expect
     .poll(async () => {
-      const target = await page.locator('[data-page-header]').boundingBox();
+      const target = await page.locator('[data-tour="budget-create"]').boundingBox();
       const spotlight = await page.locator('.app-tour-spotlight').boundingBox();
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-projects-mobile.png' });
+  await page.screenshot({ path: 'docs/testing-evidence/bg010-welcome-tour-budgets-mobile.png' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await tour.getByRole('button', { name: 'Siguiente' }).click();
-  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(page).toHaveURL(/\/profile\/solicitudes$/);
   await expect(tour).toHaveAttribute('data-step', '2');
   await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(tour).toHaveAttribute('data-step', '3');
-
-  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  await tour.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   await page
     .getByRole('dialog', { name: 'Menú de cuenta' })
     .getByRole('link', { name: 'Plantillas de presupuestos' })
@@ -330,15 +448,28 @@ test('new registrations include the project-first tour and allow replay', async 
       return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
     })
     .toBe(true);
-  await page.screenshot({ path: 'docs/testing-evidence/bg009-welcome-tour-profile.png' });
-  await tour.getByRole('button', { name: 'Ir a presupuestos' }).click();
+  await page.screenshot({ path: 'docs/testing-evidence/bg010-welcome-tour-profile.png' });
+  await tour.getByRole('button', { name: 'Siguiente' }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(tour).toHaveAttribute('data-step', '6');
+  await expect(tour.getByRole('heading', { name: 'Del presupuesto al proyecto' })).toBeVisible();
+  await expect
+    .poll(async () => {
+      const target = await page.locator('[data-page-header]').boundingBox();
+      const spotlight = await page.locator('.app-tour-spotlight').boundingBox();
+      return !!target && !!spotlight && Math.abs(target.x - 5 - spotlight.x) < 2;
+    })
+    .toBe(true);
+  await page.screenshot({ path: 'docs/testing-evidence/bg010-welcome-tour-projects.png' });
+  await tour.getByRole('button', { name: 'Volver a presupuestos' }).click();
+  await expect(page).toHaveURL(/\/budgets$/);
   await expect(tour).toHaveCount(0);
   await page.reload();
   await expect(tour).toHaveCount(0);
 
   await page.goto('/help');
   await page.getByRole('button', { name: 'Ver guía interactiva' }).click();
-  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page).toHaveURL(/\/budgets$/);
   await expect(tour).toHaveAttribute('data-step', '1');
   await expect(tour).toBeVisible();
   await tour.getByRole('button', { name: 'Omitir guía' }).click();
@@ -552,8 +683,12 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
     );
     expect(sizes).toEqual([44, 44, 44]);
   }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/templates');
   await expect(page.getByRole('button', { name: 'Crear plantilla', exact: true })).toBeVisible();
+  await expect(page.locator('.workspace-header')).toHaveCount(0);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await page.goto('/budgets');
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
   expect(await dialog.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('none');
@@ -827,7 +962,10 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.setViewportSize({ width: 390, height: 500 });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
-  await tabs.getByRole('link', { name: 'Presupuestos', exact: true }).click();
+  await expect(tabs).toHaveCount(0);
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(tabs).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.getByRole('button', { name: 'Crear presupuesto', exact: true }).click();
   await page.getByRole('button', { name: 'Empezar en blanco', exact: true }).click();

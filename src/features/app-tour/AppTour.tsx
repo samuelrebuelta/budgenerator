@@ -7,25 +7,25 @@ import { isWelcomeTourPending, markWelcomeTourComplete } from './model';
 
 const steps = [
   {
-    path: '/projects',
-    target: '[data-page-header]',
-    title: 'El seguimiento empieza en Proyectos',
-    description:
-      'Al aceptar un presupuesto, conviértelo en proyecto para seguir conceptos, registrar imprevistos y consultar la evolución por fecha.',
-  },
-  {
     path: '/budgets',
     target: '[data-tour="budget-create"]',
-    title: 'Tus presupuestos',
+    title: 'El presupuesto es el centro',
     description:
-      'Aquí organizas cada obra. Empieza desde cero o reutiliza una plantilla para preparar el documento de tu cliente.',
+      'Aquí organizas cada obra: crea un presupuesto desde cero, reutiliza una plantilla o continúa desde una solicitud recibida.',
+  },
+  {
+    path: '/profile/solicitudes',
+    target: '[data-page-header]',
+    title: 'Una solicitud puede ser tu próximo presupuesto',
+    description:
+      'Comparte el formulario público y recibe aquí lo que necesita cada cliente. Desde una solicitud puedes crear un presupuesto conservando su contexto.',
   },
   {
     path: '/catalog',
     target: '[data-tour="category-import"]',
-    title: 'El catálogo de tu empresa',
+    title: 'Construye con tu catálogo',
     description:
-      'Guarda tus partidas, conceptos y tarifas. Puedes importar una categoría como punto de partida y adaptar los precios.',
+      'Partidas, conceptos y tarifas dan estructura a tus presupuestos. Importa una categoría como base y adapta los precios a tu empresa.',
   },
   {
     path: '/templates',
@@ -37,9 +37,16 @@ const steps = [
   {
     path: '/profile',
     target: '[data-tour="company-profile"]',
-    title: 'Presenta tu empresa',
+    title: 'Tu empresa aparece en cada presupuesto',
     description:
       'Añade el nombre, los datos y el logo que quieres mostrar en los presupuestos que compartes.',
+  },
+  {
+    path: '/projects',
+    target: '[data-page-header]',
+    title: 'Del presupuesto al proyecto',
+    description:
+      'Cuando el cliente acepta el presupuesto, conviértelo en proyecto para seguir conceptos, registrar imprevistos y consultar la evolución por fecha.',
   },
 ] as const;
 
@@ -102,7 +109,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
     autoStarted.current = true;
     previousStepPath.current = null;
     setOpen(true);
-    if (location.pathname !== '/projects') navigate('/projects', { replace: true });
+    if (location.pathname !== '/budgets') navigate('/budgets', { replace: true });
   }, [location.pathname, navigate, userId]);
 
   const closeTour = useCallback(() => {
@@ -125,7 +132,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
     previousStepPath.current = null;
     setSpotlight(null);
     setOpen(true);
-    if (location.pathname !== '/projects') navigate('/projects');
+    if (location.pathname !== '/budgets') navigate('/budgets');
   }, [location.pathname, navigate]);
 
   const goToStep = (index: number) => {
@@ -270,7 +277,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
                     }
                   }}
                 >
-                  {nextStep ? 'Siguiente' : 'Ir a presupuestos'}
+                  {nextStep ? 'Siguiente' : 'Volver a presupuestos'}
                   <ArrowRight size={16} />
                 </Button>
               </div>

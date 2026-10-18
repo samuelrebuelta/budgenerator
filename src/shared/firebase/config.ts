@@ -12,11 +12,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+export const firebaseApp = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const functions = getFunctions(app, 'europe-west1');
+export const auth = getAuth(firebaseApp);
+export const db = getFirestore(firebaseApp);
+export const functions = getFunctions(firebaseApp, 'europe-west1');
 
 if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
   if (!firebaseConfig.projectId?.startsWith('demo-'))
@@ -31,5 +31,9 @@ if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
     import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST ?? '127.0.0.1',
     Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
   );
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  connectFunctionsEmulator(
+    functions,
+    '127.0.0.1',
+    Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001),
+  );
 }

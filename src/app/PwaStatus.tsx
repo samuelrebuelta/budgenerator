@@ -3,12 +3,14 @@ import { Download, WifiOff, RefreshCw } from 'lucide-react';
 import { withTimeout } from '@/shared/model/session';
 import { flushWrites, hasPendingWrites } from '@/shared/model/sync';
 import { useBudgetStore } from '@/entities/budget';
+import { LoadingSpinner } from '@/shared/ui';
 import type { PwaUpdateEvent } from './pwa';
 export function PwaStatus() {
   const [online, setOnline] = useState(navigator.onLine);
   const [update, setUpdate] = useState<ServiceWorkerRegistration | null>(null);
   const [chunkError, setChunkError] = useState(false);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const draft = useBudgetStore((s) => s.draftBudget);
   useEffect(() => {
     const connected = () => {
@@ -40,10 +42,12 @@ export function PwaStatus() {
     };
   }, []);
   const refresh = async () => {
+    if (refreshing) return;
     if (draft) {
       setError('Guarda o descarta el borrador antes de actualizar.');
       return;
     }
+    setRefreshing(true);
     try {
       await withTimeout(flushWrites());
       if (hasPendingWrites())
@@ -56,6 +60,7 @@ export function PwaStatus() {
       } else location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se puede actualizar todavía.');
+      setRefreshing(false);
     }
   };
   if (online && !update && !chunkError) return null;
@@ -77,9 +82,13 @@ export function PwaStatus() {
               ? 'Hay una versión nueva. Recarga para continuar.'
               : 'Hay una actualización disponible.'}
           </span>
-          <button onClick={() => void refresh()}>
-            <RefreshCw size={14} />
-            Actualizar
+          <button
+            onClick={() => void refresh()}
+            disabled={refreshing}
+            aria-busy={refreshing || undefined}
+          >
+            {refreshing ? <LoadingSpinner size={14} /> : <RefreshCw size={14} />}
+            {refreshing ? 'Actualizando…' : 'Actualizar'}
           </button>
         </>
       )}

@@ -4,10 +4,26 @@ import { Button } from './Button';
 import { Skeleton } from './Skeleton';
 export function LoadingScreen({ error, onRetry }: { error?: string | null; onRetry?: () => void }) {
   const [slow, setSlow] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => setSlow(true), 12000);
     return () => clearTimeout(timer);
   }, []);
+  const retry = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    if (!onRetry) {
+      location.reload();
+      return;
+    }
+    try {
+      await onRetry();
+    } catch {
+      // Keep the existing error visible and allow another attempt.
+    } finally {
+      setRetrying(false);
+    }
+  };
   return (
     <main className="loading-screen" aria-busy={!error} aria-label="Cargando contenido">
       <div className="loading-shell">
@@ -18,7 +34,9 @@ export function LoadingScreen({ error, onRetry }: { error?: string | null; onRet
           <div className="loading-error" role="alert">
             <h1>No se ha podido cargar la página</h1>
             <p>{error}</p>
-            <Button onClick={onRetry ?? (() => location.reload())}>Volver a intentarlo</Button>
+            <Button loading={retrying} onClick={() => void retry()}>
+              Volver a intentarlo
+            </Button>
           </div>
         ) : (
           <div className="loading-content" role="status" aria-label="Cargando contenido">
@@ -47,7 +65,7 @@ export function LoadingScreen({ error, onRetry }: { error?: string | null; onRet
         {slow && !error && (
           <div className="loading-slow" role="status">
             <p>La carga está tardando más de lo habitual.</p>
-            <Button variant="secondary" onClick={onRetry ?? (() => location.reload())}>
+            <Button variant="secondary" loading={retrying} onClick={() => void retry()}>
               Reintentar
             </Button>
           </div>

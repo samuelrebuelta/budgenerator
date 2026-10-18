@@ -30,6 +30,12 @@ Los cálculos residen en `shared/lib/budgetMath.ts`. El DTO de publicación se c
 
 `scripts/build-sw.mjs` genera el worker a partir del build y del código del worker. Se precachean recursos estáticos, nunca documentos Firebase. La actualización espera al usuario y al guardado de cambios. Ver la guía de estabilización para el alcance offline y la recuperación.
 
+## BG-010 — notificaciones
+
+`features/notifications` mantiene permiso, FID, instalación privada, invitación de inicio y el único aviso foreground. El permiso del sistema sólo se solicita tras la acción del usuario; el interruptor de Mi cuenta registra el dispositivo actual y guarda la preferencia push. La ruta de entrada conserva un `leadId` validado durante login y `pages/leads` enfoca ese lead sólo tras cargar los datos de la cuenta. `public/sw.js` conserva offline/actualización e importa el bundle `dist/fcm-sw.js` para el evento background y el click seguro. El push usa payload data-only con identificadores técnicos; los avisos no incluyen contacto ni contenido de la solicitud.
+
+Functions procesa sólo `onDocumentCreated`: trabajos deterministas por UID/lead/dispositivo push pasan por leases y un recuperador programado. Preferencias usan callables autenticadas; los FIDs y trabajos permanecen bajo Admin SDK. Push usa la API FID de Firebase. No hay transporte de email; los trabajos email históricos se marcan `skipped/channel_removed` y no se procesan.
+
 ## Componentes UX (BG-007)
 
 `shared/ui` proporciona PageHeader/BackButton, CompanyAvatar, InfoPopover y SwipeActions, sin importar entidades. Cada página mantiene las acciones de negocio y el único estado de reveal de su lista; los borrados/selección siguen las APIs públicas de stores existentes. `/help` se carga con lazy y conserva contenido local en `pages/help/helpContent.ts`. La entrega de BG-007 no incorpora el prototipo local de BG-006 ni activa IA.
@@ -38,7 +44,7 @@ Los cálculos residen en `shared/lib/budgetMath.ts`. El DTO de publicación se c
 
 `entities/catalog` inicializa `tariffCatalogs/main-v1` en transacción. La forma persistida es `parts[]`, cada partida con ID, nombre y conceptos embebidos; `tariffs` es una proyección plana de cliente para componentes existentes. Los catálogos planos antiguos se agrupan por categoría con IDs deterministas. Primero conserva el catálogo activo válido (o el primero por ID), después retira los catálogos anteriores de prueba. Si ya existe el destino, la transacción lo conserva: otra pestaña no reemplaza su contenido. Las referencias históricas `catalogId` en presupuestos/plantillas se mantienen por compatibilidad; las nuevas selecciones vienen del catálogo único. `TRADE_CATALOGS` ofrece las bases especializadas del proyecto. El modal agrupa conceptos por partida y `importTrade` acepta categoría completa, partida o concepto; fusiona por nombre normalizado y omite conceptos ya presentes (descripción y unidad), sin sustituir precios personalizados. Sólo persiste una actualización por importación mediante la cola del store.
 
-`features/app-tour` acompaña el alta correcta con un recorrido opcional de cinco rutas reales que comienza en Proyectos y explica cómo convertir desde Presupuestos. `AppTourProvider` vive en la shell autenticada; el UID pendiente se marca temporalmente en `sessionStorage` y la finalización se recuerda por UID en `localStorage`. El tour se puede repetir desde Ayuda y no añade lecturas ni escrituras a Firebase.
+`features/app-tour` acompaña el alta correcta con un recorrido opcional de seis rutas reales: Presupuestos, Solicitudes, Catálogo, Plantillas, Mi empresa y Proyectos. Presenta el presupuesto como centro; las solicitudes pueden convertirse en presupuesto y la aceptación puede iniciar el seguimiento de proyecto. Tanto el alta como la repetición desde Ayuda empiezan en Presupuestos. `AppTourProvider` vive en la shell autenticada; el UID pendiente se marca temporalmente en `sessionStorage` y la finalización se recuerda por UID en `localStorage`. El tour no añade lecturas ni escrituras a Firebase.
 
 ## BG-005 — estimador público
 

@@ -1991,7 +1991,7 @@ select:focus,
   background: var(--state-pressed);
 }
 
-/* Los detalles conservan el retorno local sin reservar espacio para las tabs. */
+/* El segundo nivel conserva el retorno local sin reservar espacio para las tabs. */
 .detail-sync {
   display: flex;
   justify-content: flex-end;
@@ -2001,10 +2001,10 @@ select:focus,
   display: none;
 }
 @media (max-width: 800px) {
-  .app-shell-detail .workspace {
+  .app-shell-secondary .workspace {
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
-  .app-shell-detail #workspace-content {
+  .app-shell-secondary #workspace-content {
     min-height: calc(100dvh - 44px);
   }
 }
@@ -2019,21 +2019,80 @@ select:focus,
   justify-self: start;
 }
 @media (max-width: 800px) {
-  .app-shell-detail .workspace-header {
-    display: none;
-  }
   .unified-page-header[data-has-back='true'] {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 8px;
+  }
+  .unified-page-header[data-has-back='true'] > .back-button {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .unified-page-header[data-has-back='true'] > .page-heading-identity,
+  .unified-page-header[data-has-back='true'] > .page-heading-skeleton-copy {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .unified-page-header[data-has-back='true'] > .page-heading-menu-action {
+    display: grid;
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .unified-page-header[data-has-back='true'] > .page-heading-actions {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+.page-heading-menu-action {
+  display: none;
+}
+.secondary-account-menu-trigger {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 1px solid #d0d9c7;
+  border-radius: 50%;
+  color: #183e3b;
+  background: #fafbf5;
+  cursor: pointer;
+}
+.secondary-account-menu-trigger .company-avatar {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d0d9c7;
+  border-radius: 50%;
+  background: #dce5d2;
+  font-family: 'Fraunces Variable', serif;
+  font-size: 16px;
+}
+.secondary-account-menu-trigger:focus-visible {
+  outline: 2px solid #9d593f;
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .secondary-account-menu-trigger:hover {
+    background: #edf1e6;
+  }
+}
+@media (max-width: 800px) {
+  .secondary-account-menu-trigger {
+    display: grid;
   }
 }
 
 @media screen {
-  .app-shell-detail .page-container {
+  .app-shell-secondary .page-container {
     padding-top: 26px;
   }
 }
 @media screen and (max-width: 800px) {
-  .app-shell-detail .page-container {
+  .app-shell-secondary .page-container {
     padding-top: 12px;
   }
 }

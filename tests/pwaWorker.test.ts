@@ -10,6 +10,7 @@ function worker(failInstall = false) {
     new Map([['/assets/old-chunk.js', new Response('export const old=true;')]]),
   );
   const deleted: string[] = [];
+  const importedScripts: string[] = [];
   const caches = {
     keys: async () => [...entries.keys()],
     delete: async (key: string) => {
@@ -51,6 +52,7 @@ function worker(failInstall = false) {
   runInNewContext(source, {
     self,
     caches,
+    importScripts: (...urls: string[]) => importedScripts.push(...urls),
     fetch,
     Response,
     URL,
@@ -77,10 +79,11 @@ function worker(failInstall = false) {
     });
     return ready;
   };
-  return { events, entries, deleted, self, request, install, fetch };
+  return { events, entries, deleted, importedScripts, self, request, install, fetch };
 }
 it('precaches atomically, serves a deep link offline and leaves Firebase requests alone', async () => {
   const w = worker();
+  expect(w.importedScripts).toEqual(['/fcm-sw.js?v=current']);
   await w.install();
   expect(await (await w.request('https://example.test/templates/new', 'navigate'))?.text()).toBe(
     '/index.html',

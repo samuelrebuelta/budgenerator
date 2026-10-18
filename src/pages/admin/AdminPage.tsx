@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Crown } from 'lucide-react';
 import { useUserStore } from '@/entities/user';
-import { Button, Card, Modal, PageHeader } from '@/shared/ui';
+import { Button, Card, LoadingSpinner, Modal, PageHeader, Switch } from '@/shared/ui';
 import { Skeleton } from '@/shared/ui';
 import type { UserData, UserPlan } from '@/shared/types';
 import { t } from '@/shared/i18n';
@@ -35,7 +35,9 @@ export function AdminPage() {
   const setPremiumExpiry = useUserStore((s) => s.setPremiumExpiry);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<'plan' | 'expiry' | null>(null);
+  const saving = savingAction !== null;
+  const [retryingUsers, setRetryingUsers] = useState(false);
   const [expiryInput, setExpiryInput] = useState('');
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function AdminPage() {
   }, [loadAllUsers]);
 
   const handleTogglePlan = async (user: UserData) => {
-    setSaving(true);
+    setSavingAction('plan');
     const newPlan = (user.accountData.plan === 'premium' ? 'free' : 'premium') as UserPlan;
     const newExpiresAt =
       newPlan === 'premium'
@@ -64,7 +66,7 @@ export function AdminPage() {
     } catch {
       setError('No se ha podido cambiar el plan.');
     } finally {
-      setSaving(false);
+      setSavingAction(null);
     }
   };
 
@@ -72,14 +74,27 @@ export function AdminPage() {
     setExpiryInput(value);
     if (!value) return;
     const iso = new Date(value + 'T23:59:59.999Z').toISOString();
-    setSaving(true);
+    setSavingAction('expiry');
     try {
       await setPremiumExpiry(user.uid, iso);
       setSelectedUser({ ...user, accountData: { ...user.accountData, premiumExpiresAt: iso } });
     } catch {
       setError('No se ha podido actualizar la fecha.');
     } finally {
-      setSaving(false);
+      setSavingAction(null);
+    }
+  };
+
+  const retryUsers = async () => {
+    if (retryingUsers) return;
+    setRetryingUsers(true);
+    try {
+      await loadAllUsers();
+      setError('');
+    } catch {
+      setError('No se han podido cargar los usuarios.');
+    } finally {
+      setRetryingUsers(false);
     }
   };
 
@@ -89,19 +104,16 @@ export function AdminPage() {
         {error && (
           <p className="field-error" role="alert">
             {error}{' '}
-            <button
-              onClick={() => {
-                setError('');
-                void loadAllUsers().catch(() => setError('No se han podido cargar los usuarios.'));
-              }}
-            >
-              Reintentar
-            </button>
+            <Button variant="ghost" loading={retryingUsers} onClick={() => void retryUsers()}>
+              {retryingUsers ? 'Reintentando…' : 'Reintentar'}
+            </Button>
           </p>
         )}
         <PageHeader
           title={t('admin.title')}
           description="Consulta las cuentas y gestiona sus permisos y planes."
+          backTo="/projects"
+          backLabel="Volver a proyectos"
         />
         {allUsersLoaded && (
           <p className="text-sm text-gray-500 mb-4">
@@ -204,34 +216,31 @@ export function AdminPage() {
                   })}
                 </p>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                <div>
-                  <span className="text-xs text-gray-500 uppercase">{t('admin.premiumPlan')}</span>
-                  <p className="text-sm text-gray-600">{t('admin.premiumDescription')}</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedUser.accountData.plan === 'premium'}
-                    onChange={() => handleTogglePlan(selectedUser)}
-                    disabled={saving}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                </label>
-              </div>
+              <Switch
+                label={t('admin.premiumPlan')}
+                description={t('admin.premiumDescription')}
+                checked={selectedUser.accountData.plan === 'premium'}
+                onCheckedChange={() => void handleTogglePlan(selectedUser)}
+                disabled={saving}
+                loading={savingAction === 'plan'}
+                className="border-t border-gray-200 pt-2"
+              />
               {selectedUser.accountData.plan === 'premium' && (
                 <div className="pt-2">
                   <span className="text-xs text-gray-500 uppercase">
                     {t('admin.premiumExpiresAt')}
                   </span>
-                  <input
-                    type="date"
-                    value={expiryInput}
-                    onChange={(e) => handleExpiryChange(selectedUser, e.target.value)}
-                    disabled={saving}
-                    className="mt-1 block w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={expiryInput}
+                      onChange={(e) => handleExpiryChange(selectedUser, e.target.value)}
+                      disabled={saving}
+                      aria-busy={savingAction === 'expiry' || undefined}
+                      className="block w-full flex-1 text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    {savingAction === 'expiry' && <LoadingSpinner size={15} />}
+                  </div>
                   {selectedUser.accountData.premiumExpiresAt &&
                     new Date(selectedUser.accountData.premiumExpiresAt) < new Date() && (
                       <p className="text-xs text-red-500 mt-1">{t('admin.premiumExpired')}</p>

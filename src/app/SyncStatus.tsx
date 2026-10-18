@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CloudUpload, AlertCircle } from 'lucide-react';
 import { withTimeout } from '@/shared/model/session';
 import { useSyncStore, flushWrites } from '@/shared/model/sync';
+import { LoadingSpinner } from '@/shared/ui';
 export function SyncStatus() {
   const jobs = useSyncStore((s) => s.jobs);
   const [retrying, setRetrying] = useState(false);
@@ -23,10 +24,11 @@ export function SyncStatus() {
       className="sync-status sync-error"
       onClick={() => void retry()}
       disabled={retrying}
+      aria-busy={retrying || undefined}
       title={error}
       aria-label={retrying ? 'Reintentando guardado' : 'Reintentar guardado'}
     >
-      <AlertCircle size={15} />
+      {retrying ? <LoadingSpinner size={15} /> : <AlertCircle size={15} />}
       <span>{retrying ? 'Reintentando…' : 'Reintentar guardado'}</span>
     </button>
   ) : (

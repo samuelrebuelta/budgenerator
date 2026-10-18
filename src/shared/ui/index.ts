@@ -5,13 +5,16 @@ export { EditableRow, EditableRowHeader } from './EditableRow';
 export type { ColumnDef, CellDef } from './EditableRow';
 export { ExportPdfButton } from './ExportPdfButton';
 export { Input } from './Input';
+export { LoadingSpinner } from './LoadingSpinner';
 export { Modal } from './Modal';
 export { PageLayout } from './PageLayout';
 export { Select } from './Select';
+export { Switch } from './Switch';
 export { Skeleton, SkeletonList } from './Skeleton';
 export { BudgetLimitReached } from './BudgetLimitReached';
 
 export { PageHeader, BackButton, PageHeaderSkeleton } from './PageHeader';
+export { PageHeaderAccessoryProvider } from './PageHeaderAccessoryProvider';
 export { CompanyAvatar } from './CompanyAvatar';
 export { InfoPopover } from './InfoPopover';
 export { SwipeActions } from './SwipeActions';

@@ -5,6 +5,7 @@ import { useUserStore } from '@/entities/user';
 import { CONTACT_EMAIL } from '@/shared/lib';
 import { Card, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
+import { NotificationSettings } from '@/features/notifications';
 
 export function AccountPage() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export function AccountPage() {
         <PageHeader
           title={t('account.title')}
           description="Gestiona tu acceso y consulta las condiciones de tu plan."
+          backTo="/projects"
+          backLabel="Volver a proyectos"
         />
         <p className="text-sm text-gray-500 mb-6">{email}</p>
 
@@ -94,6 +97,8 @@ export function AccountPage() {
             <ChevronRight size={16} className="text-gray-400" />
           </button>
         </Card>
+
+        <NotificationSettings />
       </div>
     </PageLayout>
   );

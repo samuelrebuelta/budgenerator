@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, FileText, Mail, Phone, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore } from '@/entities/budget';
@@ -14,6 +14,7 @@ import {
   type QuoteLead,
 } from '@/entities/quote-estimator';
 import { Button, Card, ConfirmModal, PageHeader, PageLayout } from '@/shared/ui';
+import { notificationPathFromLeadId } from '@/features/notifications/model/navigation';
 
 const EMPTY_LEADS: QuoteLead[] = [];
 
@@ -67,6 +68,14 @@ export function LeadsPage() {
   } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<QuoteLead | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedLeadHeading = useRef<HTMLHeadingElement>(null);
+  const requestedLeadValues = searchParams.getAll('leadId');
+  const hasRequestedLead = searchParams.has('leadId');
+  const requestedLeadId =
+    requestedLeadValues.length === 1 && notificationPathFromLeadId(requestedLeadValues[0])
+      ? requestedLeadValues[0]
+      : null;
 
   useEffect(() => {
     if (!uid) return;
@@ -96,6 +105,20 @@ export function LeadsPage() {
     () => [...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [leads],
   );
+  const selectedLeadExists = Boolean(
+    requestedLeadId && leads.some((lead) => lead.id === requestedLeadId),
+  );
+
+  useEffect(() => {
+    if (!selectedLeadExists || loading) return;
+    const heading = selectedLeadHeading.current;
+    if (!heading) return;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  }, [loading, requestedLeadId, selectedLeadExists]);
 
   const confirmDelete = async () => {
     if (!uid || !pendingDelete) return;
@@ -115,6 +138,17 @@ export function LeadsPage() {
         description="Revisa qué necesita cada cliente y continúa con un presupuesto cuando quieras."
       />
 
+      {hasRequestedLead && !loading && !error && selectedLeadExists && (
+        <p className="sr-only" role="status">
+          Solicitud abierta.
+        </p>
+      )}
+      {hasRequestedLead && !loading && !error && !selectedLeadExists && (
+        <p className="field-error" role="status">
+          La solicitud solicitada no está disponible en esta cuenta.
+        </p>
+      )}
+
       {error && (
         <p className="field-error" role="alert">
           {error}
@@ -131,11 +165,20 @@ export function LeadsPage() {
               : undefined;
             const lines = selectionSummary(lead);
             return (
-              <Card key={lead.id} className="p-4 sm:p-6">
+              <Card
+                key={lead.id}
+                className={`p-4 sm:p-6 ${lead.id === requestedLeadId ? 'ring-2 ring-[#668175] ring-offset-2' : ''}`}
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h2 className="text-lg font-semibold text-gray-900">{lead.contact.name}</h2>
+                      <h2
+                        ref={lead.id === requestedLeadId ? selectedLeadHeading : undefined}
+                        tabIndex={lead.id === requestedLeadId ? -1 : undefined}
+                        className="text-lg font-semibold text-gray-900 focus:outline-none"
+                      >
+                        {lead.contact.name}
+                      </h2>
                       <time className="text-sm text-gray-500" dateTime={lead.createdAt}>
                         {formatDate(lead.createdAt)}
                       </time>

@@ -90,6 +90,8 @@ export function ProfilePage() {
         <PageHeader
           title={t('profile.title')}
           description="Estos datos aparecen en tus presupuestos y documentos."
+          backTo="/projects"
+          backLabel="Volver a proyectos"
         />
         <div className="flex items-start gap-2 bg-blue-50 text-blue-700 text-sm rounded-lg px-3 py-2 mb-6">
           <Info size={16} className="shrink-0 mt-0.5" />
@@ -108,14 +110,17 @@ export function ProfilePage() {
                 alt="Logo de empresa"
                 className="h-16 w-auto object-contain rounded border border-gray-200 bg-white p-1"
               />
-              <button
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() => setShowRemoveLogoConfirm(true)}
                 disabled={uploading}
-                className="text-sm text-red-500 hover:text-red-700 cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                loading={uploading}
+                className="text-sm text-red-500 hover:text-red-700"
               >
                 <Trash2 size={14} />
                 {t('profile.removeLogo')}
-              </button>
+              </Button>
             </div>
           ) : (
             <div>
@@ -126,14 +131,16 @@ export function ProfilePage() {
                 onChange={handleLogoUpload}
                 className="hidden"
               />
-              <button
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 cursor-pointer transition-colors disabled:opacity-50"
+                loading={uploading}
+                className="flex items-center gap-2 border-2 border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600"
               >
                 <Upload size={16} />
                 {uploading ? t('profile.uploading') : t('profile.uploadLogo')}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -192,7 +199,7 @@ export function ProfilePage() {
         </p>
 
         <div className="mt-8 flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} loading={saving}>
             {saving ? t('common.saving') : t('common.save')}
           </Button>
         </div>

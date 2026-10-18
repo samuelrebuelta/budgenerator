@@ -25,7 +25,7 @@ export function PwaInstallBanner() {
       </div>
       <Button
         variant="secondary"
-        disabled={state.pending}
+        loading={state.pending}
         aria-expanded={state.canPrompt ? undefined : instructions}
         aria-controls={instructions ? 'pwa-install-instructions' : undefined}
         onClick={() =>

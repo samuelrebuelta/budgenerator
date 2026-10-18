@@ -159,7 +159,7 @@ export function ChangePasswordPage() {
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
           <div className="flex justify-end pt-2">
-            <Button type="submit" disabled={!isValid || saving}>
+            <Button type="submit" disabled={!isValid} loading={saving}>
               {saving ? t('common.saving') : t('settings.changePasswordButton')}
             </Button>
           </div>

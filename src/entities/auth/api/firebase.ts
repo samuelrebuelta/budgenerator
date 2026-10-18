@@ -31,6 +31,12 @@ export function sendPasswordReset(email: string) {
   return firebaseSendPasswordReset(auth, email);
 }
 
+export async function refreshCurrentUser() {
+  if (!auth.currentUser) return null;
+  await auth.currentUser.reload();
+  return auth.currentUser;
+}
+
 export async function changePassword(currentPassword: string, newPassword: string) {
   const user = auth.currentUser;
   if (!user || !user.email) throw new Error('No authenticated user');

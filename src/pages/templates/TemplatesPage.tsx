@@ -27,6 +27,8 @@ export function TemplatesPage() {
         <PageHeader
           title={t('templates.title')}
           description="Guarda las partidas que reutilizas en tus presupuestos."
+          backTo="/budgets"
+          backLabel="Volver a presupuestos"
           actions={
             <Button
               className="page-create-button"

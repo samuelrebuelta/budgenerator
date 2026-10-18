@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Copy,
-  ExternalLink,
-  LoaderCircle,
-  Minus,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, ExternalLink, Minus, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
@@ -37,6 +28,7 @@ import {
   PageHeaderSkeleton,
   PageLayout,
   Skeleton,
+  Switch,
 } from '@/shared/ui';
 
 const emptySettings: SimpleQuoteEstimatorSettings = {
@@ -84,6 +76,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copyingLink, setCopyingLink] = useState(false);
   const [operation, setOperation] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -245,12 +238,16 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   };
 
   const copyLink = async () => {
+    if (saving || copyingLink) return;
+    setCopyingLink(true);
     try {
       await navigator.clipboard.writeText(publicUrl);
       setNotice('Enlace copiado.');
       setError('');
     } catch {
       setError('No se ha podido copiar. Selecciona la URL y cópiala manualmente.');
+    } finally {
+      setCopyingLink(false);
     }
   };
 
@@ -280,7 +277,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     return (
       <PageLayout>
         <div aria-busy="true">
-          <PageHeaderSkeleton />
+          <PageHeaderSkeleton backTo="/profile" backLabel="Volver a mi empresa" />
           <Card className="mb-6 space-y-4 p-5">
             <Skeleton className="h-5 w-48" />
             <Skeleton className="h-4 w-64 max-w-full" />
@@ -304,6 +301,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       <PageHeader
         title="Estimador público"
         description="Elige las estancias y define una orientación de precio sencilla para tu web."
+        backTo="/profile"
+        backLabel="Volver a mi empresa"
       />
 
       {(hasSavedSettings || token) && (
@@ -343,18 +342,16 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                 >
                   <ExternalLink size={15} /> Abrir formulario
                 </a>
-                <Button variant="secondary" onClick={copyLink} disabled={saving}>
-                  <Copy size={15} /> Copiar enlace
+                <Button
+                  variant="secondary"
+                  onClick={copyLink}
+                  disabled={saving}
+                  loading={copyingLink}
+                >
+                  <Copy size={15} /> {copyingLink ? 'Copiando enlace…' : 'Copiar enlace'}
                 </Button>
                 <Button variant="danger" onClick={handleRevoke} loading={saving}>
-                  {saving ? (
-                    <>
-                      <LoaderCircle size={15} className="animate-spin" />{' '}
-                      {operation || 'Revocando…'}
-                    </>
-                  ) : (
-                    'Revocar enlace'
-                  )}
+                  {saving ? operation || 'Revocando…' : 'Revocar enlace'}
                 </Button>
               </>
             )}
@@ -583,29 +580,22 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
           <Card className="mt-4 p-4 sm:p-5">
             <h3 className="font-semibold text-gray-900">Datos de contacto públicos</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={settings.contact.sharePhone}
-                  disabled={!profile?.phone}
-                  onChange={(event) => updateContact({ sharePhone: event.target.checked })}
-                />
-                <span>
-                  Mostrar teléfono{' '}
-                  {profile?.phone ? `(${profile.phone})` : '· añádelo en Mi empresa'}
-                </span>
-              </label>
-              <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 px-3 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={settings.contact.shareEmail}
-                  disabled={!profile?.email}
-                  onChange={(event) => updateContact({ shareEmail: event.target.checked })}
-                />
-                <span>
-                  Mostrar correo {profile?.email ? `(${profile.email})` : '· añádelo en Mi empresa'}
-                </span>
-              </label>
+              <Switch
+                label="Mostrar teléfono"
+                description={profile?.phone ? `(${profile.phone})` : 'Añádelo en Mi empresa'}
+                checked={settings.contact.sharePhone}
+                disabled={!profile?.phone}
+                onCheckedChange={(checked) => updateContact({ sharePhone: checked })}
+                className="rounded-lg border border-gray-200 px-3"
+              />
+              <Switch
+                label="Mostrar correo"
+                description={profile?.email ? `(${profile.email})` : 'Añádelo en Mi empresa'}
+                checked={settings.contact.shareEmail}
+                disabled={!profile?.email}
+                onCheckedChange={(checked) => updateContact({ shareEmail: checked })}
+                className="rounded-lg border border-gray-200 px-3"
+              />
             </div>
           </Card>
 
@@ -631,25 +621,12 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             {token && !legacySetup ? (
               <div className="mt-4">
                 <Button variant="secondary" onClick={handleSave} loading={saving}>
-                  {saving ? (
-                    <>
-                      <LoaderCircle size={15} className="animate-spin" />{' '}
-                      {operation || 'Guardando…'}
-                    </>
-                  ) : (
-                    'Guardar cambios'
-                  )}
+                  {saving ? operation || 'Guardando…' : 'Guardar cambios'}
                 </Button>
               </div>
             ) : (
               <Button className="mt-4" onClick={handlePublish} loading={saving}>
-                {saving ? (
-                  <>
-                    <LoaderCircle size={15} className="animate-spin" /> {operation || 'Guardando…'}
-                  </>
-                ) : (
-                  'Guardar y generar enlace'
-                )}
+                {saving ? operation || 'Guardando…' : 'Guardar y generar enlace'}
               </Button>
             )}
             <div className="mt-3 min-h-6" aria-live="polite">

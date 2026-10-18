@@ -34,7 +34,6 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users', 'alice'), { uid: 'alice' });
     await setDoc(doc(db, 'users', 'bob'), { uid: 'bob' });
     await setDoc(doc(db, 'users', 'alice', 'settings', 'notifications'), {
-      emailEnabled: true,
       pushEnabled: true,
     });
     await setDoc(doc(db, 'users', 'alice', 'pushDevices', 'device-1'), {
@@ -58,10 +57,9 @@ describe('notification Firestore boundary', () => {
   it('lets the owner read preferences but only the server change them', async () => {
     const ownSettings = doc(alice(), 'users', 'alice', 'settings', 'notifications');
     expect((await getDoc(ownSettings)).data()).toMatchObject({
-      emailEnabled: true,
       pushEnabled: true,
     });
-    await assertFails(updateDoc(ownSettings, { emailEnabled: false }));
+    await assertFails(updateDoc(ownSettings, { pushEnabled: false }));
     await assertFails(getDoc(doc(bob(), 'users', 'alice', 'settings', 'notifications')));
     await assertFails(getDoc(doc(anonymous(), 'users', 'alice', 'settings', 'notifications')));
   });

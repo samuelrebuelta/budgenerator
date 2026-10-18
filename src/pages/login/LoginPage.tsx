@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
 import { Brand } from '@/shared/ui/Brand';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Modal } from '@/shared/ui';
@@ -9,6 +9,7 @@ import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
 import { sendPasswordReset } from '@/entities/auth/api/firebase';
 import { markWelcomeTourPending } from '@/features/app-tour/model';
+import { safeNotificationLoginReturnPath } from '@/features/notifications/model/navigation';
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
@@ -34,6 +35,16 @@ export function LoginPage() {
   const clearError = useAuthStore((s) => s.clearError);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as {
+    from?: { pathname?: unknown; search?: unknown; hash?: unknown };
+  } | null;
+  const from = locationState?.from;
+  const requestedPath =
+    typeof from?.pathname === 'string'
+      ? `${from.pathname}${typeof from.search === 'string' ? from.search : ''}${typeof from.hash === 'string' ? from.hash : ''}`
+      : null;
+  const returnPath = safeNotificationLoginReturnPath(requestedPath) ?? '/budgets';
   const { checks, score } = usePasswordStrength(password);
   const allChecksMet = score === checks.length;
   const [showReset, setShowReset] = useState(false);
@@ -44,8 +55,8 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/budgets', { replace: true });
-  }, [user, navigate]);
+    if (user) navigate(returnPath, { replace: true });
+  }, [user, navigate, returnPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +203,7 @@ export function LoginPage() {
                 type="submit"
                 className="w-full justify-center"
                 disabled={loading || (isRegister && !allChecksMet)}
+                loading={loading}
               >
                 {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
                 {isRegister ? t('login.register') : t('login.enter')}
@@ -261,7 +273,7 @@ export function LoginPage() {
               <Button variant="secondary" onClick={() => setShowReset(false)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleResetPassword} disabled={resetLoading || !resetEmail}>
+              <Button onClick={handleResetPassword} disabled={!resetEmail} loading={resetLoading}>
                 {resetLoading ? t('common.loading') : t('login.resetPasswordButton')}
               </Button>
             </div>

@@ -7,6 +7,11 @@ import {
   notificationFunctionOptions,
 } from './notifications/preferences.js';
 import { requireNotificationOwnerUid } from './notifications/contracts.js';
+export {
+  cleanupLeadNotificationJobs,
+  processNewLeadNotifications,
+  recoverLeadNotificationJobs,
+} from './notifications/leadCreated.js';
 import {
   calculatePublicEstimate as calculatePublicEstimateHandler,
   getOwnerEstimatorStatus as getOwnerEstimatorStatusHandler,

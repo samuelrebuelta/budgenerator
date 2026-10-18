@@ -506,6 +506,7 @@ export function ProjectDetailPage() {
                           subject={`la partida ${item.name}`}
                           completedAt={item.tasks[0].completedAt}
                           disabled={!!busy}
+                          loading={busy === `date:work:${item.id}`}
                           onChange={(date) =>
                             void run(`date:work:${item.id}`, () =>
                               setWorkItemCompletionDate(project.id, item.id, date),
@@ -557,6 +558,7 @@ export function ProjectDetailPage() {
                                 subject={`el concepto ${task.description}`}
                                 completedAt={task.completedAt}
                                 disabled={!!busy}
+                                loading={busy === `date:task:${key}`}
                                 onChange={(date) =>
                                   void run(`date:task:${key}`, () =>
                                     setTaskCompletionDate(project.id, item.id, task.id, date),

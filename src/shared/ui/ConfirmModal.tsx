@@ -62,7 +62,7 @@ export function ConfirmModal({
         <Button variant="secondary" disabled={saving} onClick={onClose}>
           {cancelLabel}
         </Button>
-        <Button variant={variant} disabled={saving} onClick={() => void confirm()}>
+        <Button variant={variant} loading={saving} onClick={() => void confirm()}>
           {saving ? 'Un momento…' : confirmLabel}
         </Button>
       </div>

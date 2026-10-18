@@ -8,40 +8,61 @@ import {
 } from '../functions/src/notifications/contracts';
 
 const validInstallationId = 'a7c8f8b4-b42c-4c5c-9b4e-9f0d1a02c6f2';
-const validToken = 'fcm-token-value-that-is-long-enough-for-registration';
+const validFid = 'fcm-fid-value-for-device-01';
 
 describe('notification preference contracts', () => {
-  it('accepts independent boolean preferences and rejects unknown fields', () => {
-    expect(parseNotificationPreferences({ emailEnabled: true, pushEnabled: false })).toEqual({
-      emailEnabled: true,
-      pushEnabled: false,
+  it('accepts push-only preferences and ignores a disabled legacy email flag', () => {
+    expect(parseNotificationPreferences({ pushEnabled: false })).toEqual({ pushEnabled: false });
+    expect(parseNotificationPreferences({ emailEnabled: false, pushEnabled: true })).toEqual({
+      pushEnabled: true,
     });
     expect(() =>
-      parseNotificationPreferences({ emailEnabled: true, pushEnabled: false, email: 'owner@test' }),
+      parseNotificationPreferences({ emailEnabled: true, pushEnabled: false }),
     ).toThrow();
-    expect(() =>
-      parseNotificationPreferences({ emailEnabled: 'yes', pushEnabled: false }),
-    ).toThrow();
+    expect(() => parseNotificationPreferences({ pushEnabled: 'yes' })).toThrow();
   });
 
-  it('validates device registration input without changing valid tokens', () => {
+  it('validates device registration input without changing valid FIDs', () => {
     expect(
-      parsePushDeviceRegistration({ installationId: validInstallationId, token: validToken }),
-    ).toEqual({ installationId: validInstallationId, token: validToken });
+      parsePushDeviceRegistration({ installationId: validInstallationId, fid: validFid }),
+    ).toEqual({ installationId: validInstallationId, fid: validFid });
     expect(() =>
-      parsePushDeviceRegistration({ installationId: 'not-an-id', token: validToken }),
+      parsePushDeviceRegistration({ installationId: 'not-an-id', fid: validFid }),
     ).toThrow();
     expect(() =>
-      parsePushDeviceRegistration({ installationId: validInstallationId, token: 'short' }),
+      parsePushDeviceRegistration({ installationId: validInstallationId, fid: 'short' }),
     ).toThrow();
     expect(() =>
-      parsePushDeviceRegistration({ installationId: validInstallationId, token: `${validToken} ` }),
+      parsePushDeviceRegistration({ installationId: validInstallationId, fid: `${validFid} ` }),
     ).toThrow();
     expect(() =>
       parsePushDeviceRegistration({
         installationId: validInstallationId,
-        token: validToken,
+        fid: validFid,
         uid: 'bob',
+      }),
+    ).toThrow();
+  });
+
+  it('accepts an FCM registration token without exposing it through the settings contract', () => {
+    const registrationToken = `projects/budgenerator/messages/${'a'.repeat(120)}`;
+    expect(
+      parsePushDeviceRegistration({ installationId: validInstallationId, registrationToken }),
+    ).toEqual({ installationId: validInstallationId, registrationToken });
+    expect(() =>
+      parsePushDeviceRegistration({ installationId: validInstallationId, registrationToken: '' }),
+    ).toThrow();
+    expect(() =>
+      parsePushDeviceRegistration({
+        installationId: validInstallationId,
+        registrationToken: `${registrationToken}\n`,
+      }),
+    ).toThrow();
+    expect(() =>
+      parsePushDeviceRegistration({
+        installationId: validInstallationId,
+        fid: validFid,
+        registrationToken,
       }),
     ).toThrow();
   });

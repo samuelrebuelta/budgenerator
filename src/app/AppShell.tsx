@@ -15,16 +15,21 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { Brand } from '@/shared/ui/Brand';
-import { ConfirmModal, Modal, CompanyAvatar } from '@/shared/ui';
+import { ConfirmModal, Modal, CompanyAvatar, PageHeaderAccessoryProvider } from '@/shared/ui';
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
 import { PwaInstallBanner } from './PwaInstallBanner';
 import { SyncStatus } from './SyncStatus';
 import { AppTourProvider } from '@/features/app-tour/AppTour';
+import { ForegroundNotificationHost, PushStartupPrompt } from '@/features/notifications';
+import {
+  completeCurrentDeviceSignOut,
+  revokeCurrentDeviceBeforeSignOut,
+} from '@/features/notifications/model/push';
 const links = [
-  ['/projects', 'Proyectos', Briefcase],
   ['/budgets', 'Presupuestos', FileText],
+  ['/projects', 'Proyectos', Briefcase],
   ['/catalog', 'Catálogo', BookOpen],
   ['/profile/solicitudes', 'Solicitudes', Inbox],
 ] as const;
@@ -39,7 +44,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       location.pathname.startsWith(path + '/') ||
       (path === '/budgets' && location.pathname.startsWith('/budget/')),
   )?.[0];
-  const showMobileNav = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
+  const isPrimaryTabPage = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
+  const showMobileNav = isPrimaryTabPage;
+  const isSecondaryPage = !isPrimaryTabPage;
   useLayoutEffect(() => {
     if (links.some(([path]) => path === location.pathname) || location.pathname === '/estimator') {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -74,9 +81,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const account = useUserStore((s) => s.userData);
   const userId = useAuthStore((s) => s.user?.uid);
   const signOut = useAuthStore((s) => s.signOut);
+  const handleSignOut = async () => {
+    const installationId = userId ? await revokeCurrentDeviceBeforeSignOut(userId) : null;
+    try {
+      await signOut();
+    } finally {
+      if (installationId) completeCurrentDeviceSignOut(installationId);
+    }
+  };
   return (
     <AppTourProvider userId={userId}>
-      <div className={`app-shell${isDetailPage ? ' app-shell-detail' : ''}`}>
+      <ForegroundNotificationHost />
+      <div className={`app-shell${isSecondaryPage ? ' app-shell-secondary' : ''}`}>
         <a className="skip-link" href="#workspace-content">
           Saltar al contenido
         </a>
@@ -122,47 +138,58 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
         <div className="workspace">
-          <header className="workspace-header no-print">
-            <Link className="mobile-brand" to="/projects" aria-label="budgenerator, inicio">
-              <Brand />
-            </Link>
-            <span className="desktop-greeting">
-              {links.find(([path]) => path === activePath)?.[1] ??
-                (location.pathname.startsWith('/account')
-                  ? 'Mi cuenta'
-                  : location.pathname.startsWith('/profile')
-                    ? 'Mi empresa'
-                    : location.pathname === '/help'
-                      ? 'Ayuda'
-                      : location.pathname.startsWith('/templates')
-                        ? 'Plantillas de presupuestos'
-                        : location.pathname.startsWith('/estimator')
-                          ? 'Estimador público'
-                          : location.pathname.startsWith('/admin')
-                            ? 'Panel de administración'
-                            : 'BudGenerator')}
-            </span>
-            <div className="workspace-actions">
-              {!isDetailPage && <SyncStatus />}
-              <button
-                className="account-chip account-menu-trigger"
-                onClick={() => setMenu(true)}
-                aria-label="Abrir menú de cuenta"
-              >
-                <CompanyAvatar name={company.name} logo={company.logo} />
-                <span className="account-chip-text">
-                  {account?.accountData.plan === 'premium' ? 'Espacio Pro' : 'Mi espacio'}
-                </span>
-              </button>
-            </div>
-          </header>
+          {isPrimaryTabPage && (
+            <header className="workspace-header no-print">
+              <Link className="mobile-brand" to="/projects" aria-label="budgenerator, inicio">
+                <Brand />
+              </Link>
+              <span className="desktop-greeting">
+                {links.find(([path]) => path === activePath)?.[1] ?? 'BudGenerator'}
+              </span>
+              <div className="workspace-actions">
+                <SyncStatus />
+                <button
+                  className="account-chip account-menu-trigger"
+                  onClick={() => setMenu(true)}
+                  aria-label="Abrir menú de cuenta"
+                  aria-haspopup="dialog"
+                  aria-expanded={menu}
+                >
+                  <CompanyAvatar name={company.name} logo={company.logo} />
+                  <span className="account-chip-text">
+                    {account?.accountData.plan === 'premium' ? 'Espacio Pro' : 'Mi espacio'}
+                  </span>
+                </button>
+              </div>
+            </header>
+          )}
           {isDetailPage && (
             <div className="detail-sync no-print">
               <SyncStatus />
             </div>
           )}
           <PwaInstallBanner />
-          <main id="workspace-content">{children}</main>
+          <PushStartupPrompt />
+          <main id="workspace-content">
+            <PageHeaderAccessoryProvider
+              accessory={
+                isSecondaryPage ? (
+                  <button
+                    type="button"
+                    className="secondary-account-menu-trigger"
+                    onClick={() => setMenu(true)}
+                    aria-label="Abrir menú de cuenta"
+                    aria-haspopup="dialog"
+                    aria-expanded={menu}
+                  >
+                    <CompanyAvatar name={company.name} logo={company.logo} />
+                  </button>
+                ) : null
+              }
+            >
+              {children}
+            </PageHeaderAccessoryProvider>
+          </main>
         </div>
         {showMobileNav && (
           <nav
@@ -246,7 +273,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           title="¿Cerramos por hoy?"
           message="Guardaremos los cambios pendientes antes de cerrar tu sesión."
           confirmLabel="Cerrar sesión"
-          onConfirm={signOut}
+          onConfirm={handleSignOut}
         />
       </div>
     </AppTourProvider>

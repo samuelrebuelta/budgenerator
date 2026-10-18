@@ -32,7 +32,7 @@ export function ShareButton() {
   };
   return (
     <div>
-      <Button variant="secondary" onClick={() => void publish()} disabled={busy}>
+      <Button variant="secondary" onClick={() => void publish()} loading={busy}>
         <Share size={16} />
         {busy ? 'Preparando…' : 'Crear enlace público'}
       </Button>

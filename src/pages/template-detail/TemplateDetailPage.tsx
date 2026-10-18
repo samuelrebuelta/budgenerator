@@ -228,7 +228,7 @@ function TemplateDetailSkeleton() {
   return (
     <div className="page-container">
       <div className="template-document-content">
-        <PageHeaderSkeleton />
+        <PageHeaderSkeleton backTo="/templates" backLabel="Volver a plantillas" />
         <Card className="p-4 sm:p-8 space-y-6">
           <Skeleton className="h-7 w-48" />
           <div className="max-w-sm space-y-2">

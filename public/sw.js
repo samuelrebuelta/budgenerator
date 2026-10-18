@@ -2,6 +2,7 @@
 const VERSION = '__CIMBRA_VERSION__';
 const CACHE = `cimbra-shell-${VERSION}`;
 const PRECACHE = /* __CIMBRA_PRECACHE__ */ [];
+importScripts(`/fcm-sw.js?v=${VERSION}`);
 const assetPaths = new Set(PRECACHE);
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -49,6 +50,27 @@ async function network(request) {
     clearTimeout(timer);
   }
 }
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const leadId = event.notification.data?.leadId;
+  if (typeof leadId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(leadId)) return;
+  const url = new URL('/profile/solicitudes', self.location.origin);
+  url.searchParams.set('leadId', leadId);
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const sameOriginWindow = windows.find(
+        (client) => new URL(client.url).origin === self.location.origin,
+      );
+      if (sameOriginWindow) {
+        await sameOriginWindow.navigate(`${url.pathname}${url.search}`);
+        await sameOriginWindow.focus();
+        return;
+      }
+      await self.clients.openWindow(`${url.pathname}${url.search}`);
+    })(),
+  );
+});
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   // Never cache Firebase requests, tokens, user documents, or other origins.

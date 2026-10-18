@@ -9,6 +9,9 @@ import {
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 let env: RulesTestEnvironment;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 const settings = {
   services: [
     {
@@ -25,8 +28,8 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-bg005-estimator',
     firestore: {
-      host: '127.0.0.1',
-      port: 8180,
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
