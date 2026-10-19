@@ -101,7 +101,13 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
   const filteredCategories = useMemo(() => {
     const words = normalizeCatalogText(categoryQuery).split(/\s+/).filter(Boolean);
     return TRADE_CATALOGS.filter((trade) => {
-      const searchable = normalizeCatalogText(`${trade.name} ${trade.description}`);
+      const searchable = normalizeCatalogText(
+        [
+          trade.name,
+          trade.description,
+          ...trade.tariffs.flatMap((tariff) => [tariff.category, tariff.description]),
+        ].join(' '),
+      );
       return words.every((word) => searchable.includes(word));
     }).sort((a, b) => compareSpanish(a.name, b.name));
   }, [categoryQuery]);

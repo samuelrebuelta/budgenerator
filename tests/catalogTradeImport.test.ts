@@ -7,41 +7,59 @@ import {
 import type { BaseCatalog } from '../src/entities/catalog/model/baseCatalogs';
 import type { CatalogPart } from '../src/shared/types';
 
-it('offers the general base and specialist trades while excluding blank and integral sources', () => {
-  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('albanileria');
-  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('fontaneria');
-  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('electricidad');
-  expect(TRADE_CATALOGS).toHaveLength(20);
-  expect(TRADE_CATALOGS).not.toContain(BASE_CATALOGS.find((catalog) => catalog.id === 'en_blanco'));
-  expect(TRADE_CATALOGS).not.toContain(
-    BASE_CATALOGS.find((catalog) => catalog.id === 'reformas_integrales'),
-  );
-  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toContain('reforma_general');
+it('offers only the complete renovation catalog as an import source', () => {
+  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toEqual(['reforma_integral']);
+  expect(BASE_CATALOGS.map((catalog) => catalog.id)).toEqual(['en_blanco', 'reforma_integral']);
 });
 
-it('provides a general importable catalog with eight simplified work families', () => {
-  const general = BASE_CATALOGS.find((catalog) => catalog.id === 'reforma_general');
+it('provides the complete catalog with alphabetized, concise work categories', () => {
+  const general = BASE_CATALOGS.find((catalog) => catalog.id === 'reforma_integral');
   const families = [
-    'Demolición y residuos',
-    'Albañilería y tabiquería',
-    'Suelos y revestimientos',
-    'Pintura',
-    'Electricidad',
-    'Fontanería y sanitarios',
+    'Accesibilidad',
+    'Aislamiento',
+    'Albañilería',
     'Carpintería',
-    'Servicios auxiliares',
+    'Cerrajería',
+    'Cimentación',
+    'Climatización',
+    'Cocinas',
+    'Cubiertas',
+    'Demolición',
+    'Electricidad',
+    'Energía solar',
+    'Enlucidos',
+    'Estructura',
+    'Exteriores',
+    'Fachadas',
+    'Fontanería',
+    'Gas',
+    'Jardinería',
+    'Limpieza',
+    'Mudanzas',
+    'Pavimentos',
+    'Pintura',
+    'Piscinas',
+    'Pladur',
+    'Revestimientos',
+    'Telecomunicaciones',
+    'Varios',
+    'Ventanas',
+    'Vidrio',
   ];
 
   expect(general).toBeDefined();
   expect(TRADE_CATALOGS).toContain(general);
-  expect(new Set(general?.tariffs.map((tariff) => tariff.category))).toEqual(new Set(families));
+  expect([...new Set(general?.tariffs.map((tariff) => tariff.category))]).toEqual(families);
   expect(
     general?.tariffs.filter((tariff) => tariff.category === 'Electricidad').length,
   ).toBeGreaterThan(1);
+  expect(general?.tariffs.every((tariff) => tariff.basePrice === 0 && tariff.cost === 0)).toBe(
+    true,
+  );
 });
 
-it('imports the general base idempotently without replacing private electrical prices', () => {
-  const general = TRADE_CATALOGS.find((catalog) => catalog.id === 'reforma_general')!;
+it('imports the complete catalog idempotently without replacing private electrical prices', () => {
+  const general = TRADE_CATALOGS.find((catalog) => catalog.id === 'reforma_integral')!;
   const electrical = general.tariffs.find((tariff) => tariff.category === 'Electricidad')!;
   const existing: CatalogPart[] = [
     {

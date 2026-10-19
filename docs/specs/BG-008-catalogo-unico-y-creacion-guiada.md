@@ -31,9 +31,11 @@ Tras un registro correcto se inicia una guía breve con un reformista ilustrado 
 
 ## Extensión del catálogo base para BG-009
 
-El importador ofrece 20 bases: la nueva `Reforma general` más los 19 oficios especializados existentes. `Reforma general` contiene ocho familias de trabajo amplias y 19 conceptos de ejemplo; electricidad se presenta como una sola familia. Las cuentas nuevas se inicializan con esta base general. Las cuentas existentes no se migran: pueden importarla manualmente, sin duplicar descripción/unidad ni sustituir precios personalizados. `En blanco` y la antigua base integral no se ofrecen como bases de importación.
+El importador ofrece una única biblioteca completa, `Reforma integral`, con 30 partidas ordenadas alfabéticamente y conceptos de todos los gremios residenciales. Los nombres de partida tienen una o dos palabras. Electricidad reúne cableado, circuitos, cuadro, enchufes, interruptores y puntos de luz; `Varios` agrupa visita técnica, mediciones, licencias y tasas, andamios, protección, limpieza final y mano de obra general. Los conceptos comienzan con precio y coste a cero para que cada empresa los configure. Las cuentas nuevas se inicializan con esta biblioteca. Las cuentas existentes no se migran ni se sobrescriben: pueden importar partidas o conceptos manualmente, sin duplicar descripción/unidad ni sustituir precios personalizados. `En blanco` permanece disponible para empezar desde cero; las bases antiguas de oficios y reforma general se retiran del importador.
 
 El tour de bienvenida incorpora Proyectos como primera parada y explica que el seguimiento parte de aceptar y convertir un presupuesto. Mantiene el recorrido por Presupuestos, Catálogo, Plantillas y Mi empresa, ahora con cinco pantallas.
+
+Actualización de biblioteca (19-10-2026): esta decisión sustituye la extensión descrita arriba. El importador sólo expone `Reforma integral` (30 partidas alfabéticas) y `En blanco`; se retiran las bases de oficios y `Reforma general`. Las cuentas nuevas usan el catálogo completo con precios/costes a cero. Los catálogos privados ya guardados no se migran ni se machacan.
 
 ## Asistente opcional de estructura
 

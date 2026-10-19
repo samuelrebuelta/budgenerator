@@ -267,7 +267,7 @@ test('push permission is requested after interaction and account settings are pu
   await expect(page.getByRole('switch', { name: 'Avisos por correo' })).toHaveCount(0);
   const pushSwitch = page.getByRole('switch', { name: 'Avisos push' });
   await expect(pushSwitch).toBeVisible();
-  await pushSwitch.click();
+  await page.getByText('Avisos push', { exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('El permiso está bloqueado');
   expect(
     await page.evaluate(
@@ -350,7 +350,11 @@ test('primary routes keep tabs and secondary routes use the common return on mob
       }
       const backBounds = await page.locator('.back-button').boundingBox();
       const titleBounds = await page.getByRole('heading', { level: 1 }).boundingBox();
-      expect(titleBounds!.y).toBeGreaterThanOrEqual(backBounds!.y + backBounds!.height);
+      if (width <= 800) {
+        expect(Math.abs(titleBounds!.y - backBounds!.y)).toBeLessThan(12);
+      } else {
+        expect(titleBounds!.y).toBeGreaterThanOrEqual(backBounds!.y + backBounds!.height);
+      }
       await expect(page.locator('[data-page-header]')).toBeVisible();
     }
     await page.goto('/budgets');
@@ -433,11 +437,7 @@ test('new registrations include the budget-core tour and allow replay', async ({
   await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(tour).toHaveAttribute('data-step', '3');
-  await tour.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
-  await page
-    .getByRole('dialog', { name: 'Menú de cuenta' })
-    .getByRole('link', { name: 'Plantillas de presupuestos' })
-    .click();
+  await tour.getByRole('button', { name: 'Siguiente' }).click();
   await expect(page).toHaveURL(/\/templates$/);
   await expect(tour).toHaveAttribute('data-step', '4');
   await tour.getByRole('button', { name: 'Siguiente' }).click();
@@ -480,44 +480,66 @@ test('new registrations include the budget-core tour and allow replay', async ({
   await expect(tour).toHaveCount(0);
 });
 
-test('existing catalog can import the general base with eight broad families', async ({ page }) => {
+test('existing catalog can import the complete renovation base', async ({ page }) => {
   await login(page);
   await page.goto('/catalog');
   await page.getByRole('button', { name: 'Importar por categoría' }).click();
   const importer = page.getByRole('dialog', { name: 'Importar por categoría' });
-  await importer.getByRole('searchbox', { name: 'Buscar categoría' }).fill('reforma general');
-  await importer.getByRole('button', { name: 'Ver detalle Reforma general' }).click();
+  await importer.getByRole('searchbox', { name: 'Buscar categoría' }).fill('reforma integral');
+  await importer.getByRole('button', { name: 'Ver detalle Reforma integral' }).click();
   await expect(
-    importer.getByRole('heading', { name: 'Reforma general', exact: true }),
+    importer.getByRole('heading', { name: 'Reforma integral', exact: true }),
   ).toBeVisible();
-  await expect(importer).toContainText('8 partidas · 19 conceptos');
+  await expect(importer).toContainText('30 partidas · 271 conceptos');
   await expect(
     importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }),
   ).toBeVisible();
-  for (const category of ['Circuitos', 'Enchufes', 'Iluminación'])
-    await expect(
-      importer.getByRole('button', { name: `Mostrar conceptos de ${category}`, exact: true }),
-    ).toHaveCount(0);
+  await importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }).click();
+  await expect(importer).toContainText('Cableado eléctrico');
+  await expect(importer).toContainText('Enchufe simple');
+  await expect(importer).toContainText('Punto de luz');
 
-  await importer.getByRole('button', { name: 'Importar categoría Reforma general' }).click();
+  await importer.getByRole('button', { name: 'Importar categoría Reforma integral' }).click();
   await expect(importer).toBeHidden();
   const familyOptions = await page
     .getByLabel('Filtrar por partida')
     .locator('option')
     .allTextContents();
   expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
-    'Albañilería y tabiquería',
+    'Accesibilidad',
+    'Aislamiento',
+    'Albañilería',
     'Carpintería',
-    'Demolición y residuos',
+    'Cerrajería',
+    'Cimentación',
+    'Climatización',
+    'Cocinas',
+    'Cubiertas',
+    'Demolición',
     'Electricidad',
-    'Fontanería y sanitarios',
+    'Energía solar',
+    'Enlucidos',
+    'Estructura',
+    'Exteriores',
+    'Fachadas',
+    'Fontanería',
+    'Gas',
+    'Jardinería',
+    'Limpieza',
+    'Mudanzas',
+    'Pavimentos',
     'Pintura',
-    'Servicios auxiliares',
-    'Suelos y revestimientos',
+    'Piscinas',
+    'Pladur',
+    'Revestimientos',
+    'Telecomunicaciones',
+    'Varios',
+    'Ventanas',
+    'Vidrio',
   ]);
 });
 
-test('an account without a catalog starts with the general renovation families', async ({
+test('an account without a catalog starts with the complete renovation catalog', async ({
   page,
 }) => {
   await login(page, 'other@example.test');
@@ -527,14 +549,36 @@ test('an account without a catalog starts with the general renovation families',
   await expect(partFilter).toBeVisible();
   const familyOptions = await partFilter.locator('option').allTextContents();
   expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
-    'Albañilería y tabiquería',
+    'Accesibilidad',
+    'Aislamiento',
+    'Albañilería',
     'Carpintería',
-    'Demolición y residuos',
+    'Cerrajería',
+    'Cimentación',
+    'Climatización',
+    'Cocinas',
+    'Cubiertas',
+    'Demolición',
     'Electricidad',
-    'Fontanería y sanitarios',
+    'Energía solar',
+    'Enlucidos',
+    'Estructura',
+    'Exteriores',
+    'Fachadas',
+    'Fontanería',
+    'Gas',
+    'Jardinería',
+    'Limpieza',
+    'Mudanzas',
+    'Pavimentos',
     'Pintura',
-    'Servicios auxiliares',
-    'Suelos y revestimientos',
+    'Piscinas',
+    'Pladur',
+    'Revestimientos',
+    'Telecomunicaciones',
+    'Varios',
+    'Ventanas',
+    'Vidrio',
   ]);
 });
 
@@ -554,11 +598,16 @@ test('catalog imports a category, a part, or one concept from category details',
     'Todo lo que importes se añadirá al catálogo de tu empresa para utilizarlo en tus presupuestos.',
   );
   await importer.getByRole('searchbox', { name: 'Buscar categoría' }).fill('electricidad');
-  await importer.getByRole('button', { name: 'Ver detalle Electricidad' }).click();
-  await expect(importer.getByRole('heading', { name: 'Electricidad', exact: true })).toBeVisible();
-  await importer.getByRole('button', { name: 'Mostrar conceptos de Iluminación' }).click();
+  await importer.getByRole('button', { name: 'Ver detalle Reforma integral' }).click();
+  await expect(
+    importer.getByRole('heading', { name: 'Reforma integral', exact: true }),
+  ).toBeVisible();
+  await importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }).click();
+  await expect(importer).toContainText('Cableado eléctrico');
+  await expect(importer).toContainText('Enchufe simple');
+  await expect(importer).toContainText('Punto de luz');
   const conceptImport = importer.getByRole('button', {
-    name: 'Importar concepto Punto de luz conmutado',
+    name: 'Importar concepto Punto de luz',
   });
   await expect(conceptImport).toBeVisible();
   const modalPanel = importer.locator('.modal-panel');
@@ -569,21 +618,20 @@ test('catalog imports a category, a part, or one concept from category details',
   await page.screenshot({ path: 'docs/testing-evidence/bg008-category-import-mobile.png' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await conceptImport.scrollIntoViewIfNeeded();
-  await importer.getByRole('button', { name: 'Importar concepto Punto de luz conmutado' }).click();
-  await expect(importer.getByRole('status')).toContainText('Punto de luz conmutado');
-  await importer.getByRole('button', { name: 'Importar partida Iluminación' }).click();
-  await expect(importer.getByRole('status')).toContainText('Iluminación');
+  await importer.getByRole('button', { name: 'Importar concepto Punto de luz' }).click();
+  await expect(importer.getByRole('status')).toContainText('Punto de luz');
+  await importer.getByRole('button', { name: 'Importar partida Electricidad' }).click();
+  await expect(importer.getByRole('status')).toContainText('Electricidad');
   await importer.getByRole('button', { name: 'Volver a categorías' }).click();
-  await importer.getByRole('button', { name: 'Importar categoría Electricidad' }).click();
+  await importer.getByRole('button', { name: 'Importar categoría Reforma integral' }).click();
   await expect(importer).toBeHidden();
-  await expect(page.locator('p[role="status"]')).toContainText('Electricidad');
+  await expect(page.locator('p[role="status"]')).toContainText('Reforma integral');
   expect(
     await page
       .getByRole('textbox', { name: 'Descripción' })
       .evaluateAll(
         (fields) =>
-          fields.filter((field) => (field as HTMLInputElement).value === 'Punto de luz conmutado')
-            .length,
+          fields.filter((field) => (field as HTMLInputElement).value === 'Punto de luz').length,
       ),
   ).toBe(1);
 });
@@ -1134,7 +1182,7 @@ test('single catalog initializes automatically and search is accent insensitive 
   await page.goto('/catalog');
   const search = page.getByRole('textbox', { name: 'Buscar partidas y conceptos', exact: true });
   await search.fill('FONTANERIA');
-  await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(4);
+  await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(15);
   const descriptions = await page
     .getByLabel('Descripción', { exact: true })
     .evaluateAll((inputs) => inputs.map((el) => (el as HTMLInputElement).value));
@@ -1144,9 +1192,7 @@ test('single catalog initializes automatically and search is accent insensitive 
       a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }),
     ),
   );
-  await page
-    .getByRole('button', { name: 'Añadir concepto a Fontanería y sanitarios', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Añadir concepto a Fontanería', exact: true }).click();
   const conceptForm = page.locator('form').filter({
     has: page.getByLabel('Nombre del concepto', { exact: true }),
   });
@@ -1223,17 +1269,19 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
   const conceptSearch = dialog.getByLabel('Buscar conceptos');
-  await conceptSearch.fill('Cambio de tuberías');
-  await dialog.getByRole('checkbox', { name: /Cambio de tuberías/ }).check();
+  await conceptSearch.fill('Tubería de agua fría y caliente');
+  await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).check();
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(dialog.getByRole('checkbox', { name: /^Fontanería/ })).toBeChecked();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('checkbox', { name: /Cambio de tuberías/ })).toBeChecked();
+  await expect(
+    dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }),
+  ).toBeChecked();
   await page.setViewportSize({ width: 320, height: 740 });
-  await conceptSearch.fill('Cambio de tuberías');
-  await dialog.getByRole('checkbox', { name: /Cambio de tuberías/ }).uncheck();
+  await conceptSearch.fill('Tubería de agua fría y caliente');
+  await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).uncheck();
   await expect(dialog.getByRole('status').last()).toHaveText('0 conceptos seleccionados');
-  await dialog.getByRole('checkbox', { name: /Cambio de tuberías/ }).check();
+  await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).check();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
@@ -1241,7 +1289,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await trigger.click();
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await dialog.getByRole('checkbox', { name: /Cambio de tuberías/ }).check();
+  await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
   await page.screenshot({
     path: 'docs/testing-evidence/bg008-structure-desktop.png',
@@ -1256,7 +1304,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await dialog.getByRole('button', { name: 'Crear estructura', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue(
-    'Cambio de tuberías (ml)',
+    'Tubería de agua fría y caliente',
   );
   await expect(page.getByRole('spinbutton', { name: 'Cant.', exact: true })).toHaveValue('');
   await page.getByLabel('Nombre del cliente', { exact: true }).fill('Asistente guiado');
@@ -1268,14 +1316,12 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('spinbutton', { name: 'Cant.', exact: true })).toHaveValue('8');
-  await expect(page.getByRole('spinbutton', { name: 'Precio', exact: true })).toHaveValue('40');
+  await expect(page.getByRole('spinbutton', { name: 'Precio', exact: true })).toHaveValue('');
   await page.goto('/budget/new');
   await trigger.click();
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText(
-    'Paso 2 de 3 · Fontanería y sanitarios',
-  );
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 3 · Fontanería');
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
 });
 
@@ -1289,25 +1335,25 @@ test('guided structure has one concept step per selected part and accepts option
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('checkbox', { name: /^Demolición/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText(
-    'Paso 2 de 4 · Fontanería y sanitarios',
-  );
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 4 · Fontanería');
   await expect(dialog.getByText('Más utilizadas', { exact: false })).toHaveCount(0);
-  const plumbingConcept = dialog.getByRole('checkbox', { name: /Cambio de tuberías \(ml\)/ });
+  const plumbingConcept = dialog.getByRole('checkbox', {
+    name: /Tubería de agua fría y caliente/,
+  });
   await plumbingConcept.check();
   await dialog
-    .getByRole('spinbutton', { name: 'Cantidad para Cambio de tuberías (ml)' })
+    .getByRole('spinbutton', {
+      name: 'Cantidad para Tubería de agua fría y caliente',
+    })
     .fill('4.5');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText(
-    'Paso 3 de 4 · Demolición y residuos',
-  );
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 3 de 4 · Demolición');
   const demolitionConcept = dialog.getByRole('checkbox', {
-    name: /Demolición y retirada de escombros/,
+    name: /Carga y retirada de escombros/,
   });
   await demolitionConcept.check();
   await expect(
-    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición y retirada de escombros' }),
+    dialog.getByRole('spinbutton', { name: 'Cantidad para Carga y retirada de escombros' }),
   ).toHaveValue('');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
   await expect(dialog.getByRole('status').first()).toHaveText('Paso 4 de 4 · Revisión');
@@ -1315,12 +1361,14 @@ test('guided structure has one concept step per selected part and accepts option
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(demolitionConcept).toBeChecked();
   await expect(
-    dialog.getByRole('spinbutton', { name: 'Cantidad para Demolición y retirada de escombros' }),
+    dialog.getByRole('spinbutton', { name: 'Cantidad para Carga y retirada de escombros' }),
   ).toHaveValue('');
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(plumbingConcept).toBeChecked();
   await expect(
-    dialog.getByRole('spinbutton', { name: 'Cantidad para Cambio de tuberías (ml)' }),
+    dialog.getByRole('spinbutton', {
+      name: 'Cantidad para Tubería de agua fría y caliente',
+    }),
   ).toHaveValue('4.5');
 });
 
@@ -1389,9 +1437,9 @@ test('new budget selects a catalog partida and searches concepts within that par
   await login(page, 'other@example.test');
   await page.goto('/budget/new');
   await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
-  await page.getByRole('button', { name: /Fontanería y sanitarios · \d+ conceptos/ }).click();
+  await page.getByRole('button', { name: /Fontanería · \d+ conceptos/ }).click();
   await expect(page.getByRole('textbox', { name: 'Nombre de la partida' })).toHaveValue(
-    'Fontanería y sanitarios',
+    'Fontanería',
   );
 
   const pickerTrigger = page.getByRole('button', {
@@ -1407,9 +1455,7 @@ test('new budget selects a catalog partida and searches concepts within that par
   await expect(dialog.locator('.catalog-picker-result')).toHaveCount(1);
   await dialog.locator('.catalog-picker-result').click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue(
-    'Punto de agua sencillo',
-  );
+  await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue('Punto de agua');
   await page.getByLabel('Nombre del cliente', { exact: true }).fill('Presupuesto de fontanería');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page).toHaveURL(/\/budget\/[0-9a-f-]+$/);
@@ -1634,6 +1680,11 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
   );
   await page.waitForTimeout(250);
 
+  await page
+    .locator('details')
+    .filter({ has: page.getByRole('heading', { name: 'Ampliaciones', exact: true }) })
+    .locator('summary')
+    .click();
   await page.getByRole('button', { name: 'Nueva ampliación', exact: true }).click();
   await page.getByLabel('Concepto imprevisto').fill('Punto de luz adicional');
   await page.getByLabel('Cantidad').fill('2');

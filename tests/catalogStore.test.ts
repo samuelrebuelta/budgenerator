@@ -28,20 +28,42 @@ beforeEach(() => {
   api.deleteTariffCatalogDoc.mockResolvedValue(undefined);
 });
 afterEach(resetCatalogStore);
-it('initializes one deterministic catalog with the general renovation base', async () => {
+it('initializes one deterministic catalog with the complete renovation base', async () => {
   await store.getState().loadCatalogs('alice');
   expect(store.getState().catalogs).toHaveLength(1);
   expect(store.getState().activeCatalogId).toBe('main-v1');
   expect(new Set(store.getState().tariffs.map((tariff) => tariff.category))).toEqual(
     new Set([
-      'Demolición y residuos',
-      'Albañilería y tabiquería',
-      'Suelos y revestimientos',
-      'Pintura',
-      'Electricidad',
-      'Fontanería y sanitarios',
+      'Accesibilidad',
+      'Aislamiento',
+      'Albañilería',
       'Carpintería',
-      'Servicios auxiliares',
+      'Cerrajería',
+      'Cimentación',
+      'Climatización',
+      'Cocinas',
+      'Cubiertas',
+      'Demolición',
+      'Electricidad',
+      'Energía solar',
+      'Enlucidos',
+      'Estructura',
+      'Exteriores',
+      'Fachadas',
+      'Fontanería',
+      'Gas',
+      'Jardinería',
+      'Limpieza',
+      'Mudanzas',
+      'Pavimentos',
+      'Pintura',
+      'Piscinas',
+      'Pladur',
+      'Revestimientos',
+      'Telecomunicaciones',
+      'Varios',
+      'Ventanas',
+      'Vidrio',
     ]),
   );
   await store.getState().loadCatalogs('alice');
@@ -168,8 +190,8 @@ it('imports a trade once and keeps concepts already customized in the catalog', 
   api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
   await store.getState().loadCatalogs('alice');
 
-  const firstImport = store.getState().importTrade('pintura');
-  const secondImport = store.getState().importTrade('pintura');
+  const firstImport = store.getState().importTrade('reforma_integral');
+  const secondImport = store.getState().importTrade('reforma_integral');
   const paintPart = store.getState().catalogs[0]?.parts.find((part) => part.id === 'part-pintura');
 
   expect(firstImport.addedConcepts).toBeGreaterThan(0);
