@@ -173,18 +173,25 @@ export function BudgetEditor() {
           {/* WorkItem Header */}
           <div className="bg-gray-50 px-4 py-3 flex items-center justify-between gap-2 border-b border-gray-200">
             <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 aria-label={`Expandir o contraer ${workItem.name}`}
                 aria-expanded={!collapsedWorkItems.has(workItem.id)}
                 onClick={() => toggleWorkItem(workItem.id)}
-                className="no-print shrink-0 p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleWorkItem(workItem.id);
+                  }
+                }}
+                className="no-print shrink-0 p-0.5 rounded hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] transition-colors cursor-pointer"
               >
                 <ChevronDown
                   size={16}
                   className={`text-gray-400 transition-transform duration-200 ${collapsedWorkItems.has(workItem.id) ? '-rotate-90' : ''}`}
                 />
-              </button>
+              </div>
 
               <input
                 aria-label="Nombre del capítulo"

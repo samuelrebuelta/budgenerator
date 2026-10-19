@@ -391,14 +391,22 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
               </section>
             )}
 
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               onClick={togglePartidas}
-              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  togglePartidas();
+                }
+              }}
+              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
               aria-expanded={showPartidas}
             >
               {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               {t('budget.workItems')}
-            </button>
+            </div>
 
             <div className={`collapsible ${showPartidas ? 'open' : ''} print:grid-rows-[1fr]!`}>
               <div>

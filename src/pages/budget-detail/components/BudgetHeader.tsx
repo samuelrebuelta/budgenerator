@@ -64,14 +64,22 @@ export function BudgetHeader() {
       <h1 className="hidden print:block text-2xl font-bold text-gray-900 mb-4 print:text-xl">
         {t('header.title')}
       </h1>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={toggleClientInfo}
-        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleClientInfo();
+          }
+        }}
+        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
         aria-expanded={showClientInfo}
       >
         {showClientInfo ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         {t('header.clientInfo')}
-      </button>
+      </div>
       <div className={`collapsible ${showClientInfo ? 'open' : ''} print:!grid-rows-[1fr]`}>
         <div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
