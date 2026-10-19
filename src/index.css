@@ -463,6 +463,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
+  flex: 0 0 auto;
 }
 .account-chip {
   display: inline-flex;
@@ -1056,6 +1057,8 @@
   }
   .mobile-brand {
     display: block;
+    min-width: 0;
+    flex: 1 1 auto;
   }
   .workspace-header {
     height: 77px;
@@ -2029,8 +2032,10 @@ select:focus,
 /* El estado de guardado acompaña al acceso al menú en cabeceras secundarias móviles. */
 .secondary-page-actions {
   display: inline-flex;
+  width: 84px;
+  justify-content: flex-end;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .secondary-sync-status {
   display: none;
@@ -2061,7 +2066,7 @@ select:focus,
 }
 @media (max-width: 800px) {
   .unified-page-header[data-has-back='true'] {
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 84px;
     align-items: start;
     column-gap: 12px;
     row-gap: 8px;
@@ -2079,6 +2084,9 @@ select:focus,
     display: grid;
     grid-column: 3;
     grid-row: 1;
+    width: 84px;
+    min-width: 0;
+    justify-self: end;
   }
   .unified-page-header[data-has-back='true'] > .page-heading-actions {
     grid-column: 2 / -1;
