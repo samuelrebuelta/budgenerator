@@ -2,7 +2,7 @@
 
 Actualizado: 2026-10-18. Fuente operativa de tareas y decisiones del producto.
 
-Actualización 19-10-2026: la antigua biblioteca de importaciones queda sustituida por `Reforma integral`, con 30 partidas alfabéticas y conceptos a precio/coste cero. `En blanco` se mantiene como opción para empezar desde cero. Los catálogos privados existentes no se migran ni se sobrescriben; la siembra inicial de cuentas nuevas usa la nueva biblioteca. Verificación: 31 archivos y 131 tests unitarios, 41 tests de reglas y 38 E2E; lint, build, formato y diff check correctos. Integración en `main` y despliegue Hosting pendientes.
+Actualización 19-10-2026: la antigua biblioteca de importaciones quedó sustituida por `Reforma integral`, con 30 partidas alfabéticas y conceptos a precio/coste cero. `En blanco` se mantiene como opción para empezar desde cero. Los catálogos privados existentes no se migran ni se sobrescriben; la siembra inicial de cuentas nuevas usa la nueva biblioteca. Integrado por fast-forward en `main` en `10e0320` y desplegado sólo a Hosting en `budgenerator` (https://budgenerator.web.app), PWA `b9411bba56581552`. `index.html`, `sw.js` y `fcm-sw.js` remotos coinciden byte a byte con `dist`. Verificación: 31 archivos y 131 tests unitarios, 41 tests de reglas y 38 E2E; lint, build, formato y diff check correctos. Sin cambios de reglas ni datos reales.
 
 ## Orden de trabajo
 
