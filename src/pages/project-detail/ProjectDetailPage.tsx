@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, Circle, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { Check, ChevronDown, Circle, ClipboardCheck, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { getProjectLocalDateKey, ProjectStatusTag, useProjectStore } from '@/entities/project';
 import type { ProjectWorkItem } from '@/entities/project';
@@ -279,317 +279,353 @@ export function ProjectDetailPage() {
         </dl>
       </section>
 
-      <section
-        aria-labelledby="supplements-title"
-        className="mb-8 rounded-2xl border border-[#d7dbd2] bg-white p-5 sm:p-6"
+      <details
+        open
+        className="group mb-8 overflow-hidden rounded-2xl border border-[#d7dbd2] bg-white"
       >
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 id="supplements-title" className="text-lg font-semibold text-[#1f2b26]">
-              Ampliaciones
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-[#52625a]">
-              Añade aquí trabajos imprevistos. El presupuesto aceptado se conserva como referencia y
-              cada ampliación queda registrada con su importe e IVA.
-            </p>
-          </div>
-          {!supplementFormOpen && (
-            <Button type="button" variant="secondary" onClick={() => setSupplementFormOpen(true)}>
-              Nueva ampliación
-            </Button>
-          )}
-        </div>
-
-        {supplementFormOpen && (
-          <form
-            className="grid gap-3 rounded-xl bg-[#f6f6f0] p-4 sm:grid-cols-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const requestId = supplementRequestId ?? generateId();
-              setSupplementRequestId(requestId);
-              void run('supplement:add', async () => {
-                await addSupplement(project.id, requestId, {
-                  description: supplementDescription,
-                  quantity: Number(supplementQuantity),
-                  unit: supplementUnit,
-                  unitPrice: Number(supplementUnitPrice),
-                });
-                closeSupplementForm();
-              });
-            }}
-          >
-            <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
-              Concepto imprevisto
-              <input
-                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                value={supplementDescription}
-                onChange={(event) => setSupplementDescription(event.target.value)}
-                maxLength={300}
-                required
-              />
-            </label>
-            <label className="block text-xs font-semibold text-[#37443d]">
-              Cantidad
-              <input
-                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                type="number"
-                min="0.001"
-                step="any"
-                value={supplementQuantity}
-                onChange={(event) => setSupplementQuantity(event.target.value)}
-                required
-              />
-            </label>
-            <label className="block text-xs font-semibold text-[#37443d]">
-              Unidad
-              <select
-                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                value={supplementUnit}
-                onChange={(event) => setSupplementUnit(event.target.value)}
-              >
-                <option value="unit">Ud.</option>
-                <option value="m2">m²</option>
-                <option value="m3">m³</option>
-                <option value="ml">ml</option>
-                <option value="hour">h</option>
-              </select>
-            </label>
-            <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
-              Precio unitario sin IVA
-              <input
-                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={supplementUnitPrice}
-                onChange={(event) => setSupplementUnitPrice(event.target.value)}
-                required
-              />
-            </label>
-            <p className="text-xs leading-5 text-[#52625a] sm:col-span-2">
-              Se aplica el IVA del presupuesto aceptado. El precio no vuelve a recibir el ajuste
-              global del presupuesto.
-            </p>
-            <div className="flex flex-wrap gap-2 sm:col-span-2">
-              <Button type="submit" disabled={!!busy} loading={busy === 'supplement:add'}>
-                Guardar ampliación
-              </Button>
-              <Button type="button" variant="ghost" disabled={!!busy} onClick={closeSupplementForm}>
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {project.supplements.length === 0 ? (
-          <p className="mt-4 text-sm text-[#637166]">Todavía no hay ampliaciones registradas.</p>
-        ) : (
-          <ul className="mt-4 divide-y divide-[#ecece4]" aria-label="Historial de ampliaciones">
-            {project.supplements.map((supplement) => {
-              const supplementVoid = project.supplementVoids.find(
-                (entry) => entry.supplementId === supplement.id,
-              );
-              return (
-                <li key={supplement.id} className="py-4 first:pt-1 last:pb-1">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-[#1f2b26]">
-                        {supplement.description}
-                      </h3>
-                      <p className="mt-1 text-xs leading-5 text-[#52625a]">
-                        {supplement.quantity} {supplement.unit} ×{' '}
-                        {formatCurrency(supplement.unitPrice)} · Añadido el{' '}
-                        {dateLabel(supplement.createdAt)}
-                      </p>
-                      {supplementVoid && (
-                        <p className="mt-2 text-xs leading-5 text-[#83452f]">
-                          Anulado el {dateLabel(supplementVoid.voidedAt)} · {supplementVoid.reason}
-                        </p>
-                      )}
-                    </div>
-                    <strong className="shrink-0 text-sm tabular-nums text-[#183e3b]">
-                      {formatCurrency(supplement.total)}
-                    </strong>
-                  </div>
-                  {!supplementVoid && (
-                    <div className="mt-3">
-                      {voidingSupplementId === supplement.id ? (
-                        <form
-                          className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end"
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            void run(`supplement:void:${supplement.id}`, async () => {
-                              await voidSupplement(project.id, supplement.id, voidReason);
-                              setVoidingSupplementId(null);
-                              setVoidReason('');
-                            });
-                          }}
-                        >
-                          <label className="block text-xs font-semibold text-[#37443d]">
-                            Motivo de anulación
-                            <input
-                              className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                              value={voidReason}
-                              onChange={(event) => setVoidReason(event.target.value)}
-                              maxLength={500}
-                              required
-                            />
-                          </label>
-                          <Button
-                            type="submit"
-                            variant="secondary"
-                            disabled={!!busy}
-                            loading={busy === `supplement:void:${supplement.id}`}
-                          >
-                            Confirmar anulación
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={!!busy}
-                            onClick={() => {
-                              setVoidingSupplementId(null);
-                              setVoidReason('');
-                            }}
-                          >
-                            Cancelar
-                          </Button>
-                        </form>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          disabled={!!busy}
-                          onClick={() => setVoidingSupplementId(supplement.id)}
-                        >
-                          Anular ampliación
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section data-project-work-items aria-labelledby="work-items-title" className="space-y-5">
-        <div className="flex flex-wrap items-end justify-between gap-2">
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#b7694d] sm:px-6 [&::-webkit-details-marker]:hidden">
           <div>
             <h2 id="work-items-title" className="text-lg font-semibold text-[#1f2b26]">
               Partidas de trabajo
             </h2>
-            <p className="mt-1 text-sm text-[#52625a]">
-              Marca cada concepto cuando esté terminado.
-            </p>
+            <span className="mt-1 block text-sm text-[#52625a]">
+              {project.workItems.filter((item) => !item.voidedAt).length} partidas ·{' '}
+              {project.totalConcepts} conceptos
+            </span>
           </div>
-        </div>
+          <ChevronDown
+            size={18}
+            className="shrink-0 text-[#52625a] transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <section
+          data-project-work-items
+          aria-labelledby="work-items-title"
+          className="space-y-5 border-t border-[#ecece4] p-5 sm:p-6"
+        >
+          <p className="text-sm text-[#52625a]">Marca cada concepto cuando esté terminado.</p>
 
-        {project.workItems
-          .filter((item) => !item.voidedAt)
-          .map((item) => {
-            const progress = workItemProgress(item, project.mode);
-            const allComplete =
-              progress.totalConcepts > 0 && progress.completedConcepts === progress.totalConcepts;
-            return (
-              <Card key={item.id} className="p-5 sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-[#1f2b26]">{item.name}</h3>
-                    <p className="mt-1 text-sm text-[#52625a]">
-                      {progress.completedConcepts} de {progress.totalConcepts} conceptos ·{' '}
-                      {progress.percent}%
-                    </p>
-                    {allComplete && item.tasks[0]?.completedAt && (
-                      <div className="mt-2">
-                        <ProjectTaskCompletionDate
-                          subject={`la partida ${item.name}`}
-                          completedAt={item.tasks[0].completedAt}
-                          disabled={!!busy}
-                          loading={busy === `date:work:${item.id}`}
-                          onChange={(date) =>
-                            void run(`date:work:${item.id}`, () =>
-                              setWorkItemCompletionDate(project.id, item.id, date),
-                            )
-                          }
-                        />
+          {project.workItems
+            .filter((item) => !item.voidedAt)
+            .map((item) => {
+              const progress = workItemProgress(item, project.mode);
+              const allComplete =
+                progress.totalConcepts > 0 && progress.completedConcepts === progress.totalConcepts;
+              return (
+                <Card key={item.id} className="p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1f2b26]">{item.name}</h3>
+                      <p className="mt-1 text-sm text-[#52625a]">
+                        {progress.completedConcepts} de {progress.totalConcepts} conceptos ·{' '}
+                        {progress.percent}%
+                      </p>
+                      {allComplete && item.tasks[0]?.completedAt && (
+                        <div className="mt-2">
+                          <ProjectTaskCompletionDate
+                            subject={`la partida ${item.name}`}
+                            completedAt={item.tasks[0].completedAt}
+                            disabled={!!busy}
+                            loading={busy === `date:work:${item.id}`}
+                            onChange={(date) =>
+                              void run(`date:work:${item.id}`, () =>
+                                setWorkItemCompletionDate(project.id, item.id, date),
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      disabled={allComplete || busy === `work:${item.id}`}
+                      loading={busy === `work:${item.id}`}
+                      onClick={() =>
+                        void run(`work:${item.id}`, () => completeWorkItem(project.id, item.id))
+                      }
+                    >
+                      <ClipboardCheck size={16} />
+                      {allComplete ? 'Partida completada' : 'Completar partida'}
+                    </Button>
+                  </div>
+                  <div className="my-4">
+                    <ProjectProgressBar
+                      percent={progress.percent}
+                      label={`Avance de la partida ${item.name}: ${progress.percent}%`}
+                    />
+                  </div>
+                  <ul className="divide-y divide-[#ecece4]">
+                    {item.tasks.map((task) => {
+                      const key = `${item.id}:${task.id}`;
+                      const completed = !!task.completedAt;
+                      return (
+                        <li
+                          key={task.id}
+                          className="flex items-start justify-between gap-4 py-3 first:pt-1 last:pb-1"
+                        >
+                          <div className="min-w-0">
+                            <p
+                              className={`text-sm ${completed ? 'text-[#52625a]' : 'text-[#1f2b26]'}`}
+                            >
+                              {task.description}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                              <p className="text-xs text-[#637166]">
+                                {task.quantity} {task.unit} · {formatCurrency(taskAmount(task))}
+                              </p>
+                              {completed && task.completedAt && (
+                                <ProjectTaskCompletionDate
+                                  subject={`el concepto ${task.description}`}
+                                  completedAt={task.completedAt}
+                                  disabled={!!busy}
+                                  loading={busy === `date:task:${key}`}
+                                  onChange={(date) =>
+                                    void run(`date:task:${key}`, () =>
+                                      setTaskCompletionDate(project.id, item.id, task.id, date),
+                                    )
+                                  }
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant={completed ? 'secondary' : 'ghost'}
+                            className="shrink-0"
+                            disabled={!!busy}
+                            loading={busy === key}
+                            aria-pressed={completed}
+                            aria-label={`${completed ? 'Reabrir' : 'Marcar como terminado'}: ${task.description}`}
+                            onClick={() =>
+                              void run(key, () => toggleTask(project.id, item.id, task.id))
+                            }
+                          >
+                            {completed ? <Check size={16} /> : <Circle size={16} />}
+                            {completed ? 'Terminado' : 'Pendiente'}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Card>
+              );
+            })}
+        </section>
+      </details>
+      <details className="group mb-8 overflow-hidden rounded-2xl border border-[#d7dbd2] bg-white">
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#b7694d] sm:px-6 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h2 id="supplements-title" className="text-lg font-semibold text-[#1f2b26]">
+              Ampliaciones
+            </h2>
+            <span className="mt-1 block text-sm text-[#52625a]">
+              {project.supplements.length === 1
+                ? '1 ampliación registrada'
+                : `${project.supplements.length} ampliaciones registradas`}
+            </span>
+          </div>
+          <ChevronDown
+            size={18}
+            className="shrink-0 text-[#52625a] transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+        </summary>
+        <section
+          aria-labelledby="supplements-title"
+          className="border-t border-[#ecece4] p-5 sm:p-6"
+        >
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <p className="max-w-3xl text-sm leading-6 text-[#52625a]">
+              Añade aquí trabajos imprevistos. El presupuesto aceptado se conserva como referencia y
+              cada ampliación queda registrada con su importe e IVA.
+            </p>
+            {!supplementFormOpen && (
+              <Button type="button" variant="secondary" onClick={() => setSupplementFormOpen(true)}>
+                Nueva ampliación
+              </Button>
+            )}
+          </div>
+
+          {supplementFormOpen && (
+            <form
+              className="grid gap-3 rounded-xl bg-[#f6f6f0] p-4 sm:grid-cols-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const requestId = supplementRequestId ?? generateId();
+                setSupplementRequestId(requestId);
+                void run('supplement:add', async () => {
+                  await addSupplement(project.id, requestId, {
+                    description: supplementDescription,
+                    quantity: Number(supplementQuantity),
+                    unit: supplementUnit,
+                    unitPrice: Number(supplementUnitPrice),
+                  });
+                  closeSupplementForm();
+                });
+              }}
+            >
+              <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
+                Concepto imprevisto
+                <input
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                  value={supplementDescription}
+                  onChange={(event) => setSupplementDescription(event.target.value)}
+                  maxLength={300}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#37443d]">
+                Cantidad
+                <input
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  value={supplementQuantity}
+                  onChange={(event) => setSupplementQuantity(event.target.value)}
+                  required
+                />
+              </label>
+              <label className="block text-xs font-semibold text-[#37443d]">
+                Unidad
+                <select
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                  value={supplementUnit}
+                  onChange={(event) => setSupplementUnit(event.target.value)}
+                >
+                  <option value="unit">Ud.</option>
+                  <option value="m2">m²</option>
+                  <option value="m3">m³</option>
+                  <option value="ml">ml</option>
+                  <option value="hour">h</option>
+                </select>
+              </label>
+              <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
+                Precio unitario sin IVA
+                <input
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={supplementUnitPrice}
+                  onChange={(event) => setSupplementUnitPrice(event.target.value)}
+                  required
+                />
+              </label>
+              <p className="text-xs leading-5 text-[#52625a] sm:col-span-2">
+                Se aplica el IVA del presupuesto aceptado. El precio no vuelve a recibir el ajuste
+                global del presupuesto.
+              </p>
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
+                <Button type="submit" disabled={!!busy} loading={busy === 'supplement:add'}>
+                  Guardar ampliación
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!!busy}
+                  onClick={closeSupplementForm}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {project.supplements.length === 0 ? (
+            <p className="mt-4 text-sm text-[#637166]">Todavía no hay ampliaciones registradas.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-[#ecece4]" aria-label="Historial de ampliaciones">
+              {project.supplements.map((supplement) => {
+                const supplementVoid = project.supplementVoids.find(
+                  (entry) => entry.supplementId === supplement.id,
+                );
+                return (
+                  <li key={supplement.id} className="py-4 first:pt-1 last:pb-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-[#1f2b26]">
+                          {supplement.description}
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-[#52625a]">
+                          {supplement.quantity} {supplement.unit} ×{' '}
+                          {formatCurrency(supplement.unitPrice)} · Añadido el{' '}
+                          {dateLabel(supplement.createdAt)}
+                        </p>
+                        {supplementVoid && (
+                          <p className="mt-2 text-xs leading-5 text-[#83452f]">
+                            Anulado el {dateLabel(supplementVoid.voidedAt)} ·{' '}
+                            {supplementVoid.reason}
+                          </p>
+                        )}
+                      </div>
+                      <strong className="shrink-0 text-sm tabular-nums text-[#183e3b]">
+                        {formatCurrency(supplement.total)}
+                      </strong>
+                    </div>
+                    {!supplementVoid && (
+                      <div className="mt-3">
+                        {voidingSupplementId === supplement.id ? (
+                          <form
+                            className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              void run(`supplement:void:${supplement.id}`, async () => {
+                                await voidSupplement(project.id, supplement.id, voidReason);
+                                setVoidingSupplementId(null);
+                                setVoidReason('');
+                              });
+                            }}
+                          >
+                            <label className="block text-xs font-semibold text-[#37443d]">
+                              Motivo de anulación
+                              <input
+                                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                                value={voidReason}
+                                onChange={(event) => setVoidReason(event.target.value)}
+                                maxLength={500}
+                                required
+                              />
+                            </label>
+                            <Button
+                              type="submit"
+                              variant="secondary"
+                              disabled={!!busy}
+                              loading={busy === `supplement:void:${supplement.id}`}
+                            >
+                              Confirmar anulación
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={!!busy}
+                              onClick={() => {
+                                setVoidingSupplementId(null);
+                                setVoidReason('');
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          </form>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            disabled={!!busy}
+                            onClick={() => setVoidingSupplementId(supplement.id)}
+                          >
+                            Anular ampliación
+                          </Button>
+                        )}
                       </div>
                     )}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    disabled={allComplete || busy === `work:${item.id}`}
-                    loading={busy === `work:${item.id}`}
-                    onClick={() =>
-                      void run(`work:${item.id}`, () => completeWorkItem(project.id, item.id))
-                    }
-                  >
-                    <ClipboardCheck size={16} />
-                    {allComplete ? 'Partida completada' : 'Completar partida'}
-                  </Button>
-                </div>
-                <div className="my-4">
-                  <ProjectProgressBar
-                    percent={progress.percent}
-                    label={`Avance de la partida ${item.name}: ${progress.percent}%`}
-                  />
-                </div>
-                <ul className="divide-y divide-[#ecece4]">
-                  {item.tasks.map((task) => {
-                    const key = `${item.id}:${task.id}`;
-                    const completed = !!task.completedAt;
-                    return (
-                      <li
-                        key={task.id}
-                        className="flex items-start justify-between gap-4 py-3 first:pt-1 last:pb-1"
-                      >
-                        <div className="min-w-0">
-                          <p
-                            className={`text-sm ${completed ? 'text-[#52625a]' : 'text-[#1f2b26]'}`}
-                          >
-                            {task.description}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                            <p className="text-xs text-[#637166]">
-                              {task.quantity} {task.unit} · {formatCurrency(taskAmount(task))}
-                            </p>
-                            {completed && task.completedAt && (
-                              <ProjectTaskCompletionDate
-                                subject={`el concepto ${task.description}`}
-                                completedAt={task.completedAt}
-                                disabled={!!busy}
-                                loading={busy === `date:task:${key}`}
-                                onChange={(date) =>
-                                  void run(`date:task:${key}`, () =>
-                                    setTaskCompletionDate(project.id, item.id, task.id, date),
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant={completed ? 'secondary' : 'ghost'}
-                          className="shrink-0"
-                          disabled={!!busy}
-                          loading={busy === key}
-                          aria-pressed={completed}
-                          aria-label={`${completed ? 'Reabrir' : 'Marcar como terminado'}: ${task.description}`}
-                          onClick={() =>
-                            void run(key, () => toggleTask(project.id, item.id, task.id))
-                          }
-                        >
-                          {completed ? <Check size={16} /> : <Circle size={16} />}
-                          {completed ? 'Terminado' : 'Pendiente'}
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card>
-            );
-          })}
-      </section>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </details>
+
       <ProjectProgressHistoryDialog
         open={progressHistoryOpen}
         onClose={() => setProgressHistoryOpen(false)}

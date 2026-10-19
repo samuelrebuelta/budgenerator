@@ -119,21 +119,23 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <div className="sidebar-bottom">
-            <NavLink className="nav-item" to="/help">
-              <CircleHelp size={18} />
-              Ayuda
-            </NavLink>
-            {account?.accountData.isAdmin && (
+          {account?.accountData.isAdmin && (
+            <div className="sidebar-admin">
               <NavLink className="nav-item" to="/admin">
                 <ShieldCheck size={18} />
                 Panel de administración
               </NavLink>
-            )}
+            </div>
+          )}
+          <div className="sidebar-bottom">
             <NavLink className="nav-item" to="/account">
               <CircleUserRound size={18} />
               Mi cuenta
               <ArrowUpRight size={14} className="ml-auto" />
+            </NavLink>
+            <NavLink className="nav-item" to="/help">
+              <CircleHelp size={18} />
+              Ayuda
             </NavLink>
             <button className="nav-item w-full" onClick={() => setLogout(true)}>
               <LogOut size={18} />

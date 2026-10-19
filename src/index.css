@@ -427,6 +427,15 @@
 .sidebar-bottom {
   margin-top: auto;
 }
+.sidebar-admin {
+  margin-top: auto;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e5e1d8;
+  padding-bottom: 10px;
+}
+.sidebar-admin + .sidebar-bottom {
+  margin-top: 0;
+}
 .sidebar-edition {
   font-size: 9px;
   letter-spacing: 0.12em;
