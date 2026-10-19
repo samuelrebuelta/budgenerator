@@ -515,11 +515,17 @@
   font-size: 10px;
   color: #5d7564;
   min-height: 32px;
+  width: 32px;
+  justify-content: center;
+}
+.sync-status-anchor {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
 }
 .sync-saving {
-  justify-content: center;
-  width: 32px;
-  min-width: 32px;
   color: #5d7564;
 }
 .sync-error {

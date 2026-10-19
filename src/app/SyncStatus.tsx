@@ -18,27 +18,29 @@ export function SyncStatus() {
       setRetrying(false);
     }
   };
-  if (!error && !pending) return null;
-  return error ? (
-    <button
-      className="sync-status sync-error"
-      onClick={() => void retry()}
-      disabled={retrying}
-      aria-busy={retrying || undefined}
-      title={error}
-      aria-label={retrying ? 'Reintentando guardado' : 'Reintentar guardado'}
-    >
-      {retrying ? <LoadingSpinner size={15} /> : <AlertCircle size={15} />}
-      <span>{retrying ? 'Reintentando…' : 'Reintentar guardado'}</span>
-    </button>
-  ) : (
-    <span
-      className="sync-status sync-saving"
-      role="status"
-      aria-label="Guardando"
-      title="Guardando"
-    >
-      <LoadingSpinner size={16} />
+  return (
+    <span className="sync-status-anchor">
+      {error ? (
+        <button
+          className="sync-status sync-error"
+          onClick={() => void retry()}
+          disabled={retrying}
+          aria-busy={retrying || undefined}
+          title={error}
+          aria-label={retrying ? 'Reintentando guardado' : 'Reintentar guardado'}
+        >
+          {retrying ? <LoadingSpinner size={15} /> : <AlertCircle size={15} />}
+        </button>
+      ) : pending ? (
+        <span
+          className="sync-status sync-saving"
+          role="status"
+          aria-label="Guardando"
+          title="Guardando"
+        >
+          <LoadingSpinner size={16} />
+        </span>
+      ) : null}
     </span>
   );
 }
