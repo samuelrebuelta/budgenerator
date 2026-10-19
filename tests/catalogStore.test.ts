@@ -157,7 +157,7 @@ it('retries interrupted legacy cleanup after the canonical destination already e
   expect(store.getState().loaded).toBe(true);
 });
 
-it('keeps concept membership when renaming a partida', async () => {
+it('keeps partida membership when renaming a chapter', async () => {
   api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
   await store.getState().loadCatalogs('alice');
   store.getState().renamePart('part-pintura', 'Acabados');
@@ -170,7 +170,7 @@ it('keeps concept membership when renaming a partida', async () => {
   await flushCatalogWrites();
 });
 
-it('adds and removes a concept under its partida without changing other partidas', async () => {
+it('adds and removes a partida under its chapter without changing other chapters', async () => {
   api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
   await store.getState().loadCatalogs('alice');
   store.getState().addConcept('part-pintura', {

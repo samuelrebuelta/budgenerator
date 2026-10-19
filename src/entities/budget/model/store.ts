@@ -397,7 +397,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
       if (active(get()) !== expected || get().savingDraft || !sessionUid())
         throw new Error('El presupuesto ha cambiado. Vuelve a revisar la estructura.');
       if (!items.length || items.some((item) => !item.name.trim() || !item.tasks.length))
-        throw new Error('Selecciona al menos un concepto.');
+        throw new Error('Selecciona al menos una partida.');
       const additions = items.map((item) => ({
         ...item,
         id: generateId(),

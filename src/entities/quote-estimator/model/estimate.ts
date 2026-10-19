@@ -101,11 +101,11 @@ function validateLegacySettings(settings: LegacyQuoteEstimatorSettings) {
     if (keys.has(key)) throw new Error('No repitas la misma combinación de estimación.');
     keys.add(key);
     if (!Array.isArray(service.lines) || service.lines.length === 0 || service.lines.length > 30)
-      throw new Error('Cada combinación necesita entre 1 y 30 conceptos.');
+      throw new Error('Cada combinación necesita entre 1 y 30 partidas.');
     const conceptIds = new Set<string>();
     for (const line of service.lines) {
       if (!line.conceptId || line.conceptId.length > 120 || conceptIds.has(line.conceptId))
-        throw new Error('Cada concepto debe ser válido y aparecer una sola vez por combinación.');
+        throw new Error('Cada partida debe ser válida y aparecer una sola vez por combinación.');
       conceptIds.add(line.conceptId);
       if (
         !Number.isFinite(line.minimumQuantity) ||
@@ -114,7 +114,7 @@ function validateLegacySettings(settings: LegacyQuoteEstimatorSettings) {
         line.maximumQuantity < line.minimumQuantity ||
         line.maximumQuantity > 10000
       )
-        throw new Error('Revisa las cantidades mínimas y máximas de cada concepto.');
+        throw new Error('Revisa las cantidades mínimas y máximas de cada partida.');
     }
   }
 }
@@ -244,7 +244,7 @@ function calculateLegacyQuoteRange(
         concept.basePrice <= 0 ||
         !isKnownUnit(concept.unit)
       )
-        throw new Error('Hay un concepto sin precio válido en el catálogo.');
+        throw new Error('Hay una partida sin precio válido en el catálogo.');
       const quantity = selection.quantity ?? 1;
       const scale = (isMeasuredUnit(concept.unit) ? selection.areaM2 : 1) * quantity;
       minimum += concept.basePrice * line.minimumQuantity * scale;

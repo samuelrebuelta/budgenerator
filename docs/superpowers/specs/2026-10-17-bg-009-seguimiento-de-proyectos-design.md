@@ -1,5 +1,9 @@
 # BG-009 — Aceptación de presupuesto y seguimiento del proyecto
 
+## Aclaración de terminología (19-10-2026)
+
+En textos de producto, cada bloque `workItem` se presenta como **capítulo** y sus tareas como **partidas**. El modelo y los campos Firestore existentes (`workItems`, `tasks`, `totalConcepts`, `completedConcepts`) se conservan; esta corrección no cambia datos ni contratos.
+
 **Estado:** base implementada y desplegada para pruebas el 18-10-2026. La extensión aprobada del 18-10-2026 está verificada localmente, pendiente de revisión e integración; no se ha desplegado.
 **Diseño:** 2026-10-17. **Resolución de decisiones:** 2026-10-18.
 

@@ -26,7 +26,7 @@ export function TemplatesPage() {
       <div className="template-library">
         <PageHeader
           title={t('templates.title')}
-          description="Guarda las partidas que reutilizas en tus presupuestos."
+          description="Guarda capítulos y partidas para reutilizarlos en tus presupuestos."
           backTo="/budgets"
           backLabel="Volver a presupuestos"
           actions={

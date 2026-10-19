@@ -246,7 +246,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           description={
             readOnlySource
               ? 'Este presupuesto se conserva como referencia de la oferta aceptada.'
-              : 'Define las partidas, revisa los importes y completa los datos del cliente.'
+              : 'Define los capítulos y sus partidas, revisa los importes y completa los datos del cliente.'
           }
           backTo="/budgets"
           backLabel="Volver a presupuestos"

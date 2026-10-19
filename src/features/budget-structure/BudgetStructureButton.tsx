@@ -73,13 +73,13 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
   const reviewParts = partIds.filter((id) => picked.some((item) => item.partId === id));
   const orderedParts = partIds.filter((id) => reviewParts.includes(id));
   const stepTitle =
-    step === 0 ? 'Partidas' : review ? 'Revisión' : (currentPart?.name ?? 'Conceptos');
+    step === 0 ? 'Capítulos' : review ? 'Revisión' : (currentPart?.name ?? 'Partidas');
   const stepHeading =
     step === 0
-      ? '¿Qué partidas vas a incluir?'
+      ? '¿Qué capítulos vas a incluir?'
       : review
         ? 'Revisa la estructura'
-        : `Elige conceptos de ${currentPart?.name ?? 'la partida'}`;
+        : `Elige partidas de ${currentPart?.name ?? 'este capítulo'}`;
   useEffect(() => {
     heading.current?.focus();
   }, [step]);
@@ -172,10 +172,10 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
       </div>
       <p className="text-sm text-gray-500 mt-2 mb-5">
         {step === 0
-          ? 'Empieza por la estructura de la reforma. Después revisarás cada partida por separado.'
+          ? 'Empieza por los capítulos de la reforma. Después revisarás sus partidas por separado.'
           : review
-            ? 'Ordena las partidas y comprueba las cantidades antes de pasar al editor.'
-            : 'Elige los conceptos que necesitas. Puedes indicar una cantidad ahora o completarla después.'}
+            ? 'Ordena los capítulos y comprueba las cantidades antes de pasar al editor.'
+            : 'Elige las partidas que necesitas. Puedes indicar una cantidad ahora o completarla después.'}
       </p>
       {stale && (
         <p role="alert" className="field-error">
@@ -205,7 +205,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                 <span>
                   {part.name}
                   <small>
-                    {part.concepts.length} {part.concepts.length === 1 ? 'concepto' : 'conceptos'}
+                    {part.concepts.length} {part.concepts.length === 1 ? 'partida' : 'partidas'}
                   </small>
                 </span>
               </label>
@@ -217,7 +217,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
             <label className="catalog-search mb-4">
               <Search size={18} />
               <input
-                aria-label="Buscar conceptos"
+                aria-label="Buscar partidas"
                 placeholder={`Buscar en ${currentPart.name}`}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -261,7 +261,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                 );
               })}
               {!visibleConcepts.length && (
-                <p className="text-sm text-gray-500 py-3">No hay coincidencias en esta partida.</p>
+                <p className="text-sm text-gray-500 py-3">No hay coincidencias en este capítulo.</p>
               )}
             </section>
           </>
@@ -296,7 +296,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                     </Button>
                     <Button
                       variant="ghost"
-                      aria-label={`Quitar partida ${part.name}`}
+                      aria-label={`Quitar capítulo ${part.name}`}
                       onClick={() => removeReviewPart(partId)}
                     >
                       <X size={16} />
@@ -332,8 +332,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
       </div>
       <footer className="structure-footer">
         <p role="status">
-          {picked.length}{' '}
-          {picked.length === 1 ? 'concepto seleccionado' : 'conceptos seleccionados'}
+          {picked.length} {picked.length === 1 ? 'partida seleccionada' : 'partidas seleccionadas'}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" onClick={onClose}>

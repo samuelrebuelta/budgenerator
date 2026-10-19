@@ -160,7 +160,7 @@ export function BudgetEditor() {
       <p className="context-hint no-print">
         Mediciones y unidades
         <InfoPopover label="Unidades de las partidas">
-          Indica la medición de cada concepto: m² para superficies, m³ para volumen, ML para metros
+          Indica la medición de cada partida: m² para superficies, m³ para volumen, ML para metros
           lineales, Ud. para unidades y Hr para horas. La cantidad se multiplica por el precio de
           esa unidad.
         </InfoPopover>
@@ -187,7 +187,7 @@ export function BudgetEditor() {
               </button>
 
               <input
-                aria-label="Nombre de la partida"
+                aria-label="Nombre del capítulo"
                 value={workItem.name}
                 onChange={(e) => renameWorkItem(workItem.id, e.target.value)}
                 className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 uppercase"
@@ -199,7 +199,7 @@ export function BudgetEditor() {
               </span>
               <Button
                 variant="danger"
-                aria-label={`Eliminar partida ${workItem.name}`}
+                aria-label={`Eliminar capítulo ${workItem.name}`}
                 onClick={() => setDeletingWorkItemId(workItem.id)}
                 className="no-print shrink-0"
               >

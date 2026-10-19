@@ -1,29 +1,29 @@
-# Diseño — Partidas y conceptos unificados
+# Diseño — Capítulos y partidas unificados
 
 ## Intención
 
-Hacer que catálogo, asistente, presupuestos y plantillas usen la misma jerarquía visible: una **partida** agrupa varios **conceptos**. Una partida como «Fontanería» del catálogo debe ser la misma estructura que se puede elegir al preparar un presupuesto; el usuario no debe reconciliar categorías de tarifas con capítulos de presupuesto.
+Hacer que catálogo, asistente, presupuestos y plantillas usen la misma jerarquía visible: un **capítulo** agrupa varias **partidas**. Un capítulo como «Fontanería» del catálogo debe ser la misma estructura que se puede elegir al preparar un presupuesto.
 
 ## Problema actual
 
-El catálogo persiste una lista plana de `Tariff` y una categoría de texto por tarifa. Presupuestos y plantillas persisten bloques `WorkItem` con tareas. El asistente reconstruye los bloques agrupando tarifas por el texto de su categoría. El nombre es la única relación; una categoría renombrada, vacía o distinta de un bloque ya existente no representa una entidad compartida. Además, `AddWorkItemButton` rellena su selector desde la constante `RENOVATION_CATEGORIES`, no desde las partidas/conceptos reales del catálogo. Por eso ofrece opciones distintas a las que el usuario mantiene en `/catalog`. La interfaz también llama a categorías «trabajos/capítulos» y a tarifas «conceptos», sin un único modelo detrás.
+El catálogo persiste una lista plana de `Tariff` y una categoría de texto por tarifa. Presupuestos y plantillas persisten bloques `WorkItem` con tareas. El asistente reconstruye los bloques agrupando tarifas por el texto de su categoría. El nombre es la única relación; una categoría renombrada, vacía o distinta de un bloque ya existente no representa una entidad compartida. Además, `AddWorkItemButton` rellena su selector desde la constante `RENOVATION_CATEGORIES`, no desde el catálogo real. Por eso ofrece opciones distintas a las que el usuario mantiene en `/catalog`.
 
 ## Objetivos
 
-- El catálogo mantiene partidas con ID y nombre, cada una con sus conceptos.
-- El asistente elige partidas del catálogo, y después conceptos pertenecientes a esas partidas.
-- Un presupuesto contiene las partidas elegidas y una copia editable de los conceptos elegidos, con precio, coste, unidad y cantidad por línea.
-- Una plantilla reutiliza la misma forma de partidas y conceptos que un presupuesto.
-- Buscar, ordenar, sugerir usos frecuentes, editar y aplicar conceptos opera dentro de una partida identificada, no infiriéndola de un texto libre.
+- El catálogo mantiene capítulos con ID y nombre, cada uno con sus partidas.
+- El asistente elige capítulos del catálogo, y después partidas pertenecientes a esos capítulos.
+- Un presupuesto contiene los capítulos elegidos y una copia editable de las partidas elegidas, con precio, coste, unidad y cantidad por línea.
+- Una plantilla reutiliza la misma forma de capítulos y partidas que un presupuesto.
+- Buscar, ordenar, sugerir usos frecuentes, editar y aplicar partidas opera dentro de un capítulo identificado, no infiriéndolo de un texto libre.
 - Mantener los presupuestos, plantillas, cálculos, PDF y enlaces públicos existentes.
 
 ## Decisión propuesta
 
-Usar `Partida` como estructura con identidad estable (`id`, `name`) y una colección `concepts`. El catálogo guarda `CatalogPart[]`; cada concepto de catálogo incluye sus valores de tarifa. Presupuesto y plantilla guardan snapshots de `Partida[]`; sus conceptos añaden la cantidad editable y conservan los campos económicos ya usados por cálculos/PDF. Al elegir en el catálogo se copian valores al snapshot. Los cambios posteriores del catálogo no mutan presupuestos ni plantillas ya creados. El selector de partidas del editor se alimenta de esas partidas reales; la lista fija `RENOVATION_CATEGORIES` deja de ser fuente para ese flujo.
+Las claves y tipos existentes se mantienen por compatibilidad: `CatalogPart[]` representa capítulos en la interfaz y cada `concepts[]` representa partidas; en presupuestos y plantillas, cada `WorkItem` es un capítulo y sus tareas son partidas. Los snapshots conservan sus campos económicos y cantidades editables. Al elegir en el catálogo se copian valores al snapshot. Los cambios posteriores del catálogo no mutan presupuestos ni plantillas ya creados. El selector de capítulos del editor se alimenta de esos capítulos reales; la lista fija `RENOVATION_CATEGORIES` deja de ser fuente para ese flujo.
 
-La creación guiada comienza seleccionando partidas del catálogo; el paso de conceptos filtra los conceptos por ID de partida. Las sugerencias de uso frecuente se calculan por el ID estable de concepto cuando exista y sólo se derivan del historial privado cargado; para presupuestos históricos sin ese ID se conserva la coincidencia por nombre de partida, descripción normalizada y unidad. Las acciones normales de añadir partida/concepto reutilizan la misma estructura. Una partida puede tener varios conceptos; el presupuesto sólo incorpora las líneas seleccionadas y no crea bloques vacíos.
+La creación guiada comienza seleccionando capítulos del catálogo; el paso de partidas filtra por ID de capítulo. Las sugerencias de uso frecuente se calculan por el ID estable de partida cuando exista y sólo se derivan del historial privado cargado; para presupuestos históricos sin ese ID se conserva la coincidencia por nombre de capítulo, descripción normalizada y unidad. Una vez en el editor, se pueden añadir capítulos y partidas. Un capítulo puede tener varias partidas; el presupuesto sólo incorpora las líneas seleccionadas y no crea capítulos vacíos.
 
-En la interfaz se usarán «Partidas» y «Conceptos» en catálogo, presupuesto, plantilla, búsqueda, asistente y accesibilidad. El orden alfabético pedido se mantiene en el catálogo y búsqueda; el orden del presupuesto seguirá siendo editable.
+En los textos visibles se usarán «Capítulos» y «Partidas» en catálogo, presupuesto, plantilla, búsqueda, asistente, ayuda, proyectos y PDF. «Concepto» no se usará como sinónimo de partida. Se mantienen las claves internas existentes (`parts`, `concepts`, `workItems`, `tasks`, `catalogPartId`, `catalogConceptId`) y los datos guardados; no hace falta migrar Firestore. El orden alfabético del catálogo y la búsqueda se mantiene; el del presupuesto seguirá siendo editable.
 
 ## Compatibilidad y datos
 

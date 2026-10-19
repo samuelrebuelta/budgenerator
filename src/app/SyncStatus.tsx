@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CloudUpload, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { withTimeout } from '@/shared/model/session';
 import { useSyncStore, flushWrites } from '@/shared/model/sync';
 import { LoadingSpinner } from '@/shared/ui';
@@ -32,9 +32,13 @@ export function SyncStatus() {
       <span>{retrying ? 'Reintentando…' : 'Reintentar guardado'}</span>
     </button>
   ) : (
-    <span className="sync-status" role="status">
-      <CloudUpload size={15} />
-      <span>Guardando…</span>
+    <span
+      className="sync-status sync-saving"
+      role="status"
+      aria-label="Guardando"
+      title="Guardando"
+    >
+      <LoadingSpinner size={16} />
     </span>
   );
 }

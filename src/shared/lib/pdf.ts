@@ -161,7 +161,7 @@ export function buildBudgetDocument(
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       muted();
-      doc.text('CONCEPTO', left, y);
+      doc.text('PARTIDA', left, y);
       doc.text('CANT.', 120, y, { align: 'right' });
       doc.text('UD.', 131, y, { align: 'center' });
       doc.text('PRECIO', 161, y, { align: 'right' });

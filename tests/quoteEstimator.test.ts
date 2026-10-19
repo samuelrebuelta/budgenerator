@@ -90,7 +90,7 @@ describe('public quote estimator calculation', () => {
         catalog,
         [selection],
       ),
-    ).toThrow('concepto sin precio válido');
+    ).toThrow('partida sin precio válido');
     expect(() => calculateQuoteRange(settings, catalog, [{ ...selection, areaM2: 0 }])).toThrow(
       'superficie',
     );

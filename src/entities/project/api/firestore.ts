@@ -204,7 +204,7 @@ export function createProjectFirestoreApi(database: Firestore) {
         transaction.get(workItemRef),
       ]);
       if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
-      if (!workItemSnapshot.exists()) throw new Error('No se ha encontrado la partida.');
+      if (!workItemSnapshot.exists()) throw new Error('No se ha encontrado el capítulo.');
       const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
       const workItem = { ...workItemSnapshot.data(), id: workItemSnapshot.id } as ProjectWorkItem;
       if (workItem.voidedAt) throw new Error('Esta ampliación está anulada.');
@@ -240,7 +240,7 @@ export function createProjectFirestoreApi(database: Firestore) {
   ): Promise<ProjectProgressMutation> {
     return mutateWorkItem(uid, projectId, workItemId, (tasks, changedAt) => {
       if (!tasks.some((task) => task.id === taskId))
-        throw new Error('No se ha encontrado el concepto.');
+        throw new Error('No se ha encontrado la partida.');
       return tasks.map((task) => {
         if (task.id !== taskId) return task;
         const updated = { ...task };
@@ -257,7 +257,7 @@ export function createProjectFirestoreApi(database: Firestore) {
     workItemId: string,
   ): Promise<ProjectProgressMutation> {
     return mutateWorkItem(uid, projectId, workItemId, (tasks, changedAt) => {
-      if (!tasks.length) throw new Error('Esta partida no tiene conceptos que completar.');
+      if (!tasks.length) throw new Error('Este capítulo no tiene partidas que completar.');
       return tasks.map((task) => (task.completedAt ? task : { ...task, completedAt: changedAt }));
     });
   }
@@ -298,7 +298,7 @@ export function createProjectFirestoreApi(database: Firestore) {
 
           const workItemIndex = workItems.findIndex((workItem) => workItem?.id === workItemId);
           const before = workItems[workItemIndex];
-          if (!before) throw new Error('No se ha encontrado la partida.');
+          if (!before) throw new Error('No se ha encontrado el capítulo.');
           if (before.voidedAt) throw new Error('Esta ampliación está anulada.');
           const after = { ...before, tasks: updateTasks(before.tasks, normalizedDate) };
           const nextWorkItems = [...workItems];
@@ -354,9 +354,9 @@ export function createProjectFirestoreApi(database: Firestore) {
       completedAt,
       (tasks, normalizedDate) => {
         if (!tasks.some((task) => task.id === taskId))
-          throw new Error('No se ha encontrado el concepto.');
+          throw new Error('No se ha encontrado la partida.');
         if (!tasks.some((task) => task.id === taskId && task.completedAt))
-          throw new Error('Completa el concepto antes de cambiar su fecha.');
+          throw new Error('Completa la partida antes de cambiar su fecha.');
         return tasks.map((task) =>
           task.id === taskId ? { ...task, completedAt: normalizedDate } : task,
         );
@@ -376,9 +376,9 @@ export function createProjectFirestoreApi(database: Firestore) {
       workItemId,
       completedAt,
       (tasks, normalizedDate) => {
-        if (!tasks.length) throw new Error('Esta partida no tiene conceptos que actualizar.');
+        if (!tasks.length) throw new Error('Este capítulo no tiene partidas que actualizar.');
         if (tasks.some((task) => !task.completedAt))
-          throw new Error('Completa todos los conceptos antes de cambiar la fecha de la partida.');
+          throw new Error('Completa todas las partidas antes de cambiar la fecha del capítulo.');
         return tasks.map((task) => ({ ...task, completedAt: normalizedDate }));
       },
     );

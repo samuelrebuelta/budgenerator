@@ -90,13 +90,13 @@ export function AddWorkItemButton() {
                   onClick={() => handleSelectPart(part.id)}
                   className="text-sm px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 cursor-pointer transition-colors"
                 >
-                  {part.name} · {part.concepts.length} conceptos
+                  {part.name} · {part.concepts.length} partidas
                 </button>
               ))}
             </div>
           ) : (
             <p className="text-xs text-gray-400">
-              Todas las partidas del catálogo ya están añadidas.
+              Todos los capítulos del catálogo ya están añadidos.
             </p>
           )}
         </div>

@@ -490,11 +490,13 @@ test('existing catalog can import the complete renovation base', async ({ page }
   await expect(
     importer.getByRole('heading', { name: 'Reforma integral', exact: true }),
   ).toBeVisible();
-  await expect(importer).toContainText('30 partidas · 271 conceptos');
+  await expect(importer).toContainText('30 capítulos · 271 partidas');
   await expect(
-    importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }),
+    importer.getByRole('button', { name: 'Mostrar partidas del capítulo Electricidad' }),
   ).toBeVisible();
-  await importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }).click();
+  await importer
+    .getByRole('button', { name: 'Mostrar partidas del capítulo Electricidad' })
+    .click();
   await expect(importer).toContainText('Cableado eléctrico');
   await expect(importer).toContainText('Enchufe simple');
   await expect(importer).toContainText('Punto de luz');
@@ -502,7 +504,7 @@ test('existing catalog can import the complete renovation base', async ({ page }
   await importer.getByRole('button', { name: 'Importar categoría Reforma integral' }).click();
   await expect(importer).toBeHidden();
   const familyOptions = await page
-    .getByLabel('Filtrar por partida')
+    .getByLabel('Filtrar por capítulo')
     .locator('option')
     .allTextContents();
   expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
@@ -545,7 +547,7 @@ test('an account without a catalog starts with the complete renovation catalog',
   await login(page, 'other@example.test');
   await page.goto('/catalog');
   await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
-  const partFilter = page.getByLabel('Filtrar por partida');
+  const partFilter = page.getByLabel('Filtrar por capítulo');
   await expect(partFilter).toBeVisible();
   const familyOptions = await partFilter.locator('option').allTextContents();
   expect(familyOptions.slice(1).map((label) => label.replace(/\s+\(\d+\)$/, ''))).toEqual([
@@ -592,7 +594,7 @@ test('catalog imports a category, a part, or one concept from category details',
   const importer = page.getByRole('dialog', { name: 'Importar por categoría' });
   await expect(importer).toBeVisible();
   await expect(importer).toContainText(
-    'Estas categorías pueden servirte de inspiración: puedes añadir y personalizar más partidas y conceptos según tu forma de trabajar.',
+    'Estas categorías pueden servirte de inspiración: puedes añadir y personalizar más capítulos y partidas según tu forma de trabajar.',
   );
   await expect(importer).toContainText(
     'Todo lo que importes se añadirá al catálogo de tu empresa para utilizarlo en tus presupuestos.',
@@ -602,12 +604,14 @@ test('catalog imports a category, a part, or one concept from category details',
   await expect(
     importer.getByRole('heading', { name: 'Reforma integral', exact: true }),
   ).toBeVisible();
-  await importer.getByRole('button', { name: 'Mostrar conceptos de Electricidad' }).click();
+  await importer
+    .getByRole('button', { name: 'Mostrar partidas del capítulo Electricidad' })
+    .click();
   await expect(importer).toContainText('Cableado eléctrico');
   await expect(importer).toContainText('Enchufe simple');
   await expect(importer).toContainText('Punto de luz');
   const conceptImport = importer.getByRole('button', {
-    name: 'Importar concepto Punto de luz',
+    name: 'Importar partida Punto de luz',
   });
   await expect(conceptImport).toBeVisible();
   const modalPanel = importer.locator('.modal-panel');
@@ -615,12 +619,17 @@ test('catalog imports a category, a part, or one concept from category details',
   await expect(importer.locator('[data-category-import-scroll]')).toHaveCSS('overflow-y', 'auto');
   await page.screenshot({ path: 'docs/testing-evidence/bg008-category-import-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
+  const categoryScroll = importer.locator('[data-category-import-scroll]');
+  await categoryScroll.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  expect(await categoryScroll.evaluate((element) => element.clientHeight)).toBeGreaterThan(400);
   await page.screenshot({ path: 'docs/testing-evidence/bg008-category-import-mobile.png' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await conceptImport.scrollIntoViewIfNeeded();
-  await importer.getByRole('button', { name: 'Importar concepto Punto de luz' }).click();
+  await importer.getByRole('button', { name: 'Importar partida Punto de luz' }).click();
   await expect(importer.getByRole('status')).toContainText('Punto de luz');
-  await importer.getByRole('button', { name: 'Importar partida Electricidad' }).click();
+  await importer.getByRole('button', { name: 'Importar capítulo Electricidad' }).click();
   await expect(importer.getByRole('status')).toContainText('Electricidad');
   await importer.getByRole('button', { name: 'Volver a categorías' }).click();
   await importer.getByRole('button', { name: 'Importar categoría Reforma integral' }).click();
@@ -643,10 +652,12 @@ test('collapsed catalog parts hide add on mobile, desktop expands, and focused s
   await page.goto('/catalog');
   await page.getByRole('button', { name: 'Contraer Pintura' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Añadir concepto a Pintura' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Añadir partida al capítulo Pintura' }),
+  ).toHaveCount(0);
 
   await page.setViewportSize({ width: 1440, height: 844 });
-  const addConcept = page.getByRole('button', { name: 'Añadir concepto a Pintura' });
+  const addConcept = page.getByRole('button', { name: 'Añadir partida al capítulo Pintura' });
   await expect(addConcept).toBeVisible();
   await addConcept.click();
   const unit = page.getByRole('combobox', { name: 'Unidad', exact: true });
@@ -1076,8 +1087,8 @@ test('direct draft URLs survive reload and template IVA persists', async ({ page
   await page.reload();
   await expect(page.getByLabel('Nombre de la plantilla')).toBeVisible();
   await page.getByLabel('Nombre de la plantilla').fill('Plantilla IVA 21');
-  await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
-  await page.getByRole('button', { name: /^Pintura · \d+ conceptos$/ }).click();
+  await page.getByRole('button', { name: 'Añadir capítulo', exact: true }).click();
+  await page.getByRole('button', { name: /^Pintura · \d+ partidas$/ }).click();
   await page.getByLabel('IVA, porcentaje').fill('21');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Plantillas', exact: true })).toBeVisible();
@@ -1091,8 +1102,8 @@ test('decimal budget saves once, exports and shares no internal cost', async ({
   await login(page);
   await editor(page);
   await page.getByLabel('Nombre del cliente', { exact: true }).fill('Prueba decimal');
-  await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
-  await page.getByRole('button', { name: /^Pintura · \d+ conceptos$/ }).click();
+  await page.getByRole('button', { name: 'Añadir capítulo', exact: true }).click();
+  await page.getByRole('button', { name: /^Pintura · \d+ partidas$/ }).click();
   await page.getByLabel('Descripción', { exact: true }).fill('Acabado de demostración');
   await page.getByRole('spinbutton', { name: 'Cant.', exact: true }).fill('2.5');
   await page.getByRole('spinbutton', { name: 'Precio', exact: true }).fill('10.75');
@@ -1170,7 +1181,7 @@ test('single catalog redirects old routes, saves edits and isolates accounts', a
   await page.goto('/catalog');
   await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
   await page
-    .getByRole('textbox', { name: 'Buscar partidas y conceptos', exact: true })
+    .getByRole('textbox', { name: 'Buscar capítulos y partidas', exact: true })
     .fill('Tarifa revisada');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(0);
 });
@@ -1180,7 +1191,7 @@ test('single catalog initializes automatically and search is accent insensitive 
 }) => {
   await login(page, 'other@example.test');
   await page.goto('/catalog');
-  const search = page.getByRole('textbox', { name: 'Buscar partidas y conceptos', exact: true });
+  const search = page.getByRole('textbox', { name: 'Buscar capítulos y partidas', exact: true });
   await search.fill('FONTANERIA');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(15);
   const descriptions = await page
@@ -1192,22 +1203,30 @@ test('single catalog initializes automatically and search is accent insensitive 
       a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }),
     ),
   );
-  await page.getByRole('button', { name: 'Añadir concepto a Fontanería', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Añadir partida al capítulo Fontanería', exact: true })
+    .click();
   const conceptForm = page.locator('form').filter({
-    has: page.getByLabel('Nombre del concepto', { exact: true }),
+    has: page.getByLabel('Descripción de la partida', { exact: true }),
   });
-  await conceptForm.getByLabel('Nombre del concepto', { exact: true }).fill('Concepto de prueba');
+  await conceptForm
+    .getByLabel('Descripción de la partida', { exact: true })
+    .fill('Partida de prueba');
   await conceptForm.getByLabel('Coste', { exact: true }).fill('5.25');
   await conceptForm.getByLabel('Precio', { exact: true }).fill('12.75');
   await page.getByRole('button', { name: 'Añadir', exact: true }).click();
-  await search.fill('Concepto de prueba');
+  await search.fill('Partida de prueba');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(1);
-  await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue('Concepto de prueba');
+  await expect(page.getByLabel('Descripción de la partida', { exact: true })).toHaveValue(
+    'Partida de prueba',
+  );
   await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
   await page.reload();
-  await search.fill('Concepto de prueba');
+  await search.fill('Partida de prueba');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(1);
-  await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue('Concepto de prueba');
+  await expect(page.getByLabel('Descripción de la partida', { exact: true })).toHaveValue(
+    'Partida de prueba',
+  );
 });
 
 test('catalog picker searches across chapters and preserves existing measurements', async ({
@@ -1219,7 +1238,7 @@ test('catalog picker searches across chapters and preserves existing measurement
   const trigger = page.getByRole('button', { name: 'Aplicar tarifa del catálogo', exact: true });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: 'Buscar en el catálogo', exact: true });
-  const searchInput = dialog.getByLabel('Buscar conceptos de la partida');
+  const searchInput = dialog.getByLabel('Buscar partidas del capítulo');
   await searchInput.evaluate((element: HTMLInputElement) => element.focus());
   await expect(searchInput).toBeFocused();
   const searchWrapper = dialog.locator('.catalog-search');
@@ -1241,7 +1260,7 @@ test('catalog picker searches across chapters and preserves existing measurement
   await expect(page.getByRole('spinbutton', { name: 'Precio', exact: true })).toHaveValue('12.75');
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await dialog.getByLabel('Buscar conceptos de la partida').fill('inexistente');
+  await dialog.getByLabel('Buscar partidas del capítulo').fill('inexistente');
   await expect(dialog.getByText(/No hay coincidencias/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
@@ -1268,7 +1287,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await page.setViewportSize({ width: 1440, height: 1000 });
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  const conceptSearch = dialog.getByLabel('Buscar conceptos');
+  const conceptSearch = dialog.getByLabel('Buscar partidas');
   await conceptSearch.fill('Tubería de agua fría y caliente');
   await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).check();
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
@@ -1280,7 +1299,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await page.setViewportSize({ width: 320, height: 740 });
   await conceptSearch.fill('Tubería de agua fría y caliente');
   await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).uncheck();
-  await expect(dialog.getByRole('status').last()).toHaveText('0 conceptos seleccionados');
+  await expect(dialog.getByRole('status').last()).toHaveText('0 partidas seleccionadas');
   await dialog.getByRole('checkbox', { name: /Tubería de agua fría y caliente/ }).check();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -1389,56 +1408,56 @@ test('saving a template stays within 320px and keeps the budget IVA', async ({ p
   await expect(page.getByRole('button', { name: 'Plantilla guardada', exact: true })).toBeVisible();
 });
 
-test('catalog editor manages concepts inside a catalog partida', async ({ page }) => {
+test('catalog editor manages partidas inside a chapter', async ({ page }) => {
   await login(page);
   await page.goto('/catalog');
   await page.getByRole('button', { name: 'Contraer todo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Expandir todo', exact: true })).toBeVisible();
-  await expect(page.getByLabel('Descripción del concepto')).toHaveCount(0);
+  await expect(page.getByLabel('Descripción de la partida')).toHaveCount(0);
   await page.getByRole('button', { name: 'Expandir todo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Contraer Pintura', exact: true })).toHaveAttribute(
     'aria-expanded',
     'true',
   );
-  await expect(page.getByRole('textbox', { name: 'Nombre de la partida' }).first()).toHaveValue(
+  await expect(page.getByRole('textbox', { name: 'Nombre del capítulo' }).first()).toHaveValue(
     'Pintura',
   );
-  await expect(page.getByLabel('Descripción del concepto').first()).toHaveValue(
+  await expect(page.getByLabel('Descripción de la partida').first()).toHaveValue(
     'Pintura interior (dos manos)',
   );
 
-  await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir capítulo', exact: true }).click();
   await page.getByPlaceholder('Ej. Fontanería').fill('Recogida de residuos');
   await page.getByRole('button', { name: 'Añadir', exact: true }).click();
   const addConcept = page.getByRole('button', {
-    name: 'Añadir concepto a Recogida de residuos',
+    name: 'Añadir partida al capítulo Recogida de residuos',
     exact: true,
   });
   await addConcept.click();
   const conceptForm = page.locator('form').filter({
-    has: page.getByLabel('Nombre del concepto', { exact: true }),
+    has: page.getByLabel('Descripción de la partida', { exact: true }),
   });
-  await conceptForm.getByLabel('Nombre del concepto', { exact: true }).fill('Retirada de residuos');
+  await conceptForm
+    .getByLabel('Descripción de la partida', { exact: true })
+    .fill('Retirada de residuos');
   await page.getByRole('button', { name: 'Añadir', exact: true }).click();
-  await expect(page.getByLabel('Descripción del concepto').last()).toHaveValue(
+  await expect(page.getByLabel('Descripción de la partida').last()).toHaveValue(
     'Retirada de residuos',
   );
 
-  await page.getByRole('button', { name: 'Eliminar partida Recogida de residuos' }).click();
-  await page.getByRole('button', { name: 'Eliminar partida', exact: true }).click();
+  await page.getByRole('button', { name: 'Eliminar capítulo Recogida de residuos' }).click();
+  await page.getByRole('button', { name: 'Eliminar capítulo', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Añadir concepto a Recogida de residuos' }),
+    page.getByRole('button', { name: 'Añadir partida al capítulo Recogida de residuos' }),
   ).toHaveCount(0);
 });
 
-test('new budget selects a catalog partida and searches concepts within that partida', async ({
-  page,
-}) => {
+test('new budget selects a catalog chapter and searches its partidas', async ({ page }) => {
   await login(page, 'other@example.test');
   await page.goto('/budget/new');
-  await page.getByRole('button', { name: 'Añadir partida', exact: true }).click();
-  await page.getByRole('button', { name: /Fontanería · \d+ conceptos/ }).click();
-  await expect(page.getByRole('textbox', { name: 'Nombre de la partida' })).toHaveValue(
+  await page.getByRole('button', { name: 'Añadir capítulo', exact: true }).click();
+  await page.getByRole('button', { name: /Fontanería · \d+ partidas/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Nombre del capítulo' })).toHaveValue(
     'Fontanería',
   );
 
@@ -1448,9 +1467,9 @@ test('new budget selects a catalog partida and searches concepts within that par
   });
   await pickerTrigger.click();
   const dialog = page.getByRole('dialog', { name: 'Buscar en el catálogo', exact: true });
-  const search = dialog.getByLabel('Buscar conceptos de la partida', { exact: true });
+  const search = dialog.getByLabel('Buscar partidas del capítulo', { exact: true });
   await search.fill('Pintura interior');
-  await expect(dialog.getByText(/No hay coincidencias en esta partida/)).toBeVisible();
+  await expect(dialog.getByText(/No hay coincidencias en este capítulo/)).toBeVisible();
   await search.fill('Punto de agua');
   await expect(dialog.locator('.catalog-picker-result')).toHaveCount(1);
   await dialog.locator('.catalog-picker-result').click();
@@ -1461,8 +1480,8 @@ test('new budget selects a catalog partida and searches concepts within that par
   await expect(page).toHaveURL(/\/budget\/[0-9a-f-]+$/);
   await page.reload();
   await page.getByRole('button', { name: 'Aplicar tarifa del catálogo', exact: true }).click();
-  await page.getByLabel('Buscar conceptos de la partida', { exact: true }).fill('Pintura interior');
-  await expect(page.getByText(/No hay coincidencias en esta partida/)).toBeVisible();
+  await page.getByLabel('Buscar partidas del capítulo', { exact: true }).fill('Pintura interior');
+  await expect(page.getByText(/No hay coincidencias en este capítulo/)).toBeVisible();
 });
 
 test('PWA install banner consumes prompts, stays hidden after dismissal and in standalone', async ({
@@ -1596,7 +1615,7 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
   ).toBeVisible();
   await expect(page.getByLabel('Avance del proyecto: 0%')).toHaveAttribute('aria-valuenow', '0');
   await page.getByRole('button', { name: 'Ver progreso', exact: true }).click();
-  await expect(page.getByText('Aún no hay conceptos terminados', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aún no hay partidas terminadas', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar evolución', exact: true }).click();
   const finishTask = page.getByRole('button', {
     name: 'Marcar como terminado: Preparación y acabado de paredes',
@@ -1611,7 +1630,7 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
   await page.waitForTimeout(250);
   await expect(page.getByText('Completado', { exact: false }).first()).toBeVisible();
   const taskCompletionDate = page.getByLabel(
-    'Cambiar fecha de finalización: el concepto Preparación y acabado de paredes',
+    'Cambiar fecha de finalización: la partida Preparación y acabado de paredes',
   );
   const today = await taskCompletionDate.inputValue();
   const todayLabel = await page.evaluate(
@@ -1641,7 +1660,7 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
   await expect(page.getByRole('status', { name: 'Estado: Completado' })).toBeVisible();
 
   const workItemCompletionDate = page.getByLabel(
-    'Cambiar fecha de finalización: la partida Pintura',
+    'Cambiar fecha de finalización: el capítulo Pintura',
   );
   await workItemCompletionDate.fill('2020-05-05');
   await expect(workItemCompletionDate).toHaveValue('2020-05-05');
@@ -1673,7 +1692,7 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
   await reopenTask.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByLabel('Avance del proyecto: 0%')).toHaveAttribute('aria-valuenow', '0');
-  await page.getByRole('button', { name: 'Completar partida', exact: true }).click();
+  await page.getByRole('button', { name: 'Completar capítulo', exact: true }).click();
   await expect(page.getByLabel('Avance del proyecto: 100%')).toHaveAttribute(
     'aria-valuenow',
     '100',
@@ -1686,7 +1705,7 @@ test('budget acceptance and supplements keep a distinct, traceable project summa
     .locator('summary')
     .click();
   await page.getByRole('button', { name: 'Nueva ampliación', exact: true }).click();
-  await page.getByLabel('Concepto imprevisto').fill('Punto de luz adicional');
+  await page.getByLabel('Partida imprevista').fill('Punto de luz adicional');
   await page.getByLabel('Cantidad').fill('2');
   await page.getByLabel('Precio unitario sin IVA').fill('20');
   await page.getByRole('button', { name: 'Guardar ampliación', exact: true }).click();

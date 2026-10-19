@@ -50,7 +50,7 @@ export const CatalogSelector = memo(function CatalogSelector({
           <div>
             <h2>Buscar en el catálogo</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Elige un concepto de {partName || workItemName || 'esta partida'}.
+              Elige una partida del capítulo {partName || workItemName || 'actual'}.
             </p>
           </div>
           <Button variant="ghost" aria-label="Cerrar" onClick={() => setOpen(false)}>
@@ -61,14 +61,14 @@ export const CatalogSelector = memo(function CatalogSelector({
           <Search size={18} aria-hidden="true" />
           <input
             autoFocus
-            aria-label="Buscar conceptos de la partida"
-            placeholder="Buscar concepto"
+            aria-label="Buscar partidas del capítulo"
+            placeholder="Buscar partida"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
         <p className="text-xs text-gray-500 my-3" role="status">
-          {results.length} conceptos
+          {results.length} partidas
         </p>
         <div className="catalog-picker-results">
           {results.map((tariff) => (
@@ -101,7 +101,7 @@ export const CatalogSelector = memo(function CatalogSelector({
           ))}
           {!results.length && (
             <p className="py-6 text-sm text-gray-500">
-              No hay coincidencias en esta partida. Prueba otra descripción.
+              No hay coincidencias en este capítulo. Prueba otra descripción.
             </p>
           )}
         </div>

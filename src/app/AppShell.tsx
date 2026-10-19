@@ -35,10 +35,6 @@ const links = [
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isCatalogPage = location.pathname.replace(/\/+$/, '') === '/catalog';
-  const isDetailPage =
-    isCatalogPage ||
-    /^\/(?:budget|projects?|catalogs|templates)\/[^/]+\/?$/.test(location.pathname) ||
-    location.pathname === '/account/password';
   const activePath = links.find(
     ([path]) =>
       location.pathname === path ||
@@ -168,7 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                               : 'BudGenerator')}
             </span>
             <div className="workspace-actions">
-              {!isDetailPage && <SyncStatus />}
+              <SyncStatus />
               <button
                 className="account-chip account-menu-trigger"
                 onClick={() => setMenu(true)}
@@ -181,27 +177,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           </header>
-          {isDetailPage && (
-            <div className="detail-sync no-print">
-              <SyncStatus />
-            </div>
-          )}
           <PwaInstallBanner />
           <PushStartupPrompt />
           <main id="workspace-content">
             <PageHeaderAccessoryProvider
               accessory={
                 isSecondaryPage ? (
-                  <button
-                    type="button"
-                    className="secondary-account-menu-trigger"
-                    onClick={() => setMenu(true)}
-                    aria-label="Abrir menú de cuenta"
-                    aria-haspopup="dialog"
-                    aria-expanded={menu}
-                  >
-                    <CompanyAvatar name={company.name} logo={company.logo} />
-                  </button>
+                  <div className="secondary-page-actions">
+                    <span className="secondary-sync-status">
+                      <SyncStatus />
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary-account-menu-trigger"
+                      onClick={() => setMenu(true)}
+                      aria-label="Abrir menú de cuenta"
+                      aria-haspopup="dialog"
+                      aria-expanded={menu}
+                    >
+                      <CompanyAvatar name={company.name} logo={company.logo} />
+                    </button>
+                  </div>
                 ) : null
               }
             >

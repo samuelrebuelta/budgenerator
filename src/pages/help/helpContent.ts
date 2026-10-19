@@ -19,9 +19,9 @@ export const helpTopics: HelpTopic[] = [
         question: '¿Cómo preparo mi primer presupuesto?',
         steps: [
           'Completa tus datos en Mi empresa si quieres que aparezcan en el documento.',
-          'Revisa el catálogo inicial y ajusta los conceptos y precios que utilizas.',
+          'Revisa el catálogo inicial y ajusta las partidas y precios que utilizas.',
           'En Presupuestos, pulsa Nuevo presupuesto y elige una plantilla o empieza en blanco.',
-          'Completa el cliente, añade partidas y conceptos, revisa cantidades e IVA y pulsa Guardar.',
+          'Completa el cliente, añade capítulos y partidas, revisa cantidades e IVA y pulsa Guardar.',
         ],
         link: { to: '/budgets', label: 'Abrir presupuestos' },
       },
@@ -29,7 +29,7 @@ export const helpTopics: HelpTopic[] = [
         question: '¿Qué diferencia hay entre catálogo, plantilla y presupuesto?',
         steps: [
           'El catálogo contiene tus tarifas: descripción, unidad, coste interno y precio de venta.',
-          'La plantilla conserva una estructura de partidas que puedes reutilizar.',
+          'La plantilla conserva capítulos y partidas que puedes reutilizar.',
           'El presupuesto es el documento del cliente, con mediciones, precios e importes que puedes editar.',
         ],
         link: { to: '/catalog', label: 'Abrir mi catálogo' },
@@ -46,7 +46,7 @@ export const helpTopics: HelpTopic[] = [
         steps: [
           'Abre el presupuesto guardado, pulsa Marcar como aceptado y confirma la aceptación del cliente.',
           'En ese presupuesto, pulsa Convertir en proyecto. Se crea una copia de trabajo y el presupuesto aceptado queda como referencia.',
-          'Abre Proyectos para seguir el avance de las partidas y sus conceptos.',
+          'Abre Proyectos para seguir el avance de los capítulos y sus partidas.',
         ],
         link: { to: '/budgets', label: 'Ver presupuestos para aceptar' },
       },
@@ -62,8 +62,8 @@ export const helpTopics: HelpTopic[] = [
       {
         question: '¿Puedo corregir la fecha de un trabajo o ver cómo ha avanzado?',
         steps: [
-          'Al marcar un concepto como terminado se guarda la fecha de hoy.',
-          'Pulsa la fecha junto al concepto o la partida completada para corregirla; cambiar una partida actualiza todos sus conceptos.',
+          'Al marcar una partida como terminada se guarda la fecha de hoy.',
+          'Pulsa la fecha junto a la partida o al capítulo completado para corregirla; cambiar un capítulo actualiza todas sus partidas.',
           'Abre el icono de evolución del proyecto para consultar el avance acumulado por fecha. Corregir una fecha no cambia el avance actual.',
         ],
         link: { to: '/projects', label: 'Consultar mis proyectos' },
@@ -97,13 +97,13 @@ export const helpTopics: HelpTopic[] = [
   {
     id: 'catalogos',
     title: 'Catálogo y tarifas',
-    description: 'Mantén tus conceptos y precios en un solo lugar.',
+    description: 'Mantén tus capítulos, partidas y precios en un solo lugar.',
     questions: [
       {
         question: '¿Cómo cambio los precios del catálogo?',
         steps: [
           'Abre Catálogo: tu cuenta ya incluye una base de reformas editable.',
-          'Abre el catálogo para añadir o editar conceptos, unidades, costes y PVP.',
+          'Abre el catálogo para añadir o editar capítulos y partidas, con sus unidades, costes y PVP.',
           'Los cambios de tarifas se guardan automáticamente.',
         ],
         link: { to: '/catalog', label: 'Abrir catálogo' },
@@ -112,8 +112,8 @@ export const helpTopics: HelpTopic[] = [
         question: '¿Cómo utilizo el catálogo en un presupuesto?',
         steps: [
           'Todos los presupuestos utilizan tu único catálogo.',
-          'En cada concepto, pulsa Aplicar tarifa del catálogo y busca por descripción o categoría.',
-          'Los cambios del catálogo no reescriben conceptos ya incorporados a un presupuesto.',
+          'En cada partida, pulsa Aplicar tarifa del catálogo y busca por descripción o capítulo.',
+          'Los cambios del catálogo no reescriben partidas ya incorporadas a un presupuesto.',
         ],
         link: { to: '/catalog', label: 'Revisar mi catálogo' },
       },
@@ -127,7 +127,7 @@ export const helpTopics: HelpTopic[] = [
       {
         question: '¿Cómo creo y utilizo una plantilla?',
         steps: [
-          'Pulsa Crear plantilla, dale un nombre y define sus partidas y conceptos.',
+          'Pulsa Crear plantilla, dale un nombre y define sus capítulos y partidas.',
           'Guarda la plantilla.',
           'En Nuevo presupuesto, elige esa plantilla: trabajarás sobre una copia editable.',
         ],
@@ -152,7 +152,7 @@ export const helpTopics: HelpTopic[] = [
       {
         question: '¿Cómo se calculan las partidas, el IVA y los ajustes?',
         steps: [
-          'Cada concepto multiplica su cantidad por el precio de su unidad.',
+          'Cada partida multiplica su cantidad por el precio de su unidad.',
           'El descuento reduce el subtotal; el recargo se incorpora a los precios de las partidas.',
           'El IVA se aplica al subtotal ajustado. Revisa el tipo que corresponda al trabajo.',
         ],
@@ -161,7 +161,7 @@ export const helpTopics: HelpTopic[] = [
       {
         question: '¿Cómo exporto o comparto un presupuesto?',
         steps: [
-          'Completa el cliente y cada concepto: descripción y cantidad mayor que cero. El precio puede ser cero.',
+          'Completa el cliente y cada partida: descripción y cantidad mayor que cero. El precio puede ser cero.',
           'Guarda el presupuesto.',
           'Pulsa Exportar PDF para obtener el documento o Crear enlace público para compartirlo.',
           'Puedes revocar el enlace desde el mismo presupuesto. Los costes internos no se incluyen en el documento público.',

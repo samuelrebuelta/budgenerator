@@ -47,7 +47,7 @@ export function ProjectsPage() {
           </h2>
           <p className="mb-5 max-w-xl text-sm leading-6 text-[#56635b]">
             Cuando un cliente acepte un presupuesto, conviértelo en proyecto para marcar los
-            conceptos terminados y consultar el avance.
+            partidas terminadas y consultar el avance.
           </p>
           <Button variant="secondary" onClick={() => navigate('/budgets')}>
             Ver presupuestos
@@ -89,10 +89,10 @@ export function ProjectsPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#52625a]">
                 <span>
-                  {project.completedConcepts} de {project.totalConcepts} conceptos ·{' '}
+                  {project.completedConcepts} de {project.totalConcepts} partidas ·{' '}
                   {project.mode === 'amount'
                     ? 'ponderado por importe previsto'
-                    : 'por cantidad de conceptos'}
+                    : 'por cantidad de partidas'}
                 </span>
                 <span>
                   Aceptado el {dateLabel(project.acceptedAt)} · Total actualizado{' '}
@@ -106,7 +106,7 @@ export function ProjectsPage() {
 
       {loaded && projects.length > 0 && (
         <p className="mt-5 text-xs text-[#637166]">
-          El avance se estima con los importes o conceptos del presupuesto; no mide horas ni
+          El avance se estima con los importes o partidas del presupuesto; no mide horas ni
           porcentaje físico de obra.
         </p>
       )}

@@ -516,6 +516,12 @@
   color: #5d7564;
   min-height: 32px;
 }
+.sync-saving {
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  color: #5d7564;
+}
 .sync-error {
   color: #ad432b;
 }
@@ -1284,6 +1290,20 @@ select:focus,
   max-height: calc(100dvh - 2rem);
   overflow: hidden;
 }
+@media (max-width: 639px) {
+  .modal-overlay.category-import-overlay[open] {
+    place-items: end center;
+    padding: max(8px, env(safe-area-inset-top)) 8px 0;
+  }
+  .modal-panel.category-import-panel {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    padding: 1rem 1rem max(1rem, env(safe-area-inset-bottom));
+    border-radius: 1rem 1rem 0 0;
+  }
+}
 .app-tour-layer {
   position: fixed;
   z-index: 80;
@@ -2000,13 +2020,13 @@ select:focus,
   background: var(--state-pressed);
 }
 
-/* El segundo nivel conserva el retorno local sin reservar espacio para las tabs. */
-.detail-sync {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 24px 0;
+/* El estado de guardado acompaña al acceso al menú en cabeceras secundarias móviles. */
+.secondary-page-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
-.detail-sync:empty {
+.secondary-sync-status {
   display: none;
 }
 @media (max-width: 800px) {
@@ -2015,6 +2035,9 @@ select:focus,
   }
   .app-shell-secondary .workspace-header {
     display: none;
+  }
+  .secondary-sync-status {
+    display: inline-flex;
   }
   .app-shell-secondary #workspace-content {
     min-height: calc(100dvh - 44px);

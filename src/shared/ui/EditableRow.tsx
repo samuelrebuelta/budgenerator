@@ -99,7 +99,7 @@ export function EditableRow({
         })}
         <div className="px-2 sm:px-4 py-2 text-center no-print">
           <button
-            aria-label="Eliminar concepto"
+            aria-label="Eliminar partida"
             onClick={onDelete}
             className="min-h-11 min-w-11 p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
           >
@@ -115,14 +115,14 @@ export function EditableRow({
             <input
               value={descCell.value}
               onChange={(e) => descCell.onChange(e.target.value)}
-              aria-label="Descripción del concepto"
+              aria-label="Descripción de la partida"
               placeholder={descCell.placeholder}
               className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
             />
           )}
           {headerExtra}
           <button
-            aria-label="Eliminar concepto"
+            aria-label="Eliminar partida"
             onClick={onDelete}
             className="min-h-11 min-w-11 p-2 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
           >

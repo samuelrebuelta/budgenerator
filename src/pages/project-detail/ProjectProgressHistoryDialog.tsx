@@ -53,7 +53,7 @@ export function ProjectProgressHistoryDialog({
         <div>
           <h2 className="text-xl font-semibold text-[#1f2b26]">Evolución del proyecto</h2>
           <p className="mt-1 text-sm leading-6 text-[#52625a]">
-            Avance acumulado según la fecha registrada en cada concepto.
+            Avance acumulado según la fecha registrada en cada partida.
           </p>
         </div>
         <Button
@@ -68,7 +68,7 @@ export function ProjectProgressHistoryDialog({
 
       {points.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#c6d4cc] bg-[#f7f8f3] px-4 py-10 text-center">
-          <p className="font-medium text-[#315c4c]">Aún no hay conceptos terminados</p>
+          <p className="font-medium text-[#315c4c]">Aún no hay partidas terminadas</p>
           <p className="mt-1 text-sm text-[#637166]">
             La evolución aparecerá cuando registres el primer trabajo.
           </p>
@@ -144,7 +144,7 @@ export function ProjectProgressHistoryDialog({
                     Avance
                   </th>
                   <th scope="col" className="break-words px-2 py-2.5 sm:px-3">
-                    Conceptos
+                    Partidas
                   </th>
                 </tr>
               </thead>
@@ -173,8 +173,8 @@ export function ProjectProgressHistoryDialog({
           </div>
           <p className="mt-3 text-xs leading-5 text-[#637166]">
             {mode === 'amount'
-              ? 'La gráfica pondera cada concepto por su importe neto.'
-              : 'La gráfica pondera cada concepto por igual.'}
+              ? 'La gráfica pondera cada partida por su importe neto.'
+              : 'La gráfica pondera cada partida por igual.'}
           </p>
         </>
       )}

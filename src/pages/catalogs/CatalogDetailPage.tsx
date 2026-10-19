@@ -174,8 +174,8 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         ? scope.type === 'concept'
           ? `Se añadió «${selectedName}» al catálogo de tu empresa.`
           : scope.type === 'part'
-            ? `Se añadieron ${result.addedConcepts} conceptos de «${selectedName}».`
-            : `Se importaron ${result.addedConcepts} conceptos de ${selectedName} y ${result.addedParts} partidas nuevas.`
+            ? `Se añadieron ${result.addedConcepts} partidas de «${selectedName}».`
+            : `Se importaron ${result.addedConcepts} partidas de ${selectedName} y ${result.addedParts} capítulos nuevos.`
         : scope.type === 'concept'
           ? `«${selectedName}» ya está en el catálogo.`
           : `Todo lo de «${selectedName}» ya estaba en el catálogo.`;
@@ -196,11 +196,11 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         actions={
           <Button
             className="page-create-button"
-            aria-label="Añadir partida"
+            aria-label="Añadir capítulo"
             onClick={() => setShowAddPart(true)}
           >
             <Plus size={16} />
-            <span className="page-create-label">Añadir partida</span>
+            <span className="page-create-label">Añadir capítulo</span>
           </Button>
         }
       />
@@ -234,7 +234,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
           }}
         >
           <label className="min-w-48 flex-1 text-xs font-medium text-gray-600">
-            Nombre de la partida
+            Nombre del capítulo
             <input
               autoFocus
               value={newPartName}
@@ -258,19 +258,19 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            aria-label="Buscar partidas y conceptos"
-            placeholder="Buscar partida o concepto…"
+            aria-label="Buscar capítulos y partidas"
+            placeholder="Buscar capítulo o partida…"
             className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
           />
         </label>
         {catalog.parts.length > 0 && (
           <select
-            aria-label="Filtrar por partida"
+            aria-label="Filtrar por capítulo"
             value={activePartId ?? ''}
             onChange={(event) => setActivePartId(event.target.value || null)}
             className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:w-auto"
           >
-            <option value="">Todas las partidas ({catalog.parts.length})</option>
+            <option value="">Todos los capítulos ({catalog.parts.length})</option>
             {[...catalog.parts]
               .sort((a, b) => compareSpanish(a.name, b.name))
               .map((part) => (
@@ -303,7 +303,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                   </button>
                   <input
                     key={`${part.id}-${part.name}`}
-                    aria-label="Nombre de la partida"
+                    aria-label="Nombre del capítulo"
                     defaultValue={part.name}
                     onBlur={(event) => {
                       const value = event.currentTarget.value.trim();
@@ -316,7 +316,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                     className="min-w-32 flex-1 bg-transparent text-sm font-semibold text-gray-800 outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-500">
-                    {part.concepts.length} {part.concepts.length === 1 ? 'concepto' : 'conceptos'}
+                    {part.concepts.length} {part.concepts.length === 1 ? 'partida' : 'partidas'}
                   </span>
                   <Button
                     variant="secondary"
@@ -325,13 +325,13 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                       if (isCollapsed) togglePart(part.id);
                       setAddingToPartId(part.id);
                     }}
-                    aria-label={`Añadir concepto a ${part.name}`}
+                    aria-label={`Añadir partida al capítulo ${part.name}`}
                   >
-                    <Plus size={15} /> Añadir concepto
+                    <Plus size={15} /> Añadir partida
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label={`Eliminar partida ${part.name}`}
+                    aria-label={`Eliminar capítulo ${part.name}`}
                     onClick={() => setPartToDelete(part)}
                   >
                     <Trash2 size={15} />
@@ -349,7 +349,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                         }}
                       >
                         <label className="min-w-48 flex-1 text-xs text-gray-600">
-                          Nombre del concepto
+                          Descripción de la partida
                           <input
                             autoFocus
                             value={newDescription}
@@ -495,7 +495,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                       </>
                     ) : (
                       <p className="px-4 py-5 text-sm text-gray-500">
-                        Esta partida aún no tiene conceptos.
+                        Este capítulo aún no tiene partidas.
                       </p>
                     )}
                   </div>
@@ -506,11 +506,11 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         </div>
       ) : (
         <div className="catalog-empty">
-          <h2>{query ? 'No hay resultados' : 'Aún no hay partidas'}</h2>
+          <h2>{query ? 'No hay resultados' : 'Aún no hay capítulos'}</h2>
           <p>
             {query
-              ? 'Prueba con otro nombre de partida o concepto.'
-              : 'Añade una partida para organizar sus conceptos.'}
+              ? 'Prueba con otro nombre de capítulo o partida.'
+              : 'Añade un capítulo para organizar sus partidas.'}
           </p>
         </div>
       )}
@@ -518,9 +518,9 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
       <ConfirmModal
         open={!!partToDelete}
         onClose={() => setPartToDelete(null)}
-        title="¿Eliminar partida?"
-        message={`Se eliminará «${partToDelete?.name ?? ''}» y sus ${partToDelete?.concepts.length ?? 0} conceptos del catálogo. Los presupuestos ya creados conservarán sus datos.`}
-        confirmLabel="Eliminar partida"
+        title="¿Eliminar capítulo?"
+        message={`Se eliminará «${partToDelete?.name ?? ''}» y sus ${partToDelete?.concepts.length ?? 0} partidas del catálogo. Los presupuestos ya creados conservarán sus datos.`}
+        confirmLabel="Eliminar capítulo"
         onConfirm={() => {
           if (partToDelete) removePart(partToDelete.id, catalog.id);
           setPartToDelete(null);
@@ -530,6 +530,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         open={showTradeImporter}
         onClose={() => setShowTradeImporter(false)}
         title="Importar por categoría"
+        overlayClassName="category-import-overlay"
         panelClassName="category-import-panel max-w-3xl"
       >
         <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
@@ -548,14 +549,18 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
           </Button>
         </div>
 
-        <p className="shrink-0 text-sm leading-6 text-gray-600">
-          Estas categorías pueden servirte de inspiración: puedes añadir y personalizar más partidas
-          y conceptos según tu forma de trabajar.
-        </p>
-        <p className="mt-3 shrink-0 rounded-lg bg-gray-50 px-3 py-2 text-sm leading-5 text-gray-700">
-          Todo lo que importes se añadirá al catálogo de tu empresa para utilizarlo en tus
-          presupuestos.
-        </p>
+        {!selectedCategory && (
+          <>
+            <p className="shrink-0 text-sm leading-6 text-gray-600">
+              Estas categorías pueden servirte de inspiración: puedes añadir y personalizar más
+              capítulos y partidas según tu forma de trabajar.
+            </p>
+            <p className="mt-3 shrink-0 rounded-lg bg-gray-50 px-3 py-2 text-sm leading-5 text-gray-700">
+              Todo lo que importes se añadirá al catálogo de tu empresa para utilizarlo en tus
+              presupuestos.
+            </p>
+          </>
+        )}
 
         {!selectedCategory && (
           <label className="mb-3 mt-4 block shrink-0 text-sm font-medium text-gray-700">
@@ -605,8 +610,8 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
               <h3 className="text-lg font-semibold text-gray-900">{selectedCategory.name}</h3>
               <p className="mt-1 text-sm text-gray-600">{selectedCategory.description}</p>
               <p className="mt-2 text-xs text-gray-500">
-                {selectedCategoryParts.length} partidas · {selectedCategory.tariffs.length}{' '}
-                conceptos
+                {selectedCategoryParts.length} capítulos · {selectedCategory.tariffs.length}{' '}
+                partidas
               </p>
             </div>
           </>
@@ -636,7 +641,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                       <div className="grid grid-cols-1 items-center gap-2 p-2 min-[640px]:grid-cols-[minmax(0,1fr)_auto]">
                         <button
                           type="button"
-                          aria-label={`${isExpanded ? 'Ocultar' : 'Mostrar'} conceptos de ${part.name}`}
+                          aria-label={`${isExpanded ? 'Ocultar' : 'Mostrar'} partidas del capítulo ${part.name}`}
                           aria-expanded={isExpanded}
                           onClick={() =>
                             setExpandedTradeParts((previous) => {
@@ -654,14 +659,14 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                           </span>
                           <span className="col-start-2 text-xs text-gray-500 min-[640px]:whitespace-nowrap">
                             {part.concepts.length}{' '}
-                            {part.concepts.length === 1 ? 'concepto' : 'conceptos'}
+                            {part.concepts.length === 1 ? 'partida' : 'partidas'}
                           </span>
                         </button>
                         <Button
                           variant="secondary"
                           disabled={partIsImported}
                           className="justify-self-start min-[640px]:col-start-2 min-[640px]:row-start-1 min-[640px]:justify-self-auto"
-                          aria-label={`${partIsImported ? 'Partida importada' : 'Importar partida'} ${part.name}`}
+                          aria-label={`${partIsImported ? 'Capítulo importado' : 'Importar capítulo'} ${part.name}`}
                           onClick={() =>
                             submitCategoryImport(selectedCategory, {
                               type: 'part',
@@ -670,7 +675,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                           }
                         >
                           {partIsImported ? <Check size={15} /> : <Download size={15} />}
-                          {partIsImported ? 'En catálogo' : 'Importar partida'}
+                          {partIsImported ? 'En catálogo' : 'Importar capítulo'}
                         </Button>
                       </div>
                       {isExpanded && (
@@ -696,7 +701,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                                 <Button
                                   variant="ghost"
                                   disabled={isImported}
-                                  aria-label={`${isImported ? 'Concepto importado' : 'Importar concepto'} ${concept.description}`}
+                                  aria-label={`${isImported ? 'Partida importada' : 'Importar partida'} ${concept.description}`}
                                   onClick={() =>
                                     submitCategoryImport(selectedCategory, {
                                       type: 'concept',
@@ -736,7 +741,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                       <h3 className="text-sm font-semibold text-gray-900">{category.name}</h3>
                       <p className="mt-1 text-sm text-gray-600">{category.description}</p>
                       <p className="mt-1 text-xs text-gray-500">
-                        {parts.length} partidas · {category.tariffs.length} conceptos
+                        {parts.length} capítulos · {category.tariffs.length} partidas
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">

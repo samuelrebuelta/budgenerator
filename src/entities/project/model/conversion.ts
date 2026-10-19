@@ -20,7 +20,7 @@ export function prepareProjectSnapshot(
     throw new Error('Marca el presupuesto como aceptado antes de convertirlo.');
   if (budget.projectId) throw new Error('Este presupuesto ya está convertido en un proyecto.');
   if (budget.workItems.length > MAX_PROJECT_WORK_ITEMS)
-    throw new Error(`El presupuesto supera el límite de ${MAX_PROJECT_WORK_ITEMS} partidas.`);
+    throw new Error(`El presupuesto supera el límite de ${MAX_PROJECT_WORK_ITEMS} capítulos.`);
   assertBudget(budget, true);
 
   const workItems: ProjectWorkItem[] = budget.workItems.map((workItem, position) => ({
@@ -34,17 +34,19 @@ export function prepareProjectSnapshot(
   const workItemIds = new Set<string>();
   for (const workItem of workItems) {
     if (!workItem.id.trim() || workItemIds.has(workItem.id))
-      throw new Error('Las partidas del presupuesto necesitan identificadores únicos.');
+      throw new Error('Los capítulos del presupuesto necesitan identificadores únicos.');
     workItemIds.add(workItem.id);
     const taskIds = new Set<string>();
     for (const task of workItem.tasks) {
       if (!task.id.trim() || taskIds.has(task.id))
-        throw new Error('Los conceptos de cada partida necesitan identificadores únicos.');
+        throw new Error('Las partidas de cada capítulo necesitan identificadores únicos.');
       taskIds.add(task.id);
     }
     const bytes = new TextEncoder().encode(JSON.stringify(workItem)).length;
     if (bytes >= MAX_PROJECT_WORK_ITEM_BYTES)
-      throw new Error(`La partida «${workItem.name}» supera el tamaño permitido para el proyecto.`);
+      throw new Error(
+        `El capítulo «${workItem.name}» supera el tamaño permitido para el proyecto.`,
+      );
   }
 
   const progress = calculateProjectProgress(workItems);

@@ -56,8 +56,8 @@ export function assertBudget(budget: Budget | PublicBudget, publish = false) {
         throw new Error('Las cantidades y los precios deben ser números positivos.');
       if (task.description.trim() && task.quantity > 0) populated++;
       else if (publish)
-        throw new Error('Completa o elimina los conceptos vacíos antes de compartir o exportar.');
+        throw new Error('Completa o elimina las partidas vacías antes de compartir o exportar.');
     }
   if (publish && (!budget.info.clientName.trim() || populated === 0))
-    throw new Error('Añade un cliente y al menos un concepto antes de compartir o exportar.');
+    throw new Error('Añade un cliente y al menos una partida antes de compartir o exportar.');
 }

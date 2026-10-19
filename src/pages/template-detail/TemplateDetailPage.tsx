@@ -139,7 +139,7 @@ function TemplateEditor({
       <div className="template-document-content">
         <PageHeader
           title={isNew ? t('templates.newTitle') : t('templates.detailTitle')}
-          description="Define las partidas que reutilizarás en tus presupuestos."
+          description="Define los capítulos y partidas que reutilizarás en tus presupuestos."
           backTo="/templates"
           backLabel={t('templates.backToTemplates')}
         />

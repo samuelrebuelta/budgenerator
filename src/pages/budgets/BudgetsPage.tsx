@@ -126,7 +126,7 @@ export function BudgetsPage() {
               <Search size={14} />
               <input
                 aria-label="Buscar presupuestos"
-                placeholder="Cliente, dirección, número o concepto"
+                placeholder="Cliente, dirección, número o partida"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -192,7 +192,7 @@ export function BudgetsPage() {
                       <span className="document-number">{b.info.budgetNumber || '—'}</span>
                       <div className="min-w-0">
                         <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
-                        <p>{b.info.address || `${b.workItems.length} partidas de trabajo`}</p>
+                        <p>{b.info.address || `${b.workItems.length} capítulos`}</p>
                         {b.projectId ? (
                           <p className="mt-1 font-medium text-[#183e3b]">Proyecto en seguimiento</p>
                         ) : b.acceptedAt ? (
@@ -296,7 +296,7 @@ export function BudgetsPage() {
             >
               <strong className="text-sm">{t.name}</strong>
               <span className="block text-xs text-gray-500 mt-1">
-                {t.workItems.length} partidas
+                {t.workItems.length} capítulos
               </span>
             </button>
           ))}

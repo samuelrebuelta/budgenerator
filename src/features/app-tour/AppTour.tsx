@@ -25,14 +25,14 @@ const steps = [
     target: '[data-tour="category-import"]',
     title: 'Construye con tu catálogo',
     description:
-      'Partidas, conceptos y tarifas dan estructura a tus presupuestos. Importa una categoría como base y adapta los precios a tu empresa.',
+      'Los capítulos agrupan las partidas de cada obra. Importa una categoría como base y adapta sus unidades, costes y precios a tu empresa.',
   },
   {
     path: '/templates',
     target: '[data-tour="template-create"]',
     title: 'Lo que repites, guárdalo',
     description:
-      'Crea plantillas con las partidas habituales y úsalas como base de nuevos presupuestos.',
+      'Crea plantillas con los capítulos y partidas habituales y úsalas como base de nuevos presupuestos.',
   },
   {
     path: '/profile',
@@ -46,7 +46,7 @@ const steps = [
     target: '[data-page-header]',
     title: 'Del presupuesto al proyecto',
     description:
-      'Cuando el cliente acepta el presupuesto, conviértelo en proyecto para seguir conceptos, registrar imprevistos y consultar la evolución por fecha.',
+      'Cuando el cliente acepta el presupuesto, conviértelo en proyecto para seguir partidas, registrar imprevistos y consultar la evolución por fecha.',
   },
 ] as const;
 

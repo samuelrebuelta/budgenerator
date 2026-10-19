@@ -216,7 +216,7 @@ export function ProjectDetailPage() {
               Avance estimado
             </h2>
             <p className="mt-1 text-sm text-[#52625a]">
-              {project.completedConcepts} de {project.totalConcepts} conceptos terminados
+              {project.completedConcepts} de {project.totalConcepts} partidas terminadas
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -244,7 +244,7 @@ export function ProjectDetailPage() {
         <p className="mt-3 text-xs leading-5 text-[#637166]">
           {project.mode === 'amount'
             ? `Ponderado por el importe neto previsto: ${formatCurrency(project.completedAmount)} de ${formatCurrency(project.totalAmount)}. No incluye IVA ni ajuste global.`
-            : 'Calculado por conceptos porque no todos los importes permiten una ponderación fiable.'}
+            : 'Calculado por partidas porque no todos los importes permiten una ponderación fiable.'}
         </p>
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#52625a]">
           <span>Aceptado el {dateLabel(project.acceptedAt)}</span>
@@ -286,11 +286,11 @@ export function ProjectDetailPage() {
         <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#b7694d] sm:px-6 [&::-webkit-details-marker]:hidden">
           <div>
             <h2 id="work-items-title" className="text-lg font-semibold text-[#1f2b26]">
-              Partidas de trabajo
+              Capítulos de trabajo
             </h2>
             <span className="mt-1 block text-sm text-[#52625a]">
-              {project.workItems.filter((item) => !item.voidedAt).length} partidas ·{' '}
-              {project.totalConcepts} conceptos
+              {project.workItems.filter((item) => !item.voidedAt).length} capítulos ·{' '}
+              {project.totalConcepts} partidas
             </span>
           </div>
           <ChevronDown
@@ -304,7 +304,7 @@ export function ProjectDetailPage() {
           aria-labelledby="work-items-title"
           className="space-y-5 border-t border-[#ecece4] p-5 sm:p-6"
         >
-          <p className="text-sm text-[#52625a]">Marca cada concepto cuando esté terminado.</p>
+          <p className="text-sm text-[#52625a]">Marca cada partida cuando esté terminada.</p>
 
           {project.workItems
             .filter((item) => !item.voidedAt)
@@ -318,13 +318,13 @@ export function ProjectDetailPage() {
                     <div>
                       <h3 className="text-base font-semibold text-[#1f2b26]">{item.name}</h3>
                       <p className="mt-1 text-sm text-[#52625a]">
-                        {progress.completedConcepts} de {progress.totalConcepts} conceptos ·{' '}
+                        {progress.completedConcepts} de {progress.totalConcepts} partidas ·{' '}
                         {progress.percent}%
                       </p>
                       {allComplete && item.tasks[0]?.completedAt && (
                         <div className="mt-2">
                           <ProjectTaskCompletionDate
-                            subject={`la partida ${item.name}`}
+                            subject={`el capítulo ${item.name}`}
                             completedAt={item.tasks[0].completedAt}
                             disabled={!!busy}
                             loading={busy === `date:work:${item.id}`}
@@ -346,13 +346,13 @@ export function ProjectDetailPage() {
                       }
                     >
                       <ClipboardCheck size={16} />
-                      {allComplete ? 'Partida completada' : 'Completar partida'}
+                      {allComplete ? 'Capítulo completado' : 'Completar capítulo'}
                     </Button>
                   </div>
                   <div className="my-4">
                     <ProjectProgressBar
                       percent={progress.percent}
-                      label={`Avance de la partida ${item.name}: ${progress.percent}%`}
+                      label={`Avance del capítulo ${item.name}: ${progress.percent}%`}
                     />
                   </div>
                   <ul className="divide-y divide-[#ecece4]">
@@ -376,7 +376,7 @@ export function ProjectDetailPage() {
                               </p>
                               {completed && task.completedAt && (
                                 <ProjectTaskCompletionDate
-                                  subject={`el concepto ${task.description}`}
+                                  subject={`la partida ${task.description}`}
                                   completedAt={task.completedAt}
                                   disabled={!!busy}
                                   loading={busy === `date:task:${key}`}
@@ -465,7 +465,7 @@ export function ProjectDetailPage() {
               }}
             >
               <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
-                Concepto imprevisto
+                Partida imprevista
                 <input
                   className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
                   value={supplementDescription}

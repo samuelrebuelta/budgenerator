@@ -132,7 +132,7 @@ function validateMappedPrices(
     getAvailableEstimatorServices(settings, parts, legacyTariffs).length !==
     settings.services.length
   )
-    throw new HttpsError('failed-precondition', 'Hay conceptos sin precio válido.');
+    throw new HttpsError('failed-precondition', 'Hay partidas sin precio válido.');
 }
 
 function publicProfile(
