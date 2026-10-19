@@ -20,6 +20,21 @@ Refinamiento del importador móvil (19-10-2026): el detalle de categoría abre u
 4. **BG-009:** integrado en `main`. Presupuestos es el core; las tres pestañas son Presupuestos, Proyectos y Solicitudes. Catálogo está en el menú, debajo de Mi empresa; Plantillas y Estimador también se abren desde el menú.
 5. **BG-010:** push-only integrado en `main` y desplegado en `budgenerator`. La entrega push fue aceptada por FCM y validada en el dispositivo durante la sesión; la integración actual publica además el TTL de Firestore para retener trabajos 30 días. No hay transporte de email.
 
+## Trabajo futuro — intercambio BC3
+
+Planificado para abordar en una fase futura; no está activo todavía. El alcance incluye importar bases de precios BC3 al catálogo, importar presupuestos sólo cuando puedan adaptarse sin perder partidas ni mediciones, y exportar catálogo, presupuestos y plantillas. Se conservarán las unidades BC3 libres; el precio importado alimentará el precio de venta y el coste será cero si no puede identificarse inequívocamente.
+
+Orden previsto:
+
+1. Reunir y sanear muestras de catálogos y presupuestos de Presto, Arquímedes y TCQ; fijar versiones y compatibilidad demostrable.
+2. Implementar el lector BC3 y la normalización de registros.
+3. Ampliar soporte de unidades libres y añadir importación selectiva al catálogo, preservando precios configurados y evitando duplicados.
+4. Añadir importación de presupuestos con vista previa; bloquear la confirmación cuando la adaptación pierda partidas o mediciones.
+5. Añadir exportación BC3 de catálogo, presupuestos y plantillas y verificar la interoperabilidad con las aplicaciones objetivo.
+6. Ejecutar verificaciones, actualizar contratos técnicos y registrar límites conocidos.
+
+El diseño y el detalle de implementación están en `docs/superpowers/specs/2026-10-19-bc3-intercambio-design.md` y `docs/superpowers/plans/2026-10-19-bc3-intercambio.md`. Sin muestras reales de una aplicación, no se anunciará compatibilidad con ella. Este registro no autoriza implementación, despliegue ni cambios de datos.
+
 ## Estado
 
 | ID     | Estado                                | Prioridad      | Entrega                                                                                                                                                                                                                                                                                                            |
