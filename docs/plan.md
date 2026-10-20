@@ -1,6 +1,6 @@
 # BudGenerator — Plan SDD
 
-Actualizado: 2026-10-18. Fuente operativa de tareas y decisiones del producto.
+Actualizado: 2026-10-20. Fuente operativa de tareas y decisiones del producto.
 
 Desplegables en presupuesto ligado a proyecto (19-10-2026): el `fieldset disabled` que protege el contenido congelado también deshabilitaba los controles de colapso. Los controles de datos del presupuesto siguen bloqueados; los desplegables de datos del cliente, capítulos y partidas vuelven a poder operarse con ratón y teclado. Revisión estática de rendimiento: las partidas siguen montadas cuando se colapsa un capítulo; no se implementó lazy load ni virtualización. Verificación para integrar (20-10-2026): `pnpm test` falló en 1 de 131 tests por la expectativa obsoleta de `tests/catalogTradeImport.test.ts`; `pnpm test:integration` pasó 41/41 reglas y falló 3/38 E2E de catálogo/estructura guiada. `pnpm lint`, `pnpm format:check`, `pnpm build` y `git diff --check` pasaron. Integrado en `main` (commit `9f46e4b`) y desplegado sólo a Hosting en `budgenerator` con PWA `a9ac3670faec912d`; `index.html`, ambos service workers y 35 assets se compararon con `dist`. Sin despliegues de reglas o Functions.
 
@@ -24,18 +24,22 @@ Refinamiento del importador móvil (19-10-2026): el detalle de categoría abre u
 
 ## Trabajo futuro — intercambio BC3
 
-Planificado para abordar en una fase futura; no está activo todavía. El alcance incluye importar bases de precios BC3 al catálogo, importar presupuestos sólo cuando puedan adaptarse sin perder partidas ni mediciones, y exportar catálogo, presupuestos y plantillas. Se conservarán las unidades BC3 libres; el precio importado alimentará el precio de venta y el coste será cero si no puede identificarse inequívocamente.
+Planificado para abordar en una fase futura; no está activo todavía. Con la autorización del usuario para cambiar el modelo de datos y sin usuarios en producción, el sistema podrá adoptar un modelo canónico nativo FIEBDC para catálogos, presupuestos y plantillas. No se adaptará BC3 a los modelos planos actuales como fuente persistida: jerarquías, referencias por código, descomposiciones, unidades literales, precios y mediciones se conservarán en el modelo compartido. La implementación afectará persistencia Firestore, reglas y consumidores de catálogo, editor, proyectos, plantillas, cálculos, PDF, publicación y estimador.
+
+El alcance incluye importar bases de precios BC3 como fuentes privadas, importar presupuestos bloqueando cualquier pérdida de partidas, mediciones o semántica económica, y exportar catálogo, presupuestos y plantillas desde el mismo modelo. Las unidades libres se conservan literalmente; el precio importado alimentará el precio de venta y el coste será cero si no puede identificarse inequívocamente. Los archivos se procesan localmente; los grafos se guardarán en Firestore mediante raíz ligera y subcolecciones con staging, validando tamaño con fixtures.
 
 Orden previsto:
 
 1. Reunir y sanear muestras de catálogos y presupuestos de Presto, Arquímedes y TCQ; fijar versiones y compatibilidad demostrable.
-2. Implementar el lector BC3 y la normalización de registros.
-3. Ampliar soporte de unidades libres y añadir importación selectiva al catálogo, preservando precios configurados y evitando duplicados.
-4. Añadir importación de presupuestos con vista previa; bloquear la confirmación cuando la adaptación pierda partidas o mediciones.
-5. Añadir exportación BC3 de catálogo, presupuestos y plantillas y verificar la interoperabilidad con las aplicaciones objetivo.
-6. Ejecutar verificaciones, actualizar contratos técnicos y registrar límites conocidos.
+2. Definir y probar el modelo canónico FIEBDC, sus invariantes, cálculos y representación de conceptos, ocurrencias, descomposiciones, mediciones, precisión numérica y registros desconocidos.
+3. Diseñar persistencia Firestore escalable con staging, cuota transaccional, aislamiento y reglas; no migrar ni borrar datos remotos sin inventario, respaldo y autorización específica.
+4. Implementar parser y serializador puros sobre el modelo canónico; fijar diagnósticos, límites y retención segura de registros no interpretados.
+5. Añadir importación/vista de bases BC3 como catálogos privados y selección/integración de conceptos sin reemplazar precios configurados ni colapsar referencias.
+6. Rediseñar editor, cálculos y entidades consumidoras para usar el modelo nativo; importar obras y bloquear publicación ante pérdida semántica.
+7. Exportar catálogos, presupuestos y plantillas; probar ida y vuelta e interoperabilidad con Presto, Arquímedes y TCQ.
+8. Actualizar contratos técnicos, reglas, pruebas y este plan; registrar versiones y aplicaciones efectivamente validadas.
 
-El diseño y el detalle de implementación están en `docs/superpowers/specs/2026-10-19-bc3-intercambio-design.md` y `docs/superpowers/plans/2026-10-19-bc3-intercambio.md`. Sin muestras reales de una aplicación, no se anunciará compatibilidad con ella. Este registro no autoriza implementación, despliegue ni cambios de datos.
+El diseño y el detalle de implementación están en `docs/superpowers/specs/2026-10-19-bc3-intercambio-design.md` y `docs/superpowers/plans/2026-10-19-bc3-intercambio.md`. Sin muestras reales de una aplicación, no se anunciará compatibilidad con ella. El usuario autoriza el rediseño del modelo para esta feature; la implementación, cualquier migración de datos remotos, despliegue y publicación se abordarán en su fase correspondiente, con inventario y verificaciones del proyecto.
 
 ## Estado
 

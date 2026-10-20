@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Importar bases de precios al catálogo, importar presupuestos sin pérdida de información y exportar catálogo, presupuestos y plantillas en BC3 con diagnósticos claros.
+**Goal:** Adoptar un modelo canónico de construcción compatible con la estructura FIEBDC para importar bases y presupuestos, editarlos sin aplanar sus datos y exportar catálogo, presupuestos y plantillas a BC3.
 
-**Architecture:** Añadir un parser/serializador puro de FIEBDC en `shared/lib/bc3`, y adaptar sus modelos normalizados a Catálogo, Presupuesto y Plantilla desde features dedicadas. La UI presenta vista previa; si la adaptación del presupuesto pierde información, bloquea la confirmación. La persistencia usa los stores y APIs actuales. Se conservan unidades BC3 libres en el modelo y el editor.
+**Architecture:** Crear un modelo canónico `ConstructionDocument` que conserva conceptos por código, jerarquía, relaciones de descomposición, mediciones, unidades libres y registros extendidos. El parser y el serializador leen/escriben ese modelo directamente; Firestore almacena raíces ligeras y datos grandes en subcolecciones. Catálogo, editor de presupuesto, plantillas, proyectos, cálculos, PDF y compartir se actualizan para consumirlo.
 
 **Tech Stack:** React, TypeScript strict, Zustand, Vitest, Playwright, Vite; sin dependencias nuevas ni backend BC3.
 
@@ -12,15 +12,15 @@
 
 ## Global Constraints
 
-- Mantener las capas `app → pages → features → entities → shared` y las APIs públicas actuales.
+- Mantener las capas `app → pages → features → entities → shared`.
 - No añadir dependencias sin aprobación explícita.
 - Procesar los archivos localmente; no subir contenido BC3 a Firebase.
-- No introducir migraciones, reglas nuevas, escritura de datos reales, despliegues ni merges implícitos.
-- No importar presupuestos cuando adaptar el archivo pierda partidas o mediciones; bloquear la confirmación y explicar la incompatibilidad.
-- Preservar literalmente unidades BC3 desconocidas; el estimador público mantiene la validación de unidades con semántica conocida.
-- Exportar catálogo, presupuesto y plantillas como estructuras reutilizables.
-- No cambiar cálculos de presupuesto para acomodar BC3; PDF sólo cambia lo necesario para mostrar unidades libres conservadas.
-- La importación de presupuestos usa el flujo actual de borrador y cuota.
+- El usuario autoriza rediseñar el modelo de datos; no hay usuarios en producción.
+- No borrar ni migrar datos remotos en pruebas ni hacer una migración de producción sin inventario, copia y autorización específica.
+- No aplanar jerarquías, descomposiciones ni mediciones para importarlas en un modelo legado.
+- Preservar unidades, códigos, orden y precisión numérica; cualquier dato que no pueda conservarse bloquea la importación de obra.
+- Mantener la cuota de presupuestos y el aislamiento de datos privados.
+- Probar reglas nuevas/modificadas contra emuladores reales antes de considerarlas seguras.
 - La compatibilidad se afirma sólo para versiones/productores cubiertos por fixtures verificables.
 
 ## Review Focus
@@ -35,235 +35,196 @@
 
 ## Mapa de archivos propuesto
 
-- Crear `src/shared/lib/bc3/types.ts`: tipos normalizados de archivo, registros, conceptos, descomposiciones y diagnósticos.
-- Crear `src/shared/lib/bc3/parse.ts`: parser puro de registros BC3, detección de versión y diagnósticos.
-- Crear `src/shared/lib/bc3/serialize.ts`: escritura determinista de registros FIEBDC para el subconjunto soportado.
-- Crear `src/shared/lib/bc3/index.ts`: API pública `parseBc3` y `serializeBc3`.
-- Modificar `src/shared/types/index.ts` y `src/shared/ui/EditableRow.tsx` para preservar unidades BC3 libres sin perder las unidades conocidas.
-- Crear `src/features/bc3-import/model/catalogAdapter.ts`: conversión del modelo normalizado a `CatalogPart[]` y fusión selectiva.
-- Crear `src/features/bc3-import/model/budgetAdapter.ts`: conversión a `WorkItem[]` sólo para estructuras soportadas.
-- Crear `src/features/bc3-import/ui/Bc3ImportDialog.tsx`: selección de archivo, vista previa, diagnósticos y confirmación común.
-- Crear `src/features/bc3-import/ui/CatalogBc3Import.tsx` y `BudgetBc3Import.tsx`: integrar con catálogo y borrador de presupuesto.
-- Crear `src/features/bc3-export/model/catalogSerializer.ts`, `budgetSerializer.ts` y `templateSerializer.ts`: proyectar datos privados a la API del serializador.
-- Crear `src/features/bc3-export/ui/ExportBc3Button.tsx`: generar y descargar archivo local.
-- Modificar `src/pages/catalogs/CatalogDetailPage.tsx`, `src/pages/budget-detail/BudgetDetailPage.tsx` y/o componente de editor según encaje con sus acciones actuales.
-- Crear fixtures saneados en `tests/fixtures/bc3/` y pruebas unitarias en `tests/bc3*.test.ts`; ampliar E2E existente para los flujos UI.
-- Actualizar `docs/plan.md`, `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md` y `docs/firebase.md` únicamente en áreas afectadas.
+- Create `src/entities/construction-document/model/types.ts`: modelo canónico de documento, concepto, ocurrencia, descomposición, medición, coeficientes y extensión.
+- Create `src/entities/construction-document/model/math.ts`: evaluación de cantidades, descomposiciones y totales desde el modelo canónico.
+- Create `src/entities/construction-document/api/firestore.ts`: raíz, subcolecciones, carga, staging, publicación y limpieza.
+- Create `src/shared/lib/bc3/parse.ts` and `serialize.ts`: conversión de bytes/registros al mismo modelo y vuelta.
+- Replace los modelos de catálogo/presupuesto/plantilla que duplican capítulos y partidas; mantener stores/entities responsables del flujo de negocio.
+- Update editor, `src/entities/project`, `src/shared/lib/pdf.ts`, publicación/compartir y estimador para consumir el modelo canónico sin persistir copias planas.
+- Modify `firestore.rules`, `firestore.indexes.json` y pruebas de reglas para el nuevo esquema.
+- Create fixtures saneados en `tests/fixtures/bc3/` y pruebas de modelo/parser/persistencia/export y E2E.
+- Update `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md`, `docs/firebase.md` y `docs/plan.md`.
 
 ## Fase 0: fijar contratos y fixtures
 
-### Task 0: Preparar muestras y decisiones de compatibilidad
+### Task 0: Fijar perfil BC3 y muestras de aplicaciones
 
 **Files:**
 - Create: `tests/fixtures/bc3/` con muestras sintéticas y muestras reales anonimizadas aprobadas.
-- Create: `docs/superpowers/specs/2026-10-19-bc3-fixtures.md` con productor, versión, clase (base/obra), origen y campos cubiertos por cada muestra.
+- Create: `docs/superpowers/specs/2026-10-19-bc3-fixtures.md` con productor, versión, clase (base/obra), origen y registros cubiertos por cada muestra.
 
 **Interfaces:**
-- Produces: lista cerrada de variantes aceptadas; mapa de campos BC3 a los tipos locales; reglas de redondeo y bloqueos de pérdida.
+- Produces: perfil de registros FIEBDC preservados, variantes verificadas, límites de tamaño y fixtures representativos.
 
 - [ ] Solicitar/obtener al menos un BC3 de base de precios y un BC3 de presupuesto por cada aplicación prioritaria: Presto, Arquímedes y TCQ.
 - [ ] Si aún no hay muestra real de alguna aplicación, construir fixtures sintéticos para desarrollar, y marcar esa aplicación como no validada hasta obtener un archivo suyo.
 - [ ] Sanear y anonimizar los ficheros; nunca incluir datos personales o precios confidenciales sin autorización.
-- [ ] Definir tests de caja negra para importes, unidades, estructura soportada y diagnósticos antes de implementar el parser.
-- [ ] Fijar versiones y variantes verificadas de las tres aplicaciones; aceptar sólo estructuras cuya importación conserve partidas y mediciones.
+- [ ] Definir tests de caja negra para estructura, códigos, valores decimales, mediciones y registros opacos antes de implementar el parser.
+- [ ] Definir cómo retener registros desconocidos y qué referencias editables los invalidarían.
+- [ ] Definir el tamaño de fixtures pequeños/medianos/grandes y validar el umbral práctico de Firestore.
 
 ## Fase 1: parser puro
 
-### Task 1: Tipos normalizados y lector de registros
+### Task 1: Definir el modelo de documento FIEBDC nativo
 
 **Files:**
-- Create: `src/shared/lib/bc3/types.ts`
+- Create: `src/entities/construction-document/model/types.ts`
+- Create: `src/entities/construction-document/model/invariants.ts`
+- Test: `tests/constructionDocument.test.ts`
+
+**Interfaces:**
+- `ConstructionDocument = { id: string; schemaVersion: 1; kind: 'catalog' | 'budget' | 'template'; header: FiebdcHeader; concepts: Record<string, FiebdcConcept>; roots: FiebdcNode[]; coefficients: FiebdcCoefficient[]; opaqueRecords: FiebdcOpaqueRecord[]; business: ConstructionBusinessData }`
+- `FiebdcConcept` conserva código, tipo, resumen, unidad literal, precios por rótulo, textos y componentes de descomposición.
+- `FiebdcNode` conserva jerarquía, orden y referencia estable a concepto; `FiebdcMeasurementLine` conserva valores/factores, comentario, etiqueta y expresión de origen.
+- Decimales de origen conservan su representación para exportar sin pérdida de precisión; cálculos producen valores numéricos derivados.
+
+- [ ] Testear conceptos reutilizados en varias posiciones, códigos duplicados, ciclos y orden de hijos.
+- [ ] Testear descomposiciones, mediciones, decimales exactos y extensiones opacas.
+- [ ] Definir invariantes de documento y clasificación (base, obra, plantilla) sin depender de adaptadores de modelos planos; separar el ID interno seguro del código BC3 original para conservar códigos que no sean IDs Firestore válidos.
+- [ ] Ejecutar `pnpm test -- tests/constructionDocument.test.ts`; esperar PASS.
+
+### Task 2: cálculos nativos sobre el grafo de conceptos
+
+**Files:**
+- Create: `src/entities/construction-document/model/math.ts`
+- Test: `tests/constructionDocumentMath.test.ts`
+
+**Interfaces:**
+- Produce `calculateConstructionDocument(document): ConstructionTotals` desde cantidades/mediciones y descomposiciones preservadas.
+- Produce `getConstructionTree(document): ConstructionTreeNode[]` como vista derivada en memoria; el árbol derivado no se persiste como segunda fuente.
+
+- [ ] Testear sumas de mediciones, factores, rendimientos, conceptos compuestos, coeficientes y redondeo con fixtures de Task 0.
+- [ ] Testear ciclo/referencia inválida y bloquear cálculo de totales plausibles pero incompletos.
+- [ ] Implementar cálculos sin mutar ni aplanar el documento fuente.
+- [ ] Ejecutar `pnpm test -- tests/constructionDocumentMath.test.ts`; esperar PASS.
+
+## Fase 2: persistencia nativa
+
+### Task 3: almacenar documentos y grafos con staging
+
+**Files:**
+- Create: `src/entities/construction-document/api/firestore.ts`
+- Create: `src/entities/construction-document/model/store.ts`
+- Modify: `firestore.rules`, `firestore.indexes.json`
+- Test: `tests/constructionDocumentStore.test.ts`, `tests/constructionDocument.rules.test.ts`
+
+**Interfaces:**
+- Raíz propuesta: `users/{uid}/constructionDocuments/{id}` con `schemaVersion`, `kind`, metadatos de negocio y `state`.
+- Subcolecciones con IDs internos seguros y estables: `concepts/{conceptId}`, `nodes/{nodeId}`, `extensions/{recordId}`; conservar código BC3 original como campo, no como ID Firestore.
+- `stageConstructionDocument(uid, document): Promise<StagedDocument>` escribe por lotes y no publica una raíz lista.
+- `publishConstructionDocument(uid, staged, quota?): Promise<void>` crea raíz lista; para `kind='budget'` incrementa cuota en la misma transacción.
+- `loadConstructionDocument(uid, id): Promise<ConstructionDocument>` y `deleteConstructionDocument(uid, id): Promise<void>` leen y limpian todo el grafo.
+
+- [ ] Escribir pruebas de carga/guardado y reglas para conceptos/nodos/extensiones del propietario, estado listo y aislamiento entre cuentas.
+- [ ] Probar documentos mayores de 1 MiB repartidos en subcolecciones, lotes bajo el máximo de escrituras y fallo en mitad del staging.
+- [ ] Probar creación idempotente, publicación de presupuesto con una sola plaza de cuota, cancelación y limpieza de huérfanos.
+- [ ] Implementar API/store con estado staging no visible en listas y publicación transaccional de raíz/cuota.
+- [ ] Mantener datos remotos intactos; usar emuladores aislados. No desplegar reglas.
+- [ ] Ejecutar `pnpm test -- tests/constructionDocumentStore.test.ts` y `pnpm test:rules`; esperar PASS.
+
+## Fase 3: parser/serializador FIEBDC
+
+### Task 4: parsear y serializar el modelo canónico
+
+**Files:**
 - Create: `src/shared/lib/bc3/parse.ts`
-- Create: `src/shared/lib/bc3/index.ts`
-- Test: `tests/bc3Parser.test.ts`
-
-**Interfaces:**
-- `parseBc3(input: Uint8Array): Bc3ParseResult`
-- `Bc3ParseResult = { document: Bc3Document | null; diagnostics: Bc3Diagnostic[] }`
-- `Bc3Diagnostic = { code: string; severity: 'info' | 'warning' | 'error'; record?: number; message: string }`
-- `Bc3Document` conserva versión, datos de origen, conceptos por código, relaciones de descomposición y mediciones reconocidas.
-
-- [ ] Escribir tests para cabecera/versiones soportadas, campos escapados, CRLF, delimitadores y caracteres especiales.
-- [ ] Escribir tests de registros incompletos, codificación inválida, precios/cantidades no finitos y referencias pendientes.
-- [ ] Ejecutar `pnpm test -- tests/bc3Parser.test.ts` y confirmar los fallos esperados.
-- [ ] Implementar lector de bytes a registros y tokenizador por separadores conforme a fixtures; no usar `split('|')` ingenuo cuando haya escapes.
-- [ ] Implementar referencias fuera de orden y diagnósticos deterministas con número de registro.
-- [ ] Ejecutar `pnpm test -- tests/bc3Parser.test.ts`; esperar PASS.
-
-### Task 2: normalizar árbol de conceptos y clasificación
-
-**Files:**
-- Modify: `src/shared/lib/bc3/parse.ts`
-- Test: `tests/bc3Parser.test.ts`
-
-**Interfaces:**
-- `Bc3Document` expone conceptos completos y relaciones resueltas sin requerir orden previo de registros.
-- Produce `classifyBc3Document(document): 'database' | 'work' | 'unknown'` a partir de tipo/cabecera y estructura, sin confiar sólo en extensión.
-
-- [ ] Probar capítulos, partidas, conceptos simples, compuestos, textos y mediciones en el subconjunto identificado en Task 0.
-- [ ] Probar ciclos, códigos duplicados, hijos inexistentes y registros repetidos.
-- [ ] Implementar resolución de relaciones, detección de anomalías y clasificación con diagnósticos.
-- [ ] Ejecutar tests de parser; esperar PASS sin borrar diagnósticos de compatibilidad.
-
-## Fase 2: conservar unidades libres
-
-### Task 3: ampliar soporte de unidades sin alterar cálculos conocidos
-
-**Files:**
-- Modify: `src/shared/types/index.ts`
-- Modify: `src/shared/ui/EditableRow.tsx`
-- Modify: `src/features/budget-editor/ui/BudgetEditor.tsx`
-- Modify: `src/features/budget-editor/ui/CatalogSelector.tsx`
-- Modify: `src/features/budget-structure/BudgetStructureButton.tsx`
-- Modify: `src/shared/lib/pdf.ts`
-- Inspect/modify: `src/entities/quote-estimator/model/types.ts`, `estimate.ts` and related tests only to ensure free units remain rejected for calculations requiring known semantics.
-- Test: `tests/unitLabel.test.ts` and affected editor/PDF/estimator tests.
-
-**Interfaces:**
-- Define known units and a `Unit` type that also accepts non-empty custom labels from BC3.
-- Add `unitLabel(unit: Unit): string`; known units use current Spanish labels, custom units return their literal label.
-- The unit editor shows known options and preserves a custom current value without coercion.
-
-- [ ] Write tests for each existing unit label, a custom label (for example `kg`), and empty/whitespace rejection.
-- [ ] Write a regression test that custom units do not become valid estimator area units.
-- [ ] Implement type, label helper and editable custom-unit UI; retain current defaults/options for new manual rows.
-- [ ] Replace direct `UNIT_LABELS[unit]` lookups in UI/PDF with `unitLabel` so unknown units never render `undefined`.
-- [ ] Run focused unit/editor/PDF/estimator tests; expect PASS with current behavior for known units unchanged.
-
-## Fase 3: importación del catálogo
-
-### Task 4: adaptar y fusionar catálogo BC3
-
-**Files:**
-- Create: `src/features/bc3-import/model/catalogAdapter.ts`
-- Test: `tests/bc3CatalogAdapter.test.ts`
-- Modify: `src/entities/catalog/model/store.ts` sólo si hace falta una acción atómica nueva.
-
-**Interfaces:**
-- `adaptBc3Catalog(document: Bc3Document): Bc3CatalogImportPreview`
-- `mergeBc3Catalog(existing: CatalogPart[], selection: Bc3CatalogSelection): Bc3CatalogMergeResult`
-- El adaptador asigna precio BC3 a `basePrice`; `cost=0` si el fichero no aporta coste inequívoco.
-
-- [ ] Testear partidas/códigos/descripciones/unidades/precios, conceptos sin precio y partidas vacías.
-- [ ] Testear merge repetible: duplicados por descripción/unidad no se añaden y valores personalizados no se sustituyen.
-- [ ] Testear conservación literal de unidades libres y diagnóstico visible para composición que no se puede aplanar y datos no soportados.
-- [ ] Implementar adapter y merge puro sin escribir Firestore.
-- [ ] Ejecutar `pnpm test -- tests/bc3CatalogAdapter.test.ts`; esperar PASS.
-
-### Task 5: UI de importación del catálogo
-
-**Files:**
-- Create: `src/features/bc3-import/ui/Bc3ImportDialog.tsx`
-- Create: `src/features/bc3-import/ui/CatalogBc3Import.tsx`
-- Modify: `src/pages/catalogs/CatalogDetailPage.tsx`
-- Test: E2E de importación BC3 de catálogo.
-
-**Interfaces:**
-- Consume `parseBc3`, `adaptBc3Catalog`, `mergeBc3Catalog` y la acción pública de importación del catálogo.
-- Devuelve confirmación resumida de partidas/conceptos añadidos, omitidos y con advertencias.
-
-- [ ] Escribir prueba de interacción: elegir fichero → ver preview → cancelar sin cambios.
-- [ ] Escribir prueba de interacción: confirmar una selección → añadir partidas y conceptos una sola vez.
-- [ ] Implementar selector de archivo `.bc3`, vista previa/selectiva, diagnóstico y estados de error/carga.
-- [ ] Integrar persistencia en una sola actualización del catálogo mediante su store existente.
-- [ ] Verificar teclado, foco, Escape, doble clic, 320/390 px y escritorio.
-- [ ] Ejecutar E2E específico; esperar PASS y ausencia de escrituras al cancelar.
-
-## Fase 4: importación del presupuesto
-
-### Task 6: adapter de obra y política de compatibilidad
-
-**Files:**
-- Create: `src/features/bc3-import/model/budgetAdapter.ts`
-- Test: `tests/bc3BudgetAdapter.test.ts`
-
-**Interfaces:**
-- `adaptBc3Budget(document: Bc3Document): Bc3BudgetImportPreview`
-- Resultado separa datos compatibles, registros ignorados, incompatibilidades bloqueantes y total calculado.
-- Las filas resultantes se pueden usar como `WorkItem[]`; IDs finales se generan al confirmar.
-- Cualquier pérdida de partida o medición bloquea todo el flujo de importación; no existe confirmación de descarte parcial.
-
-- [ ] Probar una obra simple soportada, capítulos, cantidades decimales y unidades cubiertas.
-- [ ] Probar unidades libres conservadas literalmente, subcapítulos, fórmulas/mediciones y descomposiciones.
-- [ ] Probar política redondeo/cálculo con los importes de cada fixture, incluyendo diferencias al céntimo.
-- [ ] Implementar adapter que bloquee confirmación ante pérdida de cualquier partida o medición y presente total fuente/destino.
-- [ ] Ejecutar `pnpm test -- tests/bc3BudgetAdapter.test.ts`; esperar PASS.
-
-### Task 7: UI de importación y creación de borrador
-
-**Files:**
-- Create: `src/features/bc3-import/ui/BudgetBc3Import.tsx`
-- Modify: `src/pages/budgets/BudgetsPage.tsx` y/o `src/pages/budget-detail/BudgetDetailPage.tsx` para punto de entrada adecuado.
-- Modify: `src/entities/budget/model/store.ts` sólo si se necesita una acción explícita para iniciar borrador desde estructura importada.
-- Test: E2E de importación a presupuesto.
-
-**Interfaces:**
-- Consume `adaptBc3Budget` y una acción de store que abre borrador nuevo a partir de `BudgetInfo` y `WorkItem[]` validados.
-- Cancelar no edita store ni crea documento; guardar usa la cuota y API existentes.
-
-- [ ] Probar previsualización, cancelación y confirmación sin guardar.
-- [ ] Probar que un archivo bloqueado no habilita Confirmar y muestra por qué.
-- [ ] Probar que tras confirmar se abre un draft con IDs nuevos, cantidades/precios adaptados y edición habitual.
-- [ ] Probar guardado conforme al límite actual, recarga/recuperación del borrador y aislamiento de sesión.
-- [ ] Implementar flujo UI reutilizando el store sin alterar presupuestos existentes.
-- [ ] Verificar E2E en fixture, y capturas 320/390/430 px y escritorio.
-
-## Fase 5: exportación BC3
-
-### Task 8: serializador FIEBDC determinista
-
-**Files:**
 - Create: `src/shared/lib/bc3/serialize.ts`
-- Modify: `src/shared/lib/bc3/index.ts`
-- Test: `tests/bc3Serializer.test.ts`
+- Create: `src/shared/lib/bc3/index.ts`
+- Test: `tests/bc3Codec.test.ts`
 
 **Interfaces:**
-- `serializeBc3(document: Bc3ExportDocument): Uint8Array`
-- Exporta una versión fijada/aprobada por Task 0 y registros compatibles con FIEBDC.
-- `Bc3ExportDocument` contiene sólo conceptos/árbol/precios/mediciones que se hayan declarado como soportados.
+- `parseBc3(input: Uint8Array): { document: ConstructionDocument | null; diagnostics: Bc3Diagnostic[] }`
+- `serializeBc3(document: ConstructionDocument): Uint8Array`
+- Parser y serializador usan los tipos del dominio directamente; no dependen de `Budget`, `WorkItem`, `CatalogPart` o React.
 
-- [ ] Testear bytes/texto exacto para códigos, separadores, escapes, decimales y fin de archivo.
-- [ ] Testear validación de código, texto, unidades y precios inválidos.
-- [ ] Implementar escritura determinista y encabezado con emisor BudGenerator, versión y fecha.
-- [ ] Abrir los archivos de fixture exportados con al menos una herramienta BC3 de referencia, cuando haya disponible, y registrar el resultado.
-- [ ] Ejecutar `pnpm test -- tests/bc3Serializer.test.ts`; esperar PASS.
+- [ ] Testear cabeceras/versiones, codificación, CRLF/EOF DOS, separadores escapados, orden arbitrario y referencias.
+- [ ] Testear que valores decimales, códigos, relaciones, orden de mediciones y registros opacos sobreviven parsear→serializar→parsear.
+- [ ] Testear rechazos de truncado, duplicados ambiguos, ciclos y extensión que refiera códigos desconocidos.
+- [ ] Implementar codecs puros para el perfil FIEBDC acordado en Task 0 y diagnósticos estables.
+- [ ] Ejecutar `pnpm test -- tests/bc3Codec.test.ts`; esperar PASS.
 
-### Task 9: exportadores de catálogo, presupuesto y plantilla
+## Fase 4: catálogo y bases de precios
+
+### Task 5: importar y consultar catálogos FIEBDC
 
 **Files:**
-- Create: `src/features/bc3-export/model/catalogSerializer.ts`
-- Create: `src/features/bc3-export/model/budgetSerializer.ts`
-- Create: `src/features/bc3-export/model/templateSerializer.ts`
+- Modify: `src/entities/catalog/model/store.ts`, `src/entities/catalog/api/firestore.ts`
+- Modify: `src/pages/catalogs/CatalogDetailPage.tsx`, modal de selección de base
+- Test: `tests/bc3CatalogImport.test.ts` y E2E de catálogo
+
+**Interfaces:**
+- El catálogo activo y las bases BC3 importadas son `ConstructionDocument`; no se persisten como `CatalogPart[]`.
+- `previewBc3Catalog(document): Bc3CatalogPreview` muestra árbol, códigos, unidades, precios, composiciones y registros extendidos.
+- Importar/seleccionar una base conserva la identidad original; integrar conceptos al catálogo activo respeta referencias/códigos sin colapsar el grafo.
+
+- [ ] Testear importación de base BC3 con códigos repetidos, árbol, descomposición, unidad libre y precios múltiples.
+- [ ] Testear que la vista previa/cancelación no escribe, confirmar no duplica y un fallo no deja base parcial visible.
+- [ ] Definir conflicto de códigos entre catálogo activo y fuente sin renombrado silencioso; ofrecer conservar como base independiente.
+- [ ] Implementar UI de importar/seleccionar y navegación del árbol sin alterar cotizaciones configuradas.
+- [ ] Verificar teclado, foco, móvil 320/390 px y escritorio.
+- [ ] Ejecutar unitarias y E2E específicos; esperar PASS.
+
+## Fase 5: presupuesto y consumidores del modelo
+
+### Task 6: editor, cálculos y presupuesto BC3 nativo
+
+**Files:**
+- Replace/refactor: `src/entities/budget/model/store.ts`, serialization y APIs a `ConstructionDocument`.
+- Refactor: `src/features/budget-editor/ui/BudgetEditor.tsx`, `BudgetSummary.tsx`, estructura de árbol y mediciones.
+- Refactor: `src/shared/lib/budgetMath.ts`
+- Test: `tests/constructionDocumentEditor.test.ts`, `tests/budgetMath.test.ts`, E2E de editor.
+
+- [ ] Testear edición de capítulos anidados, conceptos por código, descomposiciones, fórmulas/mediciones y unidades libres.
+- [ ] Testear que edición no muta otra referencia compartida al concepto ni borra registros opacos no afectados.
+- [ ] Implementar editor/cálculos sobre el grafo nativo, conservando operaciones de guardar, aceptar y cuota.
+- [ ] Añadir importación BC3 desde presupuestos: analizar localmente, vista previa con totales/diagnósticos, bloquear si el perfil no conserva toda la semántica, stage y publicar al confirmar.
+- [ ] Probar cancelación, carga/reanudación de staging, doble clic, cuota, cambio de sesión y aislamiento.
+- [ ] Ejecutar unitarias, emuladores y E2E de importación/edición; esperar PASS.
+
+### Task 7: actualizar proyectos, plantillas, PDF, compartir y estimador
+
+**Files:**
+- Refactor: `src/entities/project/model/*`, `src/entities/project/api/firestore.ts` y detalle de proyecto.
+- Refactor: `src/entities/template/*` y `src/pages/template-detail/TemplateDetailPage.tsx`.
+- Refactor: `src/shared/lib/pdf.ts`, `src/entities/budget/model/publicBudget.ts` y tipos compartidos.
+- Inspect/modify: `src/entities/quote-estimator/*` y `functions/src/quoteEstimator.ts` para usar solo semánticas de unidad compatibles.
+- Update: reglas y pruebas de proyectos, plantillas y DTO compartido.
+
+- [ ] Probar snapshot inmutable de presupuesto aceptado, progreso por ocurrencia y suplementos asociados a nodos del árbol.
+- [ ] Probar plantilla como `ConstructionDocument` reutilizable sin IDs colisionados y reuso de conceptos.
+- [ ] Probar PDF y publicación pública sin incluir extensiones privadas, costes internos ni credenciales.
+- [ ] Mantener el estimador limitado a servicios/unidades con interpretación conocida; rechazar los demás con mensaje claro.
+- [ ] Ejecutar pruebas de cada consumidor afectado, reglas y recorridos E2E; esperar PASS.
+
+## Fase 6: exportación y cierre
+
+### Task 8: exportar catálogos, presupuestos y plantillas
+
+**Files:**
 - Create: `src/features/bc3-export/ui/ExportBc3Button.tsx`
-- Modify: `src/pages/catalogs/CatalogDetailPage.tsx`, `src/pages/budget-detail/BudgetDetailPage.tsx`, `src/pages/template-detail/TemplateDetailPage.tsx`.
-- Test: `tests/bc3ExportAdapters.test.ts` y E2E de descarga.
+- Modify: páginas de catálogo, presupuesto y plantilla
+- Test: `tests/bc3RoundTrip.test.ts` y E2E de descarga
 
 **Interfaces:**
-- `exportCatalogToBc3(parts: CatalogPart[]): Bc3ExportDocument`
-- `exportBudgetToBc3(budget: Budget): Bc3ExportDocument`
-- `exportTemplateToBc3(template: BudgetTemplate): Bc3ExportDocument`
-- Descarga usa `Blob`/Object URL local, nombre saneado, MIME y revocación de URL.
+- `serializeBc3(document: ConstructionDocument): Uint8Array` es el único writer.
+- Descarga genera Blob/Object URL local, nombre saneado y libera URL.
 
-- [ ] Testear proyección catálogo/presupuesto/plantilla, códigos generados estables, costes no inventados y diagnósticos.
-- [ ] Testear round-trip `parseBc3(serializeBc3(export...))` conservando estructura e importes soportados.
-- [ ] Implementar descarga desde catálogo, presupuesto y plantilla; impedir exportar presupuestos incompletos sólo si la política actual de exportación lo exige, explicando el bloqueo.
-- [ ] Probar descarga desde navegador con nombre, bytes `.bc3` y sin escritura remota.
-- [ ] Verificar experiencia responsive y estados de error.
+- [ ] Testear import→export→import para muestras objetivo conservando códigos, versiones, estructura, mediciones, valores y registros opacos.
+- [ ] Abrir archivos exportados con Presto, Arquímedes y TCQ si están disponibles y registrar resultado por aplicación/versión.
+- [ ] Añadir exportación desde catálogo, presupuesto y plantilla; incluir advertencias por datos de negocio que no tengan registro BC3 equivalente.
+- [ ] Ejecutar prueba navegador para bytes y nombre de archivo sin escrituras remotas.
 
-## Fase 6: cierre
-
-### Task 10: compatibilidad transversal y documentación
+### Task 9: cierre de modelo, documentación y regresión
 
 **Files:**
-- Modify: `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md`, `docs/firebase.md` sólo si aplica, `docs/plan.md`.
-- Modify: `tests/fixtures/bc3/`, pruebas unitarias y E2E según hallazgos.
+- Modify: `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md`, `docs/firebase.md`, `docs/plan.md`.
+- Modify: fixtures unitarios/E2E y reglas según hallazgos.
 
-- [ ] Hacer self-review de spec↔plan: cada campo, diagnóstico, flujo y riesgo tiene tarea/test.
-- [ ] Ejecutar checks específicos BC3.
-- [ ] Ejecutar `pnpm lint`, `pnpm test`, `pnpm test:integration`, `pnpm build`, `pnpm format:check` y `git diff --check`.
-- [ ] Registrar sólo resultados ejecutados, versiones de fixture cubiertas, límites conocidos y revisión visual.
-- [ ] Confirmar que no se modificaron reglas/datos reales ni se desplegó; no auto-merge.
+- [ ] Self-review de cobertura spec→plan y modelo→Firestore→UI→export.
+- [ ] Ejecutar `pnpm test`, `pnpm test:integration`, `pnpm lint`, `pnpm build`, `pnpm format:check` y `git diff --check`.
+- [ ] Registrar resultados reales, aplicaciones/versions validadas, límites y capturas responsive.
+- [ ] Verificar que no hubo migración ni escritura de producción, ni despliegue o merge no solicitado.
 
 ## Orden recomendado
 
-Implementar secuencialmente en checkout aislado: fijar muestras → parser → importación catálogo → importación presupuesto → serializador/exportadores → verificación/documentación. No paralelizar parser y adapters mientras sus interfaces de registros normalizados están cambiando.
+Modelar y validar el grafo → persistencia escalable/reglas → codec → catálogo → editor/cálculos → consumidores existentes → exportación y cierre. Mantener cada fase revisable; no publicar cambios de reglas o esquema hasta completar pruebas de emulador y acordar cómo tratar cualquier dato remoto previo.
