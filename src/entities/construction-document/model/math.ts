@@ -1,9 +1,5 @@
 import { validateConstructionDocument } from './invariants';
-import type {
-  ConstructionDocument,
-  FiebdcConcept,
-  FiebdcNode,
-} from './types';
+import type { ConstructionDocument, FiebdcConcept, FiebdcNode } from './types';
 
 export interface ConstructionTreeNode {
   id: string;
@@ -61,10 +57,16 @@ function measurementQuantity(node: FiebdcNode): number | null {
 }
 
 function indexConcepts(document: ConstructionDocument): Map<string, FiebdcConcept> {
-  return new Map(Object.values(document.concepts).flatMap((concept) => concept.codes.map((code) => [code, concept] as const)));
+  return new Map(
+    Object.values(document.concepts).flatMap((concept) =>
+      concept.codes.map((code) => [code, concept] as const),
+    ),
+  );
 }
 
-function mapInvariantIssue(issue: ReturnType<typeof validateConstructionDocument>[number]): ConstructionMathIssue | null {
+function mapInvariantIssue(
+  issue: ReturnType<typeof validateConstructionDocument>[number],
+): ConstructionMathIssue | null {
   if (issue.code === 'unknown-concept-reference' || issue.code === 'cyclic-decomposition')
     return { code: issue.code, message: issue.message, codeReference: issue.codeReference };
   return null;
@@ -82,18 +84,30 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
     if (rates.has(code)) return rates.get(code)!;
     const concept = concepts.get(code);
     if (!concept) {
-      issues.push({ code: 'unknown-concept-reference', codeReference: code, message: `No se puede calcular: falta el concepto ${code}.` });
+      issues.push({
+        code: 'unknown-concept-reference',
+        codeReference: code,
+        message: `No se puede calcular: falta el concepto ${code}.`,
+      });
       return 0;
     }
     if (rateStack.has(code)) {
-      issues.push({ code: 'cyclic-decomposition', codeReference: code, message: `No se puede calcular la descomposición cíclica de ${code}.` });
+      issues.push({
+        code: 'cyclic-decomposition',
+        codeReference: code,
+        message: `No se puede calcular la descomposición cíclica de ${code}.`,
+      });
       return 0;
     }
     const directPrice = concept.prices[0]?.amount.raw;
     if (directPrice !== undefined) {
       const parsed = decimal(directPrice);
       if (parsed === null) {
-        issues.push({ code: 'invalid-number', codeReference: code, message: `El precio de ${code} no es numérico: ${directPrice}.` });
+        issues.push({
+          code: 'invalid-number',
+          codeReference: code,
+          message: `El precio de ${code} no es numérico: ${directPrice}.`,
+        });
         return 0;
       }
       rates.set(code, parsed);
@@ -108,7 +122,11 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
       const factor = decimal(line.factor.raw);
       const yieldValue = decimal(line.yield.raw);
       if (factor === null || yieldValue === null) {
-        issues.push({ code: 'invalid-number', codeReference: code, message: `La descomposición de ${code} contiene un factor o rendimiento no numérico.` });
+        issues.push({
+          code: 'invalid-number',
+          codeReference: code,
+          message: `La descomposición de ${code} contiene un factor o rendimiento no numérico.`,
+        });
         return sum;
       }
       return sum + factor * yieldValue * getRate(line.code);
@@ -121,11 +139,24 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
   const makeTreeNode = (node: FiebdcNode, inheritedQuantity: number): ConstructionTreeNode => {
     const concept = concepts.get(node.conceptCode);
     if (!concept) {
-      issues.push({ code: 'unknown-concept-reference', codeReference: node.conceptCode, message: `No se puede calcular: falta el concepto ${node.conceptCode}.` });
+      issues.push({
+        code: 'unknown-concept-reference',
+        codeReference: node.conceptCode,
+        message: `No se puede calcular: falta el concepto ${node.conceptCode}.`,
+      });
     }
     const measured = measurementQuantity(node);
-    if (measured === null && node.measurements.some((line) => line.total || line.units || line.length || line.breadth || line.height))
-      issues.push({ code: 'invalid-number', codeReference: node.conceptCode, message: `Las mediciones de ${node.conceptCode} contienen valores no numéricos.` });
+    if (
+      measured === null &&
+      node.measurements.some(
+        (line) => line.total || line.units || line.length || line.breadth || line.height,
+      )
+    )
+      issues.push({
+        code: 'invalid-number',
+        codeReference: node.conceptCode,
+        message: `Las mediciones de ${node.conceptCode} contienen valores no numéricos.`,
+      });
     const quantity = measured ?? inheritedQuantity;
     const unitPrice = getRate(node.conceptCode);
     const children = node.children.map((child, index) => {
@@ -133,13 +164,30 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
       const factor = edge ? decimal(edge.factor.raw) : 1;
       const yieldValue = edge ? decimal(edge.yield.raw) : 1;
       if (factor === null || yieldValue === null)
-        issues.push({ code: 'invalid-number', codeReference: child.conceptCode, message: `El factor o rendimiento de ${child.conceptCode} no es numérico.` });
+        issues.push({
+          code: 'invalid-number',
+          codeReference: child.conceptCode,
+          message: `El factor o rendimiento de ${child.conceptCode} no es numérico.`,
+        });
       return makeTreeNode(child, quantity * (factor ?? 0) * (yieldValue ?? 0));
     });
     const summary = concept?.summary ?? '';
     const unit = concept?.unit ?? '';
-    const amount = concept?.prices.length ? quantity * unitPrice : children.length ? children.reduce((sum, child) => sum + child.amount, 0) : quantity * unitPrice;
-    return { id: node.id, conceptCode: node.conceptCode, summary, unit, quantity, unitPrice, amount, children };
+    const amount = concept?.prices.length
+      ? quantity * unitPrice
+      : children.length
+        ? children.reduce((sum, child) => sum + child.amount, 0)
+        : quantity * unitPrice;
+    return {
+      id: node.id,
+      conceptCode: node.conceptCode,
+      summary,
+      unit,
+      quantity,
+      unitPrice,
+      amount,
+      children,
+    };
   };
 
   const tree = document.roots.map((node) => makeTreeNode(node, 1));
