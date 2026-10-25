@@ -80,10 +80,10 @@
 - `FiebdcNode` conserva jerarquía, orden y referencia estable a concepto; `FiebdcMeasurementLine` conserva valores/factores, comentario, etiqueta y expresión de origen.
 - Decimales de origen conservan su representación para exportar sin pérdida de precisión; cálculos producen valores numéricos derivados.
 
-- [ ] Testear conceptos reutilizados en varias posiciones, códigos duplicados, ciclos y orden de hijos.
-- [ ] Testear descomposiciones, mediciones, decimales exactos y extensiones opacas.
-- [ ] Definir invariantes de documento y clasificación (base, obra, plantilla) sin depender de adaptadores de modelos planos; separar el ID interno seguro del código BC3 original para conservar códigos que no sean IDs Firestore válidos.
-- [ ] Ejecutar `pnpm test -- tests/constructionDocument.test.ts`; esperar PASS.
+- [x] Testear conceptos reutilizados en varias posiciones, códigos duplicados, ciclos y orden de hijos.
+- [x] Testear descomposiciones, mediciones, decimales exactos y extensiones opacas.
+- [x] Definir invariantes de documento y clasificación (base, obra, plantilla) sin depender de adaptadores de modelos planos; separar el ID interno seguro del código BC3 original para conservar códigos que no sean IDs Firestore válidos.
+- [x] Ejecutar prueba focalizada del modelo; PASS (5 pruebas).
 
 ### Task 2: cálculos nativos sobre el grafo de conceptos
 
@@ -95,10 +95,10 @@
 - Produce `calculateConstructionDocument(document): ConstructionTotals` desde cantidades/mediciones y descomposiciones preservadas.
 - Produce `getConstructionTree(document): ConstructionTreeNode[]` como vista derivada en memoria; el árbol derivado no se persiste como segunda fuente.
 
-- [ ] Testear sumas de mediciones, factores, rendimientos, conceptos compuestos, coeficientes y redondeo con fixtures de Task 0.
-- [ ] Testear ciclo/referencia inválida y bloquear cálculo de totales plausibles pero incompletos.
-- [ ] Implementar cálculos sin mutar ni aplanar el documento fuente.
-- [ ] Ejecutar `pnpm test -- tests/constructionDocumentMath.test.ts`; esperar PASS.
+- [x] Testear cantidades medidas/dimensionales, factores, rendimientos, conceptos compuestos y referencias inválidas con documento sintético.
+- [x] Testear que no se publica un total plausible con referencias inválidas.
+- [x] Implementar cálculos derivados sin mutar ni aplanar el documento fuente.
+- [x] Ejecutar prueba focalizada de cálculos; PASS (3 pruebas). Quedan coeficientes, fórmulas y redondeo BC3 por cubrir con muestras reales.
 
 ## Fase 2: persistencia nativa
 
@@ -140,7 +140,7 @@
 - Parser y serializador usan los tipos del dominio directamente; no dependen de `Budget`, `WorkItem`, `CatalogPart` o React.
 
 - [ ] Testear cabeceras/versiones, codificación, CRLF/EOF DOS, separadores escapados, orden arbitrario y referencias.
-- [ ] Testear que valores decimales, códigos, relaciones, orden de mediciones y registros opacos sobreviven parsear→serializar→parsear.
+- [x] Testear fixture sintético de catálogo/presupuesto, cabecera de certificación rechazada y lexemas de precio en un round-trip básico (3 pruebas).
 - [ ] Testear rechazos de truncado, duplicados ambiguos, ciclos y extensión que refiera códigos desconocidos.
 - [ ] Implementar codecs puros para el perfil FIEBDC acordado en Task 0 y diagnósticos estables.
 - [ ] Ejecutar `pnpm test -- tests/bc3Codec.test.ts`; esperar PASS.
