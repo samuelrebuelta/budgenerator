@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Adoptar un modelo canónico de construcción compatible con la estructura FIEBDC para importar bases y presupuestos, editarlos sin aplanar sus datos y exportar catálogo, presupuestos y plantillas a BC3.
+**Goal:** Usar el modelo de dominio FIEBDC como formato estándar en toda BudGenerator, conservar la UX sencilla actual e importar/exportar catálogos, presupuestos y plantillas sin traducir a modelos paralelos.
 
-**Architecture:** Crear un modelo canónico `ConstructionDocument` que conserva conceptos por código, jerarquía, relaciones de descomposición, mediciones, unidades libres y registros extendidos. El parser y el serializador leen/escriben ese modelo directamente; Firestore almacena raíces ligeras y datos grandes en subcolecciones. Catálogo, editor de presupuesto, plantillas, proyectos, cálculos, PDF y compartir se actualizan para consumirlo.
+**Architecture:** Crear un modelo canónico `ConstructionDocument` que conserva conceptos por código, jerarquía, relaciones de descomposición, mediciones, unidades libres y registros extendidos. Será la fuente persistida de toda la app. El parser y el serializador trabajan directamente con él; sólo codifican/decodifican bytes BC3. Firestore almacena raíces ligeras y grafos grandes en subcolecciones. Todos los módulos lo consumen; la UI ofrece el flujo simple habitual y revela detalles bajo demanda.
 
 **Tech Stack:** React, TypeScript strict, Zustand, Vitest, Playwright, Vite; sin dependencias nuevas ni backend BC3.
 
@@ -18,6 +18,8 @@
 - El usuario autoriza rediseñar el modelo de datos; no hay usuarios en producción.
 - No borrar ni migrar datos remotos en pruebas ni hacer una migración de producción sin inventario, copia y autorización específica.
 - No aplanar jerarquías, descomposiciones ni mediciones para importarlas en un modelo legado.
+- Mantener en el formulario rápido descripción, cantidad, unidad y precio; mediciones y descomposiciones avanzadas son opcionales.
+- No implementar certificaciones en esta entrega; detectarlas y rechazarlas como tipo no soportado.
 - Preservar unidades, códigos, orden y precisión numérica; cualquier dato que no pueda conservarse bloquea la importación de obra.
 - Mantener la cuota de presupuestos y el aislamiento de datos privados.
 - Probar reglas nuevas/modificadas contra emuladores reales antes de considerarlas seguras.
@@ -161,6 +163,7 @@
 - [ ] Testear que la vista previa/cancelación no escribe, confirmar no duplica y un fallo no deja base parcial visible.
 - [ ] Definir conflicto de códigos entre catálogo activo y fuente sin renombrado silencioso; ofrecer conservar como base independiente.
 - [ ] Implementar UI de importar/seleccionar y navegación del árbol sin alterar cotizaciones configuradas.
+- [ ] Mantener la búsqueda y alta existentes; permitir abrir detalles de unidad/precio al consultar una partida, sin añadir pasos obligatorios al alta simple.
 - [ ] Verificar teclado, foco, móvil 320/390 px y escritorio.
 - [ ] Ejecutar unitarias y E2E específicos; esperar PASS.
 
@@ -177,6 +180,7 @@
 - [ ] Testear edición de capítulos anidados, conceptos por código, descomposiciones, fórmulas/mediciones y unidades libres.
 - [ ] Testear que edición no muta otra referencia compartida al concepto ni borra registros opacos no afectados.
 - [ ] Implementar editor/cálculos sobre el grafo nativo, conservando operaciones de guardar, aceptar y cuota.
+- [ ] Verificar que crear una partida requiere los mismos campos y acciones visibles que hoy; la cantidad simple se representa como una medición y el panel avanzado comienza cerrado.
 - [ ] Añadir importación BC3 desde presupuestos: analizar localmente, vista previa con totales/diagnósticos, bloquear si el perfil no conserva toda la semántica, stage y publicar al confirmar.
 - [ ] Probar cancelación, carga/reanudación de staging, doble clic, cuota, cambio de sesión y aislamiento.
 - [ ] Ejecutar unitarias, emuladores y E2E de importación/edición; esperar PASS.

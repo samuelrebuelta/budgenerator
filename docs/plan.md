@@ -1,6 +1,6 @@
 # BudGenerator — Plan SDD
 
-Actualizado: 2026-10-20. Fuente operativa de tareas y decisiones del producto.
+Actualizado: 2026-10-25. Fuente operativa de tareas y decisiones del producto.
 
 Desplegables en presupuesto ligado a proyecto (19-10-2026): el `fieldset disabled` que protege el contenido congelado también deshabilitaba los controles de colapso. Los controles de datos del presupuesto siguen bloqueados; los desplegables de datos del cliente, capítulos y partidas vuelven a poder operarse con ratón y teclado. Revisión estática de rendimiento: las partidas siguen montadas cuando se colapsa un capítulo; no se implementó lazy load ni virtualización. Verificación para integrar (20-10-2026): `pnpm test` falló en 1 de 131 tests por la expectativa obsoleta de `tests/catalogTradeImport.test.ts`; `pnpm test:integration` pasó 41/41 reglas y falló 3/38 E2E de catálogo/estructura guiada. `pnpm lint`, `pnpm format:check`, `pnpm build` y `git diff --check` pasaron. Integrado en `main` (commit `9f46e4b`) y desplegado sólo a Hosting en `budgenerator` con PWA `a9ac3670faec912d`; `index.html`, ambos service workers y 35 assets se compararon con `dist`. Sin despliegues de reglas o Functions.
 
@@ -24,9 +24,9 @@ Refinamiento del importador móvil (19-10-2026): el detalle de categoría abre u
 
 ## Trabajo futuro — intercambio BC3
 
-Planificado para abordar en una fase futura; no está activo todavía. Con la autorización del usuario para cambiar el modelo de datos y sin usuarios en producción, el sistema podrá adoptar un modelo canónico nativo FIEBDC para catálogos, presupuestos y plantillas. No se adaptará BC3 a los modelos planos actuales como fuente persistida: jerarquías, referencias por código, descomposiciones, unidades literales, precios y mediciones se conservarán en el modelo compartido. La implementación afectará persistencia Firestore, reglas y consumidores de catálogo, editor, proyectos, plantillas, cálculos, PDF, publicación y estimador.
+En implementación en `codex/bc3-native-model`. El usuario autoriza migrar toda la app a un modelo de dominio nativo FIEBDC, usado como fuente de verdad para catálogo, presupuestos, plantillas y proyectos. No se traducirán importaciones/exportaciones a modelos de negocio paralelos. El modelo conserva jerarquía, referencias por código, descomposiciones, unidades literales, precios y mediciones. Se adaptarán persistencia Firestore, reglas y consumidores de catálogo, editor, proyectos, plantillas, cálculos, PDF, publicación y estimador.
 
-El alcance incluye importar bases de precios BC3 como fuentes privadas, importar presupuestos bloqueando cualquier pérdida de partidas, mediciones o semántica económica, y exportar catálogo, presupuestos y plantillas desde el mismo modelo. Las unidades libres se conservan literalmente; el precio importado alimentará el precio de venta y el coste será cero si no puede identificarse inequívocamente. Los archivos se procesan localmente; los grafos se guardarán en Firestore mediante raíz ligera y subcolecciones con staging, validando tamaño con fixtures.
+El alcance incluye importar bases de precios BC3 como fuentes privadas, importar presupuestos bloqueando cualquier pérdida de partidas, mediciones o semántica económica, y exportar catálogo, presupuestos y plantillas desde el mismo modelo. Las certificaciones quedan fuera y se rechazan explícitamente. La UX conserva el alta rápida actual (descripción, cantidad, unidad y precio); las mediciones y descomposiciones se consultan/editan en paneles opcionales. Las unidades libres se conservan literalmente; el precio importado alimentará el precio de venta y el coste será cero si no puede identificarse inequívocamente. Los archivos se procesan localmente; los grafos se guardarán en Firestore mediante raíz ligera y subcolecciones con staging, validando tamaño con fixtures.
 
 Orden previsto:
 

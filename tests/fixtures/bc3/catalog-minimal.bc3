@@ -1,0 +1,7 @@
+~V|BudGenerator fixtures|3/2024\25102026|BudGenerator|Catálogo sintético\Venta|ANSI|Base de prueba|1|
+~C|MAT001|m2|Baldosa sintética|10.00|25102026|3|
+~C|MO001|h|Mano de obra sintética|20.00|25102026|1|
+~C|PAV001|m2|Colocación de baldosa sintética|20.00|25102026|0|
+~D|PAV001|MAT001\1\1\MO001\1\0.5|
+~T|PAV001|Incluye suministro y colocación.|
+
