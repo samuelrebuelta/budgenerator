@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Check, ChevronDown, Circle, ClipboardCheck, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { getProjectLocalDateKey, ProjectStatusTag, useProjectStore } from '@/entities/project';
@@ -10,6 +10,7 @@ import { Button, Card, PageHeader, Skeleton } from '@/shared/ui';
 import { ProjectProgressBar } from '@/pages/projects/ProjectProgressBar';
 import { ProjectProgressHistoryDialog } from './ProjectProgressHistoryDialog';
 import { ProjectTaskCompletionDate } from './ProjectTaskCompletionDate';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 function dateLabel(value: string) {
   return new Date(`${getProjectLocalDateKey(value)}T12:00:00`).toLocaleDateString('es-ES', {
@@ -53,7 +54,7 @@ function workItemProgress(item: ProjectWorkItem, mode: 'amount' | 'concepts') {
 }
 
 export function ProjectDetailPage() {
-  const navigate = useNavigate();
+  const { navigateBack } = usePageNavigation();
   const { projectId = '' } = useParams<{ projectId: string }>();
   const uid = useAuthStore((state) => state.user?.uid);
   const activeProject = useProjectStore((state) => state.activeProject);
@@ -183,7 +184,7 @@ export function ProjectDetailPage() {
             {error || actionError}
           </p>
         )}
-        <Button variant="secondary" onClick={() => navigate('/projects')}>
+        <Button variant="secondary" onClick={() => navigateBack('/projects')}>
           Volver a proyectos
         </Button>
       </div>

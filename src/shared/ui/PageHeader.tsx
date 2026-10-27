@@ -1,14 +1,32 @@
 import { useContext, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { PageLink } from './PageLink';
 import { Skeleton } from './Skeleton';
 import { PageHeaderAccessoryContext } from './PageHeaderAccessoryContext';
+import { resolvePageBackPath } from './page-view-transition';
 
 export function BackButton({ to, label }: { to: string; label: string }) {
+  const { state } = useLocation();
+  const resolvedTo = resolvePageBackPath(to, state);
+  const tabLabels: Record<string, string> = {
+    '/budgets': 'presupuestos',
+    '/projects': 'proyectos',
+    '/profile/solicitudes': 'solicitudes',
+    '/': 'proyectos',
+  };
+  const resolvedLabel = resolvedTo === to ? label : `Volver a ${tabLabels[resolvedTo]}`;
+
   return (
-    <Link to={to} className="back-button" aria-label={label}>
+    <PageLink
+      to={resolvedTo}
+      back
+      className="back-button"
+      aria-label={resolvedLabel}
+      data-page-transition-back
+    >
       <ChevronLeft size={21} aria-hidden="true" />
-    </Link>
+    </PageLink>
   );
 }
 

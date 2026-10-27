@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { getNotificationSettings } from '@/entities/notifications';
-import { Button } from '@/shared/ui';
+import { Button, PageLink } from '@/shared/ui';
 import {
   activatePushOnThisDevice,
   currentPushInstallationId,
@@ -196,13 +195,13 @@ export function PushStartupPrompt() {
               : 'Permitir notificaciones'}
           </Button>
         ) : (
-          <Link
+          <PageLink
             to="/account"
             onClick={dismiss}
             className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-[#234c40] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Abrir Mi cuenta
-          </Link>
+          </PageLink>
         )}
         <button
           type="button"

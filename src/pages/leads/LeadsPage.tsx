@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, FileText, Mail, Phone, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore } from '@/entities/budget';
@@ -13,8 +13,9 @@ import {
   fetchLeads,
   type QuoteLead,
 } from '@/entities/quote-estimator';
-import { Button, Card, ConfirmModal, PageHeader, PageLayout } from '@/shared/ui';
+import { Button, Card, ConfirmModal, PageHeader, PageLayout, PageLink } from '@/shared/ui';
 import { notificationPathFromLeadId } from '@/features/notifications/model/navigation';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 const EMPTY_LEADS: QuoteLead[] = [];
 
@@ -67,7 +68,7 @@ export function LeadsPage() {
     error?: string;
   } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<QuoteLead | null>(null);
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const [searchParams] = useSearchParams();
   const selectedLeadHeading = useRef<HTMLHeadingElement>(null);
   const requestedLeadValues = searchParams.getAll('leadId');
@@ -226,13 +227,13 @@ export function LeadsPage() {
 
                   <div className="flex flex-wrap items-center gap-2 lg:w-48 lg:justify-end">
                     {linkedBudget ? (
-                      <Link
+                      <PageLink
                         to={`/budget/${linkedBudget.id}`}
                         aria-label="Abrir presupuesto"
                         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[#cddbd1] px-3 text-sm font-medium text-[#234c40] hover:bg-[#f3f5f1]"
                       >
                         <FileText size={16} /> Abrir presupuesto
-                      </Link>
+                      </PageLink>
                     ) : (
                       <Button
                         variant="secondary"

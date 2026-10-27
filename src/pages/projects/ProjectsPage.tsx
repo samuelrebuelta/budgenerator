@@ -1,9 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, FolderOpen } from 'lucide-react';
 import { ProjectStatusTag, useProjectStore } from '@/entities/project';
 import { formatCurrency } from '@/shared/lib';
-import { Button, PageHeader, Skeleton } from '@/shared/ui';
+import { Button, PageHeader, PageLink, Skeleton } from '@/shared/ui';
 import { ProjectProgressBar } from './ProjectProgressBar';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 function dateLabel(value: string) {
   return new Date(value).toLocaleDateString('es-ES', {
@@ -14,7 +14,7 @@ function dateLabel(value: string) {
 }
 
 export function ProjectsPage() {
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const projects = useProjectStore((state) => state.projects);
   const loaded = useProjectStore((state) => state.loaded);
 
@@ -57,7 +57,7 @@ export function ProjectsPage() {
       ) : (
         <section aria-label="Lista de proyectos" className="space-y-3">
           {projects.map((project) => (
-            <Link
+            <PageLink
               key={project.id}
               to={`/projects/${project.id}`}
               className="block rounded-xl bg-white px-5 py-5 transition-colors hover:bg-[#fafbf5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d] sm:px-6"
@@ -99,7 +99,7 @@ export function ProjectsPage() {
                   {formatCurrency(project.updatedTotal ?? project.total)}
                 </span>
               </div>
-            </Link>
+            </PageLink>
           ))}
         </section>
       )}
