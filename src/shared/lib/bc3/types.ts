@@ -7,7 +7,9 @@ export type Bc3DiagnosticCode =
   | 'duplicate-concept'
   | 'unknown-concept-reference'
   | 'invalid-number'
-  | 'invalid-text-encoding';
+  | 'invalid-text-encoding'
+  | 'unsupported-record'
+  | 'unsupported-character-set';
 
 export interface Bc3Diagnostic {
   code: Bc3DiagnosticCode;

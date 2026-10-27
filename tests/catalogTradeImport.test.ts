@@ -7,8 +7,19 @@ import {
 import type { BaseCatalog } from '../src/entities/catalog/model/baseCatalogs';
 import type { CatalogPart } from '../src/shared/types';
 
-it('offers only the complete renovation catalog as an import source', () => {
-  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toEqual(['reforma_integral']);
+it('offers the complete renovation catalog and its specialized sources', () => {
+  expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toEqual([
+    'banos_aseos',
+    'cocinas',
+    'fachadas_cubiertas',
+    'eficiencia_energetica',
+    'exteriores_jardines',
+    'piscinas',
+    'accesibilidad',
+    'locales_comerciales',
+    'garajes_sotanos',
+    'reforma_integral',
+  ]);
   expect(BASE_CATALOGS.map((catalog) => catalog.id)).toEqual(['en_blanco', 'reforma_integral']);
 });
 

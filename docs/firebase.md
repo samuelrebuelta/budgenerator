@@ -11,6 +11,8 @@ Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting y
 ```text
 users/{uid}                            Cuenta, plan y contador acumulado
 ├── budgets/{id}                       Partidas y tareas embebidas
+├── constructionDocuments/{id}          FIEBDC nativo (en prueba; no sustituye aún budgets)
+│   └── revisions/{revisionId}          Cabecera + concepts/, nodes/ y extensions/
 ├── projects/{id}                      Snapshot del proyecto y resumen de avance
 │   ├── workItems/{id}                 Partida y copia de sus conceptos
 │   ├── supplements/{id}                Registro inmutable de una ampliación
@@ -40,6 +42,8 @@ Los IDs son UUID y las fechas de auditoría son ISO strings. La fecha de finaliz
 Las reglas separan la raíz de cuenta de las colecciones editables; no usan un permiso recursivo que pueda reabrir la raíz. Los clientes nuevos solo pueden crear una cuenta free, no-admin y con contador cero. No pueden asignarse un rol, plan o vencimiento. El admin existente está restringido a la identidad designada y al flag protegido. La provisión de roles nuevos requiere una operación de confianza.
 
 La creación de un presupuesto se ejecuta junto al incremento de `totalBudgetsCreated` y `lastCreatedBudgetId` en una transacción. Las reglas limitan Free a tres plazas de creación; borrar un presupuesto no devuelve cuota. Aceptar y convertirlo en proyecto conserva la plaza consumida por el presupuesto origen: la conversión enlaza presupuesto y proyecto de forma atómica, no reduce ni vuelve a incrementar el contador. Los antiguos campos `budgetSlotsReleased` y `lastConvertedBudgetId` pueden seguir presentes en datos previos, pero ya no intervienen en el límite. Actualizar un documento existente no consume otra creación.
+
+La prueba del modelo FIEBDC usa `users/{uid}/constructionDocuments/{id}` con `state` staging/ready/deleting y revisiones append-only en subcolecciones. `concepts`, `nodes` y `extensions` se escriben por lotes; publicar cambia la revisión activa y consume cuota para una creación nueva de presupuesto en la misma transacción. Sólo se listan documentos ready. `pnpm test:bc3` ejecuta la prueba E2E con emuladores aislados en puertos distintos a los de `firebase.json`. Esta colección todavía no es fuente de verdad para los módulos existentes.
 
 BG-009: el presupuesto puede guardar `acceptedAt` y `projectId`. El proyecto conserva el origen (`sourceBudgetId`/`sourceBudgetNumber`), cliente/obra, importes originales (`subtotal`, `iva`, `total`), resumen de ampliaciones (`supplementsSubtotal`, `supplementsIva`, `updatedTotal`) y resumen de progreso (`totalConcepts`, `completedConcepts`, `totalAmount`, `completedAmount`, `percent`, `status`, `completedAt`). En la interfaz, cada documento `workItem` es un capítulo y sus tareas son partidas; se mantienen los nombres de campos actuales para compatibilidad. Cada documento conserva las partidas copiadas y el estado del capítulo. Las fechas seleccionadas se normalizan a día local y no pueden ser futuras. La aceptación sólo cambia `acceptedAt`; un presupuesto aceptado queda bloqueado hasta retirar la aceptación. La conversión atómica crea el proyecto y sus capítulos y guarda `projectId` en el presupuesto, sin alterar la cuota.
 

@@ -14,7 +14,7 @@ Los loaders capturan una revisión de sesión y descartan respuestas de una cuen
 
 ## Rutas
 
-Públicas: `/login`, `/shared/:token` y `/solicitar-presupuesto/:token`. Privadas: `/projects`, `/projects/:projectId`, `/budgets`, `/budget/:budgetId`, `/catalog` (con redirecciones desde `/catalogs` y `/catalogs/:catalogId`), `/templates`, `/templates/:templateId`, `/profile`, `/estimator` (con redirección desde `/profile/estimador-publico`), `/profile/solicitudes`, `/account`, `/account/password` y `/help`. `/catalog` abre directamente el catálogo único de la cuenta. `new` identifica un borrador de presupuesto o plantilla. `/admin` requiere el rol existente y protegido. `/` redirige a `/projects`, la entrada operativa principal.
+Públicas: `/login`, `/shared/:token` y `/solicitar-presupuesto/:token`. Privadas: `/projects`, `/projects/:projectId`, `/budgets`, `/budget/:budgetId`, `/bc3` (espacio de prueba FIEBDC para importar, editar, exportar y borrar documentos nativos; aún separado de los flujos ordinarios), `/catalog` (con redirecciones desde `/catalogs` y `/catalogs/:catalogId`), `/templates`, `/templates/:templateId`, `/profile`, `/estimator` (con redirección desde `/profile/estimador-publico`), `/profile/solicitudes`, `/account`, `/account/password` y `/help`. `/catalog` abre directamente el catálogo único de la cuenta. `new` identifica un borrador de presupuesto o plantilla. `/admin` requiere el rol existente y protegido. `/` redirige a `/projects`, la entrada operativa principal.
 
 La navegación principal ordena `/budgets`, `/projects` y `/profile/solicitudes`. `/catalog` se abre desde el menú de cuenta, debajo de Mi empresa; su `PageHeader` ofrece retorno explícito a `/budgets`.
 
@@ -24,7 +24,7 @@ Las páginas se cargan con `lazy`. Un fallback visible evita pantallas vacías d
 
 ## Presupuestos y plantillas
 
-El store de budget gestiona un documento activo o un draft. Las recargas de lista no eliminan el draft. Este se recuerda temporalmente por UID en sessionStorage; las plantillas tienen su propia clave. Los componentes de edición son comunes y el IVA se conserva al guardar y reutilizar una plantilla.
+El store de budget gestiona un documento activo o un draft. Las recargas de lista no eliminan el draft. Este se recuerda temporalmente por UID en sessionStorage; las plantillas tienen su propia clave. Los componentes de edición son comunes y el IVA se conserva al guardar y reutilizar una plantilla. Como transición de BC3, la lista presenta aparte los presupuestos FIEBDC nativos y enlaza su editor dedicado; todavía no se integran en el store ni en el editor ordinario.
 
 La creación usa un ID idempotente y una transacción de presupuesto y contador. Las modificaciones usan una cola por documento y updateDoc. El borrado cancela la cola y espera una escritura en curso antes de eliminar.
 

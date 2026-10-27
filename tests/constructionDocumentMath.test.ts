@@ -94,9 +94,9 @@ describe('ConstructionDocument math', () => {
     expect(document.roots[0]?.children[0]?.children[0]?.measurements[0]?.total?.raw).toBe('12');
   });
 
-  it('calculates a unit rate from a decomposition when no direct price exists', () => {
+  it('uses the decomposition price ahead of the declared price when both exist', () => {
     const composed = structuredClone(document);
-    composed.concepts.paving!.prices = [];
+    composed.concepts.paving!.prices = [{ label: 'Venta', amount: { raw: '99' } }];
     composed.concepts.paving!.decomposition = [
       { code: 'MAT001', factor: { raw: '2' }, yield: { raw: '1' } },
     ];

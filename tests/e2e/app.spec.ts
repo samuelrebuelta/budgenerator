@@ -1947,3 +1947,94 @@ test('project load errors are distinct from missing projects and can be retried'
     page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
   ).toBeVisible();
 });
+
+test('native BC3 workspace imports a catalogue and exports it again', async ({ page }) => {
+  await login(page);
+  await page.goto('/bc3');
+  const fixture = Buffer.from(
+    readFileSync('tests/fixtures/bc3/catalog-minimal.bc3', 'utf8'),
+    'latin1',
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'catalogo-prueba.bc3',
+    mimeType: 'application/octet-stream',
+    buffer: fixture,
+  });
+  await expect(
+    page.getByRole('heading', { name: 'Catálogo sintético', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Importar a mi cuenta', exact: true }).click();
+  await expect
+    .poll(async () => {
+      const alert = page.getByRole('alert');
+      return (
+        (await alert.count()) > 0 ||
+        (await page.getByRole('status').textContent()) !== 'Archivo leído: 3 conceptos.'
+      );
+    })
+    .toBe(true);
+  const importError = (await page.getByRole('alert').count())
+    ? await page.getByRole('alert').textContent()
+    : null;
+  if (importError) throw new Error(`Importación BC3: ${importError}`);
+  await expect(page.getByRole('status')).toHaveText('Documento importado y guardado en tu cuenta.');
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Precio MAT001', exact: true }).fill('11.75');
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Cambios guardados en el documento FIEBDC.');
+  const exportDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar BC3', exact: true }).click();
+  const download = await exportDownload;
+  expect(download.suggestedFilename()).toMatch(/\.bc3$/);
+  const exported = await readFile((await download.path())!);
+  expect(exported.toString('latin1')).toContain('~V|BudGenerator fixtures|');
+  expect(exported.toString('latin1')).toContain('~C|MAT001|m2|Baldosa sintética|11.75|');
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'presupuesto-prueba.bc3',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from(readFileSync('tests/fixtures/bc3/budget-minimal.bc3', 'utf8'), 'latin1'),
+  });
+  await expect(
+    page.getByRole('heading', { name: 'Presupuesto sintético', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Importar a mi cuenta', exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await page.getByRole('alert').count()) > 0 ||
+        (await page.getByRole('status').textContent()) !== 'Archivo leído: 3 conceptos.',
+    )
+    .toBe(true);
+  const budgetImportError = (await page.getByRole('alert').count())
+    ? await page.getByRole('alert').textContent()
+    : null;
+  if (budgetImportError) throw new Error(`Importación del presupuesto BC3: ${budgetImportError}`);
+  await expect(page.getByRole('status')).toHaveText('Documento importado y guardado en tu cuenta.');
+  const budgetItem = page.getByRole('listitem').filter({ hasText: 'Presupuesto sintético' });
+  await budgetItem.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByText('Mediciones (1)', { exact: true }).click();
+  await page.getByRole('textbox', { name: 'Largo PAV001 1', exact: true }).fill('3.5');
+  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText('Cambios guardados en el documento FIEBDC.');
+  const budgetDownloadPromise = page.waitForEvent('download');
+  await budgetItem.getByRole('button', { name: 'Exportar BC3', exact: true }).click();
+  const budgetDownload = await budgetDownloadPromise;
+  const exportedBudget = await readFile((await budgetDownload.path())!);
+  expect(exportedBudget.toString('latin1')).toContain('~M|#01\\PAV001|1||');
+  expect(exportedBudget.toString('latin1')).toContain('\\3.5\\4\\1|');
+
+  await page.getByRole('link', { name: 'Volver a presupuestos', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Presupuestos importados en BC3' })).toBeVisible();
+  const nativeBudgetRow = page.getByRole('listitem').filter({ hasText: 'Presupuesto sintético' });
+  await expect(nativeBudgetRow).toBeVisible();
+  await nativeBudgetRow.getByRole('link', { name: 'Abrir y editar' }).click();
+  await expect(page).toHaveURL(/\/bc3\?document=bc3-/);
+  await expect(
+    page.getByRole('textbox', { name: 'Descripción PAV001', exact: true }).first(),
+  ).toHaveValue('Colocación de baldosa sintética');
+  await page.getByText('Mediciones (1)', { exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Largo PAV001 1', exact: true })).toHaveValue(
+    '3.5',
+  );
+});

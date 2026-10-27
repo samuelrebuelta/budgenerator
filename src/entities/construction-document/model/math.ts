@@ -99,6 +99,25 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
       });
       return 0;
     }
+    if (concept.decomposition.length) {
+      rateStack.add(code);
+      const rate = concept.decomposition.reduce((sum, line) => {
+        const factor = decimal(line.factor.raw);
+        const yieldValue = decimal(line.yield.raw);
+        if (factor === null || yieldValue === null) {
+          issues.push({
+            code: 'invalid-number',
+            codeReference: code,
+            message: `La descomposición de ${code} contiene un factor o rendimiento no numérico.`,
+          });
+          return sum;
+        }
+        return sum + factor * yieldValue * getRate(line.code);
+      }, 0);
+      rateStack.delete(code);
+      rates.set(code, rate);
+      return rate;
+    }
     const directPrice = concept.prices[0]?.amount.raw;
     if (directPrice !== undefined) {
       const parsed = decimal(directPrice);
@@ -117,23 +136,7 @@ export function calculateConstructionDocument(document: ConstructionDocument): C
       rates.set(code, 0);
       return 0;
     }
-    rateStack.add(code);
-    const rate = concept.decomposition.reduce((sum, line) => {
-      const factor = decimal(line.factor.raw);
-      const yieldValue = decimal(line.yield.raw);
-      if (factor === null || yieldValue === null) {
-        issues.push({
-          code: 'invalid-number',
-          codeReference: code,
-          message: `La descomposición de ${code} contiene un factor o rendimiento no numérico.`,
-        });
-        return sum;
-      }
-      return sum + factor * yieldValue * getRate(line.code);
-    }, 0);
-    rateStack.delete(code);
-    rates.set(code, rate);
-    return rate;
+    return 0;
   };
 
   const makeTreeNode = (node: FiebdcNode, inheritedQuantity: number): ConstructionTreeNode => {

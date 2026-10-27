@@ -1,6 +1,6 @@
 export type ConstructionDocumentKind = 'catalog' | 'budget' | 'template';
 
-export type FiebdcInformationType = 1 | 2 | 3 | 4;
+export type FiebdcInformationType = 1 | 2;
 
 /** The original lexeme is kept so decimal precision and separator survive export. */
 export interface FiebdcDecimal {
@@ -14,6 +14,9 @@ export interface FiebdcHeader {
   title: string;
   characterSet: string;
   informationType: FiebdcInformationType;
+  sourceDate?: string;
+  comment?: string;
+  priceLabels?: string[];
   certificationNumber?: string;
   certificationDate?: string;
   baseUrl?: string;
