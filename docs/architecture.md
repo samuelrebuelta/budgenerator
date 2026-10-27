@@ -18,6 +18,8 @@ Públicas: `/login`, `/shared/:token` y `/solicitar-presupuesto/:token`. Privada
 
 La navegación principal ordena `/budgets`, `/projects` y `/profile/solicitudes`. `/catalog` se abre desde el menú de cuenta, debajo de Mi empresa; su `PageHeader` ofrece retorno explícito a `/budgets`.
 
+Las transiciones siguen la jerarquía de rutas: las tres raíces principales son nivel 1; `/` es un alias de `/projects`. Cambiar entre raíces no anima. Entrar en una ruta secundaria o moverse entre rutas secundarias anima hacia delante; `PageHeader` y las acciones de retorno explícitas animan en dirección inversa. La navegación secundaria hacia una raíz desde un enlace general no anima. `PageLink` y `usePageNavigation` inician la View Transition junto con la actualización de ruta. El historial del navegador (`POP`), incluido el gesto de swipe back, no inicia una segunda transición de la app; el botón de retorno explícito sí conserva su animación inversa. El menú de cuenta lleva la pestaña de origen en `location.state.returnTab`; el retorno común la usa cuando su destino configurado es una pestaña raíz, y conserva el padre inmediato en rutas anidadas. La navegación por teclado, los navegadores sin View Transitions y `prefers-reduced-motion` conservan la navegación normal sin movimiento.
+
 Las páginas se cargan con `lazy`. Un fallback visible evita pantallas vacías durante la resolución inicial. AppShell conserva navegación, estado de guardado y acceso a cuenta. El permiso real lo decide Firestore.
 
 ## Presupuestos y plantillas

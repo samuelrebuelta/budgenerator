@@ -107,6 +107,31 @@ test.beforeAll(async () => {
       ),
     ])
       await setDoc(doc(db, 'users', uid, 'budgets', b.id), b);
+    await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation'), {
+      sourceBudgetId: 'demo-cocina',
+      sourceBudgetNumber: '03',
+      title: 'Proyecto de navegación',
+      clientName: 'Cliente de navegación',
+      address: 'Dirección de demostración',
+      budgetDate: '2026-10-12',
+      acceptedAt: '2026-10-14T10:00:00Z',
+      createdAt: '2026-10-14T10:00:00Z',
+      subtotal: 420,
+      iva: 88.2,
+      total: 508.2,
+      ivaRate: 0.21,
+      workItemCount: 0,
+      mode: 'amount',
+      totalConcepts: 0,
+      completedConcepts: 0,
+      totalAmount: 0,
+      completedAmount: 0,
+      percent: 0,
+      status: 'pending',
+      supplementsSubtotal: 0,
+      supplementsIva: 0,
+      updatedTotal: 508.2,
+    });
     await setDoc(doc(db, 'users', uid, 'profile', 'data'), {
       name: 'Estudio Roble',
       logo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="40"%3E%3Crect width="120" height="40" fill="%2324564c"/%3E%3C/svg%3E',
@@ -385,6 +410,108 @@ test('opens projects from the root', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/projects$/);
   await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+});
+
+test('returns from an account-menu page to the tab it was opened from', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page).toHaveURL(/\/budgets$/);
+
+  const tabs = page.getByRole('navigation', { name: 'Navegación móvil' });
+  const budgetsTab = tabs.getByRole('link', { name: 'Presupuestos', exact: true });
+  await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  await page
+    .getByRole('dialog', { name: 'Menú de cuenta' })
+    .getByRole('link', { name: 'Mi empresa', exact: true })
+    .click();
+
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
+
+  await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
+  await page
+    .getByRole('dialog', { name: 'Menú de cuenta' })
+    .getByRole('link', { name: 'Mi cuenta', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/account$/);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+
+  await page.getByRole('button', { name: /Cambiar contraseña/ }).click();
+  await expect(page).toHaveURL(/\/account\/password$/);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/account');
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/account$/);
+  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
+});
+
+test('keeps browser back native while animating the explicit project back button', async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto('/projects');
+  await page.getByRole('link', { name: /Cliente de navegación/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+  ).toBeVisible();
+
+  await page.evaluate(() => {
+    const pageWindow = window as typeof window & { pageTransitionDirections?: string[] };
+    pageWindow.pageTransitionDirections = [];
+    const startViewTransition = document.startViewTransition.bind(document);
+    document.startViewTransition = (callback) => {
+      pageWindow.pageTransitionDirections?.push(
+        document.documentElement.dataset.pageTransitionDirection ?? 'missing',
+      );
+      return startViewTransition(callback);
+    };
+  });
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as typeof window & { pageTransitionDirections?: string[] })
+            .pageTransitionDirections,
+      ),
+    )
+    .toEqual([]);
+  await expect
+    .poll(() => page.locator('html').getAttribute('data-page-transition-direction'))
+    .toBeNull();
+
+  await page.getByRole('link', { name: /Cliente de navegación/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() => page.locator('html').getAttribute('data-page-transition-direction'))
+    .toBeNull();
+  await page.evaluate(() => {
+    (window as typeof window & { pageTransitionDirections?: string[] }).pageTransitionDirections =
+      [];
+  });
+  await page.locator('.back-button').click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as typeof window & { pageTransitionDirections?: string[] })
+            .pageTransitionDirections,
+      ),
+    )
+    .toEqual(['back']);
 });
 
 test('places budgets first in desktop and mobile navigation', async ({ page }) => {

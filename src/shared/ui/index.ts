@@ -14,6 +14,7 @@ export { Skeleton, SkeletonList } from './Skeleton';
 export { BudgetLimitReached } from './BudgetLimitReached';
 
 export { PageHeader, BackButton, PageHeaderSkeleton } from './PageHeader';
+export { PageLink } from './PageLink';
 export { PageHeaderAccessoryProvider } from './PageHeaderAccessoryProvider';
 export { CompanyAvatar } from './CompanyAvatar';
 export { InfoPopover } from './InfoPopover';

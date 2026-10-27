@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
 import { ChevronDown, ArrowUpRight, Play } from 'lucide-react';
-import { Button, PageLayout, PageHeader } from '@/shared/ui';
+import { Button, PageLayout, PageHeader, PageLink } from '@/shared/ui';
 import { useAppTour } from '@/features/app-tour/context';
 import { helpTopics } from './helpContent';
 export function HelpPage() {
@@ -48,10 +47,10 @@ export function HelpPage() {
                         <li key={step}>{step}</li>
                       ))}
                     </ol>
-                    <Link to={item.link.to}>
+                    <PageLink to={item.link.to}>
                       {item.link.label}
                       <ArrowUpRight size={15} aria-hidden="true" />
-                    </Link>
+                    </PageLink>
                   </div>
                 </details>
               ))}

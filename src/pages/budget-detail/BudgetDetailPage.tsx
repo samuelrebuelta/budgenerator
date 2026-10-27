@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, useBlocker, useLocation, Link } from 'react-router-dom';
+import { useParams, useBlocker, useLocation } from 'react-router-dom';
 import { BudgetStructureButton } from '@/features/budget-structure/BudgetStructureButton';
 import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
 import { BudgetSummary } from '@/features/budget-editor/ui/BudgetSummary';
 import { AddWorkItemButton } from '@/features/budget-editor/ui/AddWorkItemButton';
-import { ExportPdfButton } from '@/shared/ui';
+import { ExportPdfButton, PageLink } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
@@ -37,13 +37,14 @@ import {
 import { t } from '@/shared/i18n';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 import { useProjectStore } from '@/entities/project';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function BudgetDetailPage() {
   const { budgetId = 'new' } = useParams<{ budgetId: string }>();
   return <BudgetDetailContent key={budgetId} budgetId={budgetId} />;
 }
 function BudgetDetailContent({ budgetId }: { budgetId: string }) {
-  const navigate = useNavigate();
+  const { navigate, navigateBack } = usePageNavigation();
   const location = useLocation();
   const isDraft = budgetId === 'new';
   const leadId = new URLSearchParams(location.search).get('leadId');
@@ -185,7 +186,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
 
   const handleDiscard = () => {
     discardDraft();
-    navigate('/');
+    navigateBack('/');
   };
 
   // Redirect if budget doesn't exist (only after data loaded)
@@ -272,13 +273,13 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
             <p className="font-semibold">Presupuesto convertido en proyecto</p>
             <p className="mt-1">La oferta aceptada permanece aquí como documento de referencia.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link
+              <PageLink
                 className="inline-flex min-h-11 items-center gap-2 font-semibold text-[#183e3b] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
                 to={`/projects/${activeBudget.projectId}`}
               >
                 <FolderKanban size={16} />
                 Abrir proyecto
-              </Link>
+              </PageLink>
             </div>
           </div>
         )}
@@ -324,12 +325,13 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                         </a>
                       </p>
                     </div>
-                    <Link
+                    <PageLink
+                      back
                       to="/profile/solicitudes"
                       className="text-sm font-medium text-[#426457] underline underline-offset-2"
                     >
                       Volver a solicitudes
-                    </Link>
+                    </PageLink>
                   </div>
                   <ul className="mt-3 space-y-1 text-sm text-gray-700">
                     {leadContext.selections.map((selection, index) => {

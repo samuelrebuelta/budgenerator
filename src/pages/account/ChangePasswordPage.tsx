@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Check, Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '@/entities/auth/api/firebase';
 import { Button, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function ChangePasswordPage() {
-  const navigate = useNavigate();
+  const { navigateBack } = usePageNavigation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -68,7 +68,7 @@ export function ChangePasswordPage() {
             {t('settings.passwordChanged')}
           </h2>
           <p className="text-sm text-gray-500 mb-6">{t('settings.passwordChangedHint')}</p>
-          <Button onClick={() => navigate('/account')}>{t('settings.backToSettings')}</Button>
+          <Button onClick={() => navigateBack('/account')}>{t('settings.backToSettings')}</Button>
         </div>
       </PageLayout>
     );

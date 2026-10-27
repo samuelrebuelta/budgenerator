@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
+import { PageLink } from '@/shared/ui';
 import {
   listenForForegroundLeadNotifications,
   refreshPushOwner,
@@ -53,13 +53,13 @@ export function ForegroundNotificationHost() {
         <div className="min-w-0 flex-1">
           <p className="font-medium text-gray-900">Nueva solicitud de presupuesto</p>
           <p className="mt-1 text-sm text-gray-600">Tienes una nueva solicitud en BudGenerator.</p>
-          <Link
+          <PageLink
             to={notice.managementPath}
             onClick={() => setNotice(null)}
             className="mt-3 inline-flex min-h-11 items-center font-medium text-[#234c40] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Ver solicitud
-          </Link>
+          </PageLink>
         </div>
         <button
           type="button"

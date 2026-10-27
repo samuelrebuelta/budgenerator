@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
 import { isValidPrivacyPolicyUrl } from '@/entities/quote-estimator';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
-import { Button, ConfirmModal, Input, PageLayout, PageHeader } from '@/shared/ui';
+import { Button, ConfirmModal, Input, PageLayout, PageHeader, PageLink } from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function ProfilePage() {
   const profile = useProfileStore((s) => s.profile);
@@ -17,7 +17,7 @@ export function ProfilePage() {
   const storeUploadLogo = useProfileStore((s) => s.uploadLogo);
   const removeLogo = useProfileStore((s) => s.removeLogo);
   const authEmail = useAuthStore((s) => s.user?.email ?? '');
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -210,12 +210,12 @@ export function ProfilePage() {
               Gestiona las estancias, tarifas y enlace público.
             </p>
           </div>
-          <Link
+          <PageLink
             to="/estimator"
             className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
           >
             Ver
-          </Link>
+          </PageLink>
         </div>
         <div className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div>
@@ -224,12 +224,12 @@ export function ProfilePage() {
               Consulta los datos de contacto y el resumen de cada reforma solicitada.
             </p>
           </div>
-          <Link
+          <PageLink
             to="/profile/solicitudes"
             className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
           >
             Ver
-          </Link>
+          </PageLink>
         </div>
       </fieldset>
 

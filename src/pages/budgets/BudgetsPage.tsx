@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   ArrowUpRight,
@@ -17,6 +16,7 @@ import { useCatalogStore } from '@/entities/catalog';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 import {
   Button,
@@ -25,6 +25,7 @@ import {
   PageHeader,
   SwipeActions,
   ConfirmModal,
+  PageLink,
 } from '@/shared/ui';
 export function BudgetsPage() {
   const budgets = useBudgetStore((s) => s.budgets);
@@ -37,7 +38,7 @@ export function BudgetsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const total = useBudgetStore((s) => s.getBudgetTotal);
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const [chooseTemplate, setChooseTemplate] = useState(false);
   const [limit, setLimit] = useState(false);
   const [search, setSearch] = useState('');
@@ -187,7 +188,7 @@ export function BudgetsPage() {
                         : [{ id: 'delete', label: 'Eliminar', onAction: () => setDeleting(b.id) }]
                   }
                 >
-                  <Link to={`/budget/${b.id}`} className="budget-list-row">
+                  <PageLink to={`/budget/${b.id}`} className="budget-list-row">
                     <div className="budget-identity">
                       <span className="document-number">{b.info.budgetNumber || '—'}</span>
                       <div className="min-w-0">
@@ -211,7 +212,7 @@ export function BudgetsPage() {
                     </span>
                     <strong className="budget-amount">{formatCurrency(total(b.id))}</strong>
                     <ArrowUpRight size={17} className="text-gray-400" />
-                  </Link>
+                  </PageLink>
                 </SwipeActions>
               ))}
             </>
@@ -262,10 +263,13 @@ export function BudgetsPage() {
       </section>
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-5 mt-5">
         <p className="text-xs text-gray-500">Gestiona los precios desde tu catálogo.</p>
-        <Link className="text-xs text-blue-700 font-semibold flex items-center gap-2" to="/catalog">
+        <PageLink
+          className="text-xs text-blue-700 font-semibold flex items-center gap-2"
+          to="/catalog"
+        >
           Explora tu catálogo
           <ArrowUpRight size={14} />
-        </Link>
+        </PageLink>
       </div>
       <ConfirmModal
         open={!!deleting}

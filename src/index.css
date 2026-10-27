@@ -56,6 +56,53 @@
   }
 }
 
+html[data-page-transition-direction='forward']::view-transition-old(root) {
+  animation: bg-page-leave-left 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+html[data-page-transition-direction='forward']::view-transition-new(root) {
+  animation: bg-page-enter-right 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+html[data-page-transition-direction='back']::view-transition-old(root) {
+  animation: bg-page-leave-right 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+html[data-page-transition-direction='back']::view-transition-new(root) {
+  animation: bg-page-enter-left 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html::view-transition-old(root),
+  html::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+@keyframes bg-page-leave-left {
+  to {
+    transform: translateX(-20%);
+  }
+}
+
+@keyframes bg-page-enter-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes bg-page-leave-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes bg-page-enter-left {
+  from {
+    transform: translateX(-20%);
+  }
+}
+
 .collapsible {
   display: grid;
   grid-template-rows: 0fr;
