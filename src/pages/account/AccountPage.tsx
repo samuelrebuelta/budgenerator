@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { KeyRound, ChevronRight, Crown, Sparkles } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useUserStore } from '@/entities/user';
@@ -6,9 +5,10 @@ import { CONTACT_EMAIL } from '@/shared/lib';
 import { Card, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 import { NotificationSettings } from '@/features/notifications';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function AccountPage() {
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const email = useAuthStore((s) => s.user?.email ?? '');
   const userData = useUserStore((s) => s.userData);
   const plan = userData?.accountData.plan ?? 'free';

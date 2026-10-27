@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Copy, ExternalLink, Minus, Plus, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
 import {
@@ -30,6 +29,7 @@ import {
   Skeleton,
   Switch,
 } from '@/shared/ui';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 const emptySettings: SimpleQuoteEstimatorSettings = {
   schemaVersion: 2,
@@ -66,7 +66,7 @@ export function QuoteEstimatorSettingsPage() {
 }
 
 function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const profile = useProfileStore((state) => state.profile);
   const [settings, setSettings] = useState<SimpleQuoteEstimatorSettings>(emptySettings);
   const [step, setStep] = useState(0);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
-import { NavLink, Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   FileText,
   BookOpen,
@@ -15,7 +15,13 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { Brand } from '@/shared/ui/Brand';
-import { ConfirmModal, Modal, CompanyAvatar, PageHeaderAccessoryProvider } from '@/shared/ui';
+import {
+  ConfirmModal,
+  Modal,
+  CompanyAvatar,
+  PageHeaderAccessoryProvider,
+  PageLink,
+} from '@/shared/ui';
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
@@ -23,6 +29,7 @@ import { PwaInstallBanner } from './PwaInstallBanner';
 import { SyncStatus } from './SyncStatus';
 import { AppTourProvider } from '@/features/app-tour/AppTour';
 import { ForegroundNotificationHost, PushStartupPrompt } from '@/features/notifications';
+import { getPageReturnTab } from '@/shared/ui/page-view-transition';
 import {
   completeCurrentDeviceSignOut,
   revokeCurrentDeviceBeforeSignOut,
@@ -41,6 +48,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       location.pathname.startsWith(path + '/') ||
       (path === '/budgets' && location.pathname.startsWith('/budget/')),
   )?.[0];
+  const menuReturnTab = activePath ?? getPageReturnTab(location.state);
+  const menuNavigationState = menuReturnTab ? { returnTab: menuReturnTab } : undefined;
   const isPrimaryTabPage = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
   const showMobileNav = isPrimaryTabPage;
   const isSecondaryPage = !isPrimaryTabPage;
@@ -117,22 +126,34 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           {account?.accountData.isAdmin && (
             <div className="sidebar-admin">
-              <NavLink className="nav-item" to="/admin">
+              <PageLink
+                className="nav-item"
+                to="/admin"
+                aria-current={location.pathname === '/admin' ? 'page' : undefined}
+              >
                 <ShieldCheck size={18} />
                 Panel de administración
-              </NavLink>
+              </PageLink>
             </div>
           )}
           <div className="sidebar-bottom">
-            <NavLink className="nav-item" to="/account">
+            <PageLink
+              className="nav-item"
+              to="/account"
+              aria-current={location.pathname.startsWith('/account') ? 'page' : undefined}
+            >
               <CircleUserRound size={18} />
               Mi cuenta
               <ArrowUpRight size={14} className="ml-auto" />
-            </NavLink>
-            <NavLink className="nav-item" to="/help">
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/help"
+              aria-current={location.pathname === '/help' ? 'page' : undefined}
+            >
               <CircleHelp size={18} />
               Ayuda
-            </NavLink>
+            </PageLink>
             <button className="nav-item w-full" onClick={() => setLogout(true)}>
               <LogOut size={18} />
               Cerrar sesión
@@ -238,41 +259,76 @@ export function AppShell({ children }: { children: ReactNode }) {
           {account?.accountData.isAdmin && (
             <section className="account-menu-section" aria-label="Administración">
               <h2 className="account-menu-heading">Administración</h2>
-              <Link className="nav-item" to="/admin" onClick={() => setMenu(false)}>
+              <PageLink
+                className="nav-item"
+                to="/admin"
+                state={menuNavigationState}
+                onClick={() => setMenu(false)}
+              >
                 <ShieldCheck size={18} />
                 Panel de administración
-              </Link>
+              </PageLink>
             </section>
           )}
           <section className="account-menu-section" aria-label="Empresa y herramientas">
             <h2 className="account-menu-heading">Empresa y herramientas</h2>
-            <Link className="nav-item" to="/profile" onClick={() => setMenu(false)}>
+            <PageLink
+              className="nav-item"
+              to="/profile"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <Building2 size={18} />
               Mi empresa
-            </Link>
-            <Link className="nav-item" to="/catalog" onClick={() => setMenu(false)}>
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/catalog"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <BookOpen size={18} />
               Catálogo
-            </Link>
-            <Link className="nav-item" to="/templates" onClick={() => setMenu(false)}>
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/templates"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <LayoutTemplate size={18} />
               Plantillas de presupuestos
-            </Link>
-            <Link className="nav-item" to="/estimator" onClick={() => setMenu(false)}>
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/estimator"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <Calculator size={18} />
               Estimador público
-            </Link>
+            </PageLink>
           </section>
           <section className="account-menu-section" aria-label="Gestión de cuenta y ayuda">
             <h2 className="account-menu-heading">Gestión de cuenta y ayuda</h2>
-            <Link className="nav-item" to="/account" onClick={() => setMenu(false)}>
+            <PageLink
+              className="nav-item"
+              to="/account"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <CircleUserRound size={18} />
               Mi cuenta
-            </Link>
-            <Link className="nav-item" to="/help" onClick={() => setMenu(false)}>
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/help"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
               <CircleHelp size={18} />
               Ayuda
-            </Link>
+            </PageLink>
             <button
               className="nav-item w-full"
               onClick={() => {

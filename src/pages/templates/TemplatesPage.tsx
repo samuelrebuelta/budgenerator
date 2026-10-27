@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { FileText, LayoutTemplate, Plus } from 'lucide-react';
 import { useTemplateStore } from '@/entities/template';
-import { Button, ConfirmModal, Skeleton, PageHeader, SwipeActions } from '@/shared/ui';
+import { Button, ConfirmModal, Skeleton, PageHeader, PageLink, SwipeActions } from '@/shared/ui';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { t } from '@/shared/i18n';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function TemplatesPage() {
   const templates = useTemplateStore((s) => s.templates);
   const loaded = useTemplateStore((s) => s.loaded);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
-  const navigate = useNavigate();
+  const { navigate } = usePageNavigation();
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
 
@@ -80,7 +80,7 @@ export function TemplatesPage() {
                   { id: 'delete', label: 'Eliminar', onAction: () => setTemplateToDelete(tpl.id) },
                 ]}
               >
-                <Link to={`/templates/${tpl.id}`} className="template-list-row">
+                <PageLink to={`/templates/${tpl.id}`} className="template-list-row">
                   <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
                     <FileText size={20} />
                   </div>
@@ -90,7 +90,7 @@ export function TemplatesPage() {
                       {t('templates.workItems', { count: tpl.workItems.length })}
                     </p>
                   </div>
-                </Link>
+                </PageLink>
               </SwipeActions>
             ))}
           </div>

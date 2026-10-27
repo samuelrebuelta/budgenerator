@@ -18,6 +18,7 @@ import {
 import { generateId } from '@/shared/lib';
 import type { BudgetTemplate } from '@/shared/types';
 import { t } from '@/shared/i18n';
+import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function TemplateDetailPage() {
   const { templateId = 'new' } = useParams<{ templateId: string }>();
@@ -31,7 +32,8 @@ function TemplateEditor({
   templateId: string;
   template: BudgetTemplate | null;
 }) {
-  const navigate = useNavigate();
+  const routerNavigate = useNavigate();
+  const { navigateBack } = usePageNavigation();
   const isNew = templateId === 'new';
 
   const templatesLoaded = useTemplateStore((s) => s.loaded);
@@ -83,9 +85,9 @@ function TemplateEditor({
   useEffect(() => {
     if (!isNew && templatesLoaded && !template) {
       discardDraft();
-      navigate('/templates', { replace: true });
+      routerNavigate('/templates', { replace: true });
     }
-  }, [isNew, templatesLoaded, template, navigate, discardDraft]);
+  }, [isNew, templatesLoaded, template, routerNavigate, discardDraft]);
 
   if (!isNew && (!templatesLoaded || !template)) return <TemplateDetailSkeleton />;
   if (!activeBudget) return <TemplateDetailSkeleton />;
@@ -117,7 +119,7 @@ function TemplateEditor({
         });
       }
       discardDraft();
-      navigate('/templates');
+      navigateBack('/templates');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'No se ha podido guardar la plantilla.');
     } finally {
@@ -131,7 +133,7 @@ function TemplateEditor({
     await removeTemplate(template.id);
     setShowDeleteConfirm(false);
     discardDraft();
-    navigate('/templates', { replace: true });
+    navigateBack('/templates', { replace: true });
   };
 
   return (
