@@ -169,6 +169,14 @@ service cloud.firestore {
         && data.updatedAt is string && data.updatedAt.size() > 0 && data.updatedAt.size() <= 40
         && project.status in ['pending', 'in_progress'];
     }
+    function validAssignmentStateTransition(uid, projectId) {
+      let statePath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/assignmentState/current;
+      let previousRevision = exists(statePath) ? get(statePath).data.revision : 0;
+      let nextState = getAfter(statePath).data;
+      return nextState.keys().hasOnly(['revision'])
+        && nextState.revision is int
+        && nextState.revision == previousRevision + 1;
+    }
     function validTeamJobProjectLink(uid, data) {
       let projectId = data.projectId;
       return projectId is string && projectId.size() > 0 && projectId.size() <= 128
@@ -494,10 +502,12 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId));
           allow create: if owner(uid)
             && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
-            && validProjectAssignment(uid, assignmentId, request.resource.data);
+            && validProjectAssignment(uid, assignmentId, request.resource.data)
+            && validAssignmentStateTransition(uid, projectId);
           allow update: if false;
           allow delete: if owner(uid)
-            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId));
+            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+            && validAssignmentStateTransition(uid, projectId);
         }
         match /dailyAssignments/{dateKey} {
           allow read: if owner(uid)
@@ -506,6 +516,23 @@ service cloud.firestore {
             && validProjectDailyAssignment(uid, projectId, dateKey, request.resource.data);
           allow delete: if owner(uid)
             && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId));
+        }
+        match /assignmentState/{stateId} {
+          allow read: if owner(uid) && stateId == 'current'
+            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId));
+          allow create: if owner(uid) && stateId == 'current'
+            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+            && request.resource.data.keys().hasOnly(['revision'])
+            && request.resource.data.revision is int
+            && request.resource.data.revision == 1;
+          allow update: if owner(uid) && stateId == 'current'
+            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+            && resource.data.keys().hasOnly(['revision'])
+            && resource.data.revision is int
+            && request.resource.data.keys().hasOnly(['revision'])
+            && request.resource.data.revision is int
+            && request.resource.data.revision == resource.data.revision + 1;
+          allow delete: if false;
         }
       }
       match /teamMembers/{memberId} {

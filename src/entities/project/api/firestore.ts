@@ -4,7 +4,9 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
+  getDocsFromServer,
   query,
   runTransaction,
   setDoc,
@@ -18,7 +20,11 @@ import type { FirestoreBudget } from '@/entities/budget/model/serialization';
 import type { CrewColor } from '@/shared/types';
 import { prepareProjectSnapshot } from '../model/conversion';
 import { getProjectLocalDateKey, normalizeProjectCompletionDate } from '../model/history';
-import { buildProjectAssignment, findCrewAssignmentForMember } from '../model/assignments';
+import {
+  assertValidProjectAssignmentSnapshot,
+  buildProjectAssignment,
+  findAssignmentWithOverlappingMember,
+} from '../model/assignments';
 import type {
   NewProjectSupplement,
   ProjectAssignment,
@@ -117,6 +123,8 @@ function percentage(
 
 export function createProjectFirestoreApi(database: Firestore) {
   const maxDailyAssignmentBytes = 900_000;
+  const assignmentRevisionChanged = 'La lista de asignaciones cambió durante la operación.';
+  const maxAssignmentRevisionAttempts = 3;
 
   function assertDailyScheduleDate(dateKey: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey))
@@ -187,11 +195,18 @@ export function createProjectFirestoreApi(database: Firestore) {
       throw new Error('El proyecto del plan semanal no es válido.');
     if (!Array.isArray(assignments) || assignments.length > 500)
       throw new Error('El equipo de este día supera el límite permitido.');
-    const resourceIds = assignments.map(
-      (assignment) => `${assignment.resourceType}:${assignment.resourceId}`,
-    );
-    if (new Set(resourceIds).size !== resourceIds.length)
-      throw new Error('No se puede asignar dos veces el mismo recurso a este proyecto.');
+    const resourceIds = new Set<string>();
+    const memberIds = new Set<string>();
+    for (const assignment of assignments) {
+      assertValidProjectAssignmentSnapshot(assignment);
+      const resourceKey = `${assignment.resourceType}:${assignment.resourceId}`;
+      if (resourceIds.has(resourceKey))
+        throw new Error('No se puede asignar dos veces el mismo recurso a este proyecto.');
+      resourceIds.add(resourceKey);
+      if (assignment.members.some(({ id }) => memberIds.has(id)))
+        throw new Error('No se puede asignar a una persona más de una vez en el mismo día.');
+      assignment.members.forEach(({ id }) => memberIds.add(id));
+    }
     const override: ProjectDailyAssignmentOverride = {
       date: dateKey,
       projectId,
@@ -364,69 +379,107 @@ export function createProjectFirestoreApi(database: Firestore) {
     const projectRef = doc(projectsCollection(database, uid), projectId);
     const assignmentId = `${resourceType}_${resourceId}`;
     const assignmentRef = doc(collection(projectRef, 'assignments'), assignmentId);
+    const assignmentStateRef = doc(collection(projectRef, 'assignmentState'), 'current');
     const assignedAt = new Date().toISOString();
 
-    if (resourceType === 'member') {
-      const assignmentsSnapshot = await getDocs(collection(projectRef, 'assignments'));
+    for (let attempt = 0; attempt < maxAssignmentRevisionAttempts; attempt += 1) {
+      const stateSnapshot = await getDocFromServer(assignmentStateRef);
+      const expectedRevision = stateSnapshot.exists() ? stateSnapshot.data().revision : 0;
+      if (!Number.isInteger(expectedRevision) || expectedRevision < 0)
+        throw new Error('El estado de las asignaciones del proyecto no es válido.');
+      const assignmentsSnapshot = await getDocsFromServer(collection(projectRef, 'assignments'));
       const projectAssignments = assignmentsSnapshot.docs.map(
         (snapshot) => ({ ...snapshot.data(), id: snapshot.id }) as ProjectAssignment,
       );
-      if (findCrewAssignmentForMember(resourceId, projectAssignments))
-        throw new Error('La persona ya está incluida en una cuadrilla asignada a este proyecto.');
+
+      try {
+        return await runTransaction(database, async (transaction) => {
+          const [projectSnapshot, currentState, existingAssignment] = await Promise.all([
+            transaction.get(projectRef),
+            transaction.get(assignmentStateRef),
+            transaction.get(assignmentRef),
+          ]);
+          if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+          const currentRevision = currentState.exists() ? currentState.data().revision : 0;
+          if (currentRevision !== expectedRevision) throw new Error(assignmentRevisionChanged);
+          if (existingAssignment.exists())
+            return { ...existingAssignment.data(), id: existingAssignment.id } as ProjectAssignment;
+
+          let assignment: ProjectAssignment;
+          if (resourceType === 'member') {
+            const memberRef = doc(database, 'users', uid, 'teamMembers', resourceId);
+            const memberSnapshot = await transaction.get(memberRef);
+            if (!memberSnapshot.exists()) throw new Error('No se ha encontrado a la persona.');
+            const member = { ...memberSnapshot.data(), id: memberSnapshot.id } as {
+              id: string;
+              name: string;
+              status: 'active' | 'inactive';
+            };
+            assignment = buildProjectAssignment({ resourceType, resource: member }, assignedAt);
+          } else {
+            const crewRef = doc(database, 'users', uid, 'crews', resourceId);
+            const crewSnapshot = await transaction.get(crewRef);
+            if (!crewSnapshot.exists()) throw new Error('No se ha encontrado la cuadrilla.');
+            const crew = { ...crewSnapshot.data(), id: crewSnapshot.id } as {
+              id: string;
+              label: string;
+              color: CrewColor;
+              memberIds: string[];
+              status: 'active' | 'inactive';
+            };
+            const memberIds = [...new Set(crew.memberIds)];
+            if (memberIds.some((id) => !id || id.length > 128 || id.includes('/')))
+              throw new Error('La cuadrilla contiene una referencia de persona no válida.');
+            const memberSnapshots = await Promise.all(
+              memberIds.map((id) =>
+                transaction.get(doc(database, 'users', uid, 'teamMembers', id)),
+              ),
+            );
+            const members = memberSnapshots.map((snapshot, index) => {
+              if (!snapshot.exists())
+                throw new Error('No se ha encontrado a una persona de la cuadrilla.');
+              return { ...snapshot.data(), id: memberIds[index] } as {
+                id: string;
+                name: string;
+                status: 'active' | 'inactive';
+              };
+            });
+            assignment = buildProjectAssignment(
+              { resourceType, resource: crew, members },
+              assignedAt,
+            );
+          }
+
+          const overlappingAssignment = findAssignmentWithOverlappingMember(
+            assignment.members.map((member) => member.id),
+            projectAssignments,
+            assignmentId,
+          );
+          if (overlappingAssignment) {
+            if (resourceType === 'member')
+              throw new Error(
+                'La persona ya está incluida en una cuadrilla asignada a este proyecto.',
+              );
+            if (overlappingAssignment.resourceType === 'member')
+              throw new Error(
+                'La cuadrilla incluye una persona ya asignada individualmente al proyecto.',
+              );
+            throw new Error(
+              'La cuadrilla comparte integrantes con otra cuadrilla asignada al proyecto.',
+            );
+          }
+
+          transaction.set(assignmentRef, assignment);
+          transaction.set(assignmentStateRef, { revision: expectedRevision + 1 });
+          return assignment;
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === assignmentRevisionChanged) continue;
+        throw error;
+      }
     }
 
-    return runTransaction(database, async (transaction) => {
-      const [projectSnapshot, existingAssignment] = await Promise.all([
-        transaction.get(projectRef),
-        transaction.get(assignmentRef),
-      ]);
-      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
-      if (existingAssignment.exists())
-        return { ...existingAssignment.data(), id: existingAssignment.id } as ProjectAssignment;
-
-      let assignment: ProjectAssignment;
-      if (resourceType === 'member') {
-        const memberRef = doc(database, 'users', uid, 'teamMembers', resourceId);
-        const memberSnapshot = await transaction.get(memberRef);
-        if (!memberSnapshot.exists()) throw new Error('No se ha encontrado a la persona.');
-        const member = { ...memberSnapshot.data(), id: memberSnapshot.id } as {
-          id: string;
-          name: string;
-          status: 'active' | 'inactive';
-        };
-        assignment = buildProjectAssignment({ resourceType, resource: member }, assignedAt);
-      } else {
-        const crewRef = doc(database, 'users', uid, 'crews', resourceId);
-        const crewSnapshot = await transaction.get(crewRef);
-        if (!crewSnapshot.exists()) throw new Error('No se ha encontrado la cuadrilla.');
-        const crew = { ...crewSnapshot.data(), id: crewSnapshot.id } as {
-          id: string;
-          label: string;
-          color: CrewColor;
-          memberIds: string[];
-          status: 'active' | 'inactive';
-        };
-        const memberIds = [...new Set(crew.memberIds)];
-        if (memberIds.some((id) => !id || id.length > 128 || id.includes('/')))
-          throw new Error('La cuadrilla contiene una referencia de persona no válida.');
-        const memberSnapshots = await Promise.all(
-          memberIds.map((id) => transaction.get(doc(database, 'users', uid, 'teamMembers', id))),
-        );
-        const members = memberSnapshots.map((snapshot, index) => {
-          if (!snapshot.exists())
-            throw new Error('No se ha encontrado a una persona de la cuadrilla.');
-          return { ...snapshot.data(), id: memberIds[index] } as {
-            id: string;
-            name: string;
-            status: 'active' | 'inactive';
-          };
-        });
-        assignment = buildProjectAssignment({ resourceType, resource: crew, members }, assignedAt);
-      }
-
-      transaction.set(assignmentRef, assignment);
-      return assignment;
-    });
+    throw new Error('No se ha podido actualizar la lista de asignaciones. Vuelve a intentarlo.');
   }
 
   async function removeAssignment(
@@ -438,13 +491,21 @@ export function createProjectFirestoreApi(database: Firestore) {
       throw new Error('La asignación no tiene un ID válido.');
     const projectRef = doc(projectsCollection(database, uid), projectId);
     const assignmentRef = doc(collection(projectRef, 'assignments'), assignmentId);
+    const assignmentStateRef = doc(collection(projectRef, 'assignmentState'), 'current');
     await runTransaction(database, async (transaction) => {
-      const [projectSnapshot, assignmentSnapshot] = await Promise.all([
+      const [projectSnapshot, assignmentSnapshot, stateSnapshot] = await Promise.all([
         transaction.get(projectRef),
         transaction.get(assignmentRef),
+        transaction.get(assignmentStateRef),
       ]);
       if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
-      if (assignmentSnapshot.exists()) transaction.delete(assignmentRef);
+      if (assignmentSnapshot.exists()) {
+        const currentRevision = stateSnapshot.exists() ? stateSnapshot.data().revision : 0;
+        if (!Number.isInteger(currentRevision) || currentRevision < 0)
+          throw new Error('El estado de las asignaciones del proyecto no es válido.');
+        transaction.delete(assignmentRef);
+        transaction.set(assignmentStateRef, { revision: currentRevision + 1 });
+      }
     });
   }
 

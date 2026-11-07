@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, writeBatch } from 'firebase/firestore';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
 
 let env: RulesTestEnvironment;
@@ -16,6 +16,22 @@ const firestoreEmulator = new URL(
 const projectId = 'project-1';
 const alice = () => env.authenticatedContext('alice').firestore();
 const bob = () => env.authenticatedContext('bob').firestore();
+const assignmentStateRef = (db: ReturnType<typeof alice>) =>
+  doc(db, 'users', 'alice', 'projects', projectId, 'assignmentState', 'current');
+
+async function writeAssignmentWithState(
+  db: ReturnType<typeof alice>,
+  assignmentId: string,
+  data: Record<string, unknown>,
+) {
+  const stateRef = assignmentStateRef(db);
+  const stateSnapshot = await getDoc(stateRef);
+  const revision = stateSnapshot.exists() ? stateSnapshot.data().revision : 0;
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'users', 'alice', 'projects', projectId, 'assignments', assignmentId), data);
+  batch.set(stateRef, { revision: revision + 1 });
+  await batch.commit();
+}
 const memberAssignment = {
   id: 'member_member-1',
   resourceType: 'member',
@@ -88,19 +104,47 @@ describe('project assignment Firestore boundary', () => {
       'assignments',
       memberAssignment.id,
     );
-    await assertSucceeds(setDoc(ref, memberAssignment));
-    expect((await getDoc(ref)).data()).toEqual(memberAssignment);
+    const api = createProjectFirestoreApi(alice());
+    await expect(
+      api.addAssignment('alice', projectId, 'member', 'member-1'),
+    ).resolves.toMatchObject({ ...memberAssignment, assignedAt: expect.any(String) });
+    expect((await getDoc(ref)).data()).toMatchObject({
+      ...memberAssignment,
+      assignedAt: expect.any(String),
+    });
     await expect(
       getDocs(collection(alice(), 'users', 'alice', 'projects', projectId, 'assignments')),
     ).resolves.toMatchObject({ size: 1 });
-    await assertSucceeds(deleteDoc(ref));
+    await expect(
+      api.removeAssignment('alice', projectId, memberAssignment.id),
+    ).resolves.toBeUndefined();
+    expect((await getDoc(ref)).exists()).toBe(false);
+  });
+
+  it('requires an atomic assignment-state revision when writing an assignment', async () => {
+    await assertFails(
+      setDoc(
+        doc(alice(), 'users', 'alice', 'projects', projectId, 'assignments', memberAssignment.id),
+        memberAssignment,
+      ),
+    );
   });
 
   it('blocks assigning a person who is already included in an assigned crew', async () => {
-    await setDoc(
-      doc(alice(), 'users', 'alice', 'projects', projectId, 'assignments', crewAssignment.id),
-      crewAssignment,
-    );
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(
+          context.firestore(),
+          'users',
+          'alice',
+          'projects',
+          projectId,
+          'assignments',
+          crewAssignment.id,
+        ),
+        crewAssignment,
+      );
+    });
     const api = createProjectFirestoreApi(alice());
 
     await expect(api.addAssignment('alice', projectId, 'member', 'member-1')).rejects.toThrow(
@@ -110,6 +154,47 @@ describe('project assignment Firestore boundary', () => {
       doc(alice(), 'users', 'alice', 'projects', projectId, 'assignments', memberAssignment.id),
     );
     expect(directAssignment.exists()).toBe(false);
+  });
+
+  it('blocks assigning a crew that contains a person already assigned individually', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(
+          context.firestore(),
+          'users',
+          'alice',
+          'projects',
+          projectId,
+          'assignments',
+          memberAssignment.id,
+        ),
+        memberAssignment,
+      );
+    });
+    const api = createProjectFirestoreApi(alice());
+
+    await expect(api.addAssignment('alice', projectId, 'crew', 'crew-1')).rejects.toThrow(
+      /ya asignada individualmente/i,
+    );
+    const crewAssignmentSnapshot = await getDoc(
+      doc(alice(), 'users', 'alice', 'projects', projectId, 'assignments', crewAssignment.id),
+    );
+    expect(crewAssignmentSnapshot.exists()).toBe(false);
+  });
+
+  it('serializes concurrent member and crew assignments that share a person', async () => {
+    const api = createProjectFirestoreApi(alice());
+
+    const outcomes = await Promise.allSettled([
+      api.addAssignment('alice', projectId, 'member', 'member-1'),
+      api.addAssignment('alice', projectId, 'crew', 'crew-1'),
+    ]);
+    const savedAssignments = await getDocs(
+      collection(alice(), 'users', 'alice', 'projects', projectId, 'assignments'),
+    );
+
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(savedAssignments.size).toBe(1);
   });
 
   it('denies another account access and denies assignments for a missing project', async () => {
@@ -133,21 +218,26 @@ describe('project assignment Firestore boundary', () => {
   });
 
   it('rejects forged IDs, unknown fields and malformed snapshots', async () => {
-    const assignments = collection(alice(), 'users', 'alice', 'projects', projectId, 'assignments');
-    await assertFails(setDoc(doc(assignments, 'forged'), { ...memberAssignment, id: 'forged' }));
+    const db = alice();
     await assertFails(
-      setDoc(doc(assignments, memberAssignment.id), { ...memberAssignment, extra: true }),
+      writeAssignmentWithState(db, 'forged', { ...memberAssignment, id: 'forged' }),
     );
     await assertFails(
-      setDoc(doc(assignments, memberAssignment.id), { ...memberAssignment, resourceType: 'crew' }),
+      writeAssignmentWithState(db, memberAssignment.id, { ...memberAssignment, extra: true }),
+    );
+    await assertFails(
+      writeAssignmentWithState(db, memberAssignment.id, {
+        ...memberAssignment,
+        resourceType: 'crew',
+      }),
     );
   });
 
   it('only accepts active resources owned by the project account and exact crew snapshots', async () => {
-    const assignments = collection(alice(), 'users', 'alice', 'projects', projectId, 'assignments');
-    await assertSucceeds(setDoc(doc(assignments, crewAssignment.id), crewAssignment));
+    const db = alice();
+    await assertSucceeds(writeAssignmentWithState(db, crewAssignment.id, crewAssignment));
     await assertFails(
-      setDoc(doc(assignments, 'member_missing'), {
+      writeAssignmentWithState(db, 'member_missing', {
         ...memberAssignment,
         id: 'member_missing',
         resourceId: 'missing',
@@ -155,7 +245,7 @@ describe('project assignment Firestore boundary', () => {
       }),
     );
     await assertFails(
-      setDoc(doc(assignments, 'member_inactive-1'), {
+      writeAssignmentWithState(db, 'member_inactive-1', {
         ...memberAssignment,
         id: 'member_inactive-1',
         resourceId: 'inactive-1',
@@ -164,7 +254,10 @@ describe('project assignment Firestore boundary', () => {
       }),
     );
     await assertFails(
-      setDoc(doc(assignments, crewAssignment.id), { ...crewAssignment, label: 'Otra cuadrilla' }),
+      writeAssignmentWithState(db, crewAssignment.id, {
+        ...crewAssignment,
+        label: 'Otra cuadrilla',
+      }),
     );
   });
 });

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { UserRound, UsersRound, X } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { findCrewAssignmentForMember, useProjectStore } from '@/entities/project';
+import {
+  findAssignmentWithOverlappingMember,
+  findCrewAssignmentForMember,
+  useProjectStore,
+} from '@/entities/project';
 import { useWorkforceStore } from '@/entities/workforce';
 import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
 import type { ProjectDetail } from '@/entities/project';
@@ -326,7 +330,18 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
                     const assigned = project.assignments.some(
                       (item) => item.resourceType === 'crew' && item.resourceId === crew.id,
                     );
-                    const count = activeCrewMembers(crew, members).length;
+                    const crewMembers = activeCrewMembers(crew, members);
+                    const count = crewMembers.length;
+                    const overlappingAssignment = findAssignmentWithOverlappingMember(
+                      crewMembers.map((member) => member.id),
+                      project.assignments,
+                      `crew_${crew.id}`,
+                    );
+                    const overlapDescription = overlappingAssignment
+                      ? overlappingAssignment.resourceType === 'member'
+                        ? `Incluye a ${overlappingAssignment.label}, ya asignada individualmente`
+                        : `Comparte integrantes con ${overlappingAssignment.label}, ya asignada`
+                      : '';
                     return (
                       <li key={crew.id} className="flex items-center justify-between gap-3 p-3">
                         <div className="flex min-w-0 items-center gap-2">
@@ -335,17 +350,27 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
                             style={{ backgroundColor: CREW_STYLE[crew.color].dot }}
                             aria-hidden="true"
                           />
-                          <span className="min-w-0 truncate text-sm font-medium text-[#1f2b26]">
-                            {crew.label}
-                            <span className="ml-2 text-xs font-normal text-[#637166]">
-                              {count} {count === 1 ? 'integrante activo' : 'integrantes activos'}
+                          <div className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-[#1f2b26]">
+                              {crew.label}
+                              <span className="ml-2 text-xs font-normal text-[#637166]">
+                                {count} {count === 1 ? 'integrante activo' : 'integrantes activos'}
+                              </span>
                             </span>
-                          </span>
+                            {overlapDescription && (
+                              <span className="mt-0.5 block text-xs text-[#8a5418]">
+                                {overlapDescription}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <Button
                           type="button"
                           variant="secondary"
-                          disabled={assigned || Boolean(busyId)}
+                          aria-label={
+                            overlapDescription ? `No disponible: ${overlapDescription}` : undefined
+                          }
+                          disabled={assigned || Boolean(overlappingAssignment) || Boolean(busyId)}
                           loading={busyId === `crew_${crew.id}`}
                           onClick={() => void assign('crew', crew.id)}
                         >

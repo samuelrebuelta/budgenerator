@@ -59,6 +59,16 @@ function scheduleRef(db: ReturnType<typeof alice>, projectId = 'project-1', date
 }
 
 describe('project daily assignment Firestore boundary', () => {
+  it('rejects malformed assignment snapshots before writing a day override', async () => {
+    const api = createProjectFirestoreApi(alice());
+
+    await expect(
+      api.saveDailyAssignments('alice', 'project-1', schedule.date, [
+        { resourceId: 'member-1' },
+      ] as never),
+    ).rejects.toThrow(/asignación/i);
+  });
+
   it('allows the owner to create, read, update, and remove a valid day override', async () => {
     const ref = scheduleRef(alice());
     await assertSucceeds(setDoc(ref, schedule));

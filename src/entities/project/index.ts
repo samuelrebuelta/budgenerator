@@ -5,7 +5,10 @@ export {
   getProjectLocalDateKey,
   normalizeProjectCompletionDate,
 } from './model/history';
-export { findCrewAssignmentForMember } from './model/assignments';
+export {
+  findAssignmentWithOverlappingMember,
+  findCrewAssignmentForMember,
+} from './model/assignments';
 export {
   filterDailyProjectAssignments,
   findDailyAssignmentConflicts,

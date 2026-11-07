@@ -598,7 +598,7 @@ test('manages individual members and colored crews from the team page', async ({
   const memberDialog = page.getByRole('dialog', { name: 'Añadir persona' });
   await memberDialog.getByLabel('Nombre', { exact: true }).fill('Ana Pérez');
   await memberDialog.getByRole('button', { name: 'Guardar persona' }).click();
-  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ana Pérez' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Editar a Ana Pérez' }).click();
   const editDialog = page.getByRole('dialog', { name: 'Editar persona' });
@@ -682,6 +682,19 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
     .click();
   await expect(firstDialog).toBeHidden();
   await page.getByRole('button', { name: 'Asignar equipo' }).click();
+  const blockedCrewDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
+  const overlappingCrewRow = blockedCrewDialog
+    .getByRole('listitem')
+    .filter({ hasText: 'Cuadrilla Norte' });
+  await expect(
+    overlappingCrewRow.getByRole('button', {
+      name: 'No disponible: Incluye a Ana Demo, ya asignada individualmente',
+    }),
+  ).toBeDisabled();
+  await blockedCrewDialog.getByRole('button', { name: 'Cerrar' }).first().click();
+  await page.getByRole('button', { name: 'Quitar asignación de Ana Demo' }).click();
+
+  await page.getByRole('button', { name: 'Asignar equipo' }).click();
   const secondDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
   await expect(secondDialog.getByRole('heading', { name: 'Cuadrillas' })).toBeVisible();
   await secondDialog
@@ -691,7 +704,7 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
     .click();
   await expect(secondDialog).toBeHidden();
 
-  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Cuadrilla Norte' })).toBeVisible();
   await expect(
     page.getByRole('list', { name: 'Integrantes de Cuadrilla Norte' }).getByText('Hugo Soler'),
@@ -704,7 +717,6 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
   await expect(crewAssignment).toHaveClass(/bg-\[#eaf1ed\]/);
   await expect(crewAssignment.locator('span.h-3.w-3')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Quitar asignación de Ana Demo' }).click();
   await page.getByRole('button', { name: 'Asignar equipo' }).click();
   const crewMemberDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
   const crewMemberRow = crewMemberDialog.getByRole('listitem').filter({ hasText: 'Ana Demo' });
