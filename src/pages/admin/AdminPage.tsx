@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Crown } from 'lucide-react';
 import { useUserStore } from '@/entities/user';
-import { Button, Card, LoadingSpinner, Modal, PageHeader, Switch } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  LoadingSpinner,
+  Modal,
+  OfflineUnavailable,
+  PageHeader,
+  Switch,
+} from '@/shared/ui';
 import { Skeleton } from '@/shared/ui';
 import type { UserData, UserPlan } from '@/shared/types';
 import { t } from '@/shared/i18n';
+import { useNetworkStore, reportNetworkUnavailable } from '@/shared/model/network';
 
 function formatRelativeDate(iso: string): string {
   const now = Date.now();
@@ -27,6 +36,9 @@ function formatRelativeDate(iso: string): string {
 }
 
 export function AdminPage() {
+  const online = useNetworkStore((s) => s.online);
+  const browserOnline = useNetworkStore((s) => s.browserOnline);
+  const dataRefreshVersion = useNetworkStore((s) => s.dataRefreshVersion);
   const allUsers = useUserStore((s) => s.allUsers);
   const visibleUsers = allUsers.filter((u) => !u.accountData.isAdmin);
   const allUsersLoaded = useUserStore((s) => s.allUsersLoaded);
@@ -41,8 +53,12 @@ export function AdminPage() {
   const [expiryInput, setExpiryInput] = useState('');
 
   useEffect(() => {
-    void loadAllUsers().catch(() => setError('No se han podido cargar los usuarios.'));
-  }, [loadAllUsers]);
+    if (!browserOnline) return;
+    void loadAllUsers(dataRefreshVersion > 0).catch((cause) => {
+      reportNetworkUnavailable(cause);
+      setError('No se han podido cargar los usuarios.');
+    });
+  }, [allUsersLoaded, loadAllUsers, browserOnline, dataRefreshVersion]);
 
   const handleTogglePlan = async (user: UserData) => {
     setSavingAction('plan');
@@ -89,9 +105,10 @@ export function AdminPage() {
     if (retryingUsers) return;
     setRetryingUsers(true);
     try {
-      await loadAllUsers();
+      await loadAllUsers(true);
       setError('');
-    } catch {
+    } catch (cause) {
+      reportNetworkUnavailable(cause);
       setError('No se han podido cargar los usuarios.');
     } finally {
       setRetryingUsers(false);
@@ -121,7 +138,9 @@ export function AdminPage() {
           </p>
         )}
 
-        {!allUsersLoaded ? (
+        {!allUsersLoaded && !online ? (
+          <OfflineUnavailable />
+        ) : !allUsersLoaded ? (
           <Card className="p-4 sm:p-6 space-y-3">
             {Array.from({ length: 5 }, (_, i) => (
               <Skeleton key={i} className="h-12 w-full" />

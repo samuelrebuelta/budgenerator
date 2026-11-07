@@ -1,23 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, WifiOff, RefreshCw } from 'lucide-react';
 import { withTimeout } from '@/shared/model/session';
 import { flushWrites, hasPendingWrites } from '@/shared/model/sync';
 import { useBudgetStore } from '@/entities/budget';
+import { useAuthStore } from '@/entities/auth';
 import { LoadingSpinner } from '@/shared/ui';
+import { setNetworkOnline, useNetworkStore } from '@/shared/model/network';
+import { probeSessionConnection, retryUnauthenticatedRouteConnection } from './session';
+import { refreshAfterNetworkRecovery } from './refreshOnReconnect';
 import type { PwaUpdateEvent } from './pwa';
 export function PwaStatus() {
-  const [online, setOnline] = useState(navigator.onLine);
+  const online = useNetworkStore((state) => state.online);
+  const browserOnline = useNetworkStore((state) => state.browserOnline);
+  const recoveryVersion = useNetworkStore((state) => state.recoveryVersion);
+  const recoverySource = useNetworkStore((state) => state.recoverySource);
+  const user = useAuthStore((state) => state.user);
   const [update, setUpdate] = useState<ServiceWorkerRegistration | null>(null);
   const [chunkError, setChunkError] = useState(false);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const handledRecoveryVersion = useRef(0);
   const draft = useBudgetStore((s) => s.draftBudget);
   useEffect(() => {
     const connected = () => {
-      setOnline(true);
-      void flushWrites().catch(() => {});
+      setNetworkOnline(true);
     };
-    const disconnected = () => setOnline(false);
+    const disconnected = () => setNetworkOnline(false);
     const available = (event: Event) => setUpdate((event as PwaUpdateEvent).detail);
     const missingChunk = (event: Event) => {
       event.preventDefault();
@@ -41,6 +49,19 @@ export function PwaStatus() {
       window.removeEventListener('vite:preloadError', missingChunk);
     };
   }, []);
+  useEffect(() => {
+    if (online || !browserOnline) return;
+    const retryTimer = window.setInterval(() => {
+      if (user) void probeSessionConnection(user).catch(() => {});
+      else retryUnauthenticatedRouteConnection();
+    }, 30_000);
+    return () => window.clearInterval(retryTimer);
+  }, [online, browserOnline, user]);
+  useEffect(() => {
+    if (recoveryVersion <= handledRecoveryVersion.current) return;
+    handledRecoveryVersion.current = recoveryVersion;
+    void refreshAfterNetworkRecovery(user, recoverySource === 'session').catch(() => {});
+  }, [recoveryVersion, recoverySource, user]);
   const refresh = async () => {
     if (refreshing) return;
     if (draft) {
@@ -70,8 +91,8 @@ export function PwaStatus() {
         <>
           <WifiOff size={18} />
           <span>
-            Sin conexión. La sesión abierta sigue disponible; guardar y abrir datos nuevos requiere
-            red.
+            Sin conexión. Puedes consultar los últimos datos guardados; guardar o cargar información
+            nueva requiere red.
           </span>
         </>
       ) : (

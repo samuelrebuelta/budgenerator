@@ -52,6 +52,14 @@ El estimador público calcula en Firebase Cloud Functions una horquilla orientat
 - `docs/testing-evidence/bg005-public-form.png` es una captura con datos sintéticos; no constituye investigación de clientes ni un caso de éxito real.
 - No hay testimonios aprobados, métricas de clientes, casos de estudio ni benchmarks documentados. No deben inventarse.
 
+## BG-011 — gestión de equipo
+
+`/team` es la tercera tab principal, después de Presupuestos y Proyectos y antes de Solicitudes. Muestra únicamente la planificación semanal: permite revisar qué personas/cuadrillas van a cada proyecto, editar asignaciones por día y filtrar por uno o varios recursos. Un botón de edición junto al título abre `/team/manage`, donde se registran y organizan personas y cuadrillas; el retorno vuelve al calendario conservando la semana y el filtro. Las semanas navegan con swipe o controles y usan transiciones horizontales. Las asignaciones diarias son independientes de los snapshots permanentes del proyecto y avisan si alguien figura en varios proyectos el mismo día. Una persona incluida en una cuadrilla asignada no se puede añadir también de forma individual al proyecto. Cada proyecto puede tener una fecha estimada de fin local; el calendario lo muestra hasta ese día inclusive y señala los proyectos aún sin fecha, que siguen visibles hasta configurarla. No incluye cuentas para trabajadores ni agenda de hitos de capítulos. Las fechas y el progreso de capítulos siguen siendo parte del seguimiento de proyectos BG-009.
+
+Cada tarjeta diaria ofrece un control circular para editar las personas/cuadrillas de ese proyecto y otro para abrir su detalle.
+
+Desde cualquier día se puede registrar un trabajo puntual con una o más personas/cuadrillas, opcionalmente ligado a un proyecto pendiente, en curso o finalizado. El título es obligatorio y la descripción opcional, también si no se enlaza un proyecto. Desde el alta del trabajo se puede registrar una persona activa por su nombre; al guardarla queda asignada al trabajo sin salir de la pantalla. Enlazar una obra finalizada no la reabre ni cambia sus datos; los trabajos se muestran y filtran junto con las asignaciones semanales.
+
 ## Product Principles
 
 Principios derivados de decisiones expresas de producto y restricciones implementadas:

@@ -12,6 +12,7 @@ import {
 import { db } from '@/shared/firebase/config';
 import type { Tariff, TariffCatalog } from '@/shared/types';
 import { catalogParts } from '../model/migrate';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 function legacyTariffsCol(uid: string) {
   return collection(db, 'users', uid, 'tariffs');
@@ -43,7 +44,7 @@ export async function fetchTariffCatalogs(uid: string): Promise<TariffCatalog[]>
 }
 
 export async function saveTariffCatalog(uid: string, catalog: TariffCatalog) {
-  await setDoc(doc(catalogsCol(uid), catalog.id), catalog);
+  await runNetworkMutation(() => setDoc(doc(catalogsCol(uid), catalog.id), catalog));
 }
 
 export async function updateTariffCatalogDoc(
@@ -51,7 +52,7 @@ export async function updateTariffCatalogDoc(
   catalogId: string,
   data: Partial<TariffCatalog>,
 ) {
-  await updateDoc(doc(catalogsCol(uid), catalogId), data);
+  await runNetworkMutation(() => updateDoc(doc(catalogsCol(uid), catalogId), data));
 }
 
 export async function deleteTariffCatalogDoc(uid: string, catalogId: string) {
@@ -66,7 +67,9 @@ export async function fetchActiveTariffCatalogId(uid: string): Promise<string | 
 }
 
 export async function saveActiveTariffCatalogId(uid: string, catalogId: string | null) {
-  await setDoc(activeCatalogDoc(uid), { activeCatalogId: catalogId }, { merge: true });
+  await runNetworkMutation(() =>
+    setDoc(activeCatalogDoc(uid), { activeCatalogId: catalogId }, { merge: true }),
+  );
 }
 
 /** The fixed destination is read inside the transaction: concurrent tabs never overwrite it. */

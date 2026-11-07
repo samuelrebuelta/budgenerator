@@ -7,13 +7,28 @@ import {
   isSessionCurrent,
   withTimeout,
 } from '@/shared/model/session';
-import { useSyncStore, flushWrites } from '@/shared/model/sync';
+import { useSyncStore, flushWrites, hasPendingWrites } from '@/shared/model/sync';
 import { useBudgetStore, resetBudgetStore } from '@/entities/budget/model/store';
 import { useCatalogStore, resetCatalogStore } from '@/entities/catalog/model/store';
 import { useProfileStore, resetProfileStore } from '@/entities/profile/model/store';
 import { useProjectStore, resetProjectStore } from '@/entities/project';
+import { resetWorkforceStore } from '@/entities/workforce';
 import { useTemplateStore, resetTemplateStore } from '@/entities/template/model/store';
 import { useUserStore, resetUserStore } from '@/entities/user/model/store';
+import {
+  clearMemoryResources,
+  restorePersistedMemoryResources,
+} from '@/shared/lib/memoryResourceCache';
+import {
+  deleteOfflineUserData,
+  restoreOfflineStores,
+  withOfflinePersistenceSuspended,
+} from '@/shared/lib/offlineStateCache';
+import {
+  isBrowserDisconnected,
+  markNetworkAvailable,
+  reportNetworkUnavailable,
+} from '@/shared/model/network';
 export const useSessionStore = create<{
   uid: string | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
@@ -22,14 +37,19 @@ export const useSessionStore = create<{
 let loading: Promise<void> | null = null;
 export function resetSession(uid: string | null) {
   const previous = sessionUid();
+  if (previous && previous !== uid) void deleteOfflineUserData(previous);
   setSessionUid(uid);
-  resetBudgetStore();
-  resetCatalogStore();
-  resetProfileStore();
-  resetProjectStore();
-  resetTemplateStore();
-  resetUserStore();
-  useSyncStore.setState({ jobs: {} });
+  withOfflinePersistenceSuspended(() => {
+    clearMemoryResources();
+    resetBudgetStore();
+    resetCatalogStore();
+    resetProfileStore();
+    resetProjectStore();
+    resetWorkforceStore();
+    resetTemplateStore();
+    resetUserStore();
+    useSyncStore.setState({ jobs: {} });
+  });
   if (previous && previous !== uid) {
     try {
       for (const key of Object.keys(sessionStorage))
@@ -41,38 +61,86 @@ export function resetSession(uid: string | null) {
   loading = null;
   useSessionStore.setState({ uid, status: 'idle', error: null });
 }
-export function loadSession(user: User, retry = false): Promise<void> {
+export function loadSession(
+  user: User,
+  retry = false,
+  writesAlreadyFlushed = false,
+): Promise<void> {
   if (sessionUid() !== user.uid) resetSession(user.uid);
   if (loading) return loading;
   if (useSessionStore.getState().status === 'ready' && !retry) return Promise.resolve();
   const revision = sessionRevision();
-  useSessionStore.setState({ uid: user.uid, status: 'loading', error: null });
+  const sessionWasReady = useSessionStore.getState().status === 'ready';
+  if (!sessionWasReady) useSessionStore.setState({ uid: user.uid, status: 'loading', error: null });
   loading = (async () => {
     try {
+      if (!sessionWasReady)
+        await Promise.all([
+          restoreOfflineStores(user.uid),
+          restorePersistedMemoryResources(user.uid),
+        ]);
+      if (!isSessionCurrent(user.uid, revision)) return;
+      if (isBrowserDisconnected()) {
+        useSessionStore.setState({ uid: user.uid, status: 'ready', error: null });
+        return;
+      }
+      if (retry && !writesAlreadyFlushed) {
+        await withTimeout(flushWrites());
+        if (hasPendingWrites()) throw new Error('Hay cambios pendientes de sincronizar.');
+      }
       await withTimeout(
         Promise.all([
           useUserStore.getState().loadUserData(user.uid, user.email ?? ''),
           useBudgetStore.getState().loadBudgets(user.uid),
-          useCatalogStore.getState().loadCatalogs(user.uid),
+          useCatalogStore.getState().loadCatalogs(user.uid, true),
           useProfileStore.getState().loadProfile(user.uid, user.email ?? ''),
-          useProjectStore.getState().loadProjects(user.uid),
+          useProjectStore.getState().loadProjects(user.uid, true),
           useTemplateStore.getState().loadTemplates(user.uid),
         ]),
       );
-      if (isSessionCurrent(user.uid, revision)) useSessionStore.setState({ status: 'ready' });
+      if (isSessionCurrent(user.uid, revision)) {
+        markNetworkAvailable('session');
+        useSessionStore.setState({ status: 'ready' });
+      }
     } catch (error) {
-      if (isSessionCurrent(user.uid, revision))
+      if (isSessionCurrent(user.uid, revision)) {
+        const offline = reportNetworkUnavailable(error);
         useSessionStore.setState({
-          status: 'error',
+          status: offline || sessionWasReady ? 'ready' : 'error',
           error:
-            error instanceof Error ? error.message : 'No hemos podido abrir tu espacio de trabajo.',
+            offline || sessionWasReady
+              ? null
+              : error instanceof Error
+                ? error.message
+                : 'No hemos podido abrir tu espacio de trabajo.',
         });
+      }
     } finally {
       if (isSessionCurrent(user.uid, revision)) loading = null;
     }
   })();
   return loading;
 }
+
+export async function probeSessionConnection(user: User): Promise<boolean> {
+  if (isBrowserDisconnected()) return false;
+  try {
+    await withTimeout(useProjectStore.getState().loadProjects(user.uid, true));
+    markNetworkAvailable('request');
+    return true;
+  } catch (error) {
+    reportNetworkUnavailable(error);
+    return false;
+  }
+}
+
+export function retryUnauthenticatedRouteConnection(): boolean {
+  if (isBrowserDisconnected()) return false;
+  // The active public route is the Firebase probe; this starts its cached, non-blocking reload.
+  markNetworkAvailable('request');
+  return true;
+}
+
 export async function prepareSignOut() {
   await withTimeout(flushWrites());
 }

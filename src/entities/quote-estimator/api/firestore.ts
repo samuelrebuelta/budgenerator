@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/shared/firebase/config';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 import type {
   EstimateSelection,
   PublicLeadSubmission,
@@ -20,22 +21,22 @@ export async function fetchQuoteEstimatorSettings(uid: string) {
 }
 
 export async function saveQuoteEstimatorSettings(uid: string, settings: QuoteEstimatorSettings) {
-  await setDoc(settingsDoc(uid), settings);
+  await runNetworkMutation(() => setDoc(settingsDoc(uid), settings));
 }
 
 export async function deleteQuoteEstimatorSettings(uid: string) {
   await revokeEstimatorLink();
-  await deleteDoc(settingsDoc(uid));
+  await runNetworkMutation(() => deleteDoc(settingsDoc(uid)));
 }
 
 export async function publishEstimatorLink() {
   const call = httpsCallable<void, { token: string }>(functions, 'publishPublicEstimator');
-  return (await call()).data;
+  return runNetworkMutation(async () => (await call()).data);
 }
 
 export async function revokeEstimatorLink() {
   const call = httpsCallable<void, { revoked: boolean }>(functions, 'revokePublicEstimator');
-  return (await call()).data;
+  return runNetworkMutation(async () => (await call()).data);
 }
 
 export async function fetchEstimatorLinkStatus() {
@@ -67,7 +68,7 @@ export async function requestPublicLead(input: PublicLeadSubmission) {
     functions,
     'submitPublicLead',
   );
-  return (await call(input)).data;
+  return runNetworkMutation(async () => (await call(input)).data);
 }
 
 function toIsoDate(value: unknown) {
@@ -106,5 +107,5 @@ export async function fetchLead(uid: string, leadId: string): Promise<QuoteLead 
 }
 
 export async function deleteLead(uid: string, leadId: string) {
-  await deleteDoc(doc(leadsCollection(uid), leadId));
+  await runNetworkMutation(() => deleteDoc(doc(leadsCollection(uid), leadId)));
 }

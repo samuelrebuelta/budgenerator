@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Project,
+  ProjectAssignment,
   ProjectDetail,
   ProjectSupplement,
   ProjectSupplementVoid,
+  ProjectTeamScheduleData,
   ProjectWorkItem,
 } from '../src/entities/project/model/types';
 
@@ -11,6 +13,12 @@ const mocks = vi.hoisted(() => ({
   api: {
     fetchProjects: vi.fn(),
     fetchProject: vi.fn(),
+    fetchTeamSchedule: vi.fn(),
+    saveDailyAssignments: vi.fn(),
+    removeDailyAssignmentOverride: vi.fn(),
+    addAssignment: vi.fn(),
+    removeAssignment: vi.fn(),
+    setEstimatedEndDate: vi.fn(),
     toggleTask: vi.fn(),
     completeWorkItem: vi.fn(),
     setTaskCompletionDate: vi.fn(),
@@ -86,6 +94,7 @@ const detail = (completedAt?: string): ProjectDetail => ({
     ? { completedConcepts: 1, completedAmount: 50, percent: 50, status: 'in_progress' as const }
     : {}),
   workItems: [workItem(completedAt)],
+  assignments: [],
   supplements: [],
   supplementVoids: [],
 });
@@ -93,6 +102,7 @@ const detail = (completedAt?: string): ProjectDetail => ({
 const summary = (value: ProjectDetail): Project => {
   const result = { ...value };
   Reflect.deleteProperty(result, 'workItems');
+  Reflect.deleteProperty(result, 'assignments');
   return result;
 };
 
@@ -106,6 +116,20 @@ describe('project store', () => {
     resetProjectStore();
     vi.clearAllMocks();
     useProjectStore.setState({ projects: [project()], activeProject: detail(), loaded: true });
+  });
+
+  it('persists an estimated end date and updates list and active detail', async () => {
+    const setEstimatedEndDate = Reflect.get(useProjectStore.getState(), 'setEstimatedEndDate') as
+      ((projectId: string, date: string) => Promise<void>) | undefined;
+    expect(typeof setEstimatedEndDate).toBe('function');
+    if (typeof setEstimatedEndDate !== 'function') return;
+
+    mocks.api.setEstimatedEndDate.mockResolvedValueOnce(undefined);
+    await setEstimatedEndDate('project-a', '2026-11-30');
+
+    expect(mocks.api.setEstimatedEndDate).toHaveBeenCalledWith('alice', 'project-a', '2026-11-30');
+    expect(useProjectStore.getState().projects[0]?.estimatedEndDate).toBe('2026-11-30');
+    expect(useProjectStore.getState().activeProject?.estimatedEndDate).toBe('2026-11-30');
   });
 
   it('toggles and reopens a concept while keeping list and detail summaries consistent', async () => {
@@ -341,6 +365,92 @@ describe('project store', () => {
 
     expect(useProjectStore.getState().projects).toEqual([]);
     expect(useProjectStore.getState().loaded).toBe(false);
+  });
+
+  it('adds and removes assignment snapshots without changing project economics', async () => {
+    const assignment: ProjectAssignment = {
+      id: 'crew_crew-a',
+      resourceType: 'crew',
+      resourceId: 'crew-a',
+      label: 'Alba',
+      color: 'green',
+      members: [{ id: 'member-a', name: 'Ana Pérez' }],
+      assignedAt: '2026-11-05T10:00:00.000Z',
+    };
+    mocks.api.addAssignment.mockResolvedValueOnce(assignment);
+    mocks.api.removeAssignment.mockResolvedValueOnce(undefined);
+
+    await useProjectStore.getState().addAssignment('project-a', 'crew', 'crew-a');
+    expect(useProjectStore.getState().activeProject?.assignments).toEqual([assignment]);
+    expect(useProjectStore.getState().projects[0]).toMatchObject({
+      total: 110,
+      updatedTotal: 110,
+      completedConcepts: 0,
+    });
+    expect(mocks.api.addAssignment).toHaveBeenCalledWith('alice', 'project-a', 'crew', 'crew-a');
+
+    await useProjectStore.getState().removeAssignment('project-a', assignment.id);
+    expect(useProjectStore.getState().activeProject?.assignments).toEqual([]);
+    expect(mocks.api.removeAssignment).toHaveBeenCalledWith('alice', 'project-a', assignment.id);
+  });
+
+  it('loads, saves, and resets date-specific team schedules through the session-aware API', async () => {
+    const schedule = {
+      assignmentsByProjectId: { 'project-a': [] },
+      overridesByProjectDate: {},
+    };
+    const override = {
+      projectId: 'project-a',
+      date: '2026-11-09',
+      assignments: [],
+      updatedAt: '2026-11-06T10:00:00.000Z',
+    };
+    mocks.api.fetchTeamSchedule.mockResolvedValueOnce(schedule);
+    mocks.api.saveDailyAssignments.mockResolvedValueOnce(override);
+    mocks.api.removeDailyAssignmentOverride.mockResolvedValueOnce(undefined);
+
+    await expect(
+      useProjectStore.getState().loadTeamSchedule('alice', ['project-a'], ['2026-11-09']),
+    ).resolves.toEqual(schedule);
+    await expect(
+      useProjectStore.getState().saveDailyAssignments('project-a', '2026-11-09', []),
+    ).resolves.toEqual(override);
+    await expect(
+      useProjectStore.getState().removeDailyAssignmentOverride('project-a', '2026-11-09'),
+    ).resolves.toBeUndefined();
+    expect(mocks.api.fetchTeamSchedule).toHaveBeenCalledWith(
+      'alice',
+      ['project-a'],
+      ['2026-11-09'],
+    );
+    expect(mocks.api.saveDailyAssignments).toHaveBeenCalledWith(
+      'alice',
+      'project-a',
+      '2026-11-09',
+      [],
+    );
+    expect(mocks.api.removeDailyAssignmentOverride).toHaveBeenCalledWith(
+      'alice',
+      'project-a',
+      '2026-11-09',
+    );
+  });
+
+  it('discards team schedule responses from an older session', async () => {
+    let resolve: ((value: ProjectTeamScheduleData) => void) | null = null;
+    mocks.api.fetchTeamSchedule.mockReturnValueOnce(
+      new Promise<ProjectTeamScheduleData>((done) => {
+        resolve = done;
+      }),
+    );
+
+    const pending = useProjectStore
+      .getState()
+      .loadTeamSchedule('alice', ['project-a'], ['2026-11-09']);
+    setSessionUid('bob');
+    resolve?.({ assignmentsByProjectId: {}, overridesByProjectDate: {} });
+
+    await expect(pending).resolves.toBeNull();
   });
 
   it('propagates project detail load errors so the page can offer retry', async () => {

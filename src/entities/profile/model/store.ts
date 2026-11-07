@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchProfile, saveProfile } from '@/entities/profile/api/firestore';
 import { WriteQueue } from '@/shared/lib/writeQueue';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 import { withTimeout, isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import type { CompanyProfile } from '@/shared/types';
 
@@ -14,7 +15,7 @@ export function setProfileAuthGetter(_fn: () => string) {
 const getUid = sessionUid;
 export function resetProfileStore() {
   writes.clear();
-  useProfileStore.setState({ profile: { ...EMPTY_PROFILE }, loaded: false });
+  useProfileStore.setState({ profile: { ...EMPTY_PROFILE }, loaded: false, dirty: false });
 }
 
 const EMPTY_PROFILE: CompanyProfile = {
@@ -47,6 +48,7 @@ async function fileToBase64(file: File): Promise<string> {
 interface ProfileState {
   profile: CompanyProfile;
   loaded: boolean;
+  dirty: boolean;
   loadProfile: (uid: string, authEmail?: string) => Promise<void>;
   updateProfile: (patch: Partial<CompanyProfile>) => void;
   saveProfile: () => Promise<void>;
@@ -57,18 +59,27 @@ interface ProfileState {
 export const useProfileStore = create<ProfileState>((set, get) => ({
   profile: { ...EMPTY_PROFILE },
   loaded: false,
+  dirty: false,
 
   loadProfile: async (uid, authEmail?: string) => {
+    if (get().dirty) {
+      set({ loaded: true });
+      return;
+    }
     const revision = sessionRevision();
     const data = await fetchProfile(uid);
     if (!isSessionCurrent(uid, revision)) return;
+    if (get().dirty) {
+      set({ loaded: true });
+      return;
+    }
     const profile = data ?? { ...EMPTY_PROFILE };
     if (authEmail) profile.email = authEmail;
     set({ profile, loaded: true });
   },
 
   updateProfile: (patch) => {
-    set((s) => ({ profile: { ...s.profile, ...patch } }));
+    set((s) => ({ profile: { ...s.profile, ...patch }, dirty: true }));
   },
 
   saveProfile: async () => {
@@ -77,6 +88,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     const { profile } = get();
     writes.schedule(uid, profile);
     await withTimeout(writes.flush());
+    if (get().profile === profile) set({ dirty: false });
   },
 
   uploadLogo: async (file) => {
@@ -85,14 +97,20 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     const revision = sessionRevision();
     const dataUrl = await fileToBase64(file);
     if (!isSessionCurrent(uid, revision)) return;
-    set((s) => ({ profile: { ...s.profile, logo: dataUrl } }));
+    set((s) => ({ profile: { ...s.profile, logo: dataUrl }, dirty: true }));
     await get().saveProfile();
   },
 
   removeLogo: async () => {
     const uid = getUid?.();
     if (!uid) return;
-    set((s) => ({ profile: { ...s.profile, logo: '' } }));
+    set((s) => ({ profile: { ...s.profile, logo: '' }, dirty: true }));
     await get().saveProfile();
   },
+}));
+
+registerOfflineStore('profile', useProfileStore, getUid, (state) => ({
+  profile: state.profile,
+  loaded: state.loaded,
+  dirty: state.dirty,
 }));

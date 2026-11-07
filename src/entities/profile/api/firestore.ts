@@ -1,6 +1,7 @@
 import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
 import type { CompanyProfile } from '@/shared/types';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 function profileDoc(uid: string) {
   return doc(db, 'users', uid, 'profile', 'data');
@@ -26,5 +27,5 @@ export async function fetchProfile(uid: string): Promise<CompanyProfile | null> 
 }
 
 export async function saveProfile(uid: string, profile: CompanyProfile) {
-  await setDoc(profileDoc(uid), profile);
+  await runNetworkMutation(() => setDoc(profileDoc(uid), profile));
 }

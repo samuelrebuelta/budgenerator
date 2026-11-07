@@ -16,11 +16,19 @@ export function syncStatus(key: string, pending: boolean, error?: unknown) {
   }));
 }
 const flushers = new Set<() => Promise<void>>();
+let scheduledFlush: ReturnType<typeof setTimeout> | null = null;
 export function registerFlusher(flush: () => Promise<void>) {
   flushers.add(flush);
 }
 export async function flushWrites() {
   await Promise.all([...flushers].map((flush) => flush()));
+}
+export function scheduleFlushWrites() {
+  if (scheduledFlush !== null) return;
+  scheduledFlush = setTimeout(() => {
+    scheduledFlush = null;
+    void flushWrites().catch(() => {});
+  }, 0);
 }
 export function hasPendingWrites() {
   return Object.values(useSyncStore.getState().jobs).some((j) => j.pending || j.error);

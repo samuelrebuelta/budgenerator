@@ -53,6 +53,14 @@ export const router = createBrowserRouter([
         }),
       },
       {
+        path: '/team/jobs/new',
+        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
+      },
+      {
+        path: '/team/:view?',
+        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
+      },
+      {
         path: '/catalog',
         lazy: async () => ({ Component: (await import('@/pages/catalogs')).CatalogsPage }),
       },

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { CatalogConcept, Tariff, TariffCatalog } from '@/shared/types';
 import { generateId } from '@/shared/lib';
 import { WriteQueue } from '@/shared/lib/writeQueue';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
+import { isBrowserDisconnected } from '@/shared/model/network';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { BASE_CATALOGS, TRADE_CATALOGS } from './baseCatalogs';
 import { mergeTradeIntoParts, type TradeImportResult, type TradeImportScope } from './tradeImport';
@@ -20,7 +22,7 @@ interface CatalogState {
   catalogs: TariffCatalog[];
   loaded: boolean;
   activeCatalogId: string | null;
-  loadCatalogs: (uid: string) => Promise<void>;
+  loadCatalogs: (uid: string, force?: boolean) => Promise<void>;
   addTariff: (tariff: Omit<Tariff, 'id'>, catalogId?: string) => Promise<void>;
   updateTariff: (
     id: string,
@@ -81,8 +83,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => {
     catalogs: [],
     loaded: false,
     activeCatalogId: null,
-    loadCatalogs: async (uid) => {
-      if (get().loaded && sessionUid() === uid) return;
+    loadCatalogs: async (uid, force = false) => {
+      if (get().loaded && sessionUid() === uid && (!force || isBrowserDisconnected())) return;
       const revision = sessionRevision();
       const [catalogs, selected] = await Promise.all([
         fetchTariffCatalogs(uid),
@@ -250,3 +252,10 @@ export const useCatalogStore = create<CatalogState>((set, get) => {
     },
   };
 });
+
+registerOfflineStore('catalog', useCatalogStore, sessionUid, (state) => ({
+  tariffs: state.tariffs,
+  catalogs: state.catalogs,
+  loaded: state.loaded,
+  activeCatalogId: state.activeCatalogId,
+}));

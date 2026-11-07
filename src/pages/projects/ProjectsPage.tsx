@@ -1,7 +1,9 @@
-import { ArrowRight, FolderOpen } from 'lucide-react';
+import { ArrowRight, FolderOpen, UsersRound } from 'lucide-react';
 import { ProjectStatusTag, useProjectStore } from '@/entities/project';
 import { formatCurrency } from '@/shared/lib';
 import { Button, PageHeader, PageLink, Skeleton } from '@/shared/ui';
+import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
+import { useNetworkStore } from '@/shared/model/network';
 import { ProjectProgressBar } from './ProjectProgressBar';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
@@ -17,15 +19,27 @@ export function ProjectsPage() {
   const { navigate } = usePageNavigation();
   const projects = useProjectStore((state) => state.projects);
   const loaded = useProjectStore((state) => state.loaded);
+  const online = useNetworkStore((state) => state.online);
 
   return (
     <div className="page-container">
       <PageHeader
         title="Proyectos"
         description="Sigue el avance estimado de las reformas que ya han empezado."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <PageLink
+              to="/team"
+              className="ui-button inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#c6d4cc] bg-white px-4 py-2 text-sm font-medium text-[#183e3b] hover:bg-[#edf5f1]"
+            >
+              <UsersRound size={17} aria-hidden="true" />
+              Equipo
+            </PageLink>
+          </div>
+        }
       />
 
-      {!loaded ? (
+      {!loaded && projects.length === 0 && online ? (
         <div className="space-y-3" role="status" aria-label="Cargando proyectos">
           <span className="sr-only">Cargando proyectos</span>
           {[0, 1, 2].map((item) => (
@@ -36,6 +50,8 @@ export function ProjectsPage() {
             </div>
           ))}
         </div>
+      ) : !loaded && projects.length === 0 ? (
+        <OfflineUnavailable />
       ) : projects.length === 0 ? (
         <section
           className="rounded-xl bg-[#f2f2e9] px-6 py-10 sm:px-10"

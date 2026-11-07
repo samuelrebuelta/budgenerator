@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Copy, ExternalLink, Minus, Plus, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
@@ -23,6 +23,7 @@ import {
   Card,
   ConfirmModal,
   Input,
+  OfflineUnavailable,
   PageHeader,
   PageHeaderSkeleton,
   PageLayout,
@@ -30,6 +31,12 @@ import {
   Switch,
 } from '@/shared/ui';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import {
+  getMemoryResource,
+  loadMemoryResource,
+  setMemoryResource,
+} from '@/shared/lib/memoryResourceCache';
+import { useNetworkStore } from '@/shared/model/network';
 
 const emptySettings: SimpleQuoteEstimatorSettings = {
   schemaVersion: 2,
@@ -39,6 +46,13 @@ const emptySettings: SimpleQuoteEstimatorSettings = {
 
 const steps = ['Estancias', 'Precios', 'Enlace'] as const;
 const tenEuroCents = 1_000;
+
+type SettingsSnapshot = {
+  settings: SimpleQuoteEstimatorSettings;
+  legacySetup: boolean;
+  hasSavedSettings: boolean;
+  token: string;
+};
 
 function euros(cents: number) {
   return new Intl.NumberFormat('es-ES', {
@@ -68,13 +82,23 @@ export function QuoteEstimatorSettingsPage() {
 function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   const { navigate } = usePageNavigation();
   const profile = useProfileStore((state) => state.profile);
-  const [settings, setSettings] = useState<SimpleQuoteEstimatorSettings>(emptySettings);
+  const online = useNetworkStore((state) => state.online);
+  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
+  const cacheKey = `private:${uid ?? ''}:quote-estimator-settings`;
+  const cachedSnapshot = uid ? getMemoryResource<SettingsSnapshot>(cacheKey) : undefined;
+  const [settings, setSettings] = useState<SimpleQuoteEstimatorSettings>(
+    () => cachedSnapshot?.settings ?? emptySettings,
+  );
+  const savedSettings = useRef(JSON.stringify(cachedSnapshot?.settings ?? emptySettings));
+  const settingsDirty = useRef(false);
   const [step, setStep] = useState(0);
-  const [token, setToken] = useState('');
-  const [legacySetup, setLegacySetup] = useState(false);
-  const [hasSavedSettings, setHasSavedSettings] = useState(false);
+  const [token, setToken] = useState(() => cachedSnapshot?.token ?? '');
+  const [legacySetup, setLegacySetup] = useState(() => cachedSnapshot?.legacySetup ?? false);
+  const [hasSavedSettings, setHasSavedSettings] = useState(
+    () => cachedSnapshot?.hasSavedSettings ?? false,
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => cachedSnapshot === undefined && online);
   const [saving, setSaving] = useState(false);
   const [copyingLink, setCopyingLink] = useState(false);
   const [operation, setOperation] = useState('');
@@ -91,22 +115,38 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
 
   useEffect(() => {
     let active = true;
-    if (!uid) return;
-    Promise.all([fetchQuoteEstimatorSettings(uid), fetchEstimatorLinkStatus()])
-      .then(([saved, status]) => {
+    if (!uid || settingsDirty.current) return;
+    loadMemoryResource(cacheKey, async () => {
+      const [saved, status] = await Promise.all([
+        fetchQuoteEstimatorSettings(uid),
+        fetchEstimatorLinkStatus(),
+      ]);
+      const snapshot: SettingsSnapshot = {
+        settings:
+          saved && isSimpleQuoteEstimatorSettings(saved)
+            ? saved
+            : { ...emptySettings, ...(saved ? { contact: saved.contact } : {}) },
+        legacySetup: Boolean(saved && !isSimpleQuoteEstimatorSettings(saved)),
+        hasSavedSettings: Boolean(saved),
+        token: status.published ? (status.token ?? '') : '',
+      };
+      return snapshot;
+    })
+      .then((snapshot) => {
         if (!active) return;
-        setHasSavedSettings(Boolean(saved));
-        if (saved && isSimpleQuoteEstimatorSettings(saved)) {
-          setSettings(saved);
-          setLegacySetup(false);
-        } else if (saved) {
-          setSettings({ ...emptySettings, contact: saved.contact });
-          setLegacySetup(true);
+        const preserveDraft = settingsDirty.current;
+        savedSettings.current = JSON.stringify(snapshot.settings);
+        if (!preserveDraft) {
+          settingsDirty.current = false;
+          setSettings(snapshot.settings);
         }
-        setToken(status.published ? (status.token ?? '') : '');
+        setLegacySetup(snapshot.legacySetup);
+        setHasSavedSettings(snapshot.hasSavedSettings);
+        setToken(snapshot.token);
       })
-      .catch(() => {
-        if (active) setError('No se ha podido cargar el estimador. Vuelve a intentarlo.');
+      .catch((cause) => {
+        if (active && online)
+          setError(cause instanceof Error ? cause.message : 'No se ha podido cargar el estimador.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -114,9 +154,20 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     return () => {
       active = false;
     };
-  }, [uid]);
+  }, [uid, cacheKey, online, dataRefreshVersion]);
+
+  const cacheCurrentSnapshot = (patch: Partial<SettingsSnapshot>) => {
+    setMemoryResource<SettingsSnapshot>(cacheKey, {
+      settings,
+      legacySetup,
+      hasSavedSettings,
+      token,
+      ...patch,
+    });
+  };
 
   const updateRoom = (room: ConfigurableEstimateRoom, checked: boolean) => {
+    settingsDirty.current = true;
     setSettings((current) => ({
       ...current,
       rooms: checked
@@ -136,6 +187,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   };
 
   const updateRoomRate = (room: ConfigurableEstimateRoom, patch: Partial<RoomEstimateRate>) => {
+    settingsDirty.current = true;
     setSettings((current) => ({
       ...current,
       rooms: current.rooms.map((item) => (item.room === room ? { ...item, ...patch } : item)),
@@ -145,6 +197,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   };
 
   const updateContact = (patch: Partial<SimpleQuoteEstimatorSettings['contact']>) => {
+    settingsDirty.current = true;
     setSettings((current) => ({ ...current, contact: { ...current.contact, ...patch } }));
     setError('');
     setNotice('');
@@ -181,7 +234,10 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     try {
       validateForPublishing();
       await saveQuoteEstimatorSettings(uid, settings);
+      savedSettings.current = JSON.stringify(settings);
+      settingsDirty.current = false;
       setHasSavedSettings(true);
+      cacheCurrentSnapshot({ hasSavedSettings: true });
       setNotice('Configuración guardada. Los cambios ya se aplican al enlace publicado.');
     } catch (cause) {
       setError(
@@ -206,11 +262,15 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
           'Añade una URL HTTPS al aviso de privacidad en Mi empresa antes de publicar.',
         );
       await saveQuoteEstimatorSettings(uid, settings);
+      savedSettings.current = JSON.stringify(settings);
+      settingsDirty.current = false;
       setHasSavedSettings(true);
       setLegacySetup(false);
+      cacheCurrentSnapshot({ hasSavedSettings: true, legacySetup: false });
       setOperation('Generando enlace público…');
       const result = await publishEstimatorLink();
       setToken(result.token);
+      cacheCurrentSnapshot({ hasSavedSettings: true, legacySetup: false, token: result.token });
       setNotice('Enlace generado. Ya puedes copiarlo y añadirlo a la landing de tu empresa.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se ha podido generar el enlace.');
@@ -228,6 +288,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     try {
       await revokeEstimatorLink();
       setToken('');
+      cacheCurrentSnapshot({ token: '' });
       setNotice('Enlace revocado. Dejará de mostrar el estimador.');
     } catch {
       setError('No se ha podido revocar el enlace. Vuelve a intentarlo.');
@@ -257,11 +318,19 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     setOperation('Borrando configuración…');
     try {
       await deleteQuoteEstimatorSettings(uid);
+      savedSettings.current = JSON.stringify(emptySettings);
+      settingsDirty.current = false;
       setSettings(emptySettings);
       setHasSavedSettings(false);
       setLegacySetup(false);
       setToken('');
       setStep(0);
+      cacheCurrentSnapshot({
+        settings: emptySettings,
+        hasSavedSettings: false,
+        legacySetup: false,
+        token: '',
+      });
       setNotice('Configuración borrada y enlace revocado. Los leads recibidos se conservan.');
       setError('');
       setShowDeleteConfirm(false);
@@ -273,7 +342,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     }
   };
 
-  if (loading)
+  if (loading && online)
     return (
       <PageLayout>
         <div aria-busy="true">
@@ -293,6 +362,19 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             </div>
           </Card>
         </div>
+      </PageLayout>
+    );
+
+  if (!online && cachedSnapshot === undefined)
+    return (
+      <PageLayout>
+        <PageHeader
+          title="Estimador público"
+          description="Elige las estancias y define una orientación de precio sencilla para tu web."
+          backTo="/profile"
+          backLabel="Volver a mi empresa"
+        />
+        <OfflineUnavailable />
       </PageLayout>
     );
 

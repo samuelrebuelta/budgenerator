@@ -5,6 +5,7 @@ import {
   BookOpen,
   LayoutTemplate,
   Building2,
+  UsersRound,
   Inbox,
   Calculator,
   CircleUserRound,
@@ -37,6 +38,7 @@ import {
 const links = [
   ['/budgets', 'Presupuestos', FileText],
   ['/projects', 'Proyectos', Briefcase],
+  ['/team', 'Equipo', UsersRound],
   ['/profile/solicitudes', 'Solicitudes', Inbox],
 ] as const;
 export function AppShell({ children }: { children: ReactNode }) {
@@ -64,6 +66,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [isCatalogPage, location.pathname]);
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
+  const [mobileBackTarget, setMobileBackTarget] = useState<HTMLDivElement | null>(null);
+  const [workspaceHeaderActionTarget, setWorkspaceHeaderActionTarget] =
+    useState<HTMLDivElement | null>(null);
   const company = useProfileStore((s) => s.profile);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
@@ -163,6 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
         <div className="workspace">
           <header className="workspace-header no-print">
+            <div className="mobile-header-back-slot" ref={setMobileBackTarget} />
             <Link className="mobile-brand" to="/projects" aria-label="budgenerator, inicio">
               <Brand />
             </Link>
@@ -180,9 +186,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                           ? 'Plantillas de presupuestos'
                           : location.pathname.startsWith('/estimator')
                             ? 'Estimador público'
-                            : location.pathname.startsWith('/admin')
-                              ? 'Panel de administración'
-                              : 'BudGenerator')}
+                            : location.pathname === '/team'
+                              ? 'Equipo'
+                              : location.pathname.startsWith('/admin')
+                                ? 'Panel de administración'
+                                : 'BudGenerator')}
             </span>
             <div className="workspace-actions">
               <SyncStatus />
@@ -196,31 +204,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {account?.accountData.plan === 'premium' ? 'Espacio Pro' : 'Mi espacio'}
                 </span>
               </button>
+              <div className="workspace-header-action-slot" ref={setWorkspaceHeaderActionTarget} />
             </div>
           </header>
           <PwaInstallBanner />
           <PushStartupPrompt />
           <main id="workspace-content">
             <PageHeaderAccessoryProvider
-              accessory={
-                isSecondaryPage ? (
-                  <div className="secondary-page-actions">
-                    <span className="secondary-sync-status">
-                      <SyncStatus />
-                    </span>
-                    <button
-                      type="button"
-                      className="secondary-account-menu-trigger"
-                      onClick={() => setMenu(true)}
-                      aria-label="Abrir menú de cuenta"
-                      aria-haspopup="dialog"
-                      aria-expanded={menu}
-                    >
-                      <CompanyAvatar name={company.name} logo={company.logo} />
-                    </button>
-                  </div>
-                ) : null
-              }
+              mobileBackTarget={isSecondaryPage ? mobileBackTarget : null}
+              workspaceHeaderActionTarget={workspaceHeaderActionTarget}
             >
               {children}
             </PageHeaderAccessoryProvider>

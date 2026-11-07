@@ -31,12 +31,14 @@ import {
   PageHeader,
   PageHeaderSkeleton,
   Modal,
+  OfflineUnavailable,
 } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
 import { decimal } from '@/shared/lib/budgetMath';
 import { t } from '@/shared/i18n';
 import { catalogSummary } from './catalogSummary';
+import { useNetworkStore } from '@/shared/model/network';
 
 function getTradeParts(trade: BaseCatalog) {
   const groups = new Map<string, { name: string; concepts: BaseCatalog['tariffs'] }>();
@@ -781,11 +783,18 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
 export function CatalogDetailPage() {
   const loaded = useCatalogStore((state) => state.loaded);
   const catalog = useCatalogStore((state) => state.catalogs[0]);
+  const online = useNetworkStore((state) => state.online);
   if (!loaded || !catalog)
     return (
       <PageLayout>
-        <PageHeaderSkeleton />
-        <CatalogSkeleton />
+        {online ? (
+          <>
+            <PageHeaderSkeleton />
+            <CatalogSkeleton />
+          </>
+        ) : (
+          <OfflineUnavailable />
+        )}
       </PageLayout>
     );
   return <CatalogEditor key={catalog.id} catalog={catalog} />;

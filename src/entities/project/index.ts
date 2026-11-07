@@ -5,6 +5,17 @@ export {
   getProjectLocalDateKey,
   normalizeProjectCompletionDate,
 } from './model/history';
+export { findCrewAssignmentForMember } from './model/assignments';
+export {
+  filterDailyProjectAssignments,
+  findDailyAssignmentConflicts,
+  findDailyScheduleConflicts,
+  getEffectiveDayAssignments,
+  getWeekDateKeys,
+  isOnOrBeforeEstimatedEndDate,
+  normalizeEstimatedEndDate,
+} from './model/dailyAssignments';
+export type { DailyAssignmentResourceFilter, DailyScheduleItem } from './model/dailyAssignments';
 export type {
   Project,
   ProjectDetail,
@@ -12,6 +23,9 @@ export type {
   ProjectProgress,
   ProjectProgressMode,
   ProjectProgressHistoryPoint,
+  ProjectAssignment,
+  ProjectDailyAssignmentOverride,
+  ProjectTeamScheduleData,
   ProjectProgressMutation,
   ProjectSupplement,
   ProjectSupplementMutation,

@@ -1,19 +1,28 @@
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
+  query,
   runTransaction,
+  setDoc,
+  updateDoc,
+  where,
   type Firestore,
 } from 'firebase/firestore';
 import { money, taskAmount } from '@/shared/lib/budgetMath';
 import { mapBudgetFromFirestore } from '@/entities/budget/model/serialization';
 import type { FirestoreBudget } from '@/entities/budget/model/serialization';
+import type { CrewColor } from '@/shared/types';
 import { prepareProjectSnapshot } from '../model/conversion';
 import { getProjectLocalDateKey, normalizeProjectCompletionDate } from '../model/history';
+import { buildProjectAssignment, findCrewAssignmentForMember } from '../model/assignments';
 import type {
   NewProjectSupplement,
+  ProjectAssignment,
+  ProjectDailyAssignmentOverride,
   Project,
   ProjectDetail,
   ProjectProgress,
@@ -22,10 +31,13 @@ import type {
   ProjectSupplementMutation,
   ProjectSupplementVoid,
   ProjectSupplementVoidMutation,
+  ProjectTeamScheduleData,
   ProjectTask,
   ProjectWorkItem,
 } from '../model/types';
 import { buildProjectSupplement, createSupplementWorkItem } from '../model/supplements';
+import { normalizeEstimatedEndDate } from '../model/estimatedEndDate';
+import { guardNetworkMutation } from '@/shared/lib/networkMutation';
 
 function amountForCompletedTasks(tasks: ProjectTask[]) {
   return money(tasks.reduce((total, task) => total + (task.completedAt ? taskAmount(task) : 0), 0));
@@ -104,6 +116,153 @@ function percentage(
 }
 
 export function createProjectFirestoreApi(database: Firestore) {
+  const maxDailyAssignmentBytes = 900_000;
+
+  function assertDailyScheduleDate(dateKey: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey))
+      throw new Error('La fecha del plan semanal no es válida.');
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const date = new Date(0);
+    date.setFullYear(year!, month! - 1, day!);
+    date.setHours(0, 0, 0, 0);
+    if (date.getFullYear() !== year || date.getMonth() !== month! - 1 || date.getDate() !== day)
+      throw new Error('La fecha del plan semanal no es válida.');
+  }
+
+  async function fetchTeamSchedule(
+    uid: string,
+    projectIds: string[],
+    dateKeys: string[],
+  ): Promise<ProjectTeamScheduleData> {
+    const uniqueProjectIds = [...new Set(projectIds)];
+    const uniqueDateKeys = [...new Set(dateKeys)];
+    if (uniqueDateKeys.length > 30) throw new Error('El rango del plan semanal no es válido.');
+    uniqueDateKeys.forEach(assertDailyScheduleDate);
+
+    const projectData = await Promise.all(
+      uniqueProjectIds.map(async (projectId) => {
+        const projectRef = doc(projectsCollection(database, uid), projectId);
+        const [assignmentsSnapshot, overridesSnapshot] = await Promise.all([
+          getDocs(collection(projectRef, 'assignments')),
+          uniqueDateKeys.length
+            ? getDocs(
+                query(
+                  collection(projectRef, 'dailyAssignments'),
+                  where('date', 'in', uniqueDateKeys),
+                ),
+              )
+            : Promise.resolve(null),
+        ]);
+        const assignments = assignmentsSnapshot.docs.map(
+          (snapshot) => ({ ...snapshot.data(), id: snapshot.id }) as ProjectAssignment,
+        );
+        const overrides = (overridesSnapshot?.docs ?? []).map(
+          (snapshot) =>
+            ({ ...snapshot.data(), date: snapshot.id }) as ProjectDailyAssignmentOverride,
+        );
+        return { projectId, assignments, overrides };
+      }),
+    );
+
+    return {
+      assignmentsByProjectId: Object.fromEntries(
+        projectData.map(({ projectId, assignments }) => [projectId, assignments]),
+      ),
+      overridesByProjectDate: Object.fromEntries(
+        projectData.flatMap(({ projectId, overrides }) =>
+          overrides.map((override) => [`${projectId}:${override.date}`, override]),
+        ),
+      ),
+    };
+  }
+
+  async function saveDailyAssignments(
+    uid: string,
+    projectId: string,
+    dateKey: string,
+    assignments: ProjectAssignment[],
+  ): Promise<ProjectDailyAssignmentOverride> {
+    assertDailyScheduleDate(dateKey);
+    if (!projectId || projectId.includes('/'))
+      throw new Error('El proyecto del plan semanal no es válido.');
+    if (!Array.isArray(assignments) || assignments.length > 500)
+      throw new Error('El equipo de este día supera el límite permitido.');
+    const resourceIds = assignments.map(
+      (assignment) => `${assignment.resourceType}:${assignment.resourceId}`,
+    );
+    if (new Set(resourceIds).size !== resourceIds.length)
+      throw new Error('No se puede asignar dos veces el mismo recurso a este proyecto.');
+    const override: ProjectDailyAssignmentOverride = {
+      date: dateKey,
+      projectId,
+      assignments,
+      updatedAt: new Date().toISOString(),
+    };
+    if (new TextEncoder().encode(JSON.stringify(override)).length >= maxDailyAssignmentBytes)
+      throw new Error('El plan de este día supera el límite permitido.');
+
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    await setDoc(doc(collection(projectRef, 'dailyAssignments'), dateKey), override);
+    return override;
+  }
+
+  async function removeDailyAssignmentOverride(uid: string, projectId: string, dateKey: string) {
+    assertDailyScheduleDate(dateKey);
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    await deleteDoc(doc(collection(projectRef, 'dailyAssignments'), dateKey));
+  }
+
+  async function setEstimatedEndDate(uid: string, projectId: string, value: string) {
+    if (!projectId || projectId.includes('/')) throw new Error('El proyecto no es válido.');
+    const estimatedEndDate = normalizeEstimatedEndDate(value);
+    await updateDoc(doc(projectsCollection(database, uid), projectId), { estimatedEndDate });
+  }
+
+  async function updateProjectMetadata(
+    uid: string,
+    projectId: string,
+    title: string,
+    clientName: string,
+  ) {
+    if (!projectId || projectId.includes('/')) throw new Error('El proyecto no es válido.');
+    const normalizedTitle = title.trim();
+    const normalizedClientName = clientName.trim();
+    if (!normalizedTitle || normalizedTitle.length > 120)
+      throw new Error('El nombre del proyecto debe tener entre 1 y 120 caracteres.');
+    if (normalizedClientName.length > 120)
+      throw new Error('El nombre del cliente no puede superar los 120 caracteres.');
+
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    return runTransaction(database, async (transaction) => {
+      const projectSnapshot = await transaction.get(projectRef);
+      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+      const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
+      const budgetId = project.sourceBudgetId;
+      if (!budgetId || budgetId.includes('/'))
+        throw new Error('El proyecto no tiene un presupuesto de origen válido.');
+
+      const budgetRef = doc(database, 'users', uid, 'budgets', budgetId);
+      const budgetSnapshot = await transaction.get(budgetRef);
+      if (!budgetSnapshot.exists())
+        throw new Error('No se ha encontrado el presupuesto de origen.');
+      const budget = mapBudgetFromFirestore(budgetSnapshot.data() as FirestoreBudget);
+      if (budget.projectId !== projectId)
+        throw new Error('El presupuesto de origen no está vinculado a este proyecto.');
+
+      const metadata = {
+        title: normalizedTitle,
+        address: normalizedTitle,
+        clientName: normalizedClientName,
+      };
+      transaction.update(projectRef, metadata);
+      transaction.update(budgetRef, {
+        'info.address': normalizedTitle,
+        'info.clientName': normalizedClientName,
+      });
+      return metadata;
+    });
+  }
+
   async function convertBudgetToProject(uid: string, budgetId: string): Promise<string> {
     const budgetRef = doc(database, 'users', uid, 'budgets', budgetId);
     const projects = projectsCollection(database, uid);
@@ -165,11 +324,13 @@ export function createProjectFirestoreApi(database: Firestore) {
     const projectRef = doc(projectsCollection(database, uid), projectId);
     const snapshot = await getDoc(projectRef);
     if (!snapshot.exists()) return null;
-    const [workItemsSnapshot, supplementsSnapshot, voidsSnapshot] = await Promise.all([
-      getDocs(collection(projectRef, 'workItems')),
-      getDocs(collection(projectRef, 'supplements')),
-      getDocs(collection(projectRef, 'supplementVoids')),
-    ]);
+    const [workItemsSnapshot, supplementsSnapshot, voidsSnapshot, assignmentsSnapshot] =
+      await Promise.all([
+        getDocs(collection(projectRef, 'workItems')),
+        getDocs(collection(projectRef, 'supplements')),
+        getDocs(collection(projectRef, 'supplementVoids')),
+        getDocs(collection(projectRef, 'assignments')),
+      ]);
     const workItems = workItemsSnapshot.docs
       .map((workItem) => ({ ...workItem.data(), id: workItem.id }) as ProjectWorkItem)
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -179,13 +340,112 @@ export function createProjectFirestoreApi(database: Firestore) {
     const supplementVoids = voidsSnapshot.docs.map(
       (supplementVoid) => supplementVoid.data() as ProjectSupplementVoid,
     );
+    const assignments = assignmentsSnapshot.docs
+      .map((assignment) => ({ ...assignment.data(), id: assignment.id }) as ProjectAssignment)
+      .sort((a, b) => a.assignedAt.localeCompare(b.assignedAt));
     return {
       ...snapshot.data(),
       id: snapshot.id,
       workItems,
+      assignments,
       supplements,
       supplementVoids,
     } as ProjectDetail;
+  }
+
+  async function addAssignment(
+    uid: string,
+    projectId: string,
+    resourceType: ProjectAssignment['resourceType'],
+    resourceId: string,
+  ): Promise<ProjectAssignment> {
+    if (!resourceId || resourceId.length > 128 || resourceId.includes('/'))
+      throw new Error('El recurso no tiene un ID válido.');
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    const assignmentId = `${resourceType}_${resourceId}`;
+    const assignmentRef = doc(collection(projectRef, 'assignments'), assignmentId);
+    const assignedAt = new Date().toISOString();
+
+    if (resourceType === 'member') {
+      const assignmentsSnapshot = await getDocs(collection(projectRef, 'assignments'));
+      const projectAssignments = assignmentsSnapshot.docs.map(
+        (snapshot) => ({ ...snapshot.data(), id: snapshot.id }) as ProjectAssignment,
+      );
+      if (findCrewAssignmentForMember(resourceId, projectAssignments))
+        throw new Error('La persona ya está incluida en una cuadrilla asignada a este proyecto.');
+    }
+
+    return runTransaction(database, async (transaction) => {
+      const [projectSnapshot, existingAssignment] = await Promise.all([
+        transaction.get(projectRef),
+        transaction.get(assignmentRef),
+      ]);
+      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+      if (existingAssignment.exists())
+        return { ...existingAssignment.data(), id: existingAssignment.id } as ProjectAssignment;
+
+      let assignment: ProjectAssignment;
+      if (resourceType === 'member') {
+        const memberRef = doc(database, 'users', uid, 'teamMembers', resourceId);
+        const memberSnapshot = await transaction.get(memberRef);
+        if (!memberSnapshot.exists()) throw new Error('No se ha encontrado a la persona.');
+        const member = { ...memberSnapshot.data(), id: memberSnapshot.id } as {
+          id: string;
+          name: string;
+          status: 'active' | 'inactive';
+        };
+        assignment = buildProjectAssignment({ resourceType, resource: member }, assignedAt);
+      } else {
+        const crewRef = doc(database, 'users', uid, 'crews', resourceId);
+        const crewSnapshot = await transaction.get(crewRef);
+        if (!crewSnapshot.exists()) throw new Error('No se ha encontrado la cuadrilla.');
+        const crew = { ...crewSnapshot.data(), id: crewSnapshot.id } as {
+          id: string;
+          label: string;
+          color: CrewColor;
+          memberIds: string[];
+          status: 'active' | 'inactive';
+        };
+        const memberIds = [...new Set(crew.memberIds)];
+        if (memberIds.some((id) => !id || id.length > 128 || id.includes('/')))
+          throw new Error('La cuadrilla contiene una referencia de persona no válida.');
+        const memberSnapshots = await Promise.all(
+          memberIds.map((id) => transaction.get(doc(database, 'users', uid, 'teamMembers', id))),
+        );
+        const members = memberSnapshots.map((snapshot, index) => {
+          if (!snapshot.exists())
+            throw new Error('No se ha encontrado a una persona de la cuadrilla.');
+          return { ...snapshot.data(), id: memberIds[index] } as {
+            id: string;
+            name: string;
+            status: 'active' | 'inactive';
+          };
+        });
+        assignment = buildProjectAssignment({ resourceType, resource: crew, members }, assignedAt);
+      }
+
+      transaction.set(assignmentRef, assignment);
+      return assignment;
+    });
+  }
+
+  async function removeAssignment(
+    uid: string,
+    projectId: string,
+    assignmentId: string,
+  ): Promise<void> {
+    if (!assignmentId || assignmentId.length > 134 || assignmentId.includes('/'))
+      throw new Error('La asignación no tiene un ID válido.');
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    const assignmentRef = doc(collection(projectRef, 'assignments'), assignmentId);
+    await runTransaction(database, async (transaction) => {
+      const [projectSnapshot, assignmentSnapshot] = await Promise.all([
+        transaction.get(projectRef),
+        transaction.get(assignmentRef),
+      ]);
+      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+      if (assignmentSnapshot.exists()) transaction.delete(assignmentRef);
+    });
   }
 
   async function mutateWorkItem(
@@ -607,15 +867,22 @@ export function createProjectFirestoreApi(database: Firestore) {
   }
 
   return {
-    convertBudgetToProject,
+    convertBudgetToProject: guardNetworkMutation(convertBudgetToProject),
     fetchProjects,
     fetchProject,
-    toggleTask,
-    completeWorkItem,
-    setTaskCompletionDate,
-    setWorkItemCompletionDate,
-    addSupplement,
-    voidSupplement,
+    fetchTeamSchedule,
+    saveDailyAssignments: guardNetworkMutation(saveDailyAssignments),
+    removeDailyAssignmentOverride: guardNetworkMutation(removeDailyAssignmentOverride),
+    setEstimatedEndDate: guardNetworkMutation(setEstimatedEndDate),
+    updateProjectMetadata: guardNetworkMutation(updateProjectMetadata),
+    addAssignment: guardNetworkMutation(addAssignment),
+    removeAssignment: guardNetworkMutation(removeAssignment),
+    toggleTask: guardNetworkMutation(toggleTask),
+    completeWorkItem: guardNetworkMutation(completeWorkItem),
+    setTaskCompletionDate: guardNetworkMutation(setTaskCompletionDate),
+    setWorkItemCompletionDate: guardNetworkMutation(setWorkItemCompletionDate),
+    addSupplement: guardNetworkMutation(addSupplement),
+    voidSupplement: guardNetworkMutation(voidSupplement),
   };
 }
 

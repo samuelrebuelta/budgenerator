@@ -6,10 +6,13 @@ import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import { useNetworkStore } from '@/shared/model/network';
+import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
 
 export function TemplatesPage() {
   const templates = useTemplateStore((s) => s.templates);
   const loaded = useTemplateStore((s) => s.loaded);
+  const online = useNetworkStore((s) => s.online);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
   const { navigate } = usePageNavigation();
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
@@ -42,7 +45,7 @@ export function TemplatesPage() {
           }
         />
 
-        {!loaded ? (
+        {!loaded && online ? (
           <div className="space-y-3" role="status" aria-label="Cargando plantillas">
             <span className="sr-only">Cargando plantillas</span>
             {[0, 1, 2].map((item) => (
@@ -58,6 +61,8 @@ export function TemplatesPage() {
               </div>
             ))}
           </div>
+        ) : !loaded ? (
+          <OfflineUnavailable />
         ) : templates.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <LayoutTemplate size={48} className="mx-auto text-gray-300 mb-4" />

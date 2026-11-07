@@ -22,7 +22,14 @@ import {
   LEAD_START_TIMINGS,
   type QuoteLead,
 } from '@/entities/quote-estimator';
-import { Button, Card, ConfirmModal, BudgetLimitReached, PageHeader } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  ConfirmModal,
+  BudgetLimitReached,
+  OfflineUnavailable,
+  PageHeader,
+} from '@/shared/ui';
 import { BudgetSkeleton } from './components/BudgetSkeleton';
 import {
   Trash2,
@@ -38,6 +45,12 @@ import { t } from '@/shared/i18n';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 import { useProjectStore } from '@/entities/project';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import {
+  getMemoryResource,
+  loadMemoryResource,
+  OfflineReadUnavailableError,
+} from '@/shared/lib/memoryResourceCache';
+import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
 
 export function BudgetDetailPage() {
   const { budgetId = 'new' } = useParams<{ budgetId: string }>();
@@ -49,6 +62,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const isDraft = budgetId === 'new';
   const leadId = new URLSearchParams(location.search).get('leadId');
   const uid = useAuthStore((s) => s.user?.uid);
+  const online = useNetworkStore((s) => s.online);
   const allowDraftNavigation = useRef(false);
 
   const setActiveBudget = useBudgetStore((s) => s.setActiveBudget);
@@ -56,8 +70,13 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const startDraftFromLead = useBudgetStore((s) => s.startDraftFromLead);
   const savingDraft = useBudgetStore((s) => s.savingDraft);
   const [saveError, setSaveError] = useState('');
+  const cachedLead =
+    uid && leadId
+      ? (getMemoryResource<QuoteLead>(`private:${uid}:lead:${leadId}`) ??
+        getMemoryResource<QuoteLead[]>(`private:${uid}:leads`)?.find((lead) => lead.id === leadId))
+      : undefined;
   const [leadContext, setLeadContext] = useState<QuoteLead | null | undefined>(
-    leadId ? undefined : null,
+    leadId ? cachedLead : null,
   );
   const saveDraft = useBudgetStore((s) => s.saveDraft);
   const discardDraft = useBudgetStore((s) => s.discardDraft);
@@ -93,6 +112,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const profile = useProfileStore((s) => s.profile);
   const budgetExists = useBudgetStore((s) => s.budgets.some((b) => b.id === budgetId));
   const budgetsLoaded = useBudgetStore((s) => s.loaded);
+  const dataRefreshVersion = useNetworkStore((s) => s.dataRefreshVersion);
   const readOnlySource = !!activeBudget?.acceptedAt || !!activeBudget?.projectId;
 
   // Initialize draft or set active budget
@@ -101,14 +121,19 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       if (leadId) {
         if (!uid) return;
         let active = true;
-        fetchLead(uid, leadId)
+        loadMemoryResource(`private:${uid}:lead:${leadId}`, () => fetchLead(uid, leadId))
           .then((lead) => {
             if (!active) return;
             setLeadContext(lead);
             if (lead) startDraftFromLead(lead, activeCatalogId ?? undefined);
           })
-          .catch(() => {
-            if (active) setLeadContext(null);
+          .catch((error) => {
+            if (
+              active &&
+              !(error instanceof OfflineReadUnavailableError) &&
+              !reportNetworkUnavailable(error)
+            )
+              setLeadContext(null);
           });
         return () => {
           active = false;
@@ -131,6 +156,19 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     leadId,
     uid,
   ]);
+
+  useEffect(() => {
+    if (dataRefreshVersion === 0 || !isDraft || !leadId || !uid) return;
+    let active = true;
+    void loadMemoryResource(`private:${uid}:lead:${leadId}`, () => fetchLead(uid, leadId))
+      .then((lead) => {
+        if (active) setLeadContext(lead);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [dataRefreshVersion, isDraft, leadId, uid]);
 
   // Block in-app navigation when draft has content
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
@@ -197,7 +235,19 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   }, [isDraft, budgetId, budgetExists, budgetsLoaded, navigate]);
 
   if (!isDraft && !budgetsLoaded) {
-    return <BudgetSkeleton />;
+    return online ? (
+      <BudgetSkeleton />
+    ) : (
+      <div className="page-container">
+        <PageHeader
+          title="Presupuesto"
+          description="El contenido de este presupuesto aún no está disponible en esta sesión."
+          backTo="/budgets"
+          backLabel="Volver a presupuestos"
+        />
+        <OfflineUnavailable />
+      </div>
+    );
   }
   if (!isDraft && !budgetExists) return null;
 
@@ -219,7 +269,21 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     );
   }
 
-  if (isDraft && leadId && leadContext === undefined) return <BudgetSkeleton />;
+  if (isDraft && leadId && leadContext === undefined) {
+    return online ? (
+      <BudgetSkeleton />
+    ) : (
+      <div className="page-container">
+        <PageHeader
+          title="Nuevo presupuesto"
+          description="El contenido de la solicitud aún no está disponible en esta sesión."
+          backTo="/profile/solicitudes"
+          backLabel="Volver a solicitudes"
+        />
+        <OfflineUnavailable />
+      </div>
+    );
+  }
 
   if (isDraft && leadId && leadContext === null) {
     return (

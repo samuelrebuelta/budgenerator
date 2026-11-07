@@ -21,8 +21,10 @@ import {
   type PublicEstimatorInfo,
   type QuoteEstimate,
 } from '@/entities/quote-estimator';
-import { Button, Card, Input, Select, Skeleton } from '@/shared/ui';
+import { Button, Card, Input, OfflineUnavailable, Select, Skeleton } from '@/shared/ui';
 import { Brand } from '@/shared/ui/Brand';
+import { getMemoryResource, loadMemoryResource } from '@/shared/lib/memoryResourceCache';
+import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
 
 function formatEuro(cents: number) {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100);
@@ -38,9 +40,13 @@ export function QuoteEstimatorPage() {
 }
 
 function PublicEstimator({ token }: { token: string }) {
-  const [company, setCompany] = useState<PublicEstimatorInfo | null>(null);
+  const online = useNetworkStore((state) => state.online);
+  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
+  const cacheKey = `public:estimator:${token}`;
+  const cachedCompany = getMemoryResource<PublicEstimatorInfo | null>(cacheKey);
+  const [company, setCompany] = useState<PublicEstimatorInfo | null>(cachedCompany ?? null);
   const [unavailable, setUnavailable] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cachedCompany === undefined && online);
   const [calculating, setCalculating] = useState(false);
   const [selections, setSelections] = useState<EstimateSelection[]>([]);
   const [scope, setScope] = useState<EstimateScope>('partial');
@@ -54,12 +60,19 @@ function PublicEstimator({ token }: { token: string }) {
 
   useEffect(() => {
     let active = true;
-    fetchPublicEstimator(token)
+    loadMemoryResource(cacheKey, () => fetchPublicEstimator(token))
       .then((result) => {
-        if (active) setCompany(result);
+        if (active) {
+          setCompany(result);
+          setUnavailable(false);
+        }
       })
-      .catch(() => {
-        if (active) setUnavailable(true);
+      .catch((reason) => {
+        if (active) {
+          reportNetworkUnavailable(reason);
+          if (getMemoryResource<PublicEstimatorInfo | null>(cacheKey) === undefined)
+            setUnavailable(true);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -67,7 +80,7 @@ function PublicEstimator({ token }: { token: string }) {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [token, cacheKey, dataRefreshVersion]);
 
   const configuredRooms = useMemo(
     () => new Set(company?.services.map((service) => service.room)),
@@ -277,7 +290,8 @@ function PublicEstimator({ token }: { token: string }) {
         setEstimate(result);
         setSubmitted(false);
       }
-    } catch {
+    } catch (reason) {
+      reportNetworkUnavailable(reason);
       setError(
         company.leadCaptureEnabled
           ? 'No se ha podido enviar la solicitud. Revisa los datos e inténtalo de nuevo.'
@@ -294,7 +308,7 @@ function PublicEstimator({ token }: { token: string }) {
       : '';
   const phoneHref = company?.phone ? `tel:${company.phone.replace(/[^+\d]/g, '')}` : '';
 
-  if (loading) {
+  if (loading && online) {
     return (
       <main className="min-h-screen bg-[#f3f5f1] px-4 py-6 sm:py-10" aria-busy="true">
         <div className="mx-auto max-w-3xl">
@@ -321,6 +335,17 @@ function PublicEstimator({ token }: { token: string }) {
             </Card>
             <Skeleton className="h-14 w-full rounded-lg" />
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!online && cachedCompany === undefined && !company) {
+    return (
+      <main className="min-h-screen bg-[#f3f5f1] px-4 py-12 sm:py-20">
+        <div className="mx-auto max-w-3xl">
+          <Brand />
+          <OfflineUnavailable />
         </div>
       </main>
     );

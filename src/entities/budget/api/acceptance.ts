@@ -1,5 +1,6 @@
 import { deleteField, doc, runTransaction, type Firestore } from 'firebase/firestore';
 import { assertBudget } from '@/shared/lib/budgetMath';
+import { guardNetworkMutation } from '@/shared/lib/networkMutation';
 import { mapBudgetFromFirestore } from '../model/serialization';
 import type { FirestoreBudget } from '../model/serialization';
 
@@ -30,5 +31,8 @@ export function createBudgetAcceptanceApi(database: Firestore) {
     });
   }
 
-  return { acceptBudget, withdrawBudgetAcceptance };
+  return {
+    acceptBudget: guardNetworkMutation(acceptBudget),
+    withdrawBudgetAcceptance: guardNetworkMutation(withdrawBudgetAcceptance),
+  };
 }

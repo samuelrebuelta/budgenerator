@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Download } from '@playwright/test';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -13,6 +13,7 @@ const firestoreEmulator = new URL(
   `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
 );
 const notificationLeadId = 'a'.repeat(64);
+let primaryUid = '';
 const fakeBudget = (id: string, name: string, address: string, price: number, number: string) => ({
   id,
   info: {
@@ -61,6 +62,7 @@ test.beforeAll(async () => {
     return data.localId;
   };
   const uid = await account(email);
+  primaryUid = uid;
   const otherUid = await account('other@example.test');
   const quotaUid = await account('quota@example.test');
   const env = await initializeTestEnvironment({
@@ -108,6 +110,7 @@ test.beforeAll(async () => {
     ])
       await setDoc(doc(db, 'users', uid, 'budgets', b.id), b);
     await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation'), {
+      id: 'project-navigation',
       sourceBudgetId: 'demo-cocina',
       sourceBudgetNumber: '03',
       title: 'Proyecto de navegación',
@@ -120,17 +123,58 @@ test.beforeAll(async () => {
       iva: 88.2,
       total: 508.2,
       ivaRate: 0.21,
-      workItemCount: 0,
+      workItemCount: 1,
       mode: 'amount',
-      totalConcepts: 0,
+      totalConcepts: 1,
       completedConcepts: 0,
-      totalAmount: 0,
+      totalAmount: 420,
       completedAmount: 0,
       percent: 0,
       status: 'pending',
       supplementsSubtotal: 0,
       supplementsIva: 0,
       updatedTotal: 508.2,
+    });
+    await setDoc(
+      doc(db, 'users', uid, 'projects', 'project-navigation', 'workItems', 'work-kitchen'),
+      {
+        id: 'work-kitchen',
+        name: 'Cocina',
+        position: 0,
+        tasks: [
+          {
+            id: 'task-countertop',
+            description: 'Instalar la encimera',
+            quantity: 1,
+            unit: 'unit',
+            price: 420,
+            cost: 270,
+          },
+        ],
+      },
+    );
+    await setDoc(doc(db, 'users', uid, 'teamMembers', 'member-demo-ana'), {
+      id: 'member-demo-ana',
+      name: 'Ana Demo',
+      status: 'active',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
+    });
+    await setDoc(doc(db, 'users', uid, 'teamMembers', 'member-demo-hugo'), {
+      id: 'member-demo-hugo',
+      name: 'Hugo Soler',
+      status: 'inactive',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
+    });
+    await setDoc(doc(db, 'users', uid, 'crews', 'crew-demo-norte'), {
+      id: 'crew-demo-norte',
+      label: 'Cuadrilla Norte',
+      color: 'blue',
+      memberIds: ['member-demo-ana', 'member-demo-hugo'],
+      status: 'active',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
     });
     await setDoc(doc(db, 'users', uid, 'profile', 'data'), {
       name: 'Estudio Roble',
@@ -307,8 +351,22 @@ test('primary routes keep tabs and secondary routes use the common return on mob
   page,
 }) => {
   await login(page);
-  for (const path of ['/budgets', '/projects', '/profile/solicitudes']) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const primaryTabs = [
+    ['/budgets', 'Presupuestos'],
+    ['/projects', 'Proyectos'],
+    ['/team', 'Equipo'],
+    ['/profile/solicitudes', 'Solicitudes'],
+  ] as const;
+  const mobileTabs = page.getByRole('navigation', { name: 'Navegación móvil' });
+  for (const [path, label] of primaryTabs) {
     await page.goto(path);
+    await expect(mobileTabs).toBeVisible();
+    await expect(mobileTabs.getByRole('link')).toHaveText(primaryTabs.map(([, name]) => name));
+    await expect(mobileTabs.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
     await expect(page.locator('[data-page-header]')).toBeVisible();
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
@@ -316,6 +374,14 @@ test('primary routes keep tabs and secondary routes use the common return on mob
     await expect(page.locator('.back-button')).toHaveCount(0);
     await expect(page.locator('.workspace-header')).toBeVisible();
   }
+  await page.goto('/budgets');
+  await mobileTabs.getByRole('link', { name: 'Equipo', exact: true }).click();
+  await expect(page).toHaveURL(/\/team$/);
+  await expect(mobileTabs.getByRole('link', { name: 'Equipo', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
   for (const [path, backTo] of [
     ['/catalog', '/budgets'],
     ['/templates', '/budgets'],
@@ -329,7 +395,7 @@ test('primary routes keep tabs and secondary routes use the common return on mob
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
     await expect(page.locator('.workspace-header')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
-    await expect(page.locator('.back-button')).toHaveAttribute('href', backTo);
+    await expect(page.locator('[data-page-header] > .back-button')).toHaveAttribute('href', backTo);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/budgets');
@@ -340,6 +406,7 @@ test('primary routes keep tabs and secondary routes use the common return on mob
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
     'Presupuestos',
     'Proyectos',
+    'Equipo',
     'Solicitudes',
   ]);
   await page.setViewportSize({ width: 1440, height: 844 });
@@ -358,13 +425,18 @@ test('primary routes keep tabs and secondary routes use the common return on mob
       await page.goto(path);
       await expect(page.locator('[data-page-header]')).toBeVisible();
       await expect(page.locator('.workspace-footer')).toHaveCount(0);
+      const workspaceHeader = page.locator('.workspace-header');
+      const backButton =
+        width <= 800
+          ? page.locator('.mobile-header-back-slot .back-button')
+          : page.locator('[data-page-header] > .back-button');
+      await expect(workspaceHeader).toBeVisible();
       if (width <= 800) {
-        await expect(page.locator('.workspace-header')).toBeHidden();
-      } else {
-        await expect(page.locator('.workspace-header')).toBeVisible();
+        await expect(page.locator('.mobile-brand')).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toHaveCount(0);
       }
       await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
-      await expect(page.locator('.back-button')).toBeVisible();
+      await expect(backButton).toBeVisible();
       if (path === '/projects/missing') {
         await expect(
           page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
@@ -373,10 +445,11 @@ test('primary routes keep tabs and secondary routes use the common return on mob
           page.getByRole('heading', { name: 'No se ha podido cargar el proyecto', exact: true }),
         ).toHaveCount(0);
       }
-      const backBounds = await page.locator('.back-button').boundingBox();
+      const backBounds = await backButton.boundingBox();
       const titleBounds = await page.getByRole('heading', { level: 1 }).boundingBox();
       if (width <= 800) {
-        expect(Math.abs(titleBounds!.y - backBounds!.y)).toBeLessThan(12);
+        const headerBounds = await workspaceHeader.boundingBox();
+        expect(titleBounds!.y).toBeGreaterThanOrEqual(headerBounds!.y + headerBounds!.height);
       } else {
         expect(titleBounds!.y).toBeGreaterThanOrEqual(backBounds!.y + backBounds!.height);
       }
@@ -386,22 +459,26 @@ test('primary routes keep tabs and secondary routes use the common return on mob
     await expect(page.locator('.workspace-header')).toBeVisible();
   }
   await page.goto('/templates/new');
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/templates');
+  const desktopBackButton = page.locator('[data-page-header] > .back-button');
+  await expect(desktopBackButton).toHaveAttribute('href', '/templates');
   await page.getByLabel('Nombre de la plantilla').fill('Borrador UX');
-  await page.locator('.back-button').click();
+  await desktopBackButton.click();
   await page
     .getByRole('dialog', { name: '¿Salimos de la plantilla?' })
     .getByRole('button', { name: 'Cancelar', exact: true })
     .click();
   await expect(page).toHaveURL(/templates\/new$/);
-  await page.locator('.back-button').click();
+  await desktopBackButton.click();
   await page
     .getByRole('dialog', { name: '¿Salimos de la plantilla?' })
     .getByRole('button', { name: 'Descartar cambios', exact: true })
     .click();
   await expect(page).toHaveURL(/templates$/);
   await page.goto('/account/password');
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/account');
+  await expect(page.locator('[data-page-header] > .back-button')).toHaveAttribute(
+    'href',
+    '/account',
+  );
 });
 
 test('opens projects from the root', async ({ page }) => {
@@ -410,6 +487,291 @@ test('opens projects from the root', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/projects$/);
   await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+});
+
+test('shows mobile back navigation on secondary pages and scrollable titles on every page', async ({
+  page,
+}) => {
+  await login(page);
+  await page.setViewportSize({ width: 390, height: 540 });
+
+  const verifyTitleFlow = async (name: string) => {
+    const header = page.locator('.workspace-header');
+    const title = page.getByRole('heading', { name, exact: true }).first();
+    const headerBottom = await header.evaluate((element) => element.getBoundingClientRect().bottom);
+    const initialTitleTop = await title.evaluate((element) => element.getBoundingClientRect().top);
+    expect(initialTitleTop).toBeGreaterThanOrEqual(headerBottom);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
+    ).toBe(true);
+
+    await page.evaluate(() => window.scrollTo({ top: 160, behavior: 'auto' }));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(50);
+    const stickyHeaderTop = await header.evaluate((element) => element.getBoundingClientRect().top);
+    const scrolledTitleTop = await title.evaluate((element) => element.getBoundingClientRect().top);
+    expect(stickyHeaderTop).toBeCloseTo(0, 0);
+    expect(scrolledTitleTop).toBeLessThan(initialTitleTop);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'auto' }));
+  };
+
+  await page.goto('/team');
+  await expect(page.locator('.workspace-header')).toBeVisible();
+  await expect(page.locator('.mobile-brand')).toBeVisible();
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toHaveCount(0);
+  await expect(page.locator('[data-page-header] > .back-button')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeVisible();
+  const mobileTabs = page.getByRole('navigation', { name: 'Navegación móvil' });
+  await expect(mobileTabs.getByRole('link')).toHaveText([
+    'Presupuestos',
+    'Proyectos',
+    'Equipo',
+    'Solicitudes',
+  ]);
+  await expect(mobileTabs.getByRole('link', { name: 'Equipo', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await verifyTitleFlow('Equipo');
+  await mobileTabs.getByRole('link', { name: 'Proyectos', exact: true }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+
+  await expect(page.locator('.mobile-brand')).toBeVisible();
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Abrir menú de cuenta' })).toBeVisible();
+  await verifyTitleFlow('Proyectos');
+});
+
+test('manages individual members and colored crews from the team page', async ({ page }) => {
+  await login(page);
+  await page.goto('/team');
+  await expect(page.getByRole('heading', { name: 'Equipo', exact: true })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: 'Secciones de Equipo' })).toHaveCount(0);
+  const editTeamAction = page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' });
+  await editTeamAction.click();
+  await expect(page).toHaveURL(/\/team\/manage$/);
+  await expect(page.getByRole('heading', { name: 'Gestionar equipo', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Volver a Equipo' }).click();
+  await expect(page).toHaveURL(/\/team$/);
+  await editTeamAction.click();
+
+  const header = page.locator('[data-page-header]');
+  const title = header.getByRole('heading', { name: 'Gestionar equipo', exact: true });
+  const subtitle = header.locator('.page-heading-meta > p');
+  const crewAction = page.getByRole('button', { name: 'Crear cuadrilla', exact: true }).first();
+  const memberAction = page.getByRole('button', { name: 'Añadir persona', exact: true }).first();
+  const expectHeaderContentBelowTitle = async () => {
+    const titleBottom = await title.evaluate((element) => element.getBoundingClientRect().bottom);
+    const subtitleTop = await subtitle.evaluate((element) => element.getBoundingClientRect().top);
+    const subtitleBottom = await subtitle.evaluate(
+      (element) => element.getBoundingClientRect().bottom,
+    );
+    const crewActionTop = await crewAction.evaluate(
+      (element) => element.getBoundingClientRect().top,
+    );
+    const memberActionTop = await memberAction.evaluate(
+      (element) => element.getBoundingClientRect().top,
+    );
+
+    expect(subtitleTop).toBeGreaterThanOrEqual(titleBottom);
+    expect(crewActionTop).toBeGreaterThanOrEqual(titleBottom);
+    expect(memberActionTop).toBeGreaterThanOrEqual(titleBottom);
+    if (await page.evaluate(() => window.innerWidth <= 800)) {
+      expect(crewActionTop).toBeGreaterThanOrEqual(subtitleBottom);
+      expect(memberActionTop).toBeGreaterThanOrEqual(subtitleBottom);
+    }
+  };
+
+  await expect(subtitle).toBeVisible();
+  await expect(crewAction).toHaveText('');
+  await expect(memberAction).toHaveText('');
+  await expectHeaderContentBelowTitle();
+  await page.screenshot({ path: 'docs/testing-evidence/bg011-team-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectHeaderContentBelowTitle();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: 'docs/testing-evidence/bg011-team-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.getByRole('button', { name: 'Añadir persona', exact: true }).first().click();
+  const memberDialog = page.getByRole('dialog', { name: 'Añadir persona' });
+  await memberDialog.getByLabel('Nombre', { exact: true }).fill('Ana Pérez');
+  await memberDialog.getByRole('button', { name: 'Guardar persona' }).click();
+  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Editar a Ana Pérez' }).click();
+  const editDialog = page.getByRole('dialog', { name: 'Editar persona' });
+  await editDialog.getByLabel('Nombre', { exact: true }).fill('Ana Pérez Rojas');
+  await editDialog.getByRole('button', { name: 'Guardar persona' }).click();
+  await expect(page.getByRole('heading', { name: 'Ana Pérez Rojas' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Crear cuadrilla' }).first().click();
+  const crewDialog = page.getByRole('dialog', { name: 'Crear cuadrilla' });
+  await crewDialog.getByLabel('Etiqueta', { exact: true }).fill('Alba');
+  await crewDialog.getByRole('button', { name: 'Color Verde' }).click();
+  await crewDialog.getByRole('checkbox', { name: 'Ana Pérez Rojas' }).check();
+  await crewDialog.getByRole('button', { name: 'Guardar cuadrilla' }).click();
+  await expect(
+    page
+      .getByRole('region', { name: 'Gestión de personas y cuadrillas' })
+      .getByText('Alba', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('paragraph').filter({ hasText: 'Ana Pérez Rojas' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Desactivar a Ana Pérez Rojas' }).click();
+  await expect(page.getByText('Sin integrantes activos')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Desactivar cuadrilla Alba' })).toBeVisible();
+  await page.goto('/projects/project-navigation');
+  await page.getByRole('button', { name: 'Asignar equipo' }).click();
+  const inactiveAssignmentDialog = page.getByRole('dialog', {
+    name: 'Asignar equipo al proyecto',
+  });
+  await expect(
+    inactiveAssignmentDialog.getByRole('listitem').filter({ hasText: 'Ana Pérez Rojas' }),
+  ).toHaveCount(0);
+  await expect(
+    inactiveAssignmentDialog.getByRole('listitem').filter({ hasText: 'Alba' }),
+  ).toHaveCount(0);
+  await inactiveAssignmentDialog.getByRole('button', { name: 'Cerrar' }).first().click();
+  await page.goto('/team');
+  await page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }).click();
+  await page.getByRole('button', { name: 'Reactivar a Ana Pérez Rojas' }).click();
+  await expect(page.getByText('1 persona activa')).toBeVisible();
+
+  await page.reload();
+  await expect(page).toHaveURL(/\/team\/manage$/);
+  await expect(page.getByRole('heading', { name: 'Ana Pérez Rojas' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Gestión de personas y cuadrillas' })
+      .getByText('Alba', { exact: true }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 760 });
+  await expect(page.getByRole('heading', { name: 'Gestionar equipo', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const addMemberButton = page.getByRole('button', { name: 'Añadir persona', exact: true }).first();
+  await addMemberButton.focus();
+  await page.keyboard.press('Enter');
+  const keyboardDialog = page.getByRole('dialog', { name: 'Añadir persona' });
+  await expect(keyboardDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(keyboardDialog).toBeHidden();
+});
+
+test('assigns people and crews to a project as immutable snapshots', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await login(page);
+  await page.goto('/projects/project-navigation');
+  await expect(page.getByRole('heading', { name: 'Equipo asignado' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ocultar aviso de instalación' }).click();
+  await page
+    .getByRole('region', { name: 'Activar notificaciones push' })
+    .getByRole('button', { name: 'Ahora no' })
+    .click();
+
+  await page.getByRole('button', { name: 'Asignar equipo' }).click();
+  const firstDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
+  await firstDialog
+    .getByRole('listitem')
+    .filter({ hasText: 'Ana Demo' })
+    .getByRole('button', { name: 'Asignar', exact: true })
+    .click();
+  await expect(firstDialog).toBeHidden();
+  await page.getByRole('button', { name: 'Asignar equipo' }).click();
+  const secondDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
+  await expect(secondDialog.getByRole('heading', { name: 'Cuadrillas' })).toBeVisible();
+  await secondDialog
+    .getByRole('listitem')
+    .filter({ hasText: 'Cuadrilla Norte' })
+    .getByRole('button', { name: 'Asignar', exact: true })
+    .click();
+  await expect(secondDialog).toBeHidden();
+
+  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cuadrilla Norte' })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Integrantes de Cuadrilla Norte' }).getByText('Hugo Soler'),
+  ).toHaveCount(0);
+  await expect(page.getByText('Color de cuadrilla', { exact: true })).toHaveCount(0);
+  const crewAssignment = page
+    .getByRole('list', { name: 'Asignaciones del proyecto' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Cuadrilla Norte' });
+  await expect(crewAssignment).toHaveClass(/bg-\[#eaf1ed\]/);
+  await expect(crewAssignment.locator('span.h-3.w-3')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Quitar asignación de Ana Demo' }).click();
+  await page.getByRole('button', { name: 'Asignar equipo' }).click();
+  const crewMemberDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
+  const crewMemberRow = crewMemberDialog.getByRole('listitem').filter({ hasText: 'Ana Demo' });
+  await expect(
+    crewMemberRow.getByRole('button', { name: 'Incluida en Cuadrilla Norte', exact: true }),
+  ).toBeDisabled();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg011-crew-member-blocked-desktop.png',
+    animations: 'disabled',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg011-crew-member-blocked-mobile.png',
+    animations: 'disabled',
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await crewMemberDialog.getByRole('button', { name: 'Cerrar' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Ana Demo' })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg011-project-team-desktop.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: 'docs/testing-evidence/bg011-project-team-mobile.png',
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/team');
+  await page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }).click();
+  await expect(page).toHaveURL(/\/team\/manage$/);
+  await page.getByRole('button', { name: 'Editar cuadrilla Cuadrilla Norte' }).click();
+  const crewDialog = page.getByRole('dialog', { name: 'Editar cuadrilla' });
+  await crewDialog.getByLabel('Etiqueta', { exact: true }).fill('Cuadrilla Norte Renovada');
+  await crewDialog.getByRole('button', { name: 'Color Ámbar' }).click();
+  await crewDialog.getByRole('button', { name: 'Guardar cuadrilla' }).click();
+  await expect(
+    page
+      .getByRole('region', { name: 'Gestión de personas y cuadrillas' })
+      .getByText('Cuadrilla Norte Renovada', { exact: true }),
+  ).toBeVisible();
+
+  await page.goto('/projects/project-navigation');
+  await expect(page.getByRole('heading', { name: 'Cuadrilla Norte' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cuadrilla Norte Renovada' })).toHaveCount(0);
+  await expect(page.getByText('Hugo Soler', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Quitar asignación de Cuadrilla Norte' }).click();
+  await expect(page.getByRole('heading', { name: 'Cuadrilla Norte' })).toHaveCount(0);
+});
+
+test('keeps team management available without agenda links', async ({ page }) => {
+  await login(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/projects');
+  await expect(page.getByRole('link', { name: 'Equipo', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: /Cliente de navegación/ }).click();
+  await expect(page.getByRole('link', { name: 'Gestionar equipo', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Asignar equipo', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ver hitos', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Gestionar equipo', exact: true }).click();
+  await expect(page).toHaveURL(/\/team$/);
+  await expect(page.getByRole('heading', { name: 'Equipo', exact: true })).toBeVisible();
 });
 
 test('returns from an account-menu page to the tab it was opened from', async ({ page }) => {
@@ -1040,6 +1402,16 @@ test('UX visual matrix keeps headings, content and floating tabs usable across v
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
+      if (path === '/budgets') {
+        await expect(page.locator('.overview-card:visible')).toHaveCount(
+          suffix === 'desktop' ? 3 : 1,
+        );
+        if (suffix === 'mobile') {
+          const featuredCardBounds = await page.locator('.overview-card.featured').boundingBox();
+          expect(featuredCardBounds).not.toBeNull();
+          expect(featuredCardBounds!.height).toBeLessThan(124);
+        }
+      }
       await page.screenshot({
         path: `docs/testing-evidence/bg007-${name}-${suffix}.png`,
         fullPage: true,
@@ -1055,6 +1427,10 @@ test('UX visual matrix keeps headings, content and floating tabs usable across v
     );
     await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
     await page.goto('/budgets');
+    await expect(page.locator('.overview-card:visible')).toHaveCount(1);
+    const featuredCardBounds = await page.locator('.overview-card.featured').boundingBox();
+    expect(featuredCardBounds).not.toBeNull();
+    expect(featuredCardBounds!.height).toBeLessThan(124);
     const bounds = await page.getByRole('navigation', { name: 'Navegación móvil' }).boundingBox();
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(844);
   }
@@ -1926,11 +2302,19 @@ test('project load errors are distinct from missing projects and can be retried'
   });
   await expect(page).toHaveURL(/\/projects\/offline-unloaded$/);
   await expect(
-    page.getByRole('heading', { name: 'No se ha podido cargar el proyecto', exact: true }),
+    page.getByRole('heading', { name: 'Contenido no disponible sin conexión', exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveText('No hay conexión con el servicio.');
-  await expect(page.getByRole('button', { name: 'Reintentar', exact: true })).toBeVisible();
+  await expect(
+    page.getByText(/Esta pantalla aún no tiene datos cargados en esta sesión/),
+  ).toBeVisible();
+  await expect(page.getByRole('status', { name: /Cargando proyecto/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Contenido no disponible sin conexión', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Cargando contenido' })).toHaveCount(0);
+  await expect(page.getByRole('status', { name: /Cargando proyecto/ })).toHaveCount(0);
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     document.documentElement.scrollTop = 0;
@@ -1942,8 +2326,916 @@ test('project load errors are distinct from missing projects and can be retried'
   });
 
   await page.context().setOffline(false);
-  await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
+  await page.reload();
   await expect(
     page.getByRole('heading', { name: 'Proyecto no disponible', exact: true }),
   ).toBeVisible();
+});
+
+test('keeps cached views visible offline and toasts when a roster edit cannot be saved', async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  await page.goto('/team/manage');
+  await expect(page.getByRole('heading', { name: 'Gestionar equipo', exact: true })).toBeVisible();
+  await page.goto('/projects/project-navigation');
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Proyectos', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Navegación principal' })
+    .getByRole('link', { name: 'Equipo', exact: true })
+    .click();
+  await expect(page.getByTestId('day-project-project-navigation').first()).toBeVisible();
+  await page.getByRole('link', { name: 'Proyectos', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+
+  await context.setOffline(true);
+  await page
+    .getByRole('link', { name: /Proyecto de navegación/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('status', { name: /Cargando proyecto/ })).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Cargando contenido' })).toHaveCount(0);
+  await expect(page.getByRole('status', { name: /Cargando proyecto/ })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Proyectos', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Proyectos', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Proyecto de navegación/ }).first()).toBeVisible();
+
+  await page
+    .getByRole('navigation', { name: 'Navegación principal' })
+    .getByRole('link', { name: 'Equipo', exact: true })
+    .click();
+  const loadedWeekRange = await page.getByTestId('week-range').textContent();
+  await expect(page.getByTestId('day-project-project-navigation').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Semana siguiente' })).toBeDisabled();
+  await expect(page.getByTestId('week-range')).toHaveText(loadedWeekRange!);
+  await expect(page.getByRole('status', { name: /Cargando planificación semanal/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }).click();
+  await page.getByRole('button', { name: 'Editar a Ana Demo' }).click();
+  const memberDialog = page.getByRole('dialog', { name: 'Editar persona' });
+  await memberDialog.getByLabel('Nombre', { exact: true }).fill('Ana Demo sin conexión');
+  await memberDialog.getByRole('button', { name: 'Guardar persona' }).click();
+  await expect(page.getByTestId('offline-mutation-toast')).toHaveText(
+    /Sin conexión\. No se ha podido guardar el cambio\./,
+  );
+  await expect(page.getByTestId('offline-mutation-toast')).toBeVisible();
+  await memberDialog.getByRole('button', { name: 'Cancelar' }).click();
+
+  const emulator = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  await emulator.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users', primaryUid, 'teamMembers', 'member-demo-ana'), {
+      id: 'member-demo-ana',
+      name: 'Ana Demo actualizada',
+      status: 'active',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-11-07T10:00:00.000Z',
+    });
+  });
+  await emulator.cleanup();
+
+  await context.setOffline(false);
+  await expect(
+    page.getByRole('button', { name: 'Editar a Ana Demo actualizada', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Cargando contenido' })).toHaveCount(0);
+
+  await page.getByRole('link', { name: 'Proyectos', exact: true }).click();
+  await expect(page.getByText('Cliente de navegación', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status', { name: /Cargando proyectos/ })).toHaveCount(0);
+  await expect(page.getByText('Ana Demo sin conexión', { exact: true })).toHaveCount(0);
+});
+
+test('plans project teams by week and saves person changes only for the selected day', async ({
+  page,
+}) => {
+  const env = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  const db = env.authenticatedContext(primaryUid).firestore();
+  const todayKey = await page.evaluate(() => {
+    const date = new Date();
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+  });
+  const tomorrowKey = await page.evaluate((today) => {
+    const [year, month, day] = today.split('-').map(Number);
+    const date = new Date(year!, month! - 1, day! + 1);
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+  }, todayKey);
+  const currentWeekDateKeys = await page.evaluate(() => {
+    const current = new Date();
+    const monday = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 12);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+      ].join('-');
+    });
+  });
+  const estimatedEndDateKey = currentWeekDateKeys[3]!;
+  const afterEstimatedEndDateKey = currentWeekDateKeys[4]!;
+  const nextYearEstimatedEndDateKey = `2027${estimatedEndDateKey.slice(4)}`;
+
+  await env.withSecurityRulesDisabled(async (context) => {
+    const seedDb = context.firestore();
+    await setDoc(doc(seedDb, 'users', primaryUid, 'teamMembers', 'member-demo-luis'), {
+      id: 'member-demo-luis',
+      name: 'Luis Demo',
+      status: 'active',
+    });
+    await setDoc(doc(seedDb, 'users', primaryUid, 'teamMembers', 'member-demo-eva'), {
+      id: 'member-demo-eva',
+      name: 'Eva Demo',
+      status: 'active',
+    });
+    await setDoc(doc(seedDb, 'users', primaryUid, 'crews', 'crew-demo-norte'), {
+      id: 'crew-demo-norte',
+      label: 'Cuadrilla Norte',
+      color: 'blue',
+      memberIds: ['member-demo-ana', 'member-demo-luis'],
+      status: 'active',
+    });
+    await setDoc(
+      doc(
+        seedDb,
+        'users',
+        primaryUid,
+        'projects',
+        'project-navigation',
+        'assignments',
+        'crew_crew-demo-norte',
+      ),
+      {
+        id: 'crew_crew-demo-norte',
+        resourceType: 'crew',
+        resourceId: 'crew-demo-norte',
+        label: 'Cuadrilla Norte',
+        color: 'blue',
+        members: [
+          { id: 'member-demo-ana', name: 'Ana Demo' },
+          { id: 'member-demo-luis', name: 'Luis Demo' },
+        ],
+        assignedAt: '2026-11-01T10:00:00.000Z',
+      },
+    );
+    await setDoc(
+      doc(
+        seedDb,
+        'users',
+        primaryUid,
+        'projects',
+        'project-navigation',
+        'dailyAssignments',
+        afterEstimatedEndDateKey,
+      ),
+      {
+        date: afterEstimatedEndDateKey,
+        projectId: 'project-navigation',
+        assignments: [
+          {
+            id: 'crew_crew-demo-norte',
+            resourceType: 'crew',
+            resourceId: 'crew-demo-norte',
+            label: 'Cuadrilla Norte',
+            color: 'blue',
+            members: [
+              { id: 'member-demo-ana', name: 'Ana Demo' },
+              { id: 'member-demo-luis', name: 'Luis Demo' },
+            ],
+            assignedAt: '2026-11-01T10:00:00.000Z',
+          },
+        ],
+        updatedAt: '2026-11-01T10:00:00.000Z',
+      },
+    );
+    await setDoc(doc(seedDb, 'users', primaryUid, 'projects', 'project-weekly-support'), {
+      id: 'project-weekly-support',
+      title: 'Proyecto de apoyo',
+      status: 'pending',
+      createdAt: '2026-11-01T10:00:00.000Z',
+    });
+    await setDoc(
+      doc(
+        seedDb,
+        'users',
+        primaryUid,
+        'projects',
+        'project-weekly-support',
+        'assignments',
+        'member_member-demo-ana',
+      ),
+      {
+        id: 'member_member-demo-ana',
+        resourceType: 'member',
+        resourceId: 'member-demo-ana',
+        label: 'Ana Demo',
+        members: [{ id: 'member-demo-ana', name: 'Ana Demo' }],
+        assignedAt: '2026-11-01T10:00:00.000Z',
+      },
+    );
+  });
+
+  try {
+    await login(page);
+    await page.goto('/team');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const compactWeekSelector = page.getByTestId('week-selector');
+    await expect(compactWeekSelector.locator('[data-day-key]')).toHaveCount(7);
+    const weekSelectorBounds = await compactWeekSelector.boundingBox();
+    const resourceFilterBounds = await page.getByTestId('weekly-resource-filter').boundingBox();
+    expect(weekSelectorBounds).not.toBeNull();
+    expect(resourceFilterBounds).not.toBeNull();
+    expect(resourceFilterBounds!.y).toBeLessThan(weekSelectorBounds!.y);
+    const previousWeekButton = page.getByRole('button', { name: 'Semana anterior' });
+    const previousWeekButtonBounds = await previousWeekButton.boundingBox();
+    expect(previousWeekButtonBounds).not.toBeNull();
+    expect(previousWeekButtonBounds!.width).toBeGreaterThanOrEqual(44);
+    expect(previousWeekButtonBounds!.width).toBe(previousWeekButtonBounds!.height);
+    await expect(previousWeekButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(previousWeekButton).toHaveCSS('border-top-width', '0px');
+    await expect(page.getByRole('tablist', { name: 'Secciones de Equipo' })).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }).click();
+    await expect(page).toHaveURL(/\/team\/manage$/);
+    await expect(
+      page.getByRole('heading', { name: 'Gestionar equipo', exact: true }),
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'Volver a Equipo' }).click();
+    await expect(page).toHaveURL(/\/team$/);
+    await expect(page.locator('[data-week-day]')).toHaveCount(7);
+    await expect(
+      page
+        .locator('[data-week-day]')
+        .first()
+        .getByTestId('day-project-project-navigation')
+        .getByText('Cuadrilla Norte', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Ana Demo' })).toBeVisible();
+    const initialProjectCard = page
+      .locator('[data-week-day]')
+      .first()
+      .getByTestId('day-project-project-navigation');
+    const initialPeopleButton = initialProjectCard.getByRole('button', {
+      name: 'Editar equipo de Proyecto de navegación',
+    });
+    const initialPeopleButtonBounds = await initialPeopleButton.boundingBox();
+    expect(initialPeopleButtonBounds).not.toBeNull();
+    expect(initialPeopleButtonBounds!.width).toBe(initialPeopleButtonBounds!.height);
+    await expect(
+      initialProjectCard.getByRole('link', { name: 'Ir al proyecto Proyecto de navegación' }),
+    ).toBeVisible();
+
+    const resourceFilter = page.getByTestId('weekly-resource-filter');
+    await resourceFilter.locator('summary').click();
+    const luisFilter = page.getByRole('checkbox', {
+      name: 'Mostrar asignaciones de Luis Demo',
+    });
+    const anaFilter = page.getByRole('checkbox', {
+      name: 'Mostrar asignaciones de Ana Demo',
+    });
+    await luisFilter.check();
+    await expect(resourceFilter).toHaveAttribute('open', '');
+    const visibleWeek = page.locator('[data-week-day]');
+    const navigationProjectCards = visibleWeek.getByTestId('day-project-project-navigation');
+    await expect(navigationProjectCards).toHaveCount(7);
+    await expect(
+      navigationProjectCards.first().getByText('Luis Demo', { exact: true }),
+    ).toBeVisible();
+    await expect(navigationProjectCards.first().getByText('Ana Demo', { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(visibleWeek.getByTestId('day-project-project-weekly-support')).toHaveCount(0);
+
+    await anaFilter.check();
+    await expect(visibleWeek.getByTestId('day-project-project-weekly-support')).toHaveCount(7);
+    await expect(
+      navigationProjectCards.first().getByText('Ana Demo, Luis Demo', { exact: true }),
+    ).toBeVisible();
+    await luisFilter.uncheck();
+    await expect(
+      navigationProjectCards.first().getByText('Luis Demo', { exact: true }),
+    ).toHaveCount(0);
+
+    await resourceFilter.getByRole('button', { name: 'Limpiar filtros' }).click();
+    await page
+      .getByRole('checkbox', { name: 'Mostrar asignaciones de cuadrilla Cuadrilla Norte' })
+      .check();
+    await expect(
+      navigationProjectCards.first().getByText('Ana Demo, Luis Demo', { exact: true }),
+    ).toBeVisible();
+    await resourceFilter.getByRole('button', { name: 'Limpiar filtros' }).click();
+    await expect(resourceFilter).toHaveAttribute('open', '');
+    await page.getByRole('heading', { name: 'Equipo', exact: true }).click();
+    await expect(resourceFilter).not.toHaveAttribute('open');
+
+    const initialRange = await page.getByTestId('week-range').textContent();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const swipeSurface = page.getByTestId('weekly-swipe-surface');
+    const currentSlide = swipeSurface.locator('[data-week-slide="current"]');
+    const activeWeekRange = currentSlide.getByTestId('week-range');
+    const surfaceBounds = await swipeSurface.boundingBox();
+    const initialSlideBounds = await currentSlide.boundingBox();
+    expect(surfaceBounds).not.toBeNull();
+    expect(initialSlideBounds).not.toBeNull();
+    const dragStartX = surfaceBounds!.x + surfaceBounds!.width / 2;
+    const dragStartY = surfaceBounds!.y + surfaceBounds!.height / 2;
+    await page.mouse.move(dragStartX, dragStartY);
+    await page.mouse.down();
+    await page.mouse.move(dragStartX - 90, dragStartY, { steps: 6 });
+    await expect
+      .poll(async () => (await currentSlide.boundingBox())?.x ?? Number.POSITIVE_INFINITY)
+      .toBeLessThan(initialSlideBounds!.x - 40);
+    await expect(swipeSurface.locator('[data-week-slide="preview"]')).toBeVisible();
+    await page.mouse.up();
+    await expect(activeWeekRange).not.toHaveText(initialRange!);
+    await expect(swipeSurface).toHaveAttribute('data-slide-direction', 'next');
+    await page.getByRole('button', { name: 'Esta semana', exact: true }).click();
+    await expect(swipeSurface).toHaveAttribute('data-slide-direction', 'previous');
+    await expect(swipeSurface).toHaveAttribute('data-swipe-phase', 'settling');
+    await expect(currentSlide).toHaveCSS('transition-property', 'transform');
+    await expect(activeWeekRange).toHaveText(initialRange!);
+    const todayButton = page.locator(`[data-day-key="${todayKey}"]`);
+    await expect(todayButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(todayButton).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    const selectedDayNumber = todayButton.getByTestId('week-day-number');
+    await expect(selectedDayNumber).toHaveCSS('background-color', 'rgb(86, 19, 33)');
+    await expect(todayButton.getByTestId('week-day-dots')).toHaveCSS('margin-top', '2px');
+
+    const otherCurrentDay = currentWeekDateKeys.find((dateKey) => dateKey !== todayKey)!;
+    await page.locator(`[data-day-key="${otherCurrentDay}"]`).click();
+    await expect(todayButton).toHaveAttribute('aria-pressed', 'false');
+    await expect(todayButton.getByTestId('week-day-number')).toHaveCSS('color', 'rgb(86, 19, 33)');
+    await expect(todayButton.getByTestId('week-day-number')).toHaveCSS('font-weight', '700');
+    await expect(page.getByRole('button', { name: 'Esta semana', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Esta semana', exact: true }).click();
+    await expect(todayButton).toHaveAttribute('aria-pressed', 'true');
+
+    const nextWeekDateKey = await page.evaluate((today) => {
+      const [year, month, day] = today.split('-').map(Number);
+      const date = new Date(year!, month! - 1, day! + 7);
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+      ].join('-');
+    }, todayKey);
+    const weekDatePicker = page.getByTestId('week-date-picker');
+    await expect(weekDatePicker).toHaveAttribute('type', 'date');
+    await weekDatePicker.fill(nextWeekDateKey);
+    await expect(page.locator(`[data-day-key="${nextWeekDateKey}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByRole('status', { name: 'Cargando planificación semanal' })).toHaveCount(
+      0,
+    );
+    await page.getByRole('button', { name: 'Esta semana', exact: true }).click();
+    await expect(todayButton).toHaveAttribute('aria-pressed', 'true');
+
+    const snapBackBounds = await swipeSurface.boundingBox();
+    expect(snapBackBounds).not.toBeNull();
+    const shortDragStartX = snapBackBounds!.x + snapBackBounds!.width / 2;
+    const shortDragStartY = snapBackBounds!.y + snapBackBounds!.height / 2;
+    await page.mouse.move(shortDragStartX, shortDragStartY);
+    await page.mouse.down();
+    await page.mouse.move(shortDragStartX - 24, shortDragStartY, { steps: 2 });
+    await page.mouse.up();
+    await expect(swipeSurface).toHaveAttribute('data-swipe-phase', 'idle');
+    await expect(activeWeekRange).toHaveText(initialRange!);
+    await page.getByRole('button', { name: 'Semana siguiente' }).click();
+    await expect(activeWeekRange).not.toHaveText(initialRange!);
+    await page.getByRole('button', { name: 'Semana anterior' }).click();
+    await expect(activeWeekRange).toHaveText(initialRange!);
+    await page.setViewportSize({ width: 320, height: 760 });
+    const weekSelector = page.getByTestId('week-selector');
+    await expect(weekSelector).toHaveCSS('flex-wrap', 'nowrap');
+    const selectorBounds = await weekSelector.boundingBox();
+    const weekControlsBounds = await page.getByTestId('week-selector-controls').boundingBox();
+    expect(selectorBounds).not.toBeNull();
+    expect(weekControlsBounds).not.toBeNull();
+    expect(weekControlsBounds!.x + weekControlsBounds!.width).toBeLessThanOrEqual(
+      selectorBounds!.x + selectorBounds!.width + 1,
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+
+    await page.locator(`[data-day-key="${todayKey}"]`).click();
+    await page
+      .locator(`[data-week-day="${todayKey}"]`)
+      .getByRole('button', { name: 'Editar equipo de Proyecto de navegación' })
+      .click();
+    const editor = page.getByRole('dialog', { name: 'Editar equipo de Proyecto de navegación' });
+    await expect(editor.getByLabel('Incluir Ana Demo en Cuadrilla Norte')).toBeChecked();
+    await editor.getByLabel('Incluir Ana Demo en Cuadrilla Norte').uncheck();
+    await editor.getByLabel('Asignar persona Eva Demo').check();
+    await editor.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    const projectCard = page
+      .locator(`[data-week-day="${todayKey}"]`)
+      .getByTestId('day-project-project-navigation');
+    await expect(projectCard.getByText('Luis Demo')).toBeVisible();
+    await expect(projectCard.getByText('Eva Demo')).toBeVisible();
+    await expect(projectCard.getByText('Ana Demo')).toHaveCount(0);
+    await expect(page.getByRole('alert').filter({ hasText: 'Ana Demo' })).toHaveCount(0);
+
+    await page.locator(`[data-day-key="${tomorrowKey}"]`).click();
+    const tomorrowProject = page
+      .locator(`[data-week-day="${tomorrowKey}"]`)
+      .getByTestId('day-project-project-navigation');
+    await expect(tomorrowProject.getByText('Ana Demo')).toBeVisible();
+    await expect(tomorrowProject.getByText('Luis Demo')).toBeVisible();
+    await expect(tomorrowProject.getByText('Eva Demo')).toHaveCount(0);
+
+    await page.locator(`[data-day-key="${todayKey}"]`).click();
+    await page
+      .locator(`[data-week-day="${todayKey}"]`)
+      .getByRole('button', { name: 'Editar equipo de Proyecto de navegación' })
+      .click();
+    const savedEditor = page.getByRole('dialog', {
+      name: 'Editar equipo de Proyecto de navegación',
+    });
+    await savedEditor.getByRole('button', { name: 'Restablecer predeterminados' }).click();
+    await expect(
+      page
+        .locator(`[data-week-day="${todayKey}"]`)
+        .getByTestId('day-project-project-navigation')
+        .getByText('Ana Demo'),
+    ).toBeVisible();
+
+    const globalCrew = await getDoc(
+      doc(
+        db,
+        'users',
+        primaryUid,
+        'projects',
+        'project-navigation',
+        'assignments',
+        'crew_crew-demo-norte',
+      ),
+    );
+    expect(globalCrew.data()?.members).toEqual([
+      { id: 'member-demo-ana', name: 'Ana Demo' },
+      { id: 'member-demo-luis', name: 'Luis Demo' },
+    ]);
+    const restoredOverride = await getDoc(
+      doc(db, 'users', primaryUid, 'projects', 'project-navigation', 'dailyAssignments', todayKey),
+    );
+    expect(restoredOverride.exists()).toBe(false);
+
+    const installNotice = page.getByRole('button', { name: 'Ocultar aviso de instalación' });
+    if (await installNotice.isVisible()) await installNotice.click();
+    const pushNotice = page.getByRole('button', { name: 'Ahora no' });
+    if (await pushNotice.isVisible()) await pushNotice.click();
+    await page.locator('.skip-link').evaluate((element) => (element as HTMLElement).blur());
+    await resourceFilter.locator('summary').click();
+    await luisFilter.check();
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg011-weekly-filter-desktop.png',
+      fullPage: true,
+    });
+    await resourceFilter.getByRole('button', { name: 'Limpiar filtros' }).click();
+    await resourceFilter.locator('summary').click();
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg011-weekly-team-desktop.png',
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await resourceFilter.locator('summary').click();
+    await luisFilter.check();
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg011-weekly-filter-mobile.png',
+      fullPage: true,
+    });
+    await resourceFilter.getByRole('button', { name: 'Limpiar filtros' }).click();
+    await resourceFilter.locator('summary').click();
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg011-weekly-team-mobile.png',
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: 'Gestionar miembros y cuadrillas' }).click();
+    await expect(page).toHaveURL(/\/team\/manage$/);
+    await expect(
+      page.getByRole('heading', { name: 'Gestionar equipo', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Personas', exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Volver a Equipo' }).click();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const todayProjectCard = page
+      .locator(`[data-week-day="${todayKey}"]`)
+      .getByTestId('day-project-project-navigation');
+    const projectTitle = todayProjectCard.getByRole('heading', {
+      name: 'Proyecto de navegación',
+      exact: true,
+    });
+    const projectTitleBounds = await projectTitle.boundingBox();
+    expect(projectTitleBounds).not.toBeNull();
+    expect(projectTitleBounds!.width).toBeGreaterThan(72);
+    const editPeopleButton = todayProjectCard.getByRole('button', {
+      name: 'Editar equipo de Proyecto de navegación',
+    });
+    const openProjectLink = todayProjectCard.getByRole('link', {
+      name: 'Ir al proyecto Proyecto de navegación',
+    });
+    const peopleButtonBounds = await editPeopleButton.boundingBox();
+    const openProjectLinkBounds = await openProjectLink.boundingBox();
+    expect(peopleButtonBounds).not.toBeNull();
+    expect(openProjectLinkBounds).not.toBeNull();
+    expect(peopleButtonBounds!.width).toBe(peopleButtonBounds!.height);
+    expect(openProjectLinkBounds!.width).toBe(openProjectLinkBounds!.height);
+    await openProjectLink.click();
+    await expect(page).toHaveURL(/\/projects\/project-navigation$/);
+    await expect(
+      page.getByRole('heading', { name: 'Proyecto de navegación', exact: true }),
+    ).toBeVisible();
+    const estimatedEndDateInput = page.getByLabel('Fecha estimada de fin del proyecto');
+    await expect(page.getByRole('button', { name: 'Guardar fecha', exact: true })).toHaveCount(0);
+    await estimatedEndDateInput.dispatchEvent('pointerdown');
+    await estimatedEndDateInput.fill(estimatedEndDateKey);
+    await expect(estimatedEndDateInput).toHaveValue(estimatedEndDateKey);
+    await expect
+      .poll(
+        async () =>
+          (await getDoc(doc(db, 'users', primaryUid, 'projects', 'project-navigation'))).data()
+            ?.estimatedEndDate,
+      )
+      .toBe(estimatedEndDateKey);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/team$/);
+    await expect(
+      page
+        .locator(`[data-week-day="${estimatedEndDateKey}"]`)
+        .getByTestId('day-project-project-navigation'),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(`[data-week-day="${afterEstimatedEndDateKey}"]`)
+        .getByTestId('day-project-project-navigation'),
+    ).toHaveCount(0);
+    const retainedAfterEndOverride = await getDoc(
+      doc(
+        db,
+        'users',
+        primaryUid,
+        'projects',
+        'project-navigation',
+        'dailyAssignments',
+        afterEstimatedEndDateKey,
+      ),
+    );
+    expect(retainedAfterEndOverride.data()?.assignments).toHaveLength(1);
+    expect(retainedAfterEndOverride.data()?.assignments[0]?.resourceId).toBe('crew-demo-norte');
+
+    await page
+      .locator(`[data-week-day="${estimatedEndDateKey}"]`)
+      .getByTestId('day-project-project-navigation')
+      .getByRole('link', { name: 'Ir al proyecto Proyecto de navegación' })
+      .click();
+    const editEstimatedEndDate = page.getByLabel('Fecha estimada de fin del proyecto');
+    await editEstimatedEndDate.focus();
+    await editEstimatedEndDate.press('ArrowRight');
+    await editEstimatedEndDate.press('ArrowRight');
+    await page.keyboard.type('2');
+    await page.waitForTimeout(400);
+    await expect
+      .poll(
+        async () =>
+          (await getDoc(doc(db, 'users', primaryUid, 'projects', 'project-navigation'))).data()
+            ?.estimatedEndDate,
+      )
+      .toBe(estimatedEndDateKey);
+    await page.keyboard.type('027');
+    await expect(editEstimatedEndDate).toHaveValue(nextYearEstimatedEndDateKey);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/team$/);
+    await expect
+      .poll(
+        async () =>
+          (await getDoc(doc(db, 'users', primaryUid, 'projects', 'project-navigation'))).data()
+            ?.estimatedEndDate,
+      )
+      .toBe(nextYearEstimatedEndDateKey);
+  } finally {
+    await env.cleanup();
+  }
+});
+
+test('edits a project name and client and synchronizes both fields to its source budget', async ({
+  page,
+}) => {
+  const env = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  const db = env.authenticatedContext(primaryUid).firestore();
+  const budgetId = 'budget-editable-project';
+  const projectId = 'project-editable-project';
+  const acceptedAt = '2026-11-01T10:00:00.000Z';
+
+  await env.withSecurityRulesDisabled(async (context) => {
+    const seedDb = context.firestore();
+    await setDoc(doc(seedDb, 'users', primaryUid, 'budgets', budgetId), {
+      id: budgetId,
+      info: {
+        clientName: 'Cliente inicial',
+        address: 'Obra inicial',
+        date: '2026-11-01',
+        budgetNumber: '91',
+      },
+      workItems: [],
+      acceptedAt,
+      projectId,
+      createdAt: acceptedAt,
+    });
+    await setDoc(doc(seedDb, 'users', primaryUid, 'projects', projectId), {
+      id: projectId,
+      sourceBudgetId: budgetId,
+      sourceBudgetNumber: '91',
+      title: 'Obra inicial',
+      clientName: 'Cliente inicial',
+      address: 'Obra inicial',
+      budgetDate: '2026-11-01',
+      acceptedAt,
+      createdAt: acceptedAt,
+      subtotal: 100,
+      iva: 21,
+      total: 121,
+      ivaRate: 0.21,
+      workItemCount: 0,
+      mode: 'concepts',
+      totalConcepts: 0,
+      completedConcepts: 0,
+      totalAmount: 0,
+      completedAmount: 0,
+      percent: 0,
+      status: 'pending',
+      supplementsSubtotal: 0,
+      supplementsIva: 0,
+      updatedTotal: 121,
+    });
+  });
+
+  try {
+    await login(page);
+    await page.goto(`/projects/${projectId}`);
+    await expect(page.getByRole('heading', { name: 'Obra inicial', exact: true })).toBeVisible();
+    const editProjectButton = page
+      .locator('.workspace-header-action-slot')
+      .getByRole('button', { name: 'Editar datos del proyecto', exact: true });
+    const expectEditButtonInGlobalHeader = async () => {
+      await expect(editProjectButton).toBeVisible();
+      const headerBox = await page.locator('.workspace-header').boundingBox();
+      const buttonBox = await editProjectButton.boundingBox();
+      expect(headerBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox!.y).toBeGreaterThanOrEqual(headerBox!.y);
+      expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(
+        headerBox!.y + headerBox!.height,
+      );
+    };
+    await expectEditButtonInGlobalHeader();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectEditButtonInGlobalHeader();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(editProjectButton).toHaveClass(/rounded-full/);
+    await expect(editProjectButton).toHaveAttribute('title', 'Editar datos del proyecto');
+    await expect(editProjectButton).toHaveText('');
+    await expect(
+      page.locator('[data-page-header]').getByRole('button', {
+        name: 'Editar datos del proyecto',
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await editProjectButton.click();
+
+    const dialog = page.getByRole('dialog', {
+      name: 'Editar nombre y cliente del proyecto',
+      exact: true,
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('.modal-panel')).toHaveCSS('opacity', '1');
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg009-project-identity-desktop.png',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: 'docs/testing-evidence/bg009-project-identity-mobile.png',
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await dialog.getByLabel('Nombre del proyecto', { exact: true }).fill('Reforma renovada');
+    await dialog.getByLabel('Nombre del cliente', { exact: true }).fill('Cliente renovado');
+    await dialog.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Reforma renovada', exact: true }),
+    ).toBeVisible();
+    const savedProject = await getDoc(doc(db, 'users', primaryUid, 'projects', projectId));
+    expect(savedProject.data()).toMatchObject({
+      title: 'Reforma renovada',
+      address: 'Reforma renovada',
+      clientName: 'Cliente renovado',
+    });
+    const savedBudget = await getDoc(doc(db, 'users', primaryUid, 'budgets', budgetId));
+    expect(savedBudget.data()?.info).toMatchObject({
+      address: 'Reforma renovada',
+      clientName: 'Cliente renovado',
+    });
+
+    await page.goto(`/budget/${budgetId}`);
+    await expect(page.locator('#clientName')).toHaveValue('Cliente renovado');
+    await expect(page.locator('#address')).toHaveValue('Reforma renovada');
+  } finally {
+    await env.cleanup();
+  }
+});
+
+test('creates standalone and completed-project work entries from a day in Equipo', async ({
+  page,
+}) => {
+  const env = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  const db = env.authenticatedContext(primaryUid).firestore();
+  const completedProjectId = 'project-team-job-completed-old';
+  const today = new Date();
+  const dateKey = [
+    String(today.getFullYear()).padStart(4, '0'),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+  const completedProject = {
+    id: completedProjectId,
+    sourceBudgetId: 'budget-team-job-completed-old',
+    sourceBudgetNumber: '76',
+    title: 'Proyecto terminado hace años',
+    clientName: 'Cliente de prueba',
+    address: 'Proyecto terminado hace años',
+    budgetDate: '2024-02-01',
+    acceptedAt: '2024-02-02T10:00:00.000Z',
+    createdAt: '2024-02-02T10:00:00.000Z',
+    completedAt: '2024-04-15T10:00:00.000Z',
+    subtotal: 100,
+    iva: 21,
+    total: 121,
+    ivaRate: 0.21,
+    workItemCount: 1,
+    mode: 'concepts',
+    totalConcepts: 1,
+    completedConcepts: 1,
+    totalAmount: 100,
+    completedAmount: 100,
+    percent: 100,
+    status: 'completed',
+    supplementsSubtotal: 0,
+    supplementsIva: 0,
+    updatedTotal: 121,
+  };
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+      doc(context.firestore(), 'users', primaryUid, 'projects', completedProjectId),
+      completedProject,
+    );
+  });
+
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+    await page.goto('/team');
+    await expect(page.getByRole('heading', { name: 'Equipo', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Nuevo trabajo', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/team/jobs/new\\?date=${dateKey}$`));
+    await expect(page.getByRole('heading', { name: 'Nuevo trabajo', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Fecha', { exact: true })).toHaveValue(dateKey);
+    await expect(page.getByLabel('Descripción (opcional)', { exact: true })).toBeVisible();
+    const headerSave = page
+      .getByRole('banner')
+      .getByRole('button', { name: 'Guardar trabajo', exact: true });
+    await expect(headerSave).toBeVisible();
+    await expect(page.locator('#team-job-form button[type="submit"]')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Añadir persona', exact: true }).click();
+    const memberDialog = page.getByRole('dialog', { name: 'Añadir persona' });
+    await memberDialog.getByLabel('Nombre', { exact: true }).fill('Diego Demo');
+    await memberDialog.getByRole('button', { name: 'Añadir y asignar', exact: true }).click();
+    const newMemberCheckbox = page.getByRole('checkbox', { name: 'Diego Demo', exact: true });
+    await expect(newMemberCheckbox).toBeChecked();
+
+    await page.getByLabel('Título del trabajo', { exact: true }).fill('Remate sin proyecto');
+    await headerSave.click();
+    await expect(page).toHaveURL(new RegExp(`/team\\?date=${dateKey}$`));
+    const standaloneCard = page.locator('[data-testid^="day-job-"]:visible').filter({
+      hasText: 'Remate sin proyecto',
+    });
+    await expect(standaloneCard).toContainText('Remate sin proyecto');
+    await expect(standaloneCard).toContainText('Diego Demo');
+    await expect(standaloneCard).not.toContainText('Repasar el sellado de la encimera.');
+
+    const projectBefore = await getDoc(
+      doc(db, 'users', primaryUid, 'projects', completedProjectId),
+    );
+    await page.getByRole('button', { name: 'Nuevo trabajo', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/team/jobs/new\\?date=${dateKey}$`));
+    const projectSelect = page.getByLabel('Proyecto (opcional)', { exact: true });
+    await expect(
+      projectSelect.getByRole('option', { name: /Proyecto terminado hace años/ }),
+    ).toBeAttached();
+    await projectSelect.selectOption(completedProjectId);
+    await expect(page.getByLabel('Título del trabajo', { exact: true })).toHaveValue(
+      'Proyecto terminado hace años',
+    );
+    await page.getByRole('checkbox', { name: 'Ana Demo', exact: true }).check();
+    await headerSave.click();
+    await expect(page).toHaveURL(new RegExp(`/team\\?date=${dateKey}$`));
+    const linkedCard = page.locator('[data-testid^="day-job-"]:visible').filter({
+      hasText: 'Proyecto terminado hace años',
+    });
+    await expect(linkedCard).toContainText('Proyecto terminado hace años');
+    await expect(linkedCard.getByRole('link')).toHaveAttribute(
+      'href',
+      `/projects/${completedProjectId}`,
+    );
+    const projectAfter = await getDoc(doc(db, 'users', primaryUid, 'projects', completedProjectId));
+    expect(projectAfter.data()).toEqual(projectBefore.data());
+    expect(projectAfter.data()).toMatchObject({ status: 'completed', percent: 100 });
+
+    const standaloneDocs = await getDocs(
+      query(
+        collection(db, 'users', primaryUid, 'teamJobs'),
+        where('title', '==', 'Remate sin proyecto'),
+      ),
+    );
+    expect(standaloneDocs.docs).toHaveLength(1);
+    expect(standaloneDocs.docs[0]?.data()).toMatchObject({
+      date: dateKey,
+      title: 'Remate sin proyecto',
+      description: '',
+    });
+    const linkedDocs = await getDocs(
+      query(
+        collection(db, 'users', primaryUid, 'teamJobs'),
+        where('projectId', '==', completedProjectId),
+      ),
+    );
+    expect(linkedDocs.docs).toHaveLength(1);
+    expect(linkedDocs.docs[0]?.data()).toMatchObject({
+      projectId: completedProjectId,
+      projectTitle: 'Proyecto terminado hace años',
+    });
+
+    const resourceFilter = page.getByTestId('weekly-resource-filter');
+    await resourceFilter.locator('summary').click();
+    await page.getByLabel('Mostrar asignaciones de Diego Demo', { exact: true }).check();
+    await expect(
+      page.locator('[data-testid^="day-job-"]:visible').filter({ hasText: 'Remate sin proyecto' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nuevo trabajo', exact: true })).toBeVisible();
+  } finally {
+    await env.cleanup();
+  }
 });

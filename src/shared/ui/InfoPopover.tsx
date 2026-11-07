@@ -8,7 +8,7 @@ export function InfoPopover({ label, children }: { label: string; children: Reac
     <span className="info-control no-print">
       <button
         type="button"
-        className="info-trigger"
+        className="info-trigger rounded-full"
         popoverTarget={id}
         aria-label={`Información sobre ${label.toLocaleLowerCase('es')}`}
         aria-expanded={open}
@@ -35,6 +35,7 @@ export function InfoPopover({ label, children }: { label: string; children: Reac
           <strong id={`${id}-title`}>{label}</strong>
           <button
             type="button"
+            className="rounded-full"
             popoverTarget={id}
             popoverTargetAction="hide"
             aria-label="Cerrar información"

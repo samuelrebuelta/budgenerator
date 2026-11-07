@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, ChevronDown, Circle, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { Check, ChevronDown, Circle, ClipboardCheck, Pencil, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { getProjectLocalDateKey, ProjectStatusTag, useProjectStore } from '@/entities/project';
-import type { ProjectWorkItem } from '@/entities/project';
+import { useBudgetStore } from '@/entities/budget';
+import {
+  getProjectLocalDateKey,
+  ProjectStatusTag,
+  useProjectStore,
+  type ProjectDetail,
+  type ProjectWorkItem,
+} from '@/entities/project';
 import { formatCurrency, generateId } from '@/shared/lib';
 import { money, taskAmount } from '@/shared/lib/budgetMath';
-import { Button, Card, PageHeader, Skeleton } from '@/shared/ui';
+import { Button, Card, Input, Modal, OfflineUnavailable, PageHeader, Skeleton } from '@/shared/ui';
+import { getMemoryResource } from '@/shared/lib/memoryResourceCache';
+import { useNetworkStore } from '@/shared/model/network';
 import { ProjectProgressBar } from '@/pages/projects/ProjectProgressBar';
 import { ProjectProgressHistoryDialog } from './ProjectProgressHistoryDialog';
 import { ProjectTaskCompletionDate } from './ProjectTaskCompletionDate';
+import { ProjectEstimatedEndDate } from './ProjectEstimatedEndDate';
+import { ProjectTeamAssignments } from './ProjectTeamAssignments';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 function dateLabel(value: string) {
@@ -58,11 +68,16 @@ export function ProjectDetailPage() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const uid = useAuthStore((state) => state.user?.uid);
   const activeProject = useProjectStore((state) => state.activeProject);
+  const online = useNetworkStore((state) => state.online);
+  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
   const loadProject = useProjectStore((state) => state.loadProject);
   const toggleTask = useProjectStore((state) => state.toggleTask);
   const completeWorkItem = useProjectStore((state) => state.completeWorkItem);
   const setTaskCompletionDate = useProjectStore((state) => state.setTaskCompletionDate);
   const setWorkItemCompletionDate = useProjectStore((state) => state.setWorkItemCompletionDate);
+  const setEstimatedEndDate = useProjectStore((state) => state.setEstimatedEndDate);
+  const saveProjectMetadataToStore = useProjectStore((state) => state.updateProjectMetadata);
+  const syncLinkedProjectMetadata = useBudgetStore((state) => state.syncLinkedProjectMetadata);
   const addSupplement = useProjectStore((state) => state.addSupplement);
   const voidSupplement = useProjectStore((state) => state.voidSupplement);
   const [loadResult, setLoadResult] = useState<{
@@ -82,8 +97,21 @@ export function ProjectDetailPage() {
   const [voidingSupplementId, setVoidingSupplementId] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [progressHistoryOpen, setProgressHistoryOpen] = useState(false);
+  const [projectMetadataOpen, setProjectMetadataOpen] = useState(false);
+  const [projectNameInput, setProjectNameInput] = useState('');
+  const [clientNameInput, setClientNameInput] = useState('');
+  const [projectMetadataError, setProjectMetadataError] = useState('');
   const requestKey = `${uid ?? ''}:${projectId}`;
-  const loading = Boolean(uid && projectId && loadResult.key !== requestKey);
+  const memoryKey = `private:${uid ?? ''}:project:${projectId}`;
+  const cachedProject = uid ? getMemoryResource<ProjectDetail | null>(memoryKey) : undefined;
+  const loading = Boolean(
+    online &&
+    uid &&
+    projectId &&
+    loadResult.key !== requestKey &&
+    cachedProject === undefined &&
+    activeProject?.id !== projectId,
+  );
   const missing = loadResult.key === requestKey && loadResult.missing;
   const error = loadResult.key === requestKey ? loadResult.error : '';
 
@@ -109,9 +137,9 @@ export function ProjectDetailPage() {
     return () => {
       current = false;
     };
-  }, [uid, projectId, loadProject, requestKey, loadAttempt]);
+  }, [uid, projectId, loadProject, requestKey, loadAttempt, dataRefreshVersion]);
 
-  const project = activeProject?.id === projectId ? activeProject : null;
+  const project = activeProject?.id === projectId ? activeProject : (cachedProject ?? null);
 
   const closeSupplementForm = () => {
     setSupplementFormOpen(false);
@@ -127,8 +155,10 @@ export function ProjectDetailPage() {
     setActionError('');
     try {
       await action();
+      return true;
     } catch (reason) {
       setActionError(userFacingError(reason, 'No se ha podido actualizar el avance.'));
+      return false;
     } finally {
       setBusy(null);
     }
@@ -138,6 +168,43 @@ export function ProjectDetailPage() {
     setActionError('');
     setLoadResult({ key: '', missing: false, error: '' });
     setLoadAttempt((attempt) => attempt + 1);
+  };
+
+  const openProjectMetadata = () => {
+    if (!project) return;
+    setProjectNameInput(project.title);
+    setClientNameInput(project.clientName);
+    setProjectMetadataError('');
+    setProjectMetadataOpen(true);
+  };
+
+  const saveProjectMetadata = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!project) return;
+    const title = projectNameInput.trim();
+    const clientName = clientNameInput.trim();
+    if (!title || title.length > 120) {
+      setProjectMetadataError('El nombre del proyecto debe tener entre 1 y 120 caracteres.');
+      return;
+    }
+    if (clientName.length > 120) {
+      setProjectMetadataError('El nombre del cliente no puede superar los 120 caracteres.');
+      return;
+    }
+
+    setProjectMetadataError('');
+    setBusy('project:metadata');
+    try {
+      await saveProjectMetadataToStore(project.id, title, clientName);
+      syncLinkedProjectMetadata(project.sourceBudgetId, { address: title, clientName });
+      setProjectMetadataOpen(false);
+    } catch (reason) {
+      setProjectMetadataError(
+        userFacingError(reason, 'No se han podido actualizar los datos del proyecto.'),
+      );
+    } finally {
+      setBusy(null);
+    }
   };
 
   if (loading) {
@@ -150,6 +217,8 @@ export function ProjectDetailPage() {
       </div>
     );
   }
+
+  if (!online && !project) return <OfflineUnavailable />;
 
   if (error) {
     return (
@@ -198,6 +267,20 @@ export function ProjectDetailPage() {
         description={`${project.clientName || 'Cliente sin nombre'}${project.address && project.address !== project.title ? ` · ${project.address}` : ''}`}
         backTo="/projects"
         backLabel="Volver a proyectos"
+        actionsInWorkspaceHeader
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!!busy}
+            className="h-11 w-11 shrink-0 justify-center rounded-full p-0"
+            aria-label="Editar datos del proyecto"
+            title="Editar datos del proyecto"
+            onClick={openProjectMetadata}
+          >
+            <Pencil size={18} aria-hidden="true" />
+          </Button>
+        }
       />
 
       {(error || actionError) && (
@@ -252,6 +335,16 @@ export function ProjectDetailPage() {
           <span>Proyecto creado el {dateLabel(project.createdAt)}</span>
           <span>Presupuesto {project.sourceBudgetNumber}</span>
         </div>
+        <div className="mt-5 border-t border-[#c6d4cc] pt-4">
+          <ProjectEstimatedEndDate
+            estimatedEndDate={project.estimatedEndDate}
+            disabled={!!busy}
+            loading={busy === 'date:estimated-end'}
+            onSave={(date) =>
+              run('date:estimated-end', () => setEstimatedEndDate(project.id, date))
+            }
+          />
+        </div>
         <dl className="mt-5 grid gap-3 border-t border-[#c6d4cc] pt-4 sm:grid-cols-3">
           <div>
             <dt className="text-xs font-medium text-[#52625a]">Total aceptado · IVA incluido</dt>
@@ -279,6 +372,8 @@ export function ProjectDetailPage() {
           </div>
         </dl>
       </section>
+
+      <ProjectTeamAssignments project={project} />
 
       <details
         open
@@ -633,6 +728,59 @@ export function ProjectDetailPage() {
         workItems={project.workItems}
         mode={project.mode}
       />
+      <Modal
+        open={projectMetadataOpen}
+        onClose={() => {
+          if (busy !== 'project:metadata') setProjectMetadataOpen(false);
+        }}
+        title="Editar nombre y cliente del proyecto"
+      >
+        <h2 className="mb-2 text-lg font-semibold text-[#1f2b26]">Editar nombre y cliente</h2>
+        <p className="mb-5 text-sm text-[#52625a]">
+          Los cambios también se reflejarán en el presupuesto de origen.
+        </p>
+        <form className="space-y-4" onSubmit={(event) => void saveProjectMetadata(event)}>
+          <Input
+            id="project-name"
+            label="Nombre del proyecto"
+            value={projectNameInput}
+            onChange={(event) => setProjectNameInput(event.target.value)}
+            maxLength={120}
+            required
+            disabled={!!busy}
+          />
+          <Input
+            id="project-client-name"
+            label="Nombre del cliente"
+            value={clientNameInput}
+            onChange={(event) => setClientNameInput(event.target.value)}
+            maxLength={120}
+            disabled={!!busy}
+          />
+          {projectMetadataError && (
+            <p className="field-error" role="alert">
+              {projectMetadataError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!!busy}
+              onClick={() => setProjectMetadataOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              loading={busy === 'project:metadata'}
+              disabled={!!busy && busy !== 'project:metadata'}
+            >
+              Guardar cambios
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

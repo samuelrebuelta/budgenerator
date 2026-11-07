@@ -1,4 +1,6 @@
 import { registerFlusher, syncStatus } from '@/shared/model/sync';
+import { isBrowserDisconnected } from '@/shared/model/network';
+import { showOfflineMutationToast } from '@/shared/model/toast';
 interface Entry<T> {
   value: T;
   revision: number;
@@ -19,6 +21,7 @@ export class WriteQueue<T> {
     registerFlusher(() => this.flush());
   }
   schedule(key: string, value: T) {
+    if (isBrowserDisconnected()) showOfflineMutationToast();
     let entry = this.entries.get(key);
     if (!entry) {
       entry = { value, revision: 0 };

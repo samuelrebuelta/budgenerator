@@ -2,21 +2,51 @@ import { create } from 'zustand';
 import { db } from '@/shared/firebase/config';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { createProjectFirestoreApi } from '../api/firestore';
+import {
+  getMemoryResource,
+  loadMemoryResource,
+  setMemoryResource,
+} from '@/shared/lib/memoryResourceCache';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
+import { isBrowserDisconnected } from '@/shared/model/network';
 import type {
   NewProjectSupplement,
   Project,
+  ProjectAssignment,
+  ProjectDailyAssignmentOverride,
   ProjectDetail,
   ProjectProgressMutation,
   ProjectSupplementMutation,
   ProjectSupplementVoidMutation,
+  ProjectTeamScheduleData,
 } from './types';
+import { normalizeEstimatedEndDate } from './estimatedEndDate';
 
 interface ProjectState {
   projects: Project[];
   activeProject: ProjectDetail | null;
   loaded: boolean;
-  loadProjects: (uid: string) => Promise<void>;
+  loadProjects: (uid: string, force?: boolean) => Promise<void>;
   loadProject: (uid: string, projectId: string) => Promise<ProjectDetail | null>;
+  loadTeamSchedule: (
+    uid: string,
+    projectIds: string[],
+    dateKeys: string[],
+  ) => Promise<ProjectTeamScheduleData | null>;
+  saveDailyAssignments: (
+    projectId: string,
+    dateKey: string,
+    assignments: ProjectAssignment[],
+  ) => Promise<ProjectDailyAssignmentOverride | undefined>;
+  removeDailyAssignmentOverride: (projectId: string, dateKey: string) => Promise<void>;
+  setEstimatedEndDate: (projectId: string, date: string) => Promise<void>;
+  updateProjectMetadata: (projectId: string, title: string, clientName: string) => Promise<void>;
+  addAssignment: (
+    projectId: string,
+    resourceType: ProjectAssignment['resourceType'],
+    resourceId: string,
+  ) => Promise<void>;
+  removeAssignment: (projectId: string, assignmentId: string) => Promise<void>;
   convertBudgetToProject: (budgetId: string) => Promise<string>;
   toggleTask: (projectId: string, workItemId: string, taskId: string) => Promise<void>;
   completeWorkItem: (projectId: string, workItemId: string) => Promise<void>;
@@ -135,8 +165,8 @@ function applySupplementVoidMutation(
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   ...initial,
-  loadProjects: async (uid) => {
-    if (get().loaded && sessionUid() === uid) return;
+  loadProjects: async (uid, force = false) => {
+    if (get().loaded && sessionUid() === uid && (!force || isBrowserDisconnected())) return;
     const revision = sessionRevision();
     const projects = await api.fetchProjects(uid);
     if (!isSessionCurrent(uid, revision)) return;
@@ -144,10 +174,108 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   loadProject: async (uid, projectId) => {
     const revision = sessionRevision();
-    const project = await api.fetchProject(uid, projectId);
+    const project = await loadMemoryResource(`private:${uid}:project:${projectId}`, () =>
+      api.fetchProject(uid, projectId),
+    );
     if (!isSessionCurrent(uid, revision)) return null;
     set({ activeProject: project });
     return project;
+  },
+  loadTeamSchedule: async (uid, projectIds, dateKeys) => {
+    const revision = sessionRevision();
+    const schedule = await api.fetchTeamSchedule(uid, projectIds, dateKeys);
+    if (!isSessionCurrent(uid, revision)) return null;
+    return schedule;
+  },
+  saveDailyAssignments: async (projectId, dateKey, assignments) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    const override = await api.saveDailyAssignments(uid, projectId, dateKey, assignments);
+    if (!isSessionCurrent(uid, revision)) return undefined;
+    return override;
+  },
+  removeDailyAssignmentOverride: async (projectId, dateKey) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    await api.removeDailyAssignmentOverride(uid, projectId, dateKey);
+    if (!isSessionCurrent(uid, revision)) return;
+  },
+  setEstimatedEndDate: async (projectId, date) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    const estimatedEndDate = normalizeEstimatedEndDate(date);
+    await api.setEstimatedEndDate(uid, projectId, estimatedEndDate);
+    if (!isSessionCurrent(uid, revision)) return;
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, estimatedEndDate } : project,
+      ),
+      activeProject:
+        state.activeProject?.id === projectId
+          ? { ...state.activeProject, estimatedEndDate }
+          : state.activeProject,
+    }));
+  },
+  updateProjectMetadata: async (projectId, title, clientName) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    const metadata = await api.updateProjectMetadata(uid, projectId, title, clientName);
+    if (!isSessionCurrent(uid, revision)) return;
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, ...metadata } : project,
+      ),
+      activeProject:
+        state.activeProject?.id === projectId
+          ? { ...state.activeProject, ...metadata }
+          : state.activeProject,
+    }));
+    const cacheKey = `private:${uid}:project:${projectId}`;
+    const cachedProject = getMemoryResource<ProjectDetail>(cacheKey);
+    if (cachedProject?.id === projectId)
+      await setMemoryResource(cacheKey, { ...cachedProject, ...metadata });
+  },
+  addAssignment: async (projectId, resourceType, resourceId) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    const assignment = await api.addAssignment(uid, projectId, resourceType, resourceId);
+    if (!isSessionCurrent(uid, revision)) return;
+    set((state) => ({
+      activeProject:
+        state.activeProject?.id === projectId
+          ? {
+              ...state.activeProject,
+              assignments: mergeById(
+                state.activeProject.assignments,
+                assignment,
+                (item) => item.id,
+              ),
+            }
+          : state.activeProject,
+    }));
+  },
+  removeAssignment: async (projectId, assignmentId) => {
+    const uid = sessionUid();
+    if (!uid) throw new Error('Inicia sesión para continuar.');
+    const revision = sessionRevision();
+    await api.removeAssignment(uid, projectId, assignmentId);
+    if (!isSessionCurrent(uid, revision)) return;
+    set((state) => ({
+      activeProject:
+        state.activeProject?.id === projectId
+          ? {
+              ...state.activeProject,
+              assignments: state.activeProject.assignments.filter(
+                (item) => item.id !== assignmentId,
+              ),
+            }
+          : state.activeProject,
+    }));
   },
   convertBudgetToProject: async (budgetId) => {
     const uid = sessionUid();
@@ -223,9 +351,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 }));
 
+useProjectStore.subscribe((state) => {
+  const uid = sessionUid();
+  if (uid && state.activeProject)
+    setMemoryResource(`private:${uid}:project:${state.activeProject.id}`, state.activeProject);
+});
+
+registerOfflineStore('projects', useProjectStore, sessionUid, (state) => ({
+  projects: state.projects,
+  activeProject: state.activeProject,
+  loaded: state.loaded,
+}));
+
 function projectSummary(project: ProjectDetail): Project {
   const summary = { ...project };
   Reflect.deleteProperty(summary, 'workItems');
+  Reflect.deleteProperty(summary, 'assignments');
   Reflect.deleteProperty(summary, 'supplements');
   Reflect.deleteProperty(summary, 'supplementVoids');
   return summary;

@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
 import type { UserData, UserPlan } from '@/shared/types';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 function userDataDoc(uid: string) {
   return doc(db, 'users', uid);
@@ -24,7 +25,7 @@ export async function saveUserData(uid: string, data: UserData) {
 }
 
 export async function updateUserData(uid: string, data: Partial<UserData>) {
-  await updateDoc(userDataDoc(uid), data);
+  await runNetworkMutation(() => updateDoc(userDataDoc(uid), data));
 }
 
 export async function fetchAllUsers(): Promise<UserData[]> {
@@ -50,12 +51,14 @@ export async function adminUpdateUserPlan(uid: string, plan: UserPlan, premiumEx
     update['accountData.premiumExpiresAtMillis'] = Date.parse(
       update['accountData.premiumExpiresAt'] as string,
     );
-  await updateDoc(doc(db, 'users', uid), update);
+  await runNetworkMutation(() => updateDoc(doc(db, 'users', uid), update));
 }
 
 export async function adminUpdatePremiumExpiry(uid: string, premiumExpiresAt: string) {
-  await updateDoc(doc(db, 'users', uid), {
-    'accountData.premiumExpiresAt': premiumExpiresAt,
-    'accountData.premiumExpiresAtMillis': Date.parse(premiumExpiresAt),
-  });
+  await runNetworkMutation(() =>
+    updateDoc(doc(db, 'users', uid), {
+      'accountData.premiumExpiresAt': premiumExpiresAt,
+      'accountData.premiumExpiresAtMillis': Date.parse(premiumExpiresAt),
+    }),
+  );
 }

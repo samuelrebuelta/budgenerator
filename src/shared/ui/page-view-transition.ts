@@ -11,7 +11,7 @@ import {
 
 export type PageViewTransitionDirection = 'forward' | 'back';
 
-const PRIMARY_TAB_PATHS = new Set(['/budgets', '/projects', '/profile/solicitudes', '/']);
+const PRIMARY_TAB_PATHS = new Set(['/budgets', '/projects', '/team', '/profile/solicitudes', '/']);
 
 function normalizePathname(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;

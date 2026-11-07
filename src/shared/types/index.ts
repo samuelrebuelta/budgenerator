@@ -1,5 +1,7 @@
 export type Unit = 'm2' | 'm3' | 'ml' | 'unit' | 'hour';
 
+export * from './workforce.js';
+
 export const UNIT_LABELS: Record<Unit, string> = {
   m2: 'M²',
   m3: 'M³',

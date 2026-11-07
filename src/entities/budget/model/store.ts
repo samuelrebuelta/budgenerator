@@ -16,6 +16,7 @@ import { registerFlusher } from '@/shared/model/sync';
 import { fetchBudgets, saveBudget, createBudget, deleteBudgetDoc } from '../api/firestore';
 import { createBudgetAcceptanceApi } from '../api/acceptance';
 import { useUserStore } from '@/entities/user';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 
 interface BudgetState {
   budgets: Budget[];
@@ -33,6 +34,10 @@ interface BudgetState {
   acceptBudget: (id: string) => Promise<void>;
   withdrawBudgetAcceptance: (id: string) => Promise<void>;
   linkProject: (id: string, projectId: string) => void;
+  syncLinkedProjectMetadata: (
+    id: string,
+    metadata: Pick<BudgetInfo, 'address' | 'clientName'>,
+  ) => void;
   loadTemplateForEditing: (template: BudgetTemplate) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
@@ -76,6 +81,7 @@ const emptyTask = (): BudgetTask => ({
   price: 0,
   cost: 0,
 });
+
 const active = (s: Pick<BudgetState, 'draftBudget' | 'budgets' | 'activeBudgetId'>) =>
   s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
 function draftStorage(key: string) {
@@ -295,6 +301,14 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
           budget.id === id ? { ...budget, projectId } : budget,
         ),
       })),
+    syncLinkedProjectMetadata: (id, metadata) =>
+      set((state) => ({
+        budgets: state.budgets.map((budget) =>
+          budget.id === id && budget.projectId
+            ? { ...budget, info: { ...budget.info, ...metadata } }
+            : budget,
+        ),
+      })),
     loadTemplateForEditing: (template) =>
       openDraft(`template:${template.id || 'new'}`, {
         id: template.id,
@@ -440,6 +454,13 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     resetBudget: () => edit((b) => ({ ...b, info: newDraft().info, workItems: [] })),
   };
 });
+
+registerOfflineStore('budgets', useBudgetStore, sessionUid, (state) => ({
+  budgets: state.budgets,
+  activeBudgetId: state.activeBudgetId,
+  loaded: state.loaded,
+}));
+
 export function useActiveBudget() {
   return useBudgetStore((s) => active(s));
 }

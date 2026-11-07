@@ -13,9 +13,24 @@ import {
   fetchLeads,
   type QuoteLead,
 } from '@/entities/quote-estimator';
-import { Button, Card, ConfirmModal, PageHeader, PageLayout, PageLink } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  ConfirmModal,
+  OfflineUnavailable,
+  PageHeader,
+  PageLayout,
+  PageLink,
+} from '@/shared/ui';
 import { notificationPathFromLeadId } from '@/features/notifications/model/navigation';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import {
+  deleteMemoryResource,
+  getMemoryResource,
+  loadMemoryResource,
+  setMemoryResource,
+} from '@/shared/lib/memoryResourceCache';
+import { useNetworkStore } from '@/shared/model/network';
 
 const EMPTY_LEADS: QuoteLead[] = [];
 
@@ -61,6 +76,8 @@ function formatDate(value: string) {
 
 export function LeadsPage() {
   const uid = useAuthStore((state) => state.user?.uid);
+  const online = useNetworkStore((state) => state.online);
+  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
   const budgets = useBudgetStore((state) => state.budgets);
   const [leadState, setLeadState] = useState<{
     uid: string;
@@ -77,13 +94,18 @@ export function LeadsPage() {
     requestedLeadValues.length === 1 && notificationPathFromLeadId(requestedLeadValues[0])
       ? requestedLeadValues[0]
       : null;
+  const leadsCacheKey = `private:${uid ?? ''}:leads`;
+  const cachedLeads = uid ? getMemoryResource<QuoteLead[]>(leadsCacheKey) : undefined;
 
   useEffect(() => {
     if (!uid) return;
     let active = true;
-    fetchLeads(uid)
+    loadMemoryResource(leadsCacheKey, () => fetchLeads(uid))
       .then((result) => {
-        if (active) setLeadState({ uid, leads: result });
+        if (active) {
+          for (const lead of result) setMemoryResource(`private:${uid}:lead:${lead.id}`, lead);
+          setLeadState({ uid, leads: result });
+        }
       })
       .catch(() => {
         if (active)
@@ -96,12 +118,13 @@ export function LeadsPage() {
     return () => {
       active = false;
     };
-  }, [uid]);
+  }, [uid, leadsCacheKey, dataRefreshVersion]);
 
   const currentState = leadState?.uid === uid ? leadState : null;
-  const leads = currentState?.leads ?? EMPTY_LEADS;
-  const loading = Boolean(uid) && currentState === null;
+  const leads = currentState?.leads ?? cachedLeads ?? EMPTY_LEADS;
+  const loading = Boolean(uid) && currentState === null && cachedLeads === undefined && online;
   const error = currentState?.error ?? '';
+  const offlineWithoutLeads = !online && currentState === null && cachedLeads === undefined;
   const sortedLeads = useMemo(
     () => [...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [leads],
@@ -124,11 +147,10 @@ export function LeadsPage() {
   const confirmDelete = async () => {
     if (!uid || !pendingDelete) return;
     await deleteLead(uid, pendingDelete.id);
-    setLeadState((current) =>
-      current?.uid === uid
-        ? { ...current, leads: current.leads.filter((lead) => lead.id !== pendingDelete.id) }
-        : current,
-    );
+    const nextLeads = leads.filter((lead) => lead.id !== pendingDelete.id);
+    deleteMemoryResource(`private:${uid}:lead:${pendingDelete.id}`);
+    setMemoryResource(leadsCacheKey, nextLeads);
+    setLeadState({ uid, leads: nextLeads });
     setPendingDelete(null);
   };
 
@@ -150,13 +172,15 @@ export function LeadsPage() {
         </p>
       )}
 
-      {error && (
+      {error && online && (
         <p className="field-error" role="alert">
           {error}
         </p>
       )}
 
-      {loading ? (
+      {offlineWithoutLeads || (!online && currentState?.error) ? (
+        <OfflineUnavailable />
+      ) : loading ? (
         <p className="py-12 text-center text-sm text-gray-500">Cargando solicitudes…</p>
       ) : sortedLeads.length ? (
         <div className="space-y-4">

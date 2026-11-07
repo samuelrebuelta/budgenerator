@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
 import type { BudgetTemplate } from '@/shared/types';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 function templatesCol(uid: string) {
   return collection(db, 'users', uid, 'templates');
@@ -21,9 +22,9 @@ export async function saveTemplate(uid: string, template: BudgetTemplate) {
     ...(template.adjustment ? { adjustment: template.adjustment } : {}),
     createdAt: template.createdAt,
   };
-  await setDoc(doc(templatesCol(uid), template.id), data);
+  await runNetworkMutation(() => setDoc(doc(templatesCol(uid), template.id), data));
 }
 
 export async function deleteTemplateDoc(uid: string, templateId: string) {
-  await deleteDoc(doc(templatesCol(uid), templateId));
+  await runNetworkMutation(() => deleteDoc(doc(templatesCol(uid), templateId)));
 }

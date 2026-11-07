@@ -12,6 +12,8 @@ export { Select } from './Select';
 export { Switch } from './Switch';
 export { Skeleton, SkeletonList } from './Skeleton';
 export { BudgetLimitReached } from './BudgetLimitReached';
+export { ToastHost } from './ToastHost';
+export { OfflineUnavailable } from './OfflineUnavailable';
 
 export { PageHeader, BackButton, PageHeaderSkeleton } from './PageHeader';
 export { PageLink } from './PageLink';

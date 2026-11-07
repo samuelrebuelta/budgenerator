@@ -4,14 +4,24 @@ import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
 import { isValidPrivacyPolicyUrl } from '@/entities/quote-estimator';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
-import { Button, ConfirmModal, Input, PageLayout, PageHeader, PageLink } from '@/shared/ui';
+import {
+  Button,
+  ConfirmModal,
+  Input,
+  PageLayout,
+  PageHeader,
+  PageLink,
+  OfflineUnavailable,
+} from '@/shared/ui';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import { useNetworkStore } from '@/shared/model/network';
 
 export function ProfilePage() {
   const profile = useProfileStore((s) => s.profile);
   const loaded = useProfileStore((s) => s.loaded);
+  const online = useNetworkStore((s) => s.online);
   const updateProfile = useProfileStore((s) => s.updateProfile);
   const saveProfile = useProfileStore((s) => s.saveProfile);
   const storeUploadLogo = useProfileStore((s) => s.uploadLogo);
@@ -76,7 +86,7 @@ export function ProfilePage() {
   };
 
   if (!loaded) {
-    return <ProfileSkeleton />;
+    return online ? <ProfileSkeleton /> : <OfflineUnavailable />;
   }
 
   return (

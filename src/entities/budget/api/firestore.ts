@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '@/shared/firebase/config';
 import { assertBudget } from '@/shared/lib/budgetMath';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 import { FREE_BUDGET_LIMIT, getBudgetSlotsUsed } from '@/shared/lib/utils';
 import { toPublicBudget } from '../model/publicBudget';
 import {
@@ -32,60 +33,64 @@ export async function fetchBudgets(uid: string): Promise<Budget[]> {
 export async function saveBudget(uid: string, budget: Budget) {
   assertBudget(budget);
   // Updates never recreate a document that has already been deleted.
-  await updateDoc(doc(budgetsCol(uid), budget.id), {
-    ...mapToFirestore(budget),
-    adjustment: budget.adjustment ?? deleteField(),
-    catalogId: budget.catalogId ?? deleteField(),
-  });
+  await runNetworkMutation(() =>
+    updateDoc(doc(budgetsCol(uid), budget.id), {
+      ...mapToFirestore(budget),
+      adjustment: budget.adjustment ?? deleteField(),
+      catalogId: budget.catalogId ?? deleteField(),
+    }),
+  );
 }
 
 export async function updateBudget(uid: string, budgetId: string, data: Partial<Budget>) {
   const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
-  await updateDoc(doc(budgetsCol(uid), budgetId), clean);
+  await runNetworkMutation(() => updateDoc(doc(budgetsCol(uid), budgetId), clean));
 }
 
 export async function deleteBudgetDoc(uid: string, budgetId: string) {
-  await deleteDoc(doc(budgetsCol(uid), budgetId));
+  await runNetworkMutation(() => deleteDoc(doc(budgetsCol(uid), budgetId)));
 }
 
 export async function createBudget(uid: string, budget: Budget): Promise<UserData> {
   assertBudget(budget);
-  return runTransaction(db, async (transaction) => {
-    const userRef = doc(db, 'users', uid);
-    const budgetRef = doc(budgetsCol(uid), budget.id);
-    const leadRef = budget.sourceLeadId
-      ? doc(db, 'users', uid, 'leads', budget.sourceLeadId)
-      : null;
-    const [userSnap, existing, leadSnap] = await Promise.all([
-      transaction.get(userRef),
-      transaction.get(budgetRef),
-      leadRef ? transaction.get(leadRef) : Promise.resolve(null),
-    ]);
-    if (!userSnap.exists()) throw new Error('No se ha podido cargar tu cuenta.');
-    const user = userSnap.data() as UserData;
-    if (existing.exists()) return user; // Retry the same creation id without charging quota twice.
-    if (leadRef && !leadSnap?.exists())
-      throw new Error('No se ha encontrado la solicitud de origen.');
-    const account = user.accountData;
-    const premium =
-      account.plan === 'premium' &&
-      (!account.premiumExpiresAt || Date.parse(account.premiumExpiresAt) > Date.now());
-    const usedBudgetSlots = getBudgetSlotsUsed(user.totalBudgetsCreated);
-    if (!premium && usedBudgetSlots >= FREE_BUDGET_LIMIT)
-      throw new Error('Has alcanzado el límite de tu plan.');
-    const updated = {
-      ...user,
-      totalBudgetsCreated: user.totalBudgetsCreated + 1,
-      lastCreatedBudgetId: budget.id,
-    };
-    transaction.set(budgetRef, mapToFirestore(budget));
-    transaction.update(userRef, {
-      totalBudgetsCreated: updated.totalBudgetsCreated,
-      lastCreatedBudgetId: budget.id,
-    });
-    if (leadRef) transaction.update(leadRef, { budgetId: budget.id });
-    return updated;
-  });
+  return runNetworkMutation(() =>
+    runTransaction(db, async (transaction) => {
+      const userRef = doc(db, 'users', uid);
+      const budgetRef = doc(budgetsCol(uid), budget.id);
+      const leadRef = budget.sourceLeadId
+        ? doc(db, 'users', uid, 'leads', budget.sourceLeadId)
+        : null;
+      const [userSnap, existing, leadSnap] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(budgetRef),
+        leadRef ? transaction.get(leadRef) : Promise.resolve(null),
+      ]);
+      if (!userSnap.exists()) throw new Error('No se ha podido cargar tu cuenta.');
+      const user = userSnap.data() as UserData;
+      if (existing.exists()) return user; // Retry the same creation id without charging quota twice.
+      if (leadRef && !leadSnap?.exists())
+        throw new Error('No se ha encontrado la solicitud de origen.');
+      const account = user.accountData;
+      const premium =
+        account.plan === 'premium' &&
+        (!account.premiumExpiresAt || Date.parse(account.premiumExpiresAt) > Date.now());
+      const usedBudgetSlots = getBudgetSlotsUsed(user.totalBudgetsCreated);
+      if (!premium && usedBudgetSlots >= FREE_BUDGET_LIMIT)
+        throw new Error('Has alcanzado el límite de tu plan.');
+      const updated = {
+        ...user,
+        totalBudgetsCreated: user.totalBudgetsCreated + 1,
+        lastCreatedBudgetId: budget.id,
+      };
+      transaction.set(budgetRef, mapToFirestore(budget));
+      transaction.update(userRef, {
+        totalBudgetsCreated: updated.totalBudgetsCreated,
+        lastCreatedBudgetId: budget.id,
+      });
+      if (leadRef) transaction.update(leadRef, { budgetId: budget.id });
+      return updated;
+    }),
+  );
 }
 
 export async function shareBudget(budget: Budget, company: CompanyProfile): Promise<string> {
@@ -109,11 +114,11 @@ export async function shareBudget(budget: Budget, company: CompanyProfile): Prom
     ivaRate: budget.ivaRate ?? 0.1,
     sharedAt: new Date().toISOString(),
   };
-  await setDoc(doc(db, 'sharedBudgets', token), shared);
+  await runNetworkMutation(() => setDoc(doc(db, 'sharedBudgets', token), shared));
   return token;
 }
 export async function revokeSharedBudget(token: string) {
-  await deleteDoc(doc(db, 'sharedBudgets', token));
+  await runNetworkMutation(() => deleteDoc(doc(db, 'sharedBudgets', token)));
 }
 export async function fetchSharedBudget(token: string): Promise<SharedBudget | null> {
   const snap = await getDoc(doc(db, 'sharedBudgets', token));

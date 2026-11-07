@@ -9,6 +9,7 @@ import {
 } from '@/entities/user/api/firestore';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 
 export { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
@@ -22,7 +23,7 @@ interface UserState {
   // Admin
   allUsers: UserData[];
   allUsersLoaded: boolean;
-  loadAllUsers: () => Promise<void>;
+  loadAllUsers: (force?: boolean) => Promise<void>;
   setUserPlan: (uid: string, plan: UserPlan, premiumExpiresAt?: string) => Promise<void>;
   setPremiumExpiry: (uid: string, premiumExpiresAt: string) => Promise<void>;
 }
@@ -75,7 +76,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     await get().loadUserData(uid, get().userData?.email ?? '');
   },
 
-  loadAllUsers: async () => {
+  loadAllUsers: async (force = false) => {
+    if (get().allUsersLoaded && !force) return;
     const uid = sessionUid();
     const revision = sessionRevision();
     if (!uid) return;
@@ -117,4 +119,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       ),
     }));
   },
+}));
+
+registerOfflineStore('user', useUserStore, sessionUid, (state) => ({
+  userData: state.userData,
+  loaded: state.loaded,
+  allUsers: state.allUsers,
+  allUsersLoaded: state.allUsersLoaded,
 }));

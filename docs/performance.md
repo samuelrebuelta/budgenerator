@@ -11,3 +11,7 @@ En detalle de presupuesto, los capítulos y sus partidas permanecen montados aun
 El worker precachea los assets del build para que las rutas lazy y el PDF no dependan de recuperar un chunk borrado tras un despliegue. Mantiene la versión anterior y sirve sus chunks a pestañas antiguas. No cachea llamadas a Firebase. Hosting da caché inmutable a assets con hash y evita caché persistente del worker, index y manifest.
 
 Los tamaños exactos se imprimen en cada build. Se deben comparar los chunks que se cargan inicialmente en conjunto, no solo el pequeño entry principal, para no atribuir ahorros ficticios al cambio de nombres o separación.
+
+BG-011: el roster sólo se lee al abrir `/team` o el panel de asignaciones. La lista de capítulos continúa montada en el detalle del proyecto; esta entrega no añade virtualización.
+
+BG-012: los resultados de lecturas de ruta se retienen en una `Map` de sesión, sin serializar documentos privados ni cambiar el tamaño persistido de la PWA. Cambiar de UID vacía esa memoria e invalida las lecturas en vuelo para que no la repueblen. Sólo durante un fallo de Firebase con navegador conectado, la sesión reintenta lecturas cada 30 segundos para detectar la recuperación y reanudar la cola.

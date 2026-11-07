@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BudgetTemplate } from '@/shared/types';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
+import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 import { fetchTemplates, saveTemplate, deleteTemplateDoc } from '@/entities/template/api/firestore';
 
 interface TemplateState {
@@ -58,4 +59,9 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     if (!isSessionCurrent(uid, revision)) return;
     set({ templates: get().templates.filter((t) => t.id !== id) });
   },
+}));
+
+registerOfflineStore('templates', useTemplateStore, getUid, (state) => ({
+  templates: state.templates,
+  loaded: state.loaded,
 }));

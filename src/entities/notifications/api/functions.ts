@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import type { NotificationPreferences, NotificationSettingsResponse } from '@/shared/types';
 import { functions } from '@/shared/firebase/config';
+import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 export async function getNotificationSettings() {
   const call = httpsCallable<void, NotificationSettingsResponse>(
@@ -15,7 +16,7 @@ export async function setNotificationPreferences(preferences: NotificationPrefer
     functions,
     'setNotificationPreferences',
   );
-  return (await call(preferences)).data;
+  return runNetworkMutation(async () => (await call(preferences)).data);
 }
 
 export async function registerPushDevice(input: {
@@ -31,5 +32,5 @@ export async function revokePushDevice(installationId: string) {
     functions,
     'revokePushDevice',
   );
-  return (await call({ installationId })).data;
+  return runNetworkMutation(async () => (await call({ installationId })).data);
 }

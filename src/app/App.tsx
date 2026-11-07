@@ -6,6 +6,7 @@ import { hasPendingWrites, flushWrites } from '@/shared/model/sync';
 import { useBudgetStore } from '@/entities/budget';
 import { router } from './router';
 import { PwaStatus } from './PwaStatus';
+import { ToastHost } from '@/shared/ui';
 export function App() {
   const init = useAuthStore((s) => s.init);
   const user = useAuthStore((s) => s.user);
@@ -28,6 +29,7 @@ export function App() {
     <>
       <RouterProvider router={router} />
       <PwaStatus />
+      <ToastHost />
     </>
   );
 }

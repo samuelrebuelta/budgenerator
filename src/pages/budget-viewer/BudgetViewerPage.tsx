@@ -4,7 +4,7 @@ import { fetchSharedBudget } from '@/entities/budget/api/firestore';
 import type { SharedBudget } from '@/shared/types';
 import { UNIT_LABELS } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
-import { Card, ExportPdfButton, Skeleton } from '@/shared/ui';
+import { Card, ExportPdfButton, OfflineUnavailable, Skeleton } from '@/shared/ui';
 import {
   taskAmount as getTaskAmount,
   workItemAmount as getWorkItemSubtotal,
@@ -13,21 +13,27 @@ import {
 import { withTimeout } from '@/shared/model/session';
 import { Brand } from '@/shared/ui/Brand';
 import { t } from '@/shared/i18n';
+import { getMemoryResource, loadMemoryResource } from '@/shared/lib/memoryResourceCache';
+import { useNetworkStore } from '@/shared/model/network';
 
 export function BudgetViewerPage() {
   const { token = '' } = useParams<{ token: string }>();
   return <PublicViewer key={token} token={token} />;
 }
 function PublicViewer({ token }: { token: string }) {
-  const [data, setData] = useState<SharedBudget | null>(null);
-  const [loading, setLoading] = useState(true);
+  const online = useNetworkStore((state) => state.online);
+  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
+  const cacheKey = `public:shared-budget:${token}`;
+  const cached = getMemoryResource<SharedBudget | null>(cacheKey);
+  const [data, setData] = useState<SharedBudget | null>(cached ?? null);
+  const [loading, setLoading] = useState(cached === undefined && online);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     const title = document.title;
-    withTimeout(fetchSharedBudget(token))
+    loadMemoryResource(cacheKey, () => withTimeout(fetchSharedBudget(token)))
       .then((result) => {
         if (cancelled) return;
         if (result) {
@@ -48,9 +54,9 @@ function PublicViewer({ token }: { token: string }) {
       cancelled = true;
       document.title = title;
     };
-  }, [token]);
+  }, [token, cacheKey, dataRefreshVersion]);
 
-  if (loading) {
+  if (loading && online) {
     return (
       <div
         className="min-h-screen bg-gray-100 px-4 py-8"
@@ -72,6 +78,8 @@ function PublicViewer({ token }: { token: string }) {
       </div>
     );
   }
+
+  if (!online && cached === undefined && !data) return <OfflineUnavailable />;
 
   if (error || !data) {
     return (

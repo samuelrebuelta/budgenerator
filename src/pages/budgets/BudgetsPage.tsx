@@ -18,6 +18,7 @@ import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
+import { useNetworkStore } from '@/shared/model/network';
 import {
   Button,
   BudgetLimitReached,
@@ -26,6 +27,7 @@ import {
   SwipeActions,
   ConfirmModal,
   PageLink,
+  OfflineUnavailable,
 } from '@/shared/ui';
 export function BudgetsPage() {
   const budgets = useBudgetStore((s) => s.budgets);
@@ -34,6 +36,8 @@ export function BudgetsPage() {
   const catalogs = useCatalogStore((s) => s.catalogs);
   const account = useUserStore((s) => s.userData);
   const canCreate = useUserStore((s) => s.canCreateBudget);
+  const loaded = useBudgetStore((s) => s.loaded);
+  const online = useNetworkStore((s) => s.online);
   const deleteBudget = useBudgetStore((s) => s.deleteBudget);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
@@ -74,6 +78,18 @@ export function BudgetsPage() {
     else if (templates.length) setChooseTemplate(true);
     else navigate('/budget/new');
   };
+  if (!loaded && !online)
+    return (
+      <div className="page-container">
+        <PageHeader
+          title="Presupuestos"
+          description="Consulta y gestiona tus presupuestos."
+          backTo="/projects"
+          backLabel="Volver a proyectos"
+        />
+        <OfflineUnavailable />
+      </div>
+    );
   return (
     <div className="page-container">
       <PageHeader

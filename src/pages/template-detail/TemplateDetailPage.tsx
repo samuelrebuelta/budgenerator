@@ -14,11 +14,13 @@ import {
   Skeleton,
   PageHeader,
   PageHeaderSkeleton,
+  OfflineUnavailable,
 } from '@/shared/ui';
 import { generateId } from '@/shared/lib';
 import type { BudgetTemplate } from '@/shared/types';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import { useNetworkStore } from '@/shared/model/network';
 
 export function TemplateDetailPage() {
   const { templateId = 'new' } = useParams<{ templateId: string }>();
@@ -37,6 +39,7 @@ function TemplateEditor({
   const isNew = templateId === 'new';
 
   const templatesLoaded = useTemplateStore((s) => s.loaded);
+  const online = useNetworkStore((s) => s.online);
   const addTemplate = useTemplateStore((s) => s.addTemplate);
   const updateTemplate = useTemplateStore((s) => s.updateTemplate);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
@@ -89,8 +92,9 @@ function TemplateEditor({
     }
   }, [isNew, templatesLoaded, template, routerNavigate, discardDraft]);
 
-  if (!isNew && (!templatesLoaded || !template)) return <TemplateDetailSkeleton />;
-  if (!activeBudget) return <TemplateDetailSkeleton />;
+  if (!isNew && (!templatesLoaded || !template))
+    return online ? <TemplateDetailSkeleton /> : <OfflineUnavailable />;
+  if (!activeBudget) return online ? <TemplateDetailSkeleton /> : <OfflineUnavailable />;
 
   const handleSave = async () => {
     if (savingRef.current) return;
