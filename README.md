@@ -83,7 +83,8 @@ tests/           Regresión de stores, cálculos, privacidad, worker, reglas y n
 
 ## Documentación
 
-- [Plan SDD de interfaz](docs/sdd-plan.md) — Observaciones de revisión, decisiones y criterios de aceptación.
+- [Plan vigente](docs/plan.md) — Estado del MVP, pendientes y acceso al historial.
+- [Plan SDD de interfaz](docs/sdd-plan.md) — Revisión histórica de interfaz.
 - [Propuesta visual aplicada](docs/design-proposal.md) — Marca, paleta, logo, decisiones y capturas.
 - [Estabilización y entrega](docs/stability-and-release.md) — Correcciones, PWA, validación y transición de datos.
 - [Despliegue y pruebas](docs/testing.md) — URL pública y acceso local para pruebas.
@@ -93,6 +94,3 @@ tests/           Regresión de stores, cálculos, privacidad, worker, reglas y n
 Cuenta admin de pruebas de producción: `budgenerator@gmail.com`. La contraseña está en `docs/testing-access.local.md`, excluida de Git. Las pruebas automatizadas no utilizan esa contraseña ni acceden a producción.
 
 Proyecto privado.
-
-
-El orden operativo actual es **BG-007 (UX) primero, BG-006 (IA) después**. Ver el [plan principal](docs/plan.md), la [especificación de UX](docs/specs/BG-007-design-ux-consistency.md) y la [especificación canónica de IA](docs/specs/BG-006-ai-budget-generation.md). El prototipo local de catálogo está conservado por separado y no sustituye el generador IA planificado.

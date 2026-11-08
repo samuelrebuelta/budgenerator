@@ -1,5 +1,23 @@
 # Estilos y responsive
 
+## Patrones de UI
+
+Antes de cambiar una pantalla, busca el flujo más parecido. Conserva su jerarquía, espaciado, componentes y estados, salvo que la tarea pida una diferencia concreta.
+
+| Necesidad                           | Punto de partida                                                                                                                                                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirmar una acción                | [ConfirmModal](../src/shared/ui/ConfirmModal.tsx) ya compone título, mensaje, acciones, guardado y error.                                                                                                                                                            |
+| Editar en un diálogo                | [Modal](../src/shared/ui/Modal.tsx), [Input](../src/shared/ui/Input.tsx) y [Button](../src/shared/ui/Button.tsx). Para un formulario corto, usa como referencia [Añadir persona desde Nuevo trabajo](../src/pages/workforce/NewTeamJobForm.tsx#L404).                |
+| Elegir entre muchas opciones        | Revisa el [selector de catálogo](../src/features/budget-editor/ui/CatalogSelector.tsx) para búsqueda y lista desplazable. El [importador por categoría en móvil](testing-evidence/bg008-category-import-mobile.png) ilustra el panel inferior reservado a ese flujo. |
+| Menú o ayuda contextual             | [SwipeActions](../src/shared/ui/SwipeActions.tsx) para acciones de fila e [InfoPopover](../src/shared/ui/InfoPopover.tsx) para ayuda contextual.                                                                                                                     |
+| Cabecera, carga o falta de conexión | Reutiliza [PageHeader](../src/shared/ui/PageHeader.tsx), [Skeleton](../src/shared/ui/Skeleton.tsx) y [OfflineUnavailable](../src/shared/ui/OfflineUnavailable.tsx) según el estado.                                                                                  |
+
+Para un diálogo nuevo, pasa un `title` específico que describa el mismo propósito que el encabezado visible. Conserva los botones compartidos y muestra el error junto al formulario. Si el guardado impide cerrar, aplica el mismo criterio a Cancelar, Escape y el fondo. Usa ajustes de tamaño propios solo si el contenido los necesita.
+
+Comprueba el flujo afectado en móvil estrecho y escritorio con datos ficticios. En diálogos, revisa el nombre accesible, foco inicial y de retorno, Escape y pulsación fuera, desplazamiento con contenido largo y acciones durante guardado o error. Amplía el [recorrido Playwright más cercano](../tests/e2e/app.spec.ts) si falta una comprobación que evitaría la regresión.
+
+## Base visual y responsive
+
 budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y tokens en index.css. La identidad visual se documenta en design-proposal.md: petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
 
 La shell tiene navegación lateral en escritorio y navegación inferior bajo 800 px únicamente en las cuatro rutas raíz `/budgets`, `/projects`, `/team` y `/profile/solicitudes`. En móvil, el header queda sticky bajo el área segura. Las tabs raíz muestran la marca y el acceso al menú de cuenta; las páginas secundarias ocultan ambos y suben el `BackButton` al header, junto al estado de guardado. Debajo queda el título y subtítulo alineados a la izquierda, dentro del contenido desplazable; las acciones de página usan una fila propia. El indicador de guardado conserva un espacio fijo de 32 px para no mover los controles al comenzar o terminar una escritura. El catálogo está en el menú, debajo de Mi empresa. Las demás opciones de empresa, cuenta, ayuda, cierre de sesión y administración se conservan en el menú; escritorio mantiene los accesos laterales de cuenta y ayuda. El panel usa una tarjeta completa para el valor monetario en móvil, evitando recortar importes. El editor conserva tabla en escritorio y cards bajo el breakpoint sm de Tailwind (640 px).
