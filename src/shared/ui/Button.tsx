@@ -24,14 +24,12 @@ export function Button({
   ref,
   loading = false,
   disabled,
-  type = 'button',
   children,
   ...props
 }: ButtonProps) {
   return (
     <button
       ref={ref}
-      type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={buttonClassName({ variant, size, icon, fullWidth, className })}

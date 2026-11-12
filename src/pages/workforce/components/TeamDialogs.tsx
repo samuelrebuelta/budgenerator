@@ -61,7 +61,7 @@ export function MemberDialog({ member, onSave, onClose }: MemberDialogProps) {
         />
         {error && <Alert tone="danger">{error}</Alert>}
         <ModalFooter className="mt-0 gap-2">
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" type="button" onClick={onClose}>
             Cancelar
           </Button>
           <Button type="submit" loading={saving}>
@@ -190,7 +190,7 @@ export function CrewDialog({ crew, members, onSave, onClose }: CrewDialogProps) 
         </fieldset>
         {error && <Alert tone="danger">{error}</Alert>}
         <ModalFooter className="mt-0 gap-2">
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" type="button" onClick={onClose}>
             Cancelar
           </Button>
           <Button type="submit" loading={saving}>

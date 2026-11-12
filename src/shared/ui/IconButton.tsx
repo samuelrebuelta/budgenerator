@@ -8,9 +8,16 @@ export interface IconButtonProps extends Omit<ButtonProps, 'icon' | 'children' |
 }
 
 /** Circular button with a single icon and a mandatory accessible name. */
-export function IconButton({ label, icon, variant = 'ghost', title, ...props }: IconButtonProps) {
+export function IconButton({
+  label,
+  icon,
+  variant = 'ghost',
+  title,
+  type = 'button',
+  ...props
+}: IconButtonProps) {
   return (
-    <Button {...props} variant={variant} icon aria-label={label} title={title ?? label}>
+    <Button {...props} type={type} variant={variant} icon aria-label={label} title={title ?? label}>
       {props.loading ? null : icon}
     </Button>
   );

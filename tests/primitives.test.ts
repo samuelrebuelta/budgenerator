@@ -15,7 +15,6 @@ describe('shared/ui primitives', () => {
       createElement(Button, { variant: 'outline', size: 'sm', fullWidth: true }, 'Guardar'),
     );
     expect(markup).toContain('ui-button ui-button--outline ui-button--sm ui-button--full');
-    expect(markup).toContain('type="button"');
   });
 
   it('requires an accessible name on IconButton', () => {
