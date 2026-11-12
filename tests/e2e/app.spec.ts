@@ -742,7 +742,7 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
     .getByRole('list', { name: 'Asignaciones del proyecto' })
     .getByRole('listitem')
     .filter({ hasText: 'Cuadrilla Norte' });
-  await expect(crewAssignment).toHaveClass(/bg-\[#eaf1ed\]/);
+  await expect(crewAssignment).toHaveAttribute('style', /--color-crew-blue-surface/);
   await expect(crewAssignment.locator('span.h-3.w-3')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Asignar equipo' }).click();
