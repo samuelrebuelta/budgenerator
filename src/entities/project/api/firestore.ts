@@ -410,12 +410,12 @@ export function createProjectFirestoreApi(database: Firestore) {
 
   async function fetchProject(uid: string, projectId: string): Promise<ProjectDetail | null> {
     const projectRef = doc(projectsCollection(database, uid), projectId);
-    const [structure, progressSnapshot, assignmentsSnapshot] = await Promise.all([
-      loadStructure(uid, projectId),
+    const structure = await loadStructure(uid, projectId);
+    if (!structure) return null;
+    const [progressSnapshot, assignmentsSnapshot] = await Promise.all([
       getDoc(progressRef(uid, projectId)),
       getDocs(collection(projectRef, 'assignments')),
     ]);
-    if (!structure) return null;
     const completed =
       (progressSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
     const assignments = assignmentsSnapshot.docs
