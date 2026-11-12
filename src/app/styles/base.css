@@ -1,0 +1,90 @@
+@font-face {
+  font-family: 'Manrope Variable';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2') format('woff2');
+}
+
+@layer base {
+  :root {
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--color-canvas);
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  select {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  /* Touch targets: utilities such as `min-h-9` may lower it for dense, secondary controls. */
+  button,
+  input:not([type='checkbox']):not([type='radio']),
+  select {
+    min-height: var(--control-height);
+  }
+  /*
+   * Rectangular buttons are capsules by default (docs/styles-and-responsive.md). This is a base
+   * default, so `rounded-*` utilities and the primitive variants override it.
+   */
+  button,
+  [role='button'],
+  input[type='button'],
+  input[type='submit'],
+  input[type='reset'] {
+    border-radius: var(--radius-pill);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 4px;
+  }
+  input:focus-visible,
+  select:focus-visible {
+    outline-offset: 1px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    letter-spacing: -0.045em;
+    font-weight: 500;
+  }
+  ::selection {
+    background: var(--color-highlight);
+    color: var(--color-ink-strong);
+  }
+  /* iOS zooms into fields below 16 px; this must beat text-size utilities on inputs. */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
