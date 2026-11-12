@@ -21,7 +21,16 @@ import {
   type PublicEstimatorInfo,
   type QuoteEstimate,
 } from '@/entities/quote-estimator';
-import { Button, Card, Input, OfflineUnavailable, Select, Skeleton } from '@/shared/ui';
+import {
+  Alert,
+  Button,
+  buttonClassName,
+  Card,
+  Input,
+  OfflineUnavailable,
+  Select,
+  Skeleton,
+} from '@/shared/ui';
 import { Brand } from '@/shared/ui/Brand';
 import { getMemoryResource, loadMemoryResource } from '@/shared/lib/memoryResourceCache';
 import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
@@ -717,9 +726,9 @@ function PublicEstimator({ token }: { token: string }) {
           )}
 
           {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            <Alert tone="danger" plain>
               {error}
-            </p>
+            </Alert>
           )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -730,7 +739,7 @@ function PublicEstimator({ token }: { token: string }) {
               type="submit"
               disabled={submitted}
               loading={calculating}
-              className="justify-center bg-primary px-5 hover:bg-primary-hover"
+              className="justify-center px-5"
             >
               {company.leadCaptureEnabled
                 ? submitted
@@ -773,18 +782,12 @@ function PublicEstimator({ token }: { token: string }) {
               {(emailHref || phoneHref) && (
                 <div className="flex flex-col gap-2 p-4 sm:flex-row sm:justify-end sm:p-5">
                   {emailHref && (
-                    <a
-                      href={emailHref}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
+                    <a href={emailHref} className={buttonClassName({ variant: 'outline' })}>
                       <Mail size={16} /> Enviar consulta por correo
                     </a>
                   )}
                   {phoneHref && (
-                    <a
-                      href={phoneHref}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover"
-                    >
+                    <a href={phoneHref} className={buttonClassName()}>
                       <Phone size={16} /> Llamar a la empresa
                     </a>
                   )}

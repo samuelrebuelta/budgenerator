@@ -20,7 +20,9 @@ import {
   type SimpleQuoteEstimatorSettings,
 } from '@/entities/quote-estimator';
 import {
+  Alert,
   Button,
+  buttonClassName,
   Card,
   ConfirmModal,
   Input,
@@ -419,12 +421,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
           <div className="mt-4 flex flex-wrap gap-2">
             {token && (
               <>
-                <a
-                  href={publicUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                >
+                <a href={publicUrl} target="_blank" rel="noreferrer" className={buttonClassName()}>
                   <ExternalLink size={15} /> Abrir formulario
                 </a>
                 <Button
@@ -470,10 +467,10 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       </Card>
 
       {legacySetup && (
-        <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+        <Alert tone="warning" plain role="none" className="mb-5">
           El enlace actual usa la configuración anterior y seguirá funcionando mientras preparas
           estos precios. Al generar el enlace con la nueva configuración, pasará al cálculo por m².
-        </p>
+        </Alert>
       )}
 
       <nav aria-label="Pasos de configuración" className="mb-6">
@@ -692,16 +689,19 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                 : 'Al guardar se generará el enlace que podrás añadir a la landing de tu empresa.'}
             </p>
             {(missingProfileName || missingPrivacyUrl) && (
-              <p className="mt-3 text-sm text-amber-800">
+              <Alert
+                tone="warning"
+                role="none"
+                className="mt-3"
+                action={
+                  <Button variant="link" onClick={() => navigate('/profile')}>
+                    Completar Mi empresa
+                  </Button>
+                }
+              >
                 {missingProfileName && 'Falta el nombre de empresa. '}
                 {missingPrivacyUrl && 'Falta la URL HTTPS del aviso de privacidad. '}
-                <button
-                  className="font-semibold underline underline-offset-2"
-                  onClick={() => navigate('/profile')}
-                >
-                  Completar Mi empresa
-                </button>
-              </p>
+              </Alert>
             )}
             {token && !legacySetup ? (
               <div className="mt-4">
@@ -717,9 +717,9 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             <div className="mt-3 min-h-6" aria-live="polite">
               {saving && <p className="text-sm text-gray-600">{operation || 'Procesando…'}</p>}
               {error && (
-                <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                <Alert tone="danger" plain>
                   {error}
-                </p>
+                </Alert>
               )}
             </div>
           </Card>
@@ -747,9 +747,9 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       {step < steps.length - 1 && (
         <div className="mt-3 min-h-6" aria-live="polite">
           {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <Alert tone="danger" plain>
               {error}
-            </p>
+            </Alert>
           )}
         </div>
       )}
