@@ -1,50 +1,81 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { CatalogConcept, Tariff, TariffCatalog } from '@/shared/types';
-import { generateId } from '@/shared/lib';
 import { WriteQueue } from '@/shared/lib/writeQueue';
 import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 import { isBrowserDisconnected } from '@/shared/model/network';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
-import { BASE_CATALOGS, TRADE_CATALOGS } from './baseCatalogs';
-import { mergeTradeIntoParts, type TradeImportResult, type TradeImportScope } from './tradeImport';
-import { catalogParts, flattenCatalogParts, groupLegacyTariffs, legacyPartId } from './migrate';
 import {
-  deleteLegacyTariffs,
-  deleteTariffCatalogDoc,
-  fetchActiveTariffCatalogId,
-  fetchLegacyTariffs,
-  fetchTariffCatalogs,
-  ensureSingleCatalog,
-  updateTariffCatalogDoc,
-} from '../api/firestore';
-interface CatalogState {
-  tariffs: Tariff[];
-  catalogs: TariffCatalog[];
-  loaded: boolean;
-  activeCatalogId: string | null;
-  loadCatalogs: (uid: string, force?: boolean) => Promise<void>;
-  addTariff: (tariff: Omit<Tariff, 'id'>, catalogId?: string) => Promise<void>;
-  updateTariff: (
-    id: string,
-    updates: Partial<Omit<Tariff, 'id'>>,
-    catalogId?: string,
-  ) => Promise<void>;
-  removeTariff: (id: string, catalogId?: string) => Promise<void>;
-  addPart: (name: string, catalogId?: string) => string;
-  importTrade: (tradeId: string, catalogId?: string, scope?: TradeImportScope) => TradeImportResult;
-  renamePart: (partId: string, name: string, catalogId?: string) => void;
-  removePart: (partId: string, catalogId?: string) => void;
-  addConcept: (partId: string, concept: Omit<CatalogConcept, 'id'>, catalogId?: string) => string;
-  updateConcept: (
-    partId: string,
-    conceptId: string,
-    updates: Partial<Omit<CatalogConcept, 'id'>>,
-    catalogId?: string,
-  ) => void;
-  removeConcept: (partId: string, conceptId: string, catalogId?: string) => void;
+  addCatalogConcept,
+  addChapter,
+  documentTotals,
+  mergeIntoCatalog,
+  normalizeText,
+  removeCatalogConcept,
+  removeNode,
+  renameChapter,
+  updateCatalogConcept,
+  type ConstructionDocument,
+  type FiebdcConcept,
+} from '@/entities/construction-document/model';
+import {
+  RevisionConflictError,
+  RevisionTracker,
+} from '@/entities/construction-document/api/storage';
+import { BASE_CATALOGS, TRADE_CATALOGS } from './baseCatalogs';
+import { baseCatalogDocument } from './bases';
+import { catalogView, type CatalogRecord, type CatalogView } from './record';
+import { ensureCatalog, fetchCatalog, saveCatalog } from '../api/firestore';
+
+export type TradeImportScope =
+  | { type: 'category' }
+  | { type: 'part'; partName: string }
+  | { type: 'concept'; partName: string; description: string; unit: string };
+
+export interface TradeImportResult {
+  addedParts: number;
+  addedConcepts: number;
 }
-const queue = new WriteQueue<TariffCatalog>('catalog:', async (key, catalog) => {
-  await updateTariffCatalogDoc(key.split('/')[0]!, catalog.id, catalog);
+
+export interface CatalogConceptInput {
+  description: string;
+  unit: string;
+  basePrice: number;
+  cost: number;
+}
+
+interface CatalogState {
+  record: CatalogRecord | null;
+  loaded: boolean;
+  conflict: boolean;
+  loadCatalogs: (uid: string, force?: boolean) => Promise<void>;
+  addPart: (name: string) => string;
+  renamePart: (partId: string, name: string) => void;
+  removePart: (partId: string) => void;
+  addConcept: (partId: string, concept: CatalogConceptInput) => string;
+  updateConcept: (partId: string, conceptId: string, updates: Partial<CatalogConceptInput>) => void;
+  removeConcept: (partId: string, conceptId: string) => void;
+  importTrade: (tradeId: string, scope?: TradeImportScope) => TradeImportResult;
+  /** Merges chapters of an imported BC3 price base and saves once. */
+  importDocument: (document: ConstructionDocument) => Promise<TradeImportResult>;
+  reloadCatalog: () => Promise<void>;
+  overwriteCatalog: () => Promise<void>;
+}
+
+const revisions = new RevisionTracker();
+const queue = new WriteQueue<CatalogRecord>('catalog:', async (key, record) => {
+  const uid = key.split('/')[0]!;
+  try {
+    const revision = await saveCatalog(uid, record, revisions.get(key) ?? record.revision);
+    revisions.set(key, revision);
+    if (isSessionCurrent(uid, sessionRevision()))
+      useCatalogStore.setState((state) => ({
+        record: state.record ? { ...state.record, revision } : state.record,
+        conflict: false,
+      }));
+  } catch (error) {
+    if (error instanceof RevisionConflictError) useCatalogStore.setState({ conflict: true });
+    throw error;
+  }
 });
 export function flushCatalogWrites() {
   return queue.flush();
@@ -54,208 +85,161 @@ export function setCatalogAuthGetter(_fn: () => string | null) {
 }
 export function resetCatalogStore() {
   queue.clear();
-  useCatalogStore.setState({ tariffs: [], catalogs: [], loaded: false, activeCatalogId: null });
+  revisions.clear();
+  useCatalogStore.setState({ record: null, loaded: false, conflict: false });
 }
+
+const seedId = 'reforma_integral';
+
 export const useCatalogStore = create<CatalogState>((set, get) => {
-  const editCatalog = (id: string, update: (catalog: TariffCatalog) => TariffCatalog) => {
+  const editCatalog = (update: (document: ConstructionDocument) => ConstructionDocument) => {
     const uid = sessionUid();
-    const current = get().catalogs.find((c) => c.id === id);
+    const current = get().record;
     if (!uid || !current) throw new Error('Espera a que se cargue el catálogo.');
-    const next = { ...update(current), updatedAt: new Date().toISOString() };
-    if (
-      flattenCatalogParts(next.parts).some(
-        (t) =>
-          !Number.isFinite(t.basePrice) ||
-          t.basePrice < 0 ||
-          !Number.isFinite(t.cost) ||
-          t.cost < 0,
-      )
-    )
-      throw new Error('Revisa los precios del catálogo.');
-    set((s) => ({
-      catalogs: s.catalogs.map((c) => (c.id === id ? next : c)),
-      ...(s.activeCatalogId === id ? { tariffs: flattenCatalogParts(next.parts) } : {}),
-    }));
-    queue.schedule(`${uid}/${id}`, next);
+    const document = update(current.document);
+    if (document === current.document) return current;
+    const totals = documentTotals(document);
+    if (!totals.valid) throw new Error('Revisa los precios del catálogo.');
+    const next = { ...current, document, updatedAt: new Date().toISOString() };
+    set({ record: next });
+    const key = `${uid}/${current.id}`;
+    if (revisions.get(key) === undefined) revisions.set(key, current.revision);
+    queue.schedule(key, next);
+    return next;
   };
+  const conceptPatch = (updates: Partial<CatalogConceptInput>) => ({
+    ...(updates.description !== undefined ? { description: updates.description } : {}),
+    ...(updates.unit !== undefined ? { unit: updates.unit } : {}),
+    ...(updates.basePrice !== undefined ? { price: updates.basePrice } : {}),
+    ...(updates.cost !== undefined ? { cost: updates.cost } : {}),
+  });
   return {
-    tariffs: [],
-    catalogs: [],
+    record: null,
     loaded: false,
-    activeCatalogId: null,
+    conflict: false,
     loadCatalogs: async (uid, force = false) => {
       if (get().loaded && sessionUid() === uid && (!force || isBrowserDisconnected())) return;
-      const revision = sessionRevision();
-      const [catalogs, selected] = await Promise.all([
-        fetchTariffCatalogs(uid),
-        fetchActiveTariffCatalogId(uid),
-      ]);
-      if (!isSessionCurrent(uid, revision)) return;
-      const source =
-        catalogs.find((c) => c.id === 'main-v1') ??
-        catalogs.find((c) => c.id === selected) ??
-        [...catalogs].sort((a, b) => a.id.localeCompare(b.id))[0];
-      const legacy = await fetchLegacyTariffs(uid);
-      if (!isSessionCurrent(uid, revision)) return;
-      const now = new Date().toISOString();
-      const base = BASE_CATALOGS.find((c) => c.id === 'reforma_integral')!;
-      const canonical = await ensureSingleCatalog(uid, {
-        id: 'main-v1',
-        name: 'Mi catálogo',
-        parts: source
-          ? catalogParts(source)
-          : groupLegacyTariffs(
-              legacy.length ? legacy : base.tariffs.map((t, i) => ({ ...t, id: `base-${i}` })),
-            ),
-        createdAt: source?.createdAt ?? now,
-        updatedAt: now,
+      const session = sessionRevision();
+      const record = await ensureCatalog(
+        uid,
+        baseCatalogDocument(BASE_CATALOGS.find((catalog) => catalog.id === seedId)!),
+      );
+      if (!isSessionCurrent(uid, session)) return;
+      revisions.set(`${uid}/${record.id}`, record.revision);
+      set({ record, loaded: true });
+    },
+    addPart: (name) => {
+      let chapterId = '';
+      editCatalog((document) => {
+        const added = addChapter(document, name);
+        chapterId = added.chapterId;
+        return added.document;
       });
-      if (!isSessionCurrent(uid, revision)) return;
-      for (const catalog of catalogs) {
-        if (!isSessionCurrent(uid, revision)) return;
-        if (catalog.id !== canonical.id) await deleteTariffCatalogDoc(uid, catalog.id);
-      }
-      if (!isSessionCurrent(uid, revision)) return;
-      if (legacy.length) await deleteLegacyTariffs(uid);
-      if (isSessionCurrent(uid, revision))
-        set({
-          catalogs: [canonical],
-          activeCatalogId: canonical.id,
-          tariffs: flattenCatalogParts(canonical.parts),
-          loaded: true,
-        });
+      return chapterId;
     },
-    addTariff: async (tariff, catalogId) => {
-      const id = catalogId ?? get().activeCatalogId;
-      if (id)
-        editCatalog(id, (c) => {
-          const name = tariff.category.trim() || 'Varios';
-          const part = c.parts.find((item) => item.name === name);
-          const concept = { ...tariff, id: generateId() };
-          const value = { ...concept };
-          Reflect.deleteProperty(value, 'category');
-          Reflect.deleteProperty(value, 'partId');
-          return {
-            ...c,
-            parts: part
-              ? c.parts.map((item) =>
-                  item.id === part.id ? { ...item, concepts: [...item.concepts, value] } : item,
-                )
-              : [...c.parts, { id: legacyPartId(name), name, concepts: [value] }],
-          };
-        });
+    renamePart: (partId, name) => {
+      editCatalog((document) => renameChapter(document, partId, name));
     },
-    updateTariff: async (id, updates, targetCatalogId) => {
-      const catalogId = targetCatalogId ?? get().activeCatalogId;
-      if (catalogId)
-        editCatalog(catalogId, (c) => ({
-          ...c,
-          parts: c.parts.map((part) => ({
-            ...part,
-            concepts: part.concepts.map((concept) =>
-              concept.id === id ? { ...concept, ...updates } : concept,
-            ),
-          })),
-        }));
+    removePart: (partId) => {
+      editCatalog((document) => removeNode(document, partId));
     },
-    removeTariff: async (id, targetCatalogId) => {
-      const catalogId = targetCatalogId ?? get().activeCatalogId;
-      if (catalogId)
-        editCatalog(catalogId, (c) => ({
-          ...c,
-          parts: c.parts.map((part) => ({
-            ...part,
-            concepts: part.concepts.filter((concept) => concept.id !== id),
-          })),
-        }));
+    addConcept: (partId, concept) => {
+      let conceptId = '';
+      editCatalog((document) => {
+        const added = addCatalogConcept(document, partId, conceptPatch(concept));
+        conceptId = added.conceptId;
+        return added.document;
+      });
+      return conceptId;
     },
-    addPart: (name, catalogId) => {
-      const id = generateId();
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) throw new Error('Espera a que se cargue el catálogo.');
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: [...catalog.parts, { id, name: name.trim(), concepts: [] }],
-      }));
-      return id;
+    updateConcept: (_partId, conceptId, updates) => {
+      editCatalog((document) => updateCatalogConcept(document, conceptId, conceptPatch(updates)));
     },
-    importTrade: (tradeId, catalogId, scope) => {
+    removeConcept: (partId, conceptId) => {
+      editCatalog((document) => removeCatalogConcept(document, partId, conceptId));
+    },
+    importTrade: (tradeId, scope = { type: 'category' }) => {
       const trade = TRADE_CATALOGS.find((item) => item.id === tradeId);
       if (!trade) throw new Error('No se encuentra el oficio que quieres importar.');
-      const targetId = catalogId ?? get().activeCatalogId;
-      const current = get().catalogs.find((item) => item.id === targetId);
-      if (!targetId || !current) throw new Error('Espera a que se cargue el catálogo.');
-
-      const result = mergeTradeIntoParts(current.parts, trade, undefined, scope);
-      if (result.addedConcepts > 0)
-        editCatalog(targetId, (catalog) => ({ ...catalog, parts: result.parts }));
+      if (!get().record) throw new Error('Espera a que se cargue el catálogo.');
+      const source = baseCatalogDocument(trade);
+      const include = (chapter: string, item?: FiebdcConcept) => {
+        if (scope.type === 'category') return true;
+        if (normalizeText(chapter) !== normalizeText(scope.partName)) return false;
+        if (scope.type === 'part' || !item) return true;
+        return (
+          item.unit === scope.unit &&
+          normalizeText(item.summary) === normalizeText(scope.description)
+        );
+      };
+      let result: TradeImportResult = { addedParts: 0, addedConcepts: 0 };
+      editCatalog((document) => {
+        const merged = mergeIntoCatalog(document, source, include);
+        result = { addedParts: merged.addedParts, addedConcepts: merged.addedConcepts };
+        return merged.addedConcepts || merged.addedParts ? merged.document : document;
+      });
       return result;
     },
-    renamePart: (partId, name, catalogId) => {
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) return;
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: catalog.parts.map((part) =>
-          part.id === partId ? { ...part, name: name.trim() } : part,
-        ),
-      }));
+    importDocument: async (source) => {
+      const uid = sessionUid();
+      if (!uid || !get().record) throw new Error('Espera a que se cargue el catálogo.');
+      let result: TradeImportResult = { addedParts: 0, addedConcepts: 0 };
+      const previous = get().record!;
+      editCatalog((document) => {
+        const merged = mergeIntoCatalog(document, source);
+        result = { addedParts: merged.addedParts, addedConcepts: merged.addedConcepts };
+        return merged.document;
+      });
+      try {
+        await queue.flush();
+      } catch (error) {
+        if (!(error instanceof RevisionConflictError) && isSessionCurrent(uid, sessionRevision())) {
+          await queue.cancel(`${uid}/${previous.id}`);
+          set({ record: previous });
+        }
+        throw error;
+      }
+      return result;
     },
-    removePart: (partId, catalogId) => {
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) return;
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: catalog.parts.filter((part) => part.id !== partId),
-      }));
+    reloadCatalog: async () => {
+      const uid = sessionUid();
+      const current = get().record;
+      if (!uid || !current) return;
+      const session = sessionRevision();
+      await queue.cancel(`${uid}/${current.id}`);
+      const fresh = await fetchCatalog(uid);
+      if (!fresh || !isSessionCurrent(uid, session)) return;
+      revisions.set(`${uid}/${fresh.id}`, fresh.revision);
+      set({ record: fresh, conflict: false });
     },
-    addConcept: (partId, concept, catalogId) => {
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) throw new Error('Espera a que se cargue el catálogo.');
-      const id = generateId();
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: catalog.parts.map((part) =>
-          part.id === partId ? { ...part, concepts: [...part.concepts, { ...concept, id }] } : part,
-        ),
-      }));
-      return id;
-    },
-    updateConcept: (partId, conceptId, updates, catalogId) => {
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) return;
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: catalog.parts.map((part) =>
-          part.id === partId
-            ? {
-                ...part,
-                concepts: part.concepts.map((concept) =>
-                  concept.id === conceptId ? { ...concept, ...updates } : concept,
-                ),
-              }
-            : part,
-        ),
-      }));
-    },
-    removeConcept: (partId, conceptId, catalogId) => {
-      const targetId = catalogId ?? get().activeCatalogId;
-      if (!targetId) return;
-      editCatalog(targetId, (catalog) => ({
-        ...catalog,
-        parts: catalog.parts.map((part) =>
-          part.id === partId
-            ? { ...part, concepts: part.concepts.filter((concept) => concept.id !== conceptId) }
-            : part,
-        ),
-      }));
+    overwriteCatalog: async () => {
+      const uid = sessionUid();
+      const current = get().record;
+      if (!uid || !current) return;
+      const fresh = await fetchCatalog(uid);
+      if (!fresh) return;
+      const key = `${uid}/${current.id}`;
+      revisions.set(key, fresh.revision);
+      set({ conflict: false });
+      queue.schedule(key, current);
+      await queue.flush();
     },
   };
 });
 
-registerOfflineStore('catalog', useCatalogStore, sessionUid, (state) => ({
-  tariffs: state.tariffs,
-  catalogs: state.catalogs,
+registerOfflineStore('catalog-record', useCatalogStore, sessionUid, (state) => ({
+  record: state.record,
   loaded: state.loaded,
-  activeCatalogId: state.activeCatalogId,
 }));
+
+const emptyView: CatalogView = { id: '', name: '', parts: [], tariffs: [] };
+
+/** Derived catalog view (chapters and items) for components. */
+export function useCatalogView(): CatalogView {
+  const record = useCatalogStore((state) => state.record);
+  return useMemo(() => (record ? catalogView(record) : emptyView), [record]);
+}
+
+export function getCatalogContent() {
+  return useCatalogStore.getState().record?.document ?? null;
+}

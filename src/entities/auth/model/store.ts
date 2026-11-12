@@ -5,6 +5,8 @@ import {
   signUpWithEmail,
   signOut as fbSignOut,
   onAuthChange,
+  readAdminClaim,
+  refreshEmailVerification,
 } from '@/entities/auth/api/firebase';
 
 import { flushWrites } from '@/shared/model/sync';
@@ -33,6 +35,9 @@ function mapAuthError(e: unknown): string {
 
 interface AuthState {
   user: User | null;
+  /** From the `admin` custom claim; never from Firestore. */
+  isAdmin: boolean;
+  emailVerified: boolean;
   loading: boolean;
   error: string | null;
   init: () => () => void;
@@ -40,18 +45,36 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   clearError: () => void;
+  refreshVerification: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
+  isAdmin: false,
+  emailVerified: false,
   loading: true,
   error: null,
 
   init: () => {
+    let revision = 0;
     const unsubscribe = onAuthChange((user) => {
-      set({ user, loading: false });
+      const current = ++revision;
+      if (!user) {
+        set({ user: null, isAdmin: false, emailVerified: false, loading: false });
+        return;
+      }
+      void readAdminClaim(user).then((isAdmin) => {
+        if (current === revision)
+          set({ user, isAdmin, emailVerified: user.emailVerified, loading: false });
+      });
     });
     return unsubscribe;
+  },
+
+  refreshVerification: async () => {
+    const verified = await refreshEmailVerification();
+    set({ emailVerified: verified });
+    return verified;
   },
 
   signIn: async (email, password) => {

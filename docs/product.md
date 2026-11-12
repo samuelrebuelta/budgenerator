@@ -60,6 +60,10 @@ Cada tarjeta diaria ofrece un control circular para editar las personas/cuadrill
 
 Desde cualquier día se puede registrar un trabajo puntual con una o más personas/cuadrillas, opcionalmente ligado a un proyecto pendiente, en curso o finalizado. El título es obligatorio y la descripción opcional, también si no se enlaza un proyecto. Desde el alta del trabajo se puede registrar una persona activa por su nombre; al guardarla queda asignada al trabajo sin salir de la pantalla. Enlazar una obra finalizada no la reabre ni cambia sus datos; los trabajos se muestran y filtran junto con las asignaciones semanales.
 
+## Intercambio BC3 (FIEBDC-3)
+
+Catálogo, presupuestos y plantillas usan internamente el formato estándar FIEBDC. La empresa puede importar una base de precios BC3 en Catálogo (elige capítulos; no duplica partidas existentes ni cambia sus precios), importar una obra BC3 como presupuesto nuevo desde Presupuestos (vista previa con total y avisos; se bloquea si el total, las mediciones o las referencias no cuadran o si el archivo es una certificación) o como plantilla, y exportar `.bc3` desde Catálogo, el detalle de un presupuesto y el de una plantilla. Las unidades son libres (kg, pa, m²…). Cliente, número, ajuste y costes internos no tienen campo FIEBDC y no se exportan. El alta de partidas sigue siendo descripción, cantidad, unidad y precio; las mediciones por dimensiones y la descomposición del precio son un detalle opcional. La compatibilidad con Presto, Arquímedes o TCQ no está validada con archivos reales.
+
 ## Product Principles
 
 Principios derivados de decisiones expresas de producto y restricciones implementadas:

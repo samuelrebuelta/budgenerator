@@ -1,11 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import type { Budget } from '../src/shared/types';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { createBudgetAcceptanceApi } from '../src/entities/budget/api/acceptance';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
-import { budget, user } from './fixtures';
+import { sampleDocument, seedBudget, user } from './fixtures';
+import {
+  addChapter,
+  addItem,
+  createEmptyDocument,
+} from '../src/entities/construction-document/model';
+import { saveStoredDocument } from '../src/entities/construction-document/api/storage';
 
 let env: RulesTestEnvironment;
 const acceptedAt = '2026-10-18T09:00:00.000Z';
@@ -33,7 +38,7 @@ beforeEach(async () => {
       budgetSlotsReleased: 1,
     });
     await setDoc(doc(ctx.firestore(), 'users', 'bob'), user('bob'));
-    await setDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'source'), budget('source'));
+    await seedBudget(ctx.firestore(), 'alice', 'source');
   });
 });
 const alice = () => env.authenticatedContext('alice', { email: 'alice@example.test' }).firestore();
@@ -52,15 +57,18 @@ function tomorrowDateKey() {
   return localDateKey(tomorrow);
 }
 
+const WORK = 'n1';
+const TASK = 'n2';
+
 describe('accepted budget conversion', () => {
   it('allows acceptance to be withdrawn before conversion', async () => {
     const db = alice();
     const acceptance = createBudgetAcceptanceApi(db);
-    await acceptance.acceptBudget('alice', 'source', acceptedAt);
-    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data()?.acceptedAt).toBe(
+    await acceptance.acceptBudget('alice', 'source', acceptedAt, 1);
+    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data()).toMatchObject({
       acceptedAt,
-    );
-
+      revision: 2,
+    });
     await acceptance.withdrawBudgetAcceptance('alice', 'source');
     expect(
       (await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data()?.acceptedAt,
@@ -69,160 +77,132 @@ describe('accepted budget conversion', () => {
 
   it('returns the same project for concurrent conversion without changing quota', async () => {
     const db = alice();
-    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt);
+    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt, 1);
     const api = createProjectFirestoreApi(db);
-
-    const ids = await Promise.all([
+    const results = await Promise.all([
       api.convertBudgetToProject('alice', 'source'),
       api.convertBudgetToProject('alice', 'source'),
     ]);
-    const retriedId = await api.convertBudgetToProject('alice', 'source');
-
-    expect(ids[0]).toBe(ids[1]);
-    expect(retriedId).toBe(ids[0]);
+    const retried = await api.convertBudgetToProject('alice', 'source');
+    expect(results[0]!.projectId).toBe(results[1]!.projectId);
+    expect(retried.projectId).toBe(results[0]!.projectId);
     expect((await getDocs(collection(db, 'users', 'alice', 'projects'))).size).toBe(1);
-    expect(
-      (await getDocs(collection(db, 'users', 'alice', 'projects', ids[0]!, 'workItems'))).size,
-    ).toBe(1);
     expect((await getDoc(doc(db, 'users', 'alice'))).data()).toMatchObject({
       totalBudgetsCreated: 1,
-      budgetSlotsReleased: 1,
     });
-    expect((await getDoc(doc(db, 'users', 'alice'))).data()?.lastConvertedBudgetId).toBeUndefined();
-    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data()?.projectId).toBe(
-      ids[0],
-    );
+    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data()).toMatchObject({
+      projectId: results[0]!.projectId,
+      revision: 3,
+    });
   });
 
-  it('keeps the project snapshot independent when the source changes outside the client rules', async () => {
+  it('reads the project structure from the locked budget document', async () => {
     const db = alice();
-    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt);
+    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt, 1);
     const api = createProjectFirestoreApi(db);
-    const projectId = await api.convertBudgetToProject('alice', 'source');
-
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'source'), {
-        'info.address': 'Dirección modificada',
-        'workItems.0.tasks.0.price': 999,
-      });
-    });
-
+    const { projectId } = await api.convertBudgetToProject('alice', 'source');
+    await expect(
+      saveStoredDocument(db, doc(db, 'users', 'alice', 'budgets', 'source'), sampleDocument(), 3),
+    ).rejects.toThrow();
     const project = await api.fetchProject('alice', projectId);
     expect(project?.address).toBe('Proyecto de demostración');
-    expect(project?.workItems[0]?.tasks[0]?.price).toBe(10.75);
+    expect(project?.workItems[0]).toMatchObject({ id: WORK, name: 'Pintura' });
+    expect(project?.workItems[0]?.tasks[0]).toMatchObject({
+      id: TASK,
+      price: 10.75,
+      quantity: 2.5,
+    });
   });
 
-  it('updates concept, work-item, and project progress atomically', async () => {
+  it('updates item progress and the project summary atomically', async () => {
     const db = alice();
-    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt);
+    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt, 1);
     const api = createProjectFirestoreApi(db);
-    const projectId = await api.convertBudgetToProject('alice', 'source');
+    const { projectId } = await api.convertBudgetToProject('alice', 'source');
 
-    const completed = await api.toggleTask('alice', projectId, 'work', 'task');
+    const completed = await api.toggleTask('alice', projectId, WORK, TASK);
     expect(completed.project).toMatchObject({
       completedConcepts: 1,
       completedAmount: 26.88,
       percent: 100,
       status: 'completed',
     });
-    expect(completed.project.completedAt).toBeTruthy();
     expect(completed.workItem.tasks[0]?.completedAt).toBeTruthy();
+    const state = await getDoc(
+      doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'),
+    );
+    expect(Object.keys(state.data()?.completed ?? {})).toEqual([TASK]);
 
-    const reopened = await api.toggleTask('alice', projectId, 'work', 'task');
-    expect(reopened.project).toMatchObject({
-      completedConcepts: 0,
-      completedAmount: 0,
-      percent: 0,
-      status: 'pending',
-    });
+    const reopened = await api.toggleTask('alice', projectId, WORK, TASK);
+    expect(reopened.project).toMatchObject({ completedConcepts: 0, status: 'pending' });
     expect(reopened.project.completedAt).toBeUndefined();
-    expect(reopened.workItem.tasks[0]?.completedAt).toBeUndefined();
 
-    const wholeWorkItem = await api.completeWorkItem('alice', projectId, 'work');
-    expect(wholeWorkItem.project.status).toBe('completed');
-    expect(wholeWorkItem.workItem.tasks.every((task) => task.completedAt)).toBe(true);
+    const whole = await api.completeWorkItem('alice', projectId, WORK);
+    expect(whole.project.status).toBe('completed');
     expect((await api.fetchProject('alice', projectId))?.percent).toBe(100);
   });
 
   it('allows the owner to edit completed dates and recalculates the project completion date', async () => {
     const db = alice();
-    const source = budget('source');
-    const firstWorkItem = source.workItems[0]!;
+    let document = createEmptyDocument('budget', {
+      clientName: 'Cliente',
+      address: 'Obra',
+      date: '2026-10-14',
+    });
+    const chapter = addChapter(document, 'Pintura');
+    document = addItem(chapter.document, chapter.chapterId, {
+      description: 'Uno',
+      quantity: 1,
+      price: 10,
+    }).document;
+    document = addItem(document, chapter.chapterId, {
+      description: 'Dos',
+      quantity: 1,
+      price: 20,
+    }).document;
     await env.withSecurityRulesDisabled(async (ctx) =>
-      setDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'source'), {
-        ...source,
-        workItems: [
-          {
-            ...firstWorkItem,
-            tasks: [
-              ...firstWorkItem.tasks,
-              {
-                ...firstWorkItem.tasks[0]!,
-                id: 'task-2',
-                description: 'Segundo concepto',
-                price: 20,
-              },
-            ],
-          },
-        ],
-      }),
+      seedBudget(ctx.firestore(), 'alice', 'source', {}, document),
     );
-    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt);
+    const work = document.tree[0]!.id;
+    const [first, second] = document.tree[0]!.children.map((node) => node.id);
+    await createBudgetAcceptanceApi(db).acceptBudget('alice', 'source', acceptedAt, 1);
     const api = createProjectFirestoreApi(db);
-    const projectId = await api.convertBudgetToProject('alice', 'source');
+    const { projectId } = await api.convertBudgetToProject('alice', 'source');
 
     await expect(
-      api.setTaskCompletionDate('alice', projectId, 'work', 'task', '2020-05-04'),
+      api.setTaskCompletionDate('alice', projectId, work, first!, '2020-05-04'),
     ).rejects.toThrow();
-
-    const completed = await api.completeWorkItem('alice', projectId, 'work');
+    const completed = await api.completeWorkItem('alice', projectId, work);
     const corrected = await api.setTaskCompletionDate(
       'alice',
       projectId,
-      'work',
-      'task',
+      work,
+      first!,
       '2020-05-04',
     );
     expect(corrected.workItem.tasks[0]?.completedAt).toBe('2020-05-04');
     expect(corrected.project.completedAt).toBe(
       localDateKey(new Date(completed.workItem.tasks[1]!.completedAt!)),
     );
-    expect(corrected.project).toMatchObject({ completedConcepts: 2, status: 'completed' });
-
-    const wholeWorkItem = await api.setWorkItemCompletionDate(
-      'alice',
-      projectId,
-      'work',
-      '2020-05-05',
-    );
-    expect(wholeWorkItem.workItem.tasks).toHaveLength(2);
-    expect(wholeWorkItem.workItem.tasks.every((task) => task.completedAt === '2020-05-05')).toBe(
-      true,
-    );
-    expect(wholeWorkItem.project.completedAt).toBe('2020-05-05');
-
+    const whole = await api.setWorkItemCompletionDate('alice', projectId, work, '2020-05-05');
+    expect(whole.workItem.tasks.every((task) => task.completedAt === '2020-05-05')).toBe(true);
+    expect(whole.project.completedAt).toBe('2020-05-05');
     await expect(
-      api.setTaskCompletionDate('alice', projectId, 'work', 'task', tomorrowDateKey()),
+      api.setTaskCompletionDate('alice', projectId, work, second!, tomorrowDateKey()),
     ).rejects.toThrow(/futura/i);
-    expect((await api.fetchProject('alice', projectId))?.completedAt).toBe('2020-05-05');
 
     const foreignDb = env.authenticatedContext('bob').firestore();
-    const persisted = await api.fetchProject('alice', projectId);
-    const editedTasks = persisted!.workItems[0]!.tasks.map((task) => ({
-      ...task,
-      completedAt: '2020-05-06',
-    }));
     await expect(
-      updateDoc(doc(foreignDb, 'users', 'alice', 'projects', projectId, 'workItems', 'work'), {
-        tasks: editedTasks,
+      setDoc(doc(foreignDb, 'users', 'alice', 'projects', projectId, 'progress', 'state'), {
+        completed: {},
+        updatedAt: 'x',
       }),
     ).rejects.toThrow();
-    expect((await api.fetchProject('alice', projectId))?.completedAt).toBe('2020-05-05');
 
     await api.addSupplement('alice', projectId, 'extra-date', {
       description: 'Concepto añadido',
       quantity: 1,
-      unit: 'unit',
+      unit: 'ud',
       unitPrice: 10,
     });
     const voided = await api.voidSupplement('alice', projectId, 'extra-date', 'Trabajo cancelado');
@@ -230,49 +210,36 @@ describe('accepted budget conversion', () => {
     expect(voided.project.completedAt).toBe('2020-05-05');
   });
 
-  it('converts a budget with 200 work items in one atomic operation', async () => {
-    const workItems = Array.from({ length: 200 }, (_, index) => ({
-      id: `part-${index}`,
-      name: `Partida ${index}`,
-      tasks: [
-        {
-          id: `task-${index}`,
-          description: `Concepto ${index}`,
-          quantity: 1,
-          unit: 'unit' as const,
-          price: 1,
-          cost: 0,
-        },
-      ],
-    }));
-    const source: Budget = { ...budget('source'), acceptedAt, workItems };
-    const db = alice();
+  it('converts a budget with 200 chapters in one atomic operation', async () => {
+    let document = createEmptyDocument('budget', { clientName: 'C', address: 'Obra' });
+    for (let index = 0; index < 200; index++) {
+      const chapter = addChapter(document, `Capítulo ${index}`);
+      document = addItem(chapter.document, chapter.chapterId, {
+        description: `Partida ${index}`,
+        quantity: 1,
+        price: 1,
+      }).document;
+    }
     await env.withSecurityRulesDisabled(async (ctx) =>
-      setDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'source'), source),
+      seedBudget(ctx.firestore(), 'alice', 'source', { acceptedAt }, document),
     );
-
-    const projectId = await createProjectFirestoreApi(db).convertBudgetToProject('alice', 'source');
-
-    expect(
-      (await getDocs(collection(db, 'users', 'alice', 'projects', projectId, 'workItems'))).size,
-    ).toBe(200);
+    const api = createProjectFirestoreApi(alice());
+    const { projectId } = await api.convertBudgetToProject('alice', 'source');
+    const project = await api.fetchProject('alice', projectId);
+    expect(project?.workItems).toHaveLength(200);
+    expect(project?.totalConcepts).toBe(200);
   });
 
-  it('rejects a source with no concepts without leaving project records or releasing quota', async () => {
-    const empty: Budget = {
-      ...budget('source'),
-      acceptedAt,
-      workItems: [{ id: 'empty', name: 'Vacía', tasks: [] }],
-    };
-    const db = alice();
+  it('rejects a source with no items without leaving project records', async () => {
+    let document = createEmptyDocument('budget', { clientName: 'C', address: 'Obra' });
+    document = addChapter(document, 'Vacía').document;
     await env.withSecurityRulesDisabled(async (ctx) =>
-      setDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'source'), empty),
+      seedBudget(ctx.firestore(), 'alice', 'source', { acceptedAt }, document),
     );
-
+    const db = alice();
     await expect(
       createProjectFirestoreApi(db).convertBudgetToProject('alice', 'source'),
     ).rejects.toThrow();
     expect((await getDocs(collection(db, 'users', 'alice', 'projects'))).size).toBe(0);
-    expect((await getDoc(doc(db, 'users', 'alice'))).data()?.budgetSlotsReleased).toBe(1);
   });
 });

@@ -98,6 +98,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, []);
   const account = useUserStore((s) => s.userData);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
   const userId = useAuthStore((s) => s.user?.uid);
   const signOut = useAuthStore((s) => s.signOut);
   const handleSignOut = async () => {
@@ -133,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          {account?.accountData.isAdmin && (
+          {isAdmin && (
             <div className="sidebar-admin">
               <PageLink
                 className="nav-item"
@@ -235,7 +236,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         )}
         <Modal open={menu} onClose={() => setMenu(false)} title="Menú de cuenta">
-          {account?.accountData.isAdmin && (
+          {isAdmin && (
             <section className="account-menu-section" aria-label="Administración">
               <h2 className="account-menu-heading">Administración</h2>
               <MenuLink

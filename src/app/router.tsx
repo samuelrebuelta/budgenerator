@@ -11,6 +11,12 @@ export const router = createBrowserRouter([
     lazy: async () => ({ Component: (await import('@/pages/login')).LoginPage }),
   },
   {
+    path: '/legal/:document',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/legal')).LegalPage }),
+  },
+  {
     path: '/shared/:token',
     errorElement,
     hydrateFallbackElement,

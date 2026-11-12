@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "budgenerator"
+    "default": "budgenerator",
+    "staging": "CHANGE-ME-budgenerator-staging"
   }
 }

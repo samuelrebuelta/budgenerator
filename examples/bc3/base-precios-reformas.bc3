@@ -1,0 +1,24 @@
+~V|Banco sintético|FIEBDC-3/2020\15012026|Generador de bases|Base de reformas\VENTA\COSTE|ANSI|Base ficticia para pruebas|1|
+~K|\2\2\3\2\2\2\2\EUR\|0\0\0\0\21\|
+~C|BASE##||Base de reformas 2026|||0|
+~C|01#||Albañilería|||0|
+~C|02#||Revestimientos y acabados|||0|
+~C|MO001\OF1|h|Oficial 1ª|22.00\20.00\|01012026\|1|
+~C|MO002|h|Peón ordinario|18.50\17.00\||1|
+~C|MT001|m²|Azulejo cerámico 30×60 cm «blanco»|24.50\22.00\||3|
+~C|MT002|kg|Adhesivo cementoso C2TE|0.82\0.70\||3|
+~C|%MA|%|Medios auxiliares|0.02\0.02\||0|
+~C|E01DEM|m2|Demolición de alicatado|9.79\9.00\||0|
+~C|E02ALI|m2|Alicatado de paramentos|39.07\35.00\||0|
+~C|E03TAB|m2|Tabique de ladrillo hueco doble|31.40\28.00\||0|
+~C|E04PIN|m2|Pintura plástica lisa — dos manos|8.75\6.10\||0|
+~C|SUELTO|ud|Concepto suelto sin capítulo|5.00\4.00\||0|
+~D|BASE##|01#\1\1\02#\1\1\|
+~D|01#|E01DEM\1\1\E03TAB\1\1\|
+~D|02#|E02ALI\1\1\E04PIN\1\1\|
+~D|E01DEM||MO002\1\0.40\\MO001\1\0.10\\%MA\1\1\MO\|
+~D|E02ALI|MT001\1\1.05\MT002\1\4.2\MO001\1\0.45\|
+~T|E02ALI|Alicatado con azulejo cerámico, recibido con adhesivo.
+Incluye rejuntado y limpieza.|
+~X|E02ALI|PESO\12.5\|
+

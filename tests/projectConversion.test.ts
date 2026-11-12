@@ -39,11 +39,9 @@ describe('prepareProjectSnapshot', () => {
       status: 'pending',
     });
     expect(snapshot.workItems[0]).toMatchObject({
-      id: 'work',
       name: 'Pintura',
       tasks: [
         {
-          id: 'task',
           description: 'Pintura de paredes',
           quantity: 2.5,
           price: 10.75,

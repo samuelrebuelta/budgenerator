@@ -12,7 +12,17 @@ import {
 } from '@/entities/project';
 import { formatCurrency, generateId } from '@/shared/lib';
 import { money, taskAmount } from '@/shared/lib/budgetMath';
-import { Button, Card, Input, Modal, OfflineUnavailable, PageHeader, Skeleton } from '@/shared/ui';
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  OfflineUnavailable,
+  PageHeader,
+  Skeleton,
+  UnitField,
+} from '@/shared/ui';
+import { unitLabel } from '@/shared/types';
 import { getMemoryResource } from '@/shared/lib/memoryResourceCache';
 import { useNetworkStore } from '@/shared/model/network';
 import { ProjectProgressBar } from '@/pages/projects/ProjectProgressBar';
@@ -90,7 +100,7 @@ export function ProjectDetailPage() {
   const [actionError, setActionError] = useState('');
   const [supplementDescription, setSupplementDescription] = useState('');
   const [supplementQuantity, setSupplementQuantity] = useState('1');
-  const [supplementUnit, setSupplementUnit] = useState('unit');
+  const [supplementUnit, setSupplementUnit] = useState('ud');
   const [supplementUnitPrice, setSupplementUnitPrice] = useState('');
   const [supplementRequestId, setSupplementRequestId] = useState<string | null>(null);
   const [supplementFormOpen, setSupplementFormOpen] = useState(false);
@@ -145,7 +155,7 @@ export function ProjectDetailPage() {
     setSupplementFormOpen(false);
     setSupplementDescription('');
     setSupplementQuantity('1');
-    setSupplementUnit('unit');
+    setSupplementUnit('ud');
     setSupplementUnitPrice('');
     setSupplementRequestId(null);
   };
@@ -468,7 +478,8 @@ export function ProjectDetailPage() {
                             </p>
                             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                               <p className="text-xs text-[#637166]">
-                                {task.quantity} {task.unit} · {formatCurrency(taskAmount(task))}
+                                {task.quantity} {unitLabel(task.unit)} ·{' '}
+                                {formatCurrency(taskAmount(task))}
                               </p>
                               {completed && task.completedAt && (
                                 <ProjectTaskCompletionDate
@@ -584,17 +595,12 @@ export function ProjectDetailPage() {
               </label>
               <label className="block text-xs font-semibold text-[#37443d]">
                 Unidad
-                <select
+                <UnitField
+                  label="Unidad"
                   className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
                   value={supplementUnit}
-                  onChange={(event) => setSupplementUnit(event.target.value)}
-                >
-                  <option value="unit">Ud.</option>
-                  <option value="m2">m²</option>
-                  <option value="m3">m³</option>
-                  <option value="ml">ml</option>
-                  <option value="hour">h</option>
-                </select>
+                  onChange={setSupplementUnit}
+                />
               </label>
               <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
                 Precio unitario sin IVA

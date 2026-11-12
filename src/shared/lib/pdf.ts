@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { Budget, PublicBudget, CompanyProfile } from '@/shared/types';
-import { UNIT_LABELS } from '@/shared/types';
+import { unitLabel } from '@/shared/types';
 import { assertBudget, budgetTotals, taskAmount, unitPrice, workItemAmount } from './budgetMath';
 interface PdfData {
   budget: Budget | PublicBudget;
@@ -187,7 +187,7 @@ export function buildBudgetDocument(
         if (offset === 0) {
           doc.setFontSize(8.5);
           doc.text(task.quantity.toLocaleString('es-ES'), 120, y, { align: 'right' });
-          doc.text(UNIT_LABELS[task.unit], 131, y, { align: 'center' });
+          doc.text(unitLabel(task.unit), 131, y, { align: 'center' });
           doc.text(fmt(unitPrice(task, multiplier)), 161, y, { align: 'right' });
           doc.setFont('helvetica', 'bold');
           doc.text(fmt(taskAmount(task, multiplier)), right, y, { align: 'right' });

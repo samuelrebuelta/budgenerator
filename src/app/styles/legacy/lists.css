@@ -47,6 +47,10 @@
 .catalog-picker-trigger:hover:not(:disabled) {
   background: var(--state-hover);
 }
+.catalog-picker-trigger.is-active {
+  border-color: var(--color-brand-600);
+  background: #e3ece6;
+}
 .catalog-picker-panel {
   max-width: 640px;
 }
@@ -319,4 +323,16 @@
 }
 .catalog-search svg {
   flex-shrink: 0;
+}
+
+/* BC3 import preview */
+.bc3-import-panel {
+  max-width: 44rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@media (max-width: 639px) {
+  .bc3-import-panel {
+    padding: 1rem;
+  }
 }

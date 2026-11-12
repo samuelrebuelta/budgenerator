@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, Eye, EyeOff } from 'lucide-react';
-import { changePassword } from '@/entities/auth/api/firebase';
+import { changePassword } from '@/entities/auth';
 import { Button, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
@@ -16,7 +16,7 @@ export function ChangePasswordPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const hasMinLength = newPassword.length >= 6;
+  const hasMinLength = newPassword.length >= 8;
   const hasUpper = /[A-Z]/.test(newPassword);
   const hasLower = /[a-z]/.test(newPassword);
   const hasNumber = /[0-9]/.test(newPassword);

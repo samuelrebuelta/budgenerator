@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db } from '@/shared/firebase/config';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { createProjectFirestoreApi } from '../api/firestore';
+import { useBudgetStore } from '@/entities/budget';
 import {
   getMemoryResource,
   loadMemoryResource,
@@ -223,8 +224,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const uid = sessionUid();
     if (!uid) throw new Error('Inicia sesión para continuar.');
     const revision = sessionRevision();
-    const metadata = await api.updateProjectMetadata(uid, projectId, title, clientName);
+    const { budgetRevision, ...metadata } = await api.updateProjectMetadata(
+      uid,
+      projectId,
+      title,
+      clientName,
+    );
     if (!isSessionCurrent(uid, revision)) return;
+    const sourceBudgetId = get().projects.find(
+      (project) => project.id === projectId,
+    )?.sourceBudgetId;
+    if (sourceBudgetId)
+      useBudgetStore
+        .getState()
+        .syncLinkedProjectMetadata(
+          sourceBudgetId,
+          { address: metadata.address, clientName: metadata.clientName },
+          budgetRevision,
+        );
     set((state) => ({
       projects: state.projects.map((project) =>
         project.id === projectId ? { ...project, ...metadata } : project,
@@ -281,8 +298,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const uid = sessionUid();
     if (!uid) throw new Error('Inicia sesión para continuar.');
     const revision = sessionRevision();
-    const projectId = await api.convertBudgetToProject(uid, budgetId);
+    const { projectId, budgetRevision } = await api.convertBudgetToProject(uid, budgetId);
     if (!isSessionCurrent(uid, revision)) return projectId;
+    useBudgetStore.getState().linkProject(budgetId, projectId, budgetRevision);
     const project = await api.fetchProject(uid, projectId);
     if (project && isSessionCurrent(uid, revision)) {
       set((state) => ({

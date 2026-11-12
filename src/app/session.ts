@@ -137,7 +137,7 @@ export { retryUnauthenticatedRouteConnection } from './sessionModule';
 
 /** True while the budget editor holds an unsaved new budget. */
 export function hasBudgetDraft(): boolean {
-  return Boolean(useBudgetStore.getState().draftBudget);
+  return Boolean(useBudgetStore.getState().draft);
 }
 
 export function hasDirtyBudgetDraft(): boolean {

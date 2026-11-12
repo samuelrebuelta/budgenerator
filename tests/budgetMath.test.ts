@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { budgetTotals, assertBudget, decimal, taskAmount } from '../src/shared/lib/budgetMath';
-import { toPublicBudget } from '../src/entities/budget/model/publicBudget';
-import { budget } from './fixtures';
+import { buildSharedBudget, sharedBudgetView } from '../src/entities/budget/model/publicBudget';
+import { documentTotals, updateBusiness } from '../src/entities/construction-document/model';
+import { budget, budgetRecord } from './fixtures';
 describe('monetary policy shared by editor, public view and PDF', () => {
   it('preserves fractional quantities and prices and rounds at the line boundary', () => {
     const b = budget();
@@ -11,15 +12,16 @@ describe('monetary policy shared by editor, public view and PDF', () => {
     expect(decimal('10.75')).toBe(10.75);
   });
   it('keeps public totals identical after a surcharge is baked into unit prices', () => {
-    const b = {
-      ...budget(),
+    const record = budgetRecord();
+    record.document = updateBusiness(record.document, {
       adjustment: { multiplier: 1.15, reason: 'Internal margin' },
       ivaRate: 0.21,
-    };
-    expect(budgetTotals(toPublicBudget(b))).toEqual(
-      budgetTotals({ ...b, adjustment: undefined, workItems: toPublicBudget(b).workItems }),
+    });
+    const publicView = sharedBudgetView(
+      buildSharedBudget(record, { name: '', cif: '', address: '', phone: '', email: '' }, 'u'),
     );
-    expect(budgetTotals(toPublicBudget(b)).total).toBe(budgetTotals(b).total);
+    expect(publicView.adjustment).toBeUndefined();
+    expect(budgetTotals(publicView).total).toBe(documentTotals(record.document).total);
   });
   it('allows a free concept and an exact 100% discount', () => {
     const b = budget();

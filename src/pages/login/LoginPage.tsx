@@ -1,20 +1,24 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
 import { Brand } from '@/shared/ui/Brand';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Modal } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
-import { sendPasswordReset } from '@/entities/auth/api/firebase';
+import { sendPasswordReset } from '@/entities/auth';
 import { markWelcomeTourPending } from '@/features/app-tour/model';
 import { safeNotificationLoginReturnPath } from '@/features/notifications/model/navigation';
+import { LegalLinks } from '@/shared/ui/LegalLinks';
+import { markLegalAcceptance } from '@/shared/lib/legal';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
     const checks = [
-      { label: t('login.passwordMinLength'), met: password.length >= 6 },
+      { label: t('login.passwordMinLength'), met: password.length >= MIN_PASSWORD_LENGTH },
       { label: t('login.passwordUppercase'), met: /[A-Z]/.test(password) },
       { label: t('login.passwordLowercase'), met: /[a-z]/.test(password) },
       { label: t('login.passwordNumber'), met: /\d/.test(password) },
@@ -53,6 +57,7 @@ export function LoginPage() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (user) navigate(returnPath, { replace: true });
@@ -60,8 +65,9 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isRegister && !allChecksMet) return;
+    if (isRegister && (!allChecksMet || !acceptedTerms)) return;
     if (isRegister) {
+      markLegalAcceptance();
       const uid = await signUp(email, password);
       if (uid) markWelcomeTourPending(uid);
     } else {
@@ -146,7 +152,7 @@ export function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={isRegister ? t('login.passwordPlaceholder') : undefined}
                     required
-                    minLength={6}
+                    minLength={isRegister ? MIN_PASSWORD_LENGTH : undefined}
                     autoComplete={isRegister ? 'new-password' : 'current-password'}
                   />
                   <button
@@ -195,6 +201,29 @@ export function LoginPage() {
                 )}
               </div>
 
+              {isRegister && (
+                <label className="flex items-start gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1"
+                    required
+                  />
+                  <span>
+                    He leído y acepto las{' '}
+                    <Link to="/legal/condiciones" target="_blank" className="underline">
+                      condiciones de uso
+                    </Link>{' '}
+                    y la{' '}
+                    <Link to="/legal/privacidad" target="_blank" className="underline">
+                      política de privacidad
+                    </Link>
+                    .
+                  </span>
+                </label>
+              )}
+
               {error && (
                 <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
               )}
@@ -202,7 +231,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 className="w-full justify-center"
-                disabled={loading || (isRegister && !allChecksMet)}
+                disabled={loading || (isRegister && (!allChecksMet || !acceptedTerms))}
                 loading={loading}
               >
                 {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
@@ -232,6 +261,7 @@ export function LoginPage() {
               </button>
             </div>
           </div>
+          <LegalLinks className="mt-6 justify-center" />
         </div>
       </main>
       <Modal open={showReset} onClose={() => setShowReset(false)}>

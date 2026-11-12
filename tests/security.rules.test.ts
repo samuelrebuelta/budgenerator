@@ -16,8 +16,15 @@ import {
   deleteDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { budget, user } from './fixtures';
-import { toPublicBudget } from '../src/entities/budget/model/publicBudget';
+import { budgetRecord, sampleDocument, seedBudget, storedRoot, user } from './fixtures';
+import { buildSharedBudget } from '../src/entities/budget/model/publicBudget';
+import {
+  contentOf,
+  encodeContent,
+  updateBusiness,
+} from '../src/entities/construction-document/model';
+import { saveStoredDocument } from '../src/entities/construction-document/api/storage';
+import { createBudgetAcceptanceApi } from '../src/entities/budget/api/acceptance';
 let env: RulesTestEnvironment;
 const firestoreEmulator = new URL(
   `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
@@ -45,12 +52,17 @@ beforeEach(async () => {
       email: 'budgenerator@gmail.com',
       accountData: { isAdmin: true, plan: 'premium' },
     });
-    await setDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'existing'), budget('existing'));
+    await seedBudget(ctx.firestore(), 'alice', 'existing');
   });
 });
-const alice = () => env.authenticatedContext('alice', { email: 'alice@example.test' }).firestore();
+const alice = () =>
+  env
+    .authenticatedContext('alice', { email: 'alice@example.test', email_verified: true })
+    .firestore();
 const bob = () => env.authenticatedContext('bob', { email: 'bob@example.test' }).firestore();
 const admin = () =>
+  env.authenticatedContext('admin', { email: 'ops@example.test', admin: true }).firestore();
+const emailOnlyAdmin = () =>
   env.authenticatedContext('admin', { email: 'budgenerator@gmail.com' }).firestore();
 async function createWithCount(
   db: ReturnType<typeof alice>,
@@ -58,8 +70,16 @@ async function createWithCount(
   id: string,
   count: number,
 ) {
+  const document = sampleDocument();
   const batch = writeBatch(db);
-  batch.set(doc(db, 'users', uid, 'budgets', id), budget(id));
+  batch.set(doc(db, 'users', uid, 'budgets', id), storedRoot(id, document, { number: count }));
+  encodeContent(contentOf(document)).forEach((data, index) =>
+    batch.set(doc(db, 'users', uid, 'budgets', id, 'content', String(index)), {
+      index,
+      revision: 1,
+      data,
+    }),
+  );
   batch.update(doc(db, 'users', uid), { totalBudgetsCreated: count, lastCreatedBudgetId: id });
   return batch.commit();
 }
@@ -100,6 +120,30 @@ describe('protected identity and account privileges', () => {
     );
     await assertFails(updateDoc(doc(admin(), 'users', 'alice'), { 'accountData.isAdmin': true }));
   });
+  it('trusts only the admin custom claim, not the email or the stored flag', async () => {
+    await assertFails(getDocs(collection(emailOnlyAdmin(), 'users')));
+    await assertFails(
+      updateDoc(doc(emailOnlyAdmin(), 'users', 'alice'), { 'accountData.plan': 'premium' }),
+    );
+  });
+  it('keeps private account content away from admins', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'projects', 'p1'), { id: 'p1' });
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'profile', 'data'), { name: 'A' });
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'leads', 'l1'), { createdAt: 1 });
+    });
+    await assertSucceeds(getDoc(doc(admin(), 'users', 'alice')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'budgets', 'existing')));
+    await assertFails(getDocs(collection(admin(), 'users', 'alice', 'budgets')));
+    await assertFails(deleteDoc(doc(admin(), 'users', 'alice', 'budgets', 'existing')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'projects', 'p1')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'profile', 'data')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'leads', 'l1')));
+  });
+  it('rejects account deletion from the client', async () => {
+    await assertFails(deleteDoc(doc(alice(), 'users', 'alice')));
+    await assertFails(deleteDoc(doc(admin(), 'users', 'alice')));
+  });
   it('does not trust a previously forged role belonging to another email', async () => {
     await env.withSecurityRulesDisabled(async (ctx) =>
       updateDoc(doc(ctx.firestore(), 'users', 'bob'), { 'accountData.isAdmin': true }),
@@ -110,7 +154,10 @@ describe('protected identity and account privileges', () => {
 describe('atomic creation and quota', () => {
   it('requires a paired new budget and exact counter increment', async () => {
     await assertFails(
-      setDoc(doc(alice(), 'users', 'alice', 'budgets', 'orphan'), budget('orphan')),
+      setDoc(
+        doc(alice(), 'users', 'alice', 'budgets', 'orphan'),
+        storedRoot('orphan', sampleDocument(), { number: 1 }),
+      ),
     );
     await assertFails(
       updateDoc(doc(alice(), 'users', 'alice'), {
@@ -160,17 +207,14 @@ describe('atomic creation and quota', () => {
     await assertSucceeds(createWithCount(alice(), 'alice', 'active', 4));
   });
   it('allows updates without consuming quota and rejects document resurrection by update', async () => {
-    await assertSucceeds(
-      updateDoc(doc(alice(), 'users', 'alice', 'budgets', 'existing'), {
-        'info.clientName': 'Changed',
-      }),
-    );
-    await assertSucceeds(deleteDoc(doc(alice(), 'users', 'alice', 'budgets', 'existing')));
-    await assertFails(
-      updateDoc(doc(alice(), 'users', 'alice', 'budgets', 'existing'), {
-        'info.clientName': 'Stale write',
-      }),
-    );
+    const db = alice();
+    const ref = doc(db, 'users', 'alice', 'budgets', 'existing');
+    const changed = updateBusiness(sampleDocument(), { clientName: 'Changed' });
+    await assertSucceeds(saveStoredDocument(db, ref, changed, 1));
+    expect((await getDoc(ref)).data()).toMatchObject({ revision: 2, contentRevision: 2 });
+    await expect(saveStoredDocument(db, ref, changed, 1)).rejects.toThrow(/otro dispositivo/);
+    await assertSucceeds(deleteDoc(ref));
+    await assertFails(updateDoc(ref, { clientName: 'Stale write', revision: 3 }));
   });
 });
 describe('accepted budgets and projects', () => {
@@ -184,17 +228,24 @@ describe('accepted budgets and projects', () => {
   });
 
   it('locks accepted budgets until acceptance is withdrawn', async () => {
-    await env.withSecurityRulesDisabled(async (ctx) =>
-      updateDoc(doc(ctx.firestore(), 'users', 'alice', 'budgets', 'existing'), {
-        acceptedAt: '2026-10-18T09:00:00.000Z',
+    const db = alice();
+    const ref = doc(db, 'users', 'alice', 'budgets', 'existing');
+    const acceptance = createBudgetAcceptanceApi(db);
+    expect(await acceptance.acceptBudget('alice', 'existing', '2026-10-18T09:00:00.000Z', 1)).toBe(
+      2,
+    );
+    const changed = updateBusiness(sampleDocument(), { clientName: 'Cambio no permitido' });
+    await assertFails(saveStoredDocument(db, ref, changed, 2));
+    await assertFails(
+      setDoc(doc(db, 'users', 'alice', 'budgets', 'existing', 'content', '0'), {
+        index: 0,
+        revision: 3,
+        data: '{}',
       }),
     );
-    const ref = doc(alice(), 'users', 'alice', 'budgets', 'existing');
-
-    await assertFails(updateDoc(ref, { 'info.clientName': 'Cambio no permitido' }));
     await assertFails(deleteDoc(ref));
-    await assertSucceeds(updateDoc(ref, { acceptedAt: null }));
-    await assertSucceeds(updateDoc(ref, { 'info.clientName': 'Oferta revisada' }));
+    expect(await acceptance.withdrawBudgetAcceptance('alice', 'existing')).toBe(3);
+    await assertSucceeds(saveStoredDocument(db, ref, changed, 3));
   });
 
   it('allows the owner to read projects and denies another account access', async () => {
@@ -204,25 +255,32 @@ describe('accepted budgets and projects', () => {
         sourceBudgetId: 'existing',
       });
       await setDoc(
-        doc(ctx.firestore(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1'),
-        { id: 'part-1', name: 'Pintura', tasks: [] },
+        doc(ctx.firestore(), 'users', 'alice', 'projects', 'project-1', 'progress', 'state'),
+        { completed: {}, updatedAt: '2026-10-18T10:00:00.000Z' },
       );
     });
 
     await assertSucceeds(getDocs(collection(alice(), 'users', 'alice', 'projects')));
     await assertSucceeds(
-      getDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1')),
+      getDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'progress', 'state')),
     );
     await assertFails(
       setDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'extra'), {
         id: 'extra',
-        name: 'No incluida en el snapshot',
+        name: 'Modelo plano retirado',
         tasks: [],
+      }),
+    );
+    await assertFails(
+      setDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1', 'progress', 'state'), {
+        completed: {},
+        updatedAt: 'x',
+        extra: true,
       }),
     );
     await assertFails(getDoc(doc(bob(), 'users', 'alice', 'projects', 'project-1')));
     await assertFails(
-      getDoc(doc(bob(), 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1')),
+      getDoc(doc(bob(), 'users', 'alice', 'projects', 'project-1', 'progress', 'state')),
     );
     await assertFails(deleteDoc(doc(alice(), 'users', 'alice', 'projects', 'project-1')));
   });
@@ -241,12 +299,15 @@ describe('accepted budgets and projects', () => {
       sourceBudgetId: 'existing',
       createdAt: '2026-10-18T10:00:00.000Z',
     });
-    batch.set(doc(db, 'users', 'alice', 'projects', 'project-1', 'workItems', 'part-1'), {
-      id: 'part-1',
-      name: 'Pintura',
-      tasks: [],
+    batch.set(doc(db, 'users', 'alice', 'projects', 'project-1', 'progress', 'state'), {
+      completed: {},
+      updatedAt: '2026-10-18T10:00:00.000Z',
     });
-    batch.update(doc(db, 'users', 'alice', 'budgets', 'existing'), { projectId: 'project-1' });
+    batch.update(doc(db, 'users', 'alice', 'budgets', 'existing'), {
+      projectId: 'project-1',
+      revision: 2,
+      updatedAt: '2026-10-18T10:00:00.000Z',
+    });
 
     await assertSucceeds(batch.commit());
     expect((await getDoc(doc(db, 'users', 'alice'))).data()).toMatchObject({
@@ -255,16 +316,9 @@ describe('accepted budgets and projects', () => {
     });
   });
 });
+const company = { name: 'Demo', cif: '', address: '', phone: '', email: '' };
 function snapshot(ownerUid = 'alice', expiresAt = Date.now() + 86400000) {
-  return {
-    schemaVersion: 2,
-    ownerUid,
-    expiresAt,
-    budget: toPublicBudget(budget()),
-    company: { name: 'Demo', cif: '', address: '', phone: '', email: '' },
-    ivaRate: 0.1,
-    sharedAt: new Date().toISOString(),
-  };
+  return { ...buildSharedBudget(budgetRecord(), company, ownerUid), expiresAt };
 }
 describe('individual public snapshots', () => {
   it('allows individual anonymous reads but rejects collection enumeration', async () => {
@@ -275,7 +329,10 @@ describe('individual public snapshots', () => {
   });
   it('denies unsafe legacy links and expired snapshots', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'sharedBudgets', 'old'), { budget: budget() });
+      await setDoc(doc(ctx.firestore(), 'sharedBudgets', 'old'), {
+        ...snapshot(),
+        schemaVersion: 2,
+      });
       await setDoc(
         doc(ctx.firestore(), 'sharedBudgets', 'expired'),
         snapshot('alice', Date.now() - 1000),
@@ -292,6 +349,13 @@ describe('individual public snapshots', () => {
         doc(alice(), 'sharedBudgets', 'forever'),
         snapshot('alice', Date.now() + 100 * 86400000),
       ),
+    );
+    const unverified = env
+      .authenticatedContext('alice', { email: 'alice@example.test' })
+      .firestore();
+    await assertFails(setDoc(doc(unverified, 'sharedBudgets', 'unverified'), snapshot()));
+    await assertFails(
+      setDoc(doc(alice(), 'sharedBudgets', 'private'), { ...snapshot(), costs: [1] }),
     );
     await assertSucceeds(setDoc(doc(alice(), 'sharedBudgets', 'token'), snapshot()));
     await assertFails(deleteDoc(doc(bob(), 'sharedBudgets', 'token')));

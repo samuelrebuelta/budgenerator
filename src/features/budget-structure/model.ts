@@ -1,4 +1,5 @@
-import type { Budget, BudgetTask, CatalogPart, WorkItem } from '@/shared/types';
+import type { Budget, CatalogPart } from '@/shared/types';
+import type { ChapterInput } from '@/entities/construction-document/model';
 import { compareSpanish, normalizeCatalogText } from '@/entities/catalog/search';
 
 export function conceptKey(partId: string, conceptId: string): string {
@@ -72,7 +73,7 @@ export function structureFromSelection(
   partIds: readonly string[],
   selectedConceptKeys: readonly string[],
   quantities: Readonly<Record<string, number>> = {},
-): WorkItem[] {
+): ChapterInput[] {
   const selectedParts = [...new Set(partIds)];
   const selected = new Set(selectedConceptKeys);
   const byId = new Map(parts.map((part) => [part.id, part]));
@@ -95,24 +96,22 @@ export function structureFromSelection(
         .filter((concept) => selected.has(conceptKey(part.id, concept.id)))
         .sort((a, b) => compareSpanish(a.description, b.description));
       return {
-        id: part.id,
         name: part.name,
-        catalogPartId: part.id,
-        tasks: concepts.map((concept) => {
+        catalogChapterId: part.id,
+        items: concepts.map((concept) => {
           const quantity = quantities[conceptKey(part.id, concept.id)] ?? 0;
           if (!Number.isFinite(quantity) || quantity < 0)
             throw Error('Las cantidades deben ser números positivos.');
           return {
-            id: concept.id,
             catalogConceptId: concept.id,
             description: concept.description,
             quantity,
             unit: concept.unit,
             price: concept.basePrice,
             cost: concept.cost,
-          } satisfies BudgetTask;
+          };
         }),
       };
     })
-    .filter((item) => item.tasks.length > 0);
+    .filter((item) => item.items.length > 0);
 }

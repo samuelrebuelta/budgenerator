@@ -1,11 +1,14 @@
 import { expect, it } from 'vitest';
 import { BASE_CATALOGS, TRADE_CATALOGS } from '../src/entities/catalog/model/baseCatalogs';
+import { baseCatalogDocument } from '../src/entities/catalog/model/bases';
 import {
-  mergeTradeIntoParts,
-  type TradeImportScope,
-} from '../src/entities/catalog/model/tradeImport';
-import type { BaseCatalog } from '../src/entities/catalog/model/baseCatalogs';
-import type { CatalogPart } from '../src/shared/types';
+  addCatalogConcept,
+  addChapter,
+  createEmptyDocument,
+  mergeIntoCatalog,
+  normalizeText,
+  projectCatalogParts,
+} from '../src/entities/construction-document/model';
 
 it('offers specialized and complete renovation catalogs as import sources', () => {
   expect(TRADE_CATALOGS.map((catalog) => catalog.id)).toEqual([
@@ -69,162 +72,47 @@ it('provides the complete catalog with alphabetized, concise work categories', (
   );
 });
 
-it('imports the complete catalog idempotently without replacing private electrical prices', () => {
-  const general = TRADE_CATALOGS.find((catalog) => catalog.id === 'reforma_integral')!;
+it('imports the complete catalog idempotently without replacing private prices', () => {
+  const general = BASE_CATALOGS.find((catalog) => catalog.id === 'reforma_integral')!;
+  const source = baseCatalogDocument(general);
   const electrical = general.tariffs.find((tariff) => tariff.category === 'Electricidad')!;
-  const existing: CatalogPart[] = [
-    {
-      id: 'private-electricity',
-      name: 'Electricidad',
-      concepts: [
-        {
-          id: 'private-light',
-          description: electrical.description,
-          unit: electrical.unit,
-          basePrice: 999,
-          cost: 500,
-        },
-      ],
-    },
-  ];
-  let nextId = 0;
-  const createId = () => `general-${++nextId}`;
-
-  const first = mergeTradeIntoParts(existing, general, createId);
-  const second = mergeTradeIntoParts(first.parts, general, createId);
-
+  let target = createEmptyDocument('catalog');
+  const chapter = addChapter(target, 'Electricidad');
+  target = addCatalogConcept(chapter.document, chapter.chapterId, {
+    description: electrical.description.toUpperCase(),
+    unit: electrical.unit === 'unit' ? 'ud' : electrical.unit,
+    price: 99,
+    cost: 50,
+  }).document;
+  const first = mergeIntoCatalog(target, source);
+  const second = mergeIntoCatalog(first.document, source);
   expect(first.addedConcepts).toBe(general.tariffs.length - 1);
   expect(second).toMatchObject({ addedParts: 0, addedConcepts: 0 });
-  expect(first.parts.find((part) => part.id === 'private-electricity')?.concepts[0]).toMatchObject({
-    id: 'private-light',
-    basePrice: 999,
-    cost: 500,
-  });
+  const kept = projectCatalogParts(second.document)
+    .find((part) => part.name === 'Electricidad')!
+    .concepts.find(
+      (concept) => normalizeText(concept.description) === normalizeText(electrical.description),
+    );
+  expect(kept).toMatchObject({ basePrice: 99, cost: 50 });
 });
 
-it('imports concepts grouped by category, skips existing concepts, and preserves custom values', () => {
-  const existing: CatalogPart[] = [
-    {
-      id: 'custom-plumbing',
-      name: 'Fontaneria',
-      concepts: [
-        {
-          id: 'custom-pipe',
-          description: 'tuberia',
-          unit: 'ml',
-          basePrice: 77,
-          cost: 44,
-        },
-      ],
-    },
-  ];
-  const trade: BaseCatalog = {
-    id: 'fontaneria',
-    name: 'Fontanería',
-    description: 'Instalaciones de fontanería y agua',
-    tariffs: [
-      {
-        description: 'Tubería',
-        unit: 'ml',
-        basePrice: 20,
-        cost: 10,
-        category: 'Fontanería',
-      },
-      {
-        description: 'Punto de agua sencillo',
-        unit: 'unit',
-        basePrice: 65,
-        cost: 38,
-        category: 'Puntos de agua',
-      },
-    ],
-  };
-  let nextId = 0;
-  const createId = () => `imported-${++nextId}`;
-
-  const firstImport = mergeTradeIntoParts(existing, trade, createId, { type: 'category' });
-  const secondImport = mergeTradeIntoParts(firstImport.parts, trade, createId, {
-    type: 'category',
-  });
-
-  expect(firstImport).toMatchObject({ addedParts: 1, addedConcepts: 1 });
-  expect(firstImport.parts).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        id: 'custom-plumbing',
-        name: 'Fontaneria',
-        concepts: [
-          expect.objectContaining({
-            id: 'custom-pipe',
-            basePrice: 77,
-            cost: 44,
-          }),
-        ],
-      }),
-      expect.objectContaining({
-        id: 'imported-1',
-        name: 'Puntos de agua',
-        concepts: [
-          expect.objectContaining({
-            id: 'imported-2',
-            description: 'Punto de agua sencillo',
-            basePrice: 65,
-            cost: 38,
-          }),
-        ],
-      }),
-    ]),
+it('imports a single chapter or a single concept when asked', () => {
+  const trade = TRADE_CATALOGS.find((catalog) => catalog.id === 'cocinas')!;
+  const source = baseCatalogDocument(trade);
+  const chapterName = trade.tariffs[0]!.category;
+  const onlyChapter = mergeIntoCatalog(
+    createEmptyDocument('catalog'),
+    source,
+    (chapter) => normalizeText(chapter) === normalizeText(chapterName),
   );
-  expect(secondImport).toMatchObject({ addedParts: 0, addedConcepts: 0 });
-  expect(existing[0]?.concepts[0]).toMatchObject({ basePrice: 77, cost: 44 });
-});
-
-it.each([
-  {
-    scope: { type: 'part', partName: 'Puntos de agua' } as TradeImportScope,
-    expectedParts: ['Puntos de agua'],
-    expectedConcepts: ['Punto de agua sencillo'],
-  },
-  {
-    scope: {
-      type: 'concept',
-      partName: 'Fontanería',
-      description: 'Tubería',
-      unit: 'ml',
-    } as TradeImportScope,
-    expectedParts: ['Fontanería'],
-    expectedConcepts: ['Tubería'],
-  },
-])('imports only the selected $scope.type', ({ scope, expectedParts, expectedConcepts }) => {
-  const trade: BaseCatalog = {
-    id: 'fontaneria',
-    name: 'Fontanería',
-    description: 'Instalaciones de fontanería y agua',
-    tariffs: [
-      {
-        description: 'Tubería',
-        unit: 'ml',
-        basePrice: 20,
-        cost: 10,
-        category: 'Fontanería',
-      },
-      {
-        description: 'Punto de agua sencillo',
-        unit: 'unit',
-        basePrice: 65,
-        cost: 38,
-        category: 'Puntos de agua',
-      },
-    ],
-  };
-  let nextId = 0;
-
-  const result = mergeTradeIntoParts([], trade, () => `selected-${++nextId}`, scope);
-
-  expect(result.parts.map((part) => part.name)).toEqual(expectedParts);
-  expect(
-    result.parts.flatMap((part) => part.concepts.map((concept) => concept.description)),
-  ).toEqual(expectedConcepts);
-  expect(result.addedParts).toBe(expectedParts.length);
-  expect(result.addedConcepts).toBe(expectedConcepts.length);
+  expect(projectCatalogParts(onlyChapter.document).map((part) => part.name)).toEqual([chapterName]);
+  const concept = trade.tariffs[0]!;
+  const onlyConcept = mergeIntoCatalog(
+    createEmptyDocument('catalog'),
+    source,
+    (chapter, item) =>
+      normalizeText(chapter) === normalizeText(chapterName) &&
+      (!item || normalizeText(item.summary) === normalizeText(concept.description)),
+  );
+  expect(onlyConcept.addedConcepts).toBe(1);
 });

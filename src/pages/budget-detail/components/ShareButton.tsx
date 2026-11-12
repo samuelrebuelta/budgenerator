@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Share, Link as LinkIcon, X } from 'lucide-react';
-import { useActiveBudget } from '@/entities/budget';
+import { useActiveBudgetRecord } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
 import { shareBudget, revokeSharedBudget } from '@/entities/budget/api/firestore';
 import { Button, ConfirmModal } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 export function ShareButton() {
-  const budget = useActiveBudget();
+  const budget = useActiveBudgetRecord();
   const company = useProfileStore((s) => s.profile);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

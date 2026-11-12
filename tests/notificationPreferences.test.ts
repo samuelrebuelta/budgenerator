@@ -25,7 +25,7 @@ describe('notification preference contracts', () => {
   it('validates device registration input without changing valid FIDs', () => {
     expect(
       parsePushDeviceRegistration({ installationId: validInstallationId, fid: validFid }),
-    ).toEqual({ installationId: validInstallationId, fid: validFid });
+    ).toEqual({ installationId: validInstallationId, fid: validFid, platform: 'web' });
     expect(() =>
       parsePushDeviceRegistration({ installationId: 'not-an-id', fid: validFid }),
     ).toThrow();
@@ -48,7 +48,21 @@ describe('notification preference contracts', () => {
     const registrationToken = `projects/budgenerator/messages/${'a'.repeat(120)}`;
     expect(
       parsePushDeviceRegistration({ installationId: validInstallationId, registrationToken }),
-    ).toEqual({ installationId: validInstallationId, registrationToken });
+    ).toEqual({ installationId: validInstallationId, registrationToken, platform: 'web' });
+    expect(
+      parsePushDeviceRegistration({
+        installationId: validInstallationId,
+        registrationToken,
+        platform: 'ios',
+      }),
+    ).toEqual({ installationId: validInstallationId, registrationToken, platform: 'ios' });
+    expect(() =>
+      parsePushDeviceRegistration({
+        installationId: validInstallationId,
+        registrationToken,
+        platform: 'windows',
+      }),
+    ).toThrow();
     expect(() =>
       parsePushDeviceRegistration({ installationId: validInstallationId, registrationToken: '' }),
     ).toThrow();

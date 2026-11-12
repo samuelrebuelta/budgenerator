@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ListChecks, Search, X } from 'lucide-react';
 import { useActiveBudget, useBudgetStore } from '@/entities/budget';
-import { compareSpanish, searchCatalogParts, useCatalogStore } from '@/entities/catalog';
+import {
+  compareSpanish,
+  getCatalogContent,
+  searchCatalogParts,
+  useCatalogView,
+} from '@/entities/catalog';
 import { sessionRevision } from '@/shared/model/session';
 import { Button, Modal } from '@/shared/ui';
-import { UNIT_LABELS, type Budget, type CatalogPart } from '@/shared/types';
+import { unitLabel, type Budget, type CatalogPart } from '@/shared/types';
 import { decimal } from '@/shared/lib/budgetMath';
 import { conceptKey, structureFromSelection } from './model';
 
@@ -16,7 +21,7 @@ interface Snapshot {
 
 export function BudgetStructureButton() {
   const budget = useActiveBudget();
-  const parts = useCatalogStore((s) => s.catalogs[0]?.parts ?? []);
+  const parts = useCatalogView().parts;
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   return (
     <>
@@ -45,7 +50,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
   const submitted = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const currentBudget = useActiveBudget();
-  const currentParts = useCatalogStore((s) => s.catalogs[0]?.parts ?? []);
+  const currentParts = useCatalogView().parts;
   const stale =
     currentBudget !== snapshot.budget ||
     currentParts !== snapshot.parts ||
@@ -142,7 +147,9 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
         selectedQuantities,
       );
       submitted.current = true;
-      useBudgetStore.getState().appendStructure(items, snapshot.budget);
+      useBudgetStore
+        .getState()
+        .appendStructure(items, snapshot.budget, getCatalogContent() ?? undefined);
       onClose();
     } catch (e) {
       submitted.current = false;
@@ -239,7 +246,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                         <strong>{concept.description}</strong>
                         <small>
                           {concept.basePrice.toLocaleString('es-ES')} €/
-                          {UNIT_LABELS[concept.unit]}
+                          {unitLabel(concept.unit)}
                         </small>
                       </span>
                     </label>
@@ -254,7 +261,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                           value={quantities[key] ?? ''}
                           onChange={(event) => setQuantity(key, event.target.value)}
                         />
-                        <span>{UNIT_LABELS[concept.unit]}</span>
+                        <span>{unitLabel(concept.unit)}</span>
                       </label>
                     )}
                   </div>
@@ -312,7 +319,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
                         {concept.description}
                         <small>
                           {quantity > 0
-                            ? `${quantity.toLocaleString('es-ES')} ${UNIT_LABELS[concept.unit]}`
+                            ? `${quantity.toLocaleString('es-ES')} ${unitLabel(concept.unit)}`
                             : 'Cantidad pendiente'}
                         </small>
                       </span>

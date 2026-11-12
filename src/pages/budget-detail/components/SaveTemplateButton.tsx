@@ -1,15 +1,13 @@
 import { useRef, useState } from 'react';
 import { BookmarkPlus, Check } from 'lucide-react';
-import { useActiveBudget } from '@/entities/budget';
+import { useActiveBudgetRecord } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
-import { generateId } from '@/shared/lib';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
-import type { BudgetTemplate } from '@/shared/types';
 
 export function SaveTemplateButton() {
-  const budget = useActiveBudget();
-  const addTemplate = useTemplateStore((s) => s.addTemplate);
+  const budget = useActiveBudgetRecord();
+  const createTemplateFrom = useTemplateStore((s) => s.createTemplateFrom);
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -23,16 +21,7 @@ export function SaveTemplateButton() {
     setSaveError(null);
     setSaving(true);
     try {
-      const template: BudgetTemplate = {
-        id: generateId(),
-        name: name.trim(),
-        workItems: budget.workItems,
-        ...(budget.ivaRate !== undefined ? { ivaRate: budget.ivaRate } : {}),
-        ...(budget.catalogId ? { catalogId: budget.catalogId } : {}),
-        ...(budget.adjustment ? { adjustment: budget.adjustment } : {}),
-        createdAt: new Date().toISOString(),
-      };
-      await addTemplate(template);
+      await createTemplateFrom(budget.document, name.trim());
       setSaved(true);
       setTimeout(() => {
         setSaved(false);

@@ -9,3 +9,5 @@ La exportación utiliza jsPDF en cliente y A4 vertical. El CSS print del navegad
 Las descripciones se dividen en líneas y las filas largas se continúan en otra página. Se repite la cabecera de partida y columnas y se numeran todas las páginas. Los bordes no dependen de una coordenada guardada en una página anterior. Los Object URLs se liberan después de permitir la apertura.
 
 La validación pide cliente y conceptos completos con cantidad positiva; precio cero es válido. No se eliminan filas incompletas silenciosamente del presupuesto. La entrega incluye pruebas del constructor con documentos largos y verificación visual de páginas renderizadas mediante Poppler, además de una exportación desde el navegador con comprobación de bytes PDF.
+
+El PDF recibe la vista derivada del documento FIEBDC (`budgetView` o `sharedBudgetView`). Las unidades libres se imprimen literalmente (`unitLabel`); los capítulos anidados y las partidas sin capítulo aparecen como grupos en el orden del árbol. Las mediciones y descomposiciones no se imprimen: el PDF muestra cantidad, unidad, precio e importe.

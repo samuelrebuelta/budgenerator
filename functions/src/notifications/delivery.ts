@@ -1,6 +1,9 @@
-export type PushNotificationInput =
+export type PushNotificationPlatform = 'web' | 'ios' | 'android';
+
+export type PushNotificationInput = (
   | { jobId: string; leadId: string; fid: string }
-  | { jobId: string; leadId: string; registrationToken: string };
+  | { jobId: string; leadId: string; registrationToken: string }
+) & { platform?: PushNotificationPlatform };
 
 export interface NotificationTransport {
   sendPush(input: PushNotificationInput): Promise<{ messageId: string }>;
