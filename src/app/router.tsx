@@ -1,6 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import { AuthGuard } from './AuthGuard';
-import { AdminGuard } from './AdminGuard';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { LoadingScreen } from '@/shared/ui/LoadingScreen';
 import { ErrorPage } from './ErrorPage';
 const errorElement = <ErrorPage />;
@@ -26,11 +24,7 @@ export const router = createBrowserRouter([
   },
   { path: '/', element: <Navigate to="/projects" replace /> },
   {
-    element: (
-      <AuthGuard>
-        <Outlet />
-      </AuthGuard>
-    ),
+    lazy: async () => ({ Component: (await import('./ProtectedLayout')).ProtectedLayout }),
     errorElement,
     hydrateFallbackElement,
     children: [
@@ -110,11 +104,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: (
-      <AdminGuard>
-        <Outlet />
-      </AdminGuard>
-    ),
+    lazy: async () => ({ Component: (await import('./ProtectedLayout')).AdminLayout }),
     errorElement,
     hydrateFallbackElement,
     children: [

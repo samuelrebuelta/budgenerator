@@ -134,11 +134,15 @@ export async function probeSessionConnection(user: User): Promise<boolean> {
   }
 }
 
-export function retryUnauthenticatedRouteConnection(): boolean {
-  if (isBrowserDisconnected()) return false;
-  // The active public route is the Firebase probe; this starts its cached, non-blocking reload.
-  markNetworkAvailable('request');
-  return true;
+export { retryUnauthenticatedRouteConnection } from './sessionModule';
+
+/** True while the budget editor holds an unsaved new budget. */
+export function hasBudgetDraft(): boolean {
+  return Boolean(useBudgetStore.getState().draftBudget);
+}
+
+export function hasDirtyBudgetDraft(): boolean {
+  return useBudgetStore.getState().draftDirty;
 }
 
 export async function prepareSignOut() {

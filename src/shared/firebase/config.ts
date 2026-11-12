@@ -1,39 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-export const firebaseApp = initializeApp(firebaseConfig);
-
-export const auth = getAuth(firebaseApp);
-export const db = getFirestore(firebaseApp);
-export const functions = getFunctions(firebaseApp, 'europe-west1');
-
-if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
-  if (!firebaseConfig.projectId?.startsWith('demo-'))
-    throw new Error('Los emuladores requieren un proyecto demo- para evitar acceder a producción.');
-  connectAuthEmulator(
-    auth,
-    import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? 'http://127.0.0.1:9199',
-    { disableWarnings: true },
-  );
-  connectFirestoreEmulator(
-    db,
-    import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST ?? '127.0.0.1',
-    Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
-  );
-  connectFunctionsEmulator(
-    functions,
-    '127.0.0.1',
-    Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001),
-  );
-}
+// Compatibility facade: each service lives in its own module so that a route only loads
+// the Firebase SDKs it uses.
+export { firebaseApp } from './app';
+export { auth } from './auth';
+export { db } from './firestore';
+export { functions } from './functions';

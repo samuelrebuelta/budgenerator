@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, WifiOff, RefreshCw } from 'lucide-react';
 import { withTimeout } from '@/shared/model/session';
 import { flushWrites, hasPendingWrites } from '@/shared/model/sync';
-import { useBudgetStore } from '@/entities/budget';
 import { useAuthStore } from '@/entities/auth';
-import { LoadingSpinner } from '@/shared/ui';
+import { LoadingSpinner } from '@/shared/ui/LoadingSpinner';
 import { setNetworkOnline, useNetworkStore } from '@/shared/model/network';
-import { probeSessionConnection, retryUnauthenticatedRouteConnection } from './session';
+import {
+  loadedSessionModule,
+  loadSessionModule,
+  retryUnauthenticatedRouteConnection,
+} from './sessionModule';
 import { refreshAfterNetworkRecovery } from './refreshOnReconnect';
 import type { PwaUpdateEvent } from './pwa';
 export function PwaStatus() {
@@ -20,7 +23,6 @@ export function PwaStatus() {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const handledRecoveryVersion = useRef(0);
-  const draft = useBudgetStore((s) => s.draftBudget);
   useEffect(() => {
     const connected = () => {
       setNetworkOnline(true);
@@ -52,7 +54,10 @@ export function PwaStatus() {
   useEffect(() => {
     if (online || !browserOnline) return;
     const retryTimer = window.setInterval(() => {
-      if (user) void probeSessionConnection(user).catch(() => {});
+      if (user)
+        void loadSessionModule()
+          .then((session) => session.probeSessionConnection(user))
+          .catch(() => {});
       else retryUnauthenticatedRouteConnection();
     }, 30_000);
     return () => window.clearInterval(retryTimer);
@@ -64,7 +69,7 @@ export function PwaStatus() {
   }, [recoveryVersion, recoverySource, user]);
   const refresh = async () => {
     if (refreshing) return;
-    if (draft) {
+    if (loadedSessionModule()?.hasBudgetDraft()) {
       setError('Guarda o descarta el borrador antes de actualizar.');
       return;
     }
