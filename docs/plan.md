@@ -8,6 +8,7 @@ Actualizado el 09-11-2026. Para trabajar en una tarea, consulta el área corresp
 - **BG-005 y BG-010.** Estimador público y solicitudes publicados para pruebas. Los avisos son push y se activan por dispositivo.
 - **BG-007 a BG-009.** UX, catálogo único, creación guiada y seguimiento de proyectos integrados. Queda como seguimiento opcional comprobar teclado, área segura y gestos en PWA física.
 - **BG-011 y BG-012.** Planificación semanal, gestión de equipo, consulta offline y refresco al recuperar conexión integrados y desplegados. La [especificación offline](specs/BG-012-modo-offline.md) describe el contrato.
+- **Base de frontend (fase 1).** Tokens semánticos y CSS por capas, primitivas de `shared/ui`, Equipo dividido en tres rutas, carga diferida de la sesión, i18next retirado y splash de iOS, según el [análisis del frontend](analysis/frontend-pwa.md). La fase 2 aplica las primitivas y los tokens en las pantallas de presupuestos, catálogo, proyectos, cuenta y login.
 
 ## Trabajo futuro y decisiones
 
