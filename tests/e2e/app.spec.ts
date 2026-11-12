@@ -270,6 +270,11 @@ async function login(page: Page, mail = email) {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Presupuestos', exact: true })).toBeVisible();
 }
+/** Waits for the debounced write queue to start and finish (the indicator has no text). */
+async function waitSaved(page: Page) {
+  await page.waitForTimeout(900);
+  await expect(page.locator('.sync-saving, .sync-error')).toHaveCount(0);
+}
 async function editor(page: Page) {
   await page.goto('/budget/new');
   await expect(page.getByLabel('Nombre del cliente', { exact: true })).toBeVisible();
@@ -1698,7 +1703,7 @@ test('single catalog redirects old routes, saves edits and isolates accounts', a
   }
   await page.getByLabel('Descripción', { exact: true }).fill('Tarifa revisada');
   await page.getByRole('spinbutton', { name: 'Coste', exact: true }).fill('6.75');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue('Tarifa revisada');
   await page.screenshot({
@@ -1710,7 +1715,7 @@ test('single catalog redirects old routes, saves edits and isolates accounts', a
   await page.screenshot({ path: 'docs/testing-evidence/bg008-catalog-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByLabel('Descripción', { exact: true }).fill('Pintura interior (dos manos)');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue(
     'Pintura interior (dos manos)',
@@ -1761,7 +1766,7 @@ test('single catalog initializes automatically and search is accent insensitive 
   await expect(page.getByLabel('Descripción de la partida', { exact: true })).toHaveValue(
     'Partida de prueba',
   );
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await search.fill('Partida de prueba');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(1);
@@ -1873,7 +1878,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Completa o elimina');
   await page.getByRole('spinbutton', { name: 'Cant.', exact: true }).fill('8');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByRole('spinbutton', { name: 'Cant.', exact: true })).toHaveValue('8');
   await expect(page.getByRole('spinbutton', { name: 'Precio', exact: true })).toHaveValue('');
@@ -3368,7 +3373,7 @@ test('imports and exports BC3 in catalog, budgets and templates without a separa
   await dialog.getByRole('button', { name: 'Crear plantilla' }).click();
   await expect(page).toHaveURL(/\/templates\/(?!new)[^/]+$/);
   const templateText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
-  expect(templateText).toContain('~C|PLANTILLA##');
+  expect(templateText).toContain('|Reforma de vivienda\\PRECIO|ANSI|');
   expect(templateText).toContain('E02ALI');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/budgets');
