@@ -9,7 +9,15 @@ import {
 import { colorFor, useWorkforceStore } from '@/entities/workforce';
 import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
 import type { ProjectDetail } from '@/entities/project';
-import { Button, Card, Modal, OfflineUnavailable, PageLink } from '@/shared/ui';
+import {
+  Alert,
+  Button,
+  buttonClassName,
+  Card,
+  Modal,
+  OfflineUnavailable,
+  PageLink,
+} from '@/shared/ui';
 import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
 
 interface ProjectTeamAssignmentsProps {
@@ -119,7 +127,7 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
           <div className="flex flex-wrap gap-2">
             <PageLink
               to="/team"
-              className="inline-flex min-h-11 items-center rounded-full border border-line-strong px-4 text-sm font-medium text-primary hover:bg-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              className={buttonClassName({ variant: 'outline', className: 'rounded-full px-4' })}
             >
               Gestionar equipo
             </PageLink>
@@ -135,25 +143,28 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
         </div>
 
         {loadError ? (
-          <div className="mt-4 rounded-xl bg-danger-surface p-4">
-            <p role="alert" className="text-sm text-danger-ink">
-              {loadError}
-            </p>
-            <Button
-              variant="ghost"
-              className="mt-2"
-              onClick={() => {
-                setLoadFailure(null);
-                if (uid)
-                  void loadWorkforce(uid).catch((error: unknown) => {
-                    reportNetworkUnavailable(error);
-                    setLoadFailure({ uid, error: errorText(error) });
-                  });
-              }}
-            >
-              Reintentar
-            </Button>
-          </div>
+          <Alert
+            tone="danger"
+            className="mt-4"
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setLoadFailure(null);
+                  if (uid)
+                    void loadWorkforce(uid).catch((error: unknown) => {
+                      reportNetworkUnavailable(error);
+                      setLoadFailure({ uid, error: errorText(error) });
+                    });
+                }}
+              >
+                Reintentar
+              </Button>
+            }
+          >
+            {loadError}
+          </Alert>
         ) : !ready && online ? (
           <p className="mt-5 text-sm text-ink-subtle" role="status">
             Cargando personas y cuadrillas…

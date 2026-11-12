@@ -16,6 +16,7 @@ import { money, taskAmount } from '@/shared/lib/budgetMath';
 import {
   Button,
   Card,
+  Field,
   Input,
   Modal,
   OfflineUnavailable,
@@ -566,49 +567,57 @@ export function ProjectDetailPage() {
                 });
               }}
             >
-              <label className="block text-xs font-semibold text-ink-soft sm:col-span-2">
-                Partida imprevista
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  value={supplementDescription}
-                  onChange={(event) => setSupplementDescription(event.target.value)}
-                  maxLength={300}
-                  required
-                />
-              </label>
-              <label className="block text-xs font-semibold text-ink-soft">
-                Cantidad
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={supplementQuantity}
-                  onChange={(event) => setSupplementQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="block text-xs font-semibold text-ink-soft">
-                Unidad
-                <UnitField
-                  label="Unidad"
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  value={supplementUnit}
-                  onChange={setSupplementUnit}
-                />
-              </label>
-              <label className="block text-xs font-semibold text-ink-soft sm:col-span-2">
-                Precio unitario sin IVA
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={supplementUnitPrice}
-                  onChange={(event) => setSupplementUnitPrice(event.target.value)}
-                  required
-                />
-              </label>
+              <Field label="Partida imprevista" className="sm:col-span-2">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    value={supplementDescription}
+                    onChange={(event) => setSupplementDescription(event.target.value)}
+                    maxLength={300}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Cantidad">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    value={supplementQuantity}
+                    onChange={(event) => setSupplementQuantity(event.target.value)}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Unidad">
+                {(control) => (
+                  <UnitField
+                    id={control.id}
+                    label="Unidad"
+                    className="ui-control"
+                    value={supplementUnit}
+                    onChange={setSupplementUnit}
+                  />
+                )}
+              </Field>
+              <Field label="Precio unitario sin IVA" className="sm:col-span-2">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={supplementUnitPrice}
+                    onChange={(event) => setSupplementUnitPrice(event.target.value)}
+                    required
+                  />
+                )}
+              </Field>
               <p className="text-xs leading-5 text-ink-muted sm:col-span-2">
                 Se aplica el IVA del presupuesto aceptado. El precio no vuelve a recibir el ajuste
                 global del presupuesto.
@@ -672,16 +681,18 @@ export function ProjectDetailPage() {
                               });
                             }}
                           >
-                            <label className="block text-xs font-semibold text-ink-soft">
-                              Motivo de anulación
-                              <input
-                                className="mt-1.5 min-h-11 w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                                value={voidReason}
-                                onChange={(event) => setVoidReason(event.target.value)}
-                                maxLength={500}
-                                required
-                              />
-                            </label>
+                            <Field label="Motivo de anulación">
+                              {(control) => (
+                                <input
+                                  {...control}
+                                  className="ui-control"
+                                  value={voidReason}
+                                  onChange={(event) => setVoidReason(event.target.value)}
+                                  maxLength={500}
+                                  required
+                                />
+                              )}
+                            </Field>
                             <Button
                               type="submit"
                               variant="secondary"

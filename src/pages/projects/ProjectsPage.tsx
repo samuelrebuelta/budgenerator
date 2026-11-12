@@ -1,8 +1,15 @@
 import { ArrowRight, FolderOpen, UsersRound } from 'lucide-react';
 import { ProjectProgressBar, ProjectStatusTag, useProjectStore } from '@/entities/project';
 import { formatCurrency } from '@/shared/lib';
-import { Button, PageHeader, PageLink, Skeleton } from '@/shared/ui';
-import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
+import {
+  Button,
+  buttonClassName,
+  EmptyState,
+  OfflineUnavailable,
+  PageHeader,
+  PageLink,
+  Skeleton,
+} from '@/shared/ui';
 import { useNetworkStore } from '@/shared/model/network';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
@@ -29,7 +36,7 @@ export function ProjectsPage() {
           <div className="flex flex-wrap gap-2">
             <PageLink
               to="/team"
-              className="ui-button inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line-strong bg-white px-4 py-2 text-sm font-medium text-ink-strong hover:bg-brand-50"
+              className={buttonClassName({ variant: 'outline', className: 'rounded-full px-4' })}
             >
               <UsersRound size={17} aria-hidden="true" />
               Equipo
@@ -52,23 +59,17 @@ export function ProjectsPage() {
       ) : !loaded && projects.length === 0 ? (
         <OfflineUnavailable />
       ) : projects.length === 0 ? (
-        <section
-          className="rounded-xl bg-canvas px-6 py-10 sm:px-10"
-          aria-labelledby="empty-projects"
-        >
-          <FolderOpen size={28} className="mb-5 text-ink-strong" aria-hidden="true" />
-          <h2 id="empty-projects" className="mb-2 text-xl font-semibold text-ink">
-            Aquí aparecerán tus proyectos
-          </h2>
-          <p className="mb-5 max-w-xl text-sm leading-6 text-ink-muted">
-            Cuando un cliente acepte un presupuesto, conviértelo en proyecto para marcar los
-            partidas terminadas y consultar el avance.
-          </p>
-          <Button variant="secondary" onClick={() => navigate('/budgets')}>
-            Ver presupuestos
-            <ArrowRight size={16} />
-          </Button>
-        </section>
+        <EmptyState
+          icon={FolderOpen}
+          title="Aquí aparecerán tus proyectos"
+          description="Cuando un cliente acepte un presupuesto, conviértelo en proyecto para marcar los partidas terminadas y consultar el avance."
+          action={
+            <Button variant="secondary" onClick={() => navigate('/budgets')}>
+              Ver presupuestos
+              <ArrowRight size={16} />
+            </Button>
+          }
+        />
       ) : (
         <section aria-label="Lista de proyectos" className="space-y-3">
           {projects.map((project) => (
