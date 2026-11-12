@@ -4,7 +4,7 @@ SPA de presupuestos para profesionales: React 19, TypeScript strict, Vite, Tailw
 
 ## Punto de entrada
 
-Lee el [plan vigente](docs/plan.md) para conocer el estado y los pendientes; el [histórico](docs/plan-history.md) sirve para rastrear una decisión o entrega. Abre los archivos afectados y sigue solo la fila que corresponda:
+Lee el [plan vigente](docs/plan.md) para conocer el estado y los pendientes; el [histórico](docs/archive/plan-history.md) sirve para rastrear una decisión o entrega. Abre los archivos afectados y sigue solo la fila que corresponda:
 
 | Si la tarea afecta a                         | Lee primero                                                                                                                                     |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,7 +16,7 @@ Lee el [plan vigente](docs/plan.md) para conocer el estado y los pendientes; el 
 | Rendimiento o PDF                            | [Rendimiento](docs/performance.md) o [Exportación PDF](docs/pdf-export.md)                                                                      |
 | Pruebas y publicación                        | [Pruebas y despliegue](docs/testing.md) y los scripts de `package.json`                                                                         |
 
-Para un ajuste localizado basta la tarea, la fila pertinente y el código afectado. Para cambios transversales, añade la spec correspondiente en `docs/specs/` o `docs/superpowers/specs/`. Amplía la lectura cuando haya dependencias, contradicciones o riesgo. En revisiones, usa `context-aware-pr-review` si está disponible. Las skills del proyecto están en `.agents/skills/` (`verify`, `spec-new`, `rules-change`, `doc-sync`). `docs/analysis/` y el histórico no describen el estado actual: léelos solo para trazabilidad.
+Para un ajuste localizado basta la tarea, la fila pertinente y el código afectado. Para cambios transversales, añade la spec correspondiente en `docs/specs/` (plantilla en `docs/specs/_template.md`, índice en `docs/specs/README.md`). Amplía la lectura cuando haya dependencias, contradicciones o riesgo. En revisiones, usa `context-aware-pr-review` si está disponible. Las skills del proyecto están en `.agents/skills/` (`verify`, `spec-new`, `rules-change`, `doc-sync`). `docs/analysis/` y el histórico no describen el estado actual: léelos solo para trazabilidad.
 
 ## Arquitectura y convenciones
 

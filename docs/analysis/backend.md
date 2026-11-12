@@ -2,7 +2,7 @@
 
 Fecha: 11-11-2026. Revisión de `main` en `59d00d2` (worktree `claude/project-analysis-improvement-914b89`).
 Alcance: Cloud Functions (`functions/`), `firestore.rules`, `firestore.indexes.json`, configuración Firebase, scripts de despliegue, CI y la capa de acceso a datos del cliente (`src/entities/*/api`, `src/shared/firebase`).
-No se ha consultado ni modificado producción. La [auditoría de 04-10-2026](../project-analysis.md) no se repite; la sección 9 indica qué sigue pendiente de ella.
+No se ha consultado ni modificado producción. La [auditoría de 04-10-2026](../archive/project-analysis.md) no se repite; la sección 9 indica qué sigue pendiente de ella.
 
 ## Verificaciones ejecutadas
 

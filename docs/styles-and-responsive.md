@@ -66,7 +66,7 @@ ESLint rechaza colores hex arbitrarios en las carpetas ya migradas (`src/app`, `
 
 ## Base visual y responsive
 
-budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y los tokens de `src/app/styles/tokens.css`. La identidad visual se documenta en design-proposal.md: petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
+budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y los tokens de `src/app/styles/tokens.css`. La identidad visual se documenta en [la propuesta visual archivada](archive/design-proposal.md): petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
 
 La shell tiene navegación lateral en escritorio y navegación inferior bajo 800 px únicamente en las cuatro rutas raíz `/budgets`, `/projects`, `/team` y `/profile/solicitudes`. En móvil, el header queda sticky bajo el área segura. Las tabs raíz muestran la marca y el acceso al menú de cuenta; las páginas secundarias ocultan ambos y suben el `BackButton` al header, junto al estado de guardado. Debajo queda el título y subtítulo alineados a la izquierda, dentro del contenido desplazable; las acciones de página usan una fila propia. El indicador de guardado conserva un espacio fijo de 32 px para no mover los controles al comenzar o terminar una escritura. El catálogo está en el menú, debajo de Mi empresa. Las demás opciones de empresa, cuenta, ayuda, cierre de sesión y administración se conservan en el menú; escritorio mantiene los accesos laterales de cuenta y ayuda. El panel usa una tarjeta completa para el valor monetario en móvil, evitando recortar importes. El editor conserva tabla en escritorio y cards bajo el breakpoint sm de Tailwind (640 px).
 
