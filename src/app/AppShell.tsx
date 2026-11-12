@@ -1,20 +1,6 @@
 import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  FileText,
-  BookOpen,
-  LayoutTemplate,
-  Building2,
-  UsersRound,
-  Inbox,
-  Calculator,
-  CircleUserRound,
-  ShieldCheck,
-  LogOut,
-  ArrowUpRight,
-  CircleHelp,
-  Briefcase,
-} from 'lucide-react';
+import { ArrowUpRight, LogOut } from 'lucide-react';
 import { Brand } from '@/shared/ui/Brand';
 import {
   ConfirmModal,
@@ -35,29 +21,47 @@ import {
   completeCurrentDeviceSignOut,
   revokeCurrentDeviceBeforeSignOut,
 } from '@/features/notifications/model/push';
-const links = [
-  ['/budgets', 'Presupuestos', FileText],
-  ['/projects', 'Proyectos', Briefcase],
-  ['/team', 'Equipo', UsersRound],
-  ['/profile/solicitudes', 'Solicitudes', Inbox],
-] as const;
+import {
+  ACCOUNT_LINKS,
+  ADMIN_LINK,
+  activeTabFor,
+  COMPANY_LINKS,
+  isPrimaryTab,
+  PRIMARY_TABS,
+  sectionTitle,
+  type NavigationLink,
+} from './navigation';
+
+function MenuLink({
+  link,
+  state,
+  onNavigate,
+}: {
+  link: NavigationLink;
+  state?: { returnTab: string };
+  onNavigate: () => void;
+}) {
+  const Icon = link.icon;
+  return (
+    <PageLink className="nav-item" to={link.to} state={state} onClick={onNavigate}>
+      <Icon size={18} aria-hidden="true" />
+      {link.label}
+    </PageLink>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isCatalogPage = location.pathname.replace(/\/+$/, '') === '/catalog';
-  const activePath = links.find(
-    ([path]) =>
-      location.pathname === path ||
-      location.pathname.startsWith(path + '/') ||
-      (path === '/budgets' && location.pathname.startsWith('/budget/')),
-  )?.[0];
+  const activePath = activeTabFor(location.pathname);
   const menuReturnTab = activePath ?? getPageReturnTab(location.state);
   const menuNavigationState = menuReturnTab ? { returnTab: menuReturnTab } : undefined;
-  const isPrimaryTabPage = links.some(([path]) => location.pathname.replace(/\/+$/, '') === path);
+  const isPrimaryTabPage = isPrimaryTab(location.pathname);
   const showMobileNav = isPrimaryTabPage;
   const isSecondaryPage = !isPrimaryTabPage;
   useLayoutEffect(() => {
     if (
-      links.some(([path]) => path === location.pathname) ||
+      PRIMARY_TABS.some(({ to }) => to === location.pathname) ||
       isCatalogPage ||
       location.pathname === '/estimator'
     ) {
@@ -117,14 +121,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <p className="nav-caption">NAVEGACIÓN</p>
           <nav aria-label="Navegación principal">
-            {links.map(([path, label, Icon]) => (
+            {PRIMARY_TABS.map(({ to, label, icon: Icon }) => (
               <Link
-                key={path}
-                to={path}
-                className={`nav-item ${path === activePath ? 'active' : ''}`}
-                aria-current={path === activePath ? 'page' : undefined}
+                key={to}
+                to={to}
+                className={`nav-item ${to === activePath ? 'active' : ''}`}
+                aria-current={to === activePath ? 'page' : undefined}
               >
-                <Icon size={19} />
+                <Icon size={19} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             ))}
@@ -136,31 +140,32 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to="/admin"
                 aria-current={location.pathname === '/admin' ? 'page' : undefined}
               >
-                <ShieldCheck size={18} />
-                Panel de administración
+                <ADMIN_LINK.icon size={18} aria-hidden="true" />
+                {ADMIN_LINK.label}
               </PageLink>
             </div>
           )}
           <div className="sidebar-bottom">
-            <PageLink
-              className="nav-item"
-              to="/account"
-              aria-current={location.pathname.startsWith('/account') ? 'page' : undefined}
-            >
-              <CircleUserRound size={18} />
-              Mi cuenta
-              <ArrowUpRight size={14} className="ml-auto" />
-            </PageLink>
-            <PageLink
-              className="nav-item"
-              to="/help"
-              aria-current={location.pathname === '/help' ? 'page' : undefined}
-            >
-              <CircleHelp size={18} />
-              Ayuda
-            </PageLink>
-            <button className="nav-item w-full" onClick={() => setLogout(true)}>
-              <LogOut size={18} />
+            {ACCOUNT_LINKS.map(({ to, label, icon: Icon }) => (
+              <PageLink
+                key={to}
+                className="nav-item"
+                to={to}
+                aria-current={
+                  location.pathname === to || location.pathname.startsWith(`${to}/`)
+                    ? 'page'
+                    : undefined
+                }
+              >
+                <Icon size={18} aria-hidden="true" />
+                {label}
+                {to === '/account' && (
+                  <ArrowUpRight size={14} className="ml-auto" aria-hidden="true" />
+                )}
+              </PageLink>
+            ))}
+            <button type="button" className="nav-item w-full" onClick={() => setLogout(true)}>
+              <LogOut size={18} aria-hidden="true" />
               Cerrar sesión
             </button>
             <p className="sidebar-edition">BUDGENERATOR</p>
@@ -172,29 +177,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link className="mobile-brand" to="/projects" aria-label="budgenerator, inicio">
               <Brand />
             </Link>
-            <span className="desktop-greeting">
-              {links.find(([path]) => path === activePath)?.[1] ??
-                (location.pathname.startsWith('/account')
-                  ? 'Mi cuenta'
-                  : location.pathname.startsWith('/profile')
-                    ? 'Mi empresa'
-                    : isCatalogPage
-                      ? 'Catálogo'
-                      : location.pathname === '/help'
-                        ? 'Ayuda'
-                        : location.pathname.startsWith('/templates')
-                          ? 'Plantillas de presupuestos'
-                          : location.pathname.startsWith('/estimator')
-                            ? 'Estimador público'
-                            : location.pathname === '/team'
-                              ? 'Equipo'
-                              : location.pathname.startsWith('/admin')
-                                ? 'Panel de administración'
-                                : 'BudGenerator')}
-            </span>
+            <span className="desktop-greeting">{sectionTitle(location.pathname)}</span>
             <div className="workspace-actions">
               <SyncStatus />
               <button
+                type="button"
                 className="account-chip account-menu-trigger"
                 onClick={() => setMenu(true)}
                 aria-label="Abrir menú de cuenta"
@@ -224,7 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Navegación móvil"
             data-keyboard-open={keyboardOpen}
           >
-            {links.map(([path, label, Icon]) => (
+            {PRIMARY_TABS.map(({ to: path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
@@ -241,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={path === activePath ? 'active' : undefined}
                 aria-current={path === activePath ? 'page' : undefined}
               >
-                <Icon size={20} />
+                <Icon size={20} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             ))}
@@ -251,84 +238,43 @@ export function AppShell({ children }: { children: ReactNode }) {
           {account?.accountData.isAdmin && (
             <section className="account-menu-section" aria-label="Administración">
               <h2 className="account-menu-heading">Administración</h2>
-              <PageLink
-                className="nav-item"
-                to="/admin"
+              <MenuLink
+                link={ADMIN_LINK}
                 state={menuNavigationState}
-                onClick={() => setMenu(false)}
-              >
-                <ShieldCheck size={18} />
-                Panel de administración
-              </PageLink>
+                onNavigate={() => setMenu(false)}
+              />
             </section>
           )}
           <section className="account-menu-section" aria-label="Empresa y herramientas">
             <h2 className="account-menu-heading">Empresa y herramientas</h2>
-            <PageLink
-              className="nav-item"
-              to="/profile"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <Building2 size={18} />
-              Mi empresa
-            </PageLink>
-            <PageLink
-              className="nav-item"
-              to="/catalog"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <BookOpen size={18} />
-              Catálogo
-            </PageLink>
-            <PageLink
-              className="nav-item"
-              to="/templates"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <LayoutTemplate size={18} />
-              Plantillas de presupuestos
-            </PageLink>
-            <PageLink
-              className="nav-item"
-              to="/estimator"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <Calculator size={18} />
-              Estimador público
-            </PageLink>
+            {COMPANY_LINKS.map((link) => (
+              <MenuLink
+                key={link.to}
+                link={link}
+                state={menuNavigationState}
+                onNavigate={() => setMenu(false)}
+              />
+            ))}
           </section>
           <section className="account-menu-section" aria-label="Gestión de cuenta y ayuda">
             <h2 className="account-menu-heading">Gestión de cuenta y ayuda</h2>
-            <PageLink
-              className="nav-item"
-              to="/account"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <CircleUserRound size={18} />
-              Mi cuenta
-            </PageLink>
-            <PageLink
-              className="nav-item"
-              to="/help"
-              state={menuNavigationState}
-              onClick={() => setMenu(false)}
-            >
-              <CircleHelp size={18} />
-              Ayuda
-            </PageLink>
+            {ACCOUNT_LINKS.map((link) => (
+              <MenuLink
+                key={link.to}
+                link={link}
+                state={menuNavigationState}
+                onNavigate={() => setMenu(false)}
+              />
+            ))}
             <button
+              type="button"
               className="nav-item w-full"
               onClick={() => {
                 setMenu(false);
                 setLogout(true);
               }}
             >
-              <LogOut size={18} />
+              <LogOut size={18} aria-hidden="true" />
               Cerrar sesión
             </button>
           </section>

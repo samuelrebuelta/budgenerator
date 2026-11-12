@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { Project, ProjectAssignment } from '@/entities/project';
 import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
-import { Button, Modal } from '@/shared/ui';
+import { Alert, Button, Modal } from '@/shared/ui';
 import { colorFor } from '../model/crewColors';
+import { teamErrorMessage } from '../model/teamErrors';
 
 interface DailyProjectAssignmentsDialogProps {
   project: Project;
@@ -127,9 +128,7 @@ export function DailyProjectAssignmentsDialog({
       await onSave(draft);
     } catch (saveError) {
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'No se ha podido guardar la planificación de este día.',
+        teamErrorMessage(saveError, 'No se ha podido guardar la planificación de este día.'),
       );
     }
   };
@@ -140,9 +139,7 @@ export function DailyProjectAssignmentsDialog({
       await onReset();
     } catch (resetError) {
       setError(
-        resetError instanceof Error
-          ? resetError.message
-          : 'No se han podido restaurar las asignaciones del proyecto.',
+        teamErrorMessage(resetError, 'No se han podido restaurar las asignaciones del proyecto.'),
       );
     }
   };
@@ -156,16 +153,16 @@ export function DailyProjectAssignmentsDialog({
     >
       <form onSubmit={(event) => void submit(event)} className="space-y-5">
         <div>
-          <h2 className="text-xl font-semibold text-[#183e3b]">{project.title}</h2>
-          <p className="mt-1 text-sm text-[#637166]">
+          <h2 className="text-xl font-semibold text-ink-strong">{project.title}</h2>
+          <p className="mt-1 text-sm text-ink-subtle">
             {dateLabel}. Este cambio solo afecta a este día.
           </p>
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="mb-2 text-sm font-semibold text-[#263a32]">Cuadrillas</legend>
+          <legend className="mb-2 text-sm font-semibold text-ink">Cuadrillas</legend>
           {crews.length === 0 && (
-            <p className="text-sm text-[#637166]">No hay cuadrillas registradas.</p>
+            <p className="text-sm text-ink-subtle">No hay cuadrillas registradas.</p>
           )}
           {crews.map((crew) => {
             const crewAssignmentItem = draft.find(
@@ -185,7 +182,7 @@ export function DailyProjectAssignmentsDialog({
             );
 
             return (
-              <div key={crew.id} className="rounded-xl border border-[#e1e6df] p-3">
+              <div key={crew.id} className="rounded-xl border border-line p-3">
                 <label className="flex min-h-10 cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
@@ -201,12 +198,14 @@ export function DailyProjectAssignmentsDialog({
                     {crew.label}
                   </span>
                   {crew.status === 'inactive' && (
-                    <span className="text-xs text-[#68756e]">Inactiva</span>
+                    <span className="text-xs text-ink-subtle">Inactiva</span>
                   )}
                 </label>
                 {isSelected && (
-                  <div className="ml-7 mt-2 space-y-1 border-l border-[#d7ded7] pl-3">
-                    <p className="text-xs font-semibold text-[#637166]">Personas de la cuadrilla</p>
+                  <div className="ml-7 mt-2 space-y-1 border-l border-line pl-3">
+                    <p className="text-xs font-semibold text-ink-subtle">
+                      Personas de la cuadrilla
+                    </p>
                     {crewMembers.map((member) => {
                       const included =
                         crewAssignmentItem?.members.some((item) => item.id === member.id) ?? false;
@@ -234,9 +233,9 @@ export function DailyProjectAssignmentsDialog({
         </fieldset>
 
         <fieldset className="space-y-1">
-          <legend className="mb-2 text-sm font-semibold text-[#263a32]">Personas</legend>
+          <legend className="mb-2 text-sm font-semibold text-ink">Personas</legend>
           {availableMembers.length === 0 && (
-            <p className="text-sm text-[#637166]">No hay personas individuales disponibles.</p>
+            <p className="text-sm text-ink-subtle">No hay personas individuales disponibles.</p>
           )}
           {availableMembers.map((member) => {
             const isSelected = draft.some(
@@ -252,22 +251,18 @@ export function DailyProjectAssignmentsDialog({
                   disabled={member.status !== 'active' && !isSelected}
                   onChange={(event) => toggleMember(member, event.target.checked)}
                 />
-                <span className="text-sm font-medium text-[#263a32]">{member.name}</span>
+                <span className="text-sm font-medium text-ink">{member.name}</span>
                 {member.status === 'inactive' && (
-                  <span className="text-xs text-[#68756e]">Inactiva</span>
+                  <span className="text-xs text-ink-subtle">Inactiva</span>
                 )}
               </label>
             );
           })}
         </fieldset>
 
-        {error && (
-          <p className="rounded-lg bg-[#fff5f2] p-3 text-sm text-[#8a3f30]" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <Alert tone="danger">{error}</Alert>}
 
-        <div className="flex flex-wrap justify-between gap-2 border-t border-[#e7e5dc] pt-4">
+        <div className="flex flex-wrap justify-between gap-2 border-t border-line pt-4">
           {hasOverride ? (
             <Button variant="ghost" type="button" disabled={saving} onClick={() => void reset()}>
               Restablecer predeterminados

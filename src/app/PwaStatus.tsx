@@ -4,6 +4,7 @@ import { withTimeout } from '@/shared/model/session';
 import { flushWrites, hasPendingWrites } from '@/shared/model/sync';
 import { useAuthStore } from '@/entities/auth';
 import { LoadingSpinner } from '@/shared/ui/LoadingSpinner';
+import { toUserMessage } from '@/shared/lib/errors';
 import { setNetworkOnline, useNetworkStore } from '@/shared/model/network';
 import {
   loadedSessionModule,
@@ -85,7 +86,7 @@ export function PwaStatus() {
         update.waiting.postMessage({ type: 'SKIP_WAITING' });
       } else location.reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se puede actualizar todavía.');
+      setError(toUserMessage(e, 'No se puede actualizar todavía.'));
       setRefreshing(false);
     }
   };

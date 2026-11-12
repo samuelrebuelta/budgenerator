@@ -8,6 +8,7 @@ import {
   withTimeout,
 } from '@/shared/model/session';
 import { useSyncStore, flushWrites, hasPendingWrites } from '@/shared/model/sync';
+import { toUserMessage } from '@/shared/lib/errors';
 import { useBudgetStore, resetBudgetStore } from '@/entities/budget/model/store';
 import { useCatalogStore, resetCatalogStore } from '@/entities/catalog/model/store';
 import { useProfileStore, resetProfileStore } from '@/entities/profile/model/store';
@@ -110,9 +111,7 @@ export function loadSession(
           error:
             offline || sessionWasReady
               ? null
-              : error instanceof Error
-                ? error.message
-                : 'No hemos podido abrir tu espacio de trabajo.',
+              : toUserMessage(error, 'No hemos podido abrir tu espacio de trabajo.'),
         });
       }
     } finally {

@@ -116,18 +116,6 @@ select:focus,
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
-.app-tour-close {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  flex: none;
-  border-radius: var(--radius-pill); /* capsule, as every button */
-  color: var(--color-ink-muted);
-}
-.app-tour-close:hover {
-  background: var(--color-canvas);
-}
 .app-tour-description {
   margin: 12px 0 16px;
   color: var(--color-ink-soft);

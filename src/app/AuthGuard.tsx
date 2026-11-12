@@ -9,7 +9,7 @@ import { useNetworkStore } from '@/shared/model/network';
 function OfflineRestoreStatus() {
   return (
     <main className="flex min-h-dvh items-center justify-center px-6 text-center">
-      <p className="text-sm text-[#52625a]" role="status" aria-live="polite">
+      <p className="text-sm text-ink-muted" role="status" aria-live="polite">
         Abriendo la última copia guardada…
       </p>
     </main>
