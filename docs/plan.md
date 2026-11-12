@@ -9,6 +9,8 @@ Actualizado el 09-11-2026. Para trabajar en una tarea, consulta el área corresp
 - **BG-007 a BG-009.** UX, catálogo único, creación guiada y seguimiento de proyectos integrados. Queda como seguimiento opcional comprobar teclado, área segura y gestos en PWA física.
 - **BG-011 y BG-012.** Planificación semanal, gestión de equipo, consulta offline y refresco al recuperar conexión integrados y desplegados. La [especificación offline](specs/BG-012-modo-offline.md) describe el contrato.
 
+- **Endurecimiento del back (12-11-2026).** En `claude/backend-hardening`, sin desplegar: despliegue con guardarraíles y alias de staging, Functions en `europe-southwest1` con Node 24, App Check en observación, límites anti-abuso, verificación de email, borrado y exportación de cuenta, retención de leads y enlaces, admin por custom claim, textos legales plantilla, logo comprimido, push multiplataforma y logs estructurados. Pendiente: tareas de consola y orden de publicación en [Firebase](firebase.md#tareas-del-propietario-en-consola-o-gcloud) y [Estabilización](stability-and-release.md#endurecimiento-del-back-12-11-2026).
+
 ## Trabajo futuro y decisiones
 
 - **BC3.** Trabajo futuro, fuera de `main`. Hay una implementación en la rama `codex/bc3-native-model`. Consultar su estado y el [plan BC3](superpowers/plans/2026-10-19-bc3-intercambio.md) al retomar la tarea.

@@ -61,10 +61,29 @@ test.beforeAll(async () => {
     if (!data.localId) throw Error('Unable to seed auth emulator');
     return data.localId;
   };
+  // Seeded accounts are verified; the primary one is admin through the custom claim.
+  const markAccount = async (localId: string, claims?: Record<string, unknown>) => {
+    const response = await fetch(
+      `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/projects/${project}/accounts:update`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+        body: JSON.stringify({
+          localId,
+          emailVerified: true,
+          ...(claims ? { customAttributes: JSON.stringify(claims) } : {}),
+        }),
+      },
+    );
+    if (!response.ok) throw Error('Unable to update auth emulator account');
+  };
   const uid = await account(email);
+  await markAccount(uid, { admin: true });
   primaryUid = uid;
   const otherUid = await account('other@example.test');
   const quotaUid = await account('quota@example.test');
+  await markAccount(otherUid);
+  await markAccount(quotaUid);
   const env = await initializeTestEnvironment({
     projectId: project,
     firestore: {
@@ -178,7 +197,8 @@ test.beforeAll(async () => {
     });
     await setDoc(doc(db, 'users', uid, 'profile', 'data'), {
       name: 'Estudio Roble',
-      logo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="40"%3E%3Crect width="120" height="40" fill="%2324564c"/%3E%3C/svg%3E',
+      // 120×40 WebP, the format produced by the logo compressor and accepted by Rules.
+      logo: 'data:image/webp;base64,UklGRkgAAABXRUJQVlA4IDwAAADwAwCdASp4ACgAPm02mUmkIqKhIWgAgA2JaQAAEOc2bNmzZs2bNmx4AP7xlXxHb/6Fesvvp+4AAAAAAAA=',
       cif: 'B00000000',
       address: 'Dirección de demostración',
       phone: '',
@@ -906,7 +926,10 @@ test('new registrations include the budget-core tour and allow replay', async ({
   await page.getByRole('button', { name: '¿No tienes cuenta? Regístrate' }).click();
   await page.getByLabel('Email', { exact: true }).fill('new-account-tour@example.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Tour-Prueba-2026');
-  await page.getByRole('button', { name: 'Registrarse', exact: true }).click();
+  const register = page.getByRole('button', { name: 'Registrarse', exact: true });
+  await expect(register).toBeDisabled();
+  await page.getByRole('checkbox', { name: /acepto las condiciones de uso/ }).check();
+  await register.click();
 
   const tour = page.locator('[data-app-tour]');
   await expect(page).toHaveURL(/\/budgets$/);
