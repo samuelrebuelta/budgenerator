@@ -4,8 +4,16 @@ export interface NotificationPreferences {
   pushEnabled: boolean;
 }
 
-export type PushDeviceRegistration =
-  { installationId: string; fid: string } | { installationId: string; registrationToken: string };
+export const PUSH_PLATFORMS = ['web', 'ios', 'android'] as const;
+export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
+
+export type PushDeviceRegistration = (
+  { installationId: string; fid: string } | { installationId: string; registrationToken: string }
+) & { platform: PushPlatform };
+
+export function isPushPlatform(value: unknown): value is PushPlatform {
+  return typeof value === 'string' && (PUSH_PLATFORMS as readonly string[]).includes(value);
+}
 
 export const MAX_PUSH_DEVICES = 10;
 const installationIdPattern =
@@ -38,6 +46,13 @@ function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]) {
   return Object.keys(value).length === keys.length && keys.every((key) => key in value);
 }
 
+/** Like `hasExactKeys`, but also accepts the optional `platform` key. */
+function hasDeviceKeys(value: Record<string, unknown>, keys: readonly string[]) {
+  return 'platform' in value
+    ? hasExactKeys(value, [...keys, 'platform'])
+    : hasExactKeys(value, keys);
+}
+
 export function parseNotificationPreferences(value: unknown): NotificationPreferences {
   const input = asRecord(value);
   const pushOnly = input && hasExactKeys(input, ['pushEnabled']);
@@ -58,20 +73,28 @@ export function parsePushDeviceRegistration(value: unknown): PushDeviceRegistrat
   ) {
     throw new HttpsError('invalid-argument', 'El dispositivo push no es válido.');
   }
+  // Web clients registered before the platform field existed omit it.
+  const platform = input.platform === undefined ? 'web' : input.platform;
+  if (!isPushPlatform(platform))
+    throw new HttpsError('invalid-argument', 'El dispositivo push no es válido.');
   if (
-    hasExactKeys(input, ['installationId', 'fid']) &&
+    hasDeviceKeys(input, ['installationId', 'fid']) &&
     typeof input.fid === 'string' &&
     input.fid.length >= 16 &&
     input.fid.length <= 128 &&
     visibleFidPattern.test(input.fid)
   ) {
-    return { installationId: input.installationId, fid: input.fid };
+    return { installationId: input.installationId, fid: input.fid, platform };
   }
   if (
-    hasExactKeys(input, ['installationId', 'registrationToken']) &&
+    hasDeviceKeys(input, ['installationId', 'registrationToken']) &&
     isValidRegistrationToken(input.registrationToken)
   ) {
-    return { installationId: input.installationId, registrationToken: input.registrationToken };
+    return {
+      installationId: input.installationId,
+      registrationToken: input.registrationToken,
+      platform,
+    };
   }
   throw new HttpsError('invalid-argument', 'El dispositivo push no es válido.');
 }

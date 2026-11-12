@@ -24,7 +24,10 @@ jobs:
       # functions/ tiene su propio lockfile; los tests de la raíz importan functions/src.
       - run: pnpm --dir functions install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm format:check
       - run: pnpm test
+      - run: pnpm build:functions
+      - run: pnpm test:notifications:emulator
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:integration
       - run: pnpm build

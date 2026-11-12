@@ -51,6 +51,8 @@ beforeEach(async () => {
 const alice = () => env.authenticatedContext('alice', { email: 'alice@example.test' }).firestore();
 const bob = () => env.authenticatedContext('bob', { email: 'bob@example.test' }).firestore();
 const admin = () =>
+  env.authenticatedContext('admin', { email: 'ops@example.test', admin: true }).firestore();
+const emailOnlyAdmin = () =>
   env.authenticatedContext('admin', { email: 'budgenerator@gmail.com' }).firestore();
 async function createWithCount(
   db: ReturnType<typeof alice>,
@@ -99,6 +101,30 @@ describe('protected identity and account privileges', () => {
       }),
     );
     await assertFails(updateDoc(doc(admin(), 'users', 'alice'), { 'accountData.isAdmin': true }));
+  });
+  it('trusts only the admin custom claim, not the email or the stored flag', async () => {
+    await assertFails(getDocs(collection(emailOnlyAdmin(), 'users')));
+    await assertFails(
+      updateDoc(doc(emailOnlyAdmin(), 'users', 'alice'), { 'accountData.plan': 'premium' }),
+    );
+  });
+  it('keeps private account content away from admins', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'projects', 'p1'), { id: 'p1' });
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'profile', 'data'), { name: 'A' });
+      await setDoc(doc(ctx.firestore(), 'users', 'alice', 'leads', 'l1'), { createdAt: 1 });
+    });
+    await assertSucceeds(getDoc(doc(admin(), 'users', 'alice')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'budgets', 'existing')));
+    await assertFails(getDocs(collection(admin(), 'users', 'alice', 'budgets')));
+    await assertFails(deleteDoc(doc(admin(), 'users', 'alice', 'budgets', 'existing')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'projects', 'p1')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'profile', 'data')));
+    await assertFails(getDoc(doc(admin(), 'users', 'alice', 'leads', 'l1')));
+  });
+  it('rejects account deletion from the client', async () => {
+    await assertFails(deleteDoc(doc(alice(), 'users', 'alice')));
+    await assertFails(deleteDoc(doc(admin(), 'users', 'alice')));
   });
   it('does not trust a previously forged role belonging to another email', async () => {
     await env.withSecurityRulesDisabled(async (ctx) =>

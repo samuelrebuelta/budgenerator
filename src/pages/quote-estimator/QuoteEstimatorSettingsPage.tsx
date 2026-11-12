@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Copy, ExternalLink, Minus, Plus, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
+import { EmailVerificationNotice } from '@/features/account';
 import { useProfileStore } from '@/entities/profile';
 import {
   CONFIGURABLE_ESTIMATOR_ROOMS,
@@ -386,6 +387,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
         backTo="/profile"
         backLabel="Volver a mi empresa"
       />
+
+      <EmailVerificationNotice reason="Hasta entonces no podrás guardar ni publicar el estimador." />
 
       {(hasSavedSettings || token) && (
         <Card className="mb-6 border-[#dfe9e3] bg-[#fbfdfb] p-5 sm:p-6">

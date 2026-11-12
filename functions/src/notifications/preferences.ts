@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type {
   NotificationPreferences,
@@ -14,14 +13,8 @@ import {
   parsePushDeviceRegistration,
 } from './contracts.js';
 import { skipPendingNotificationJobs } from './jobs.js';
-
-if (getApps().length === 0) initializeApp();
-const firestore = getFirestore();
-const serverFunctionOptions = {
-  region: 'europe-west1',
-  maxInstances: 10,
-  minInstances: 0,
-} as const;
+import { authCallableOptions } from '../core/config.js';
+import { firestore } from '../core/firebase.js';
 
 function preferencesRef(uid: string) {
   return firestore.doc(`users/${uid}/settings/notifications`);
@@ -222,8 +215,10 @@ export async function registerPushDevice(uid: string, value: unknown) {
           credentialType === 'registrationToken' ? credential : FieldValue.delete(),
         registrationTokenHash:
           credentialType === 'registrationToken' ? credentialHash : FieldValue.delete(),
+        platform: registration.platform,
         enabled: true,
         recoveryRequired: false,
+        unregisteredAt: FieldValue.delete(),
         createdAt: currentDeviceSnapshot.get('createdAt') ?? FieldValue.serverTimestamp(),
         lastSeenAt: FieldValue.serverTimestamp(),
       },
@@ -330,7 +325,4 @@ export async function markPushDeviceUnregistered(
   return marked;
 }
 
-export const notificationFunctionOptions = {
-  ...serverFunctionOptions,
-  invoker: 'public',
-} as const;
+export const notificationFunctionOptions = authCallableOptions;

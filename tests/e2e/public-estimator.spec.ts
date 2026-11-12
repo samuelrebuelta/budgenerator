@@ -6,6 +6,10 @@ const project = 'demo-cimbra';
 const email = 'estimator-owner@example.test';
 const password = 'Local-emulator-Only-2026';
 let ownerUid = '';
+const authEmulatorUrl = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199'}`;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 const previewPort = process.env.E2E_PREVIEW_PORT ?? '4173';
 
 test.beforeAll(async () => {
@@ -16,11 +20,11 @@ test.beforeAll(async () => {
   )
     throw new Error('Only local Firebase emulators are allowed.');
 
-  await fetch(`http://127.0.0.1:9199/emulator/v1/projects/${project}/accounts`, {
+  await fetch(`${authEmulatorUrl}/emulator/v1/projects/${project}/accounts`, {
     method: 'DELETE',
   });
   const response = await fetch(
-    'http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key',
+    `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,10 +34,20 @@ test.beforeAll(async () => {
   const account = (await response.json()) as { localId?: string };
   if (!account.localId) throw new Error('Unable to seed estimator account in Auth emulator.');
   ownerUid = account.localId;
+  // Publishing the estimator requires a verified email.
+  const verified = await fetch(
+    `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/projects/${project}/accounts:update`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ localId: ownerUid, emailVerified: true }),
+    },
+  );
+  if (!verified.ok) throw new Error('Unable to verify the estimator account in Auth emulator.');
 
   const env = await initializeTestEnvironment({
     projectId: project,
-    firestore: { host: '127.0.0.1', port: 8180 },
+    firestore: { host: firestoreEmulator.hostname, port: Number(firestoreEmulator.port || 8180) },
   });
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (context) => {
@@ -133,9 +147,9 @@ test('owner publishes a simplified public estimate and can revoke its token link
   page.on('response', (response) => {
     const url = response.url();
     if (
-      !url.includes('/europe-west1/getPublicEstimator') &&
-      !url.includes('/europe-west1/calculatePublicEstimate') &&
-      !url.includes('/europe-west1/submitPublicLead')
+      !url.includes('/europe-southwest1/getPublicEstimator') &&
+      !url.includes('/europe-southwest1/calculatePublicEstimate') &&
+      !url.includes('/europe-southwest1/submitPublicLead')
     )
       return;
     void response

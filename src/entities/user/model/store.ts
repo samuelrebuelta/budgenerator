@@ -10,6 +10,7 @@ import {
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { getBudgetSlotsUsed } from '@/shared/lib/utils';
 import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
+import { takeLegalAcceptance } from '@/shared/lib/legal';
 
 export { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
 import { FREE_BUDGET_LIMIT } from '@/shared/lib/utils';
@@ -57,7 +58,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         budgetSlotsReleased: 0,
         createdAt: new Date().toISOString(),
       };
-      await saveUserData(uid, data);
+      await saveUserData(uid, data, takeLegalAcceptance() ?? undefined);
     }
     if (isSessionCurrent(uid, revision)) set({ userData: data, loaded: true });
   },

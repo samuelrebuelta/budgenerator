@@ -5,6 +5,8 @@ import { CONTACT_EMAIL } from '@/shared/lib';
 import { Card, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 import { NotificationSettings } from '@/features/notifications';
+import { AccountDataSection, EmailVerificationNotice } from '@/features/account';
+import { LegalLinks } from '@/shared/ui/LegalLinks';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 export function AccountPage() {
@@ -26,6 +28,8 @@ export function AccountPage() {
           backLabel="Volver a proyectos"
         />
         <p className="text-sm text-gray-500 mb-6">{email}</p>
+
+        <EmailVerificationNotice />
 
         {/* Plan info */}
         {plan === 'premium' ? (
@@ -99,6 +103,9 @@ export function AccountPage() {
         </Card>
 
         <NotificationSettings />
+
+        <AccountDataSection />
+        <LegalLinks className="mt-6" />
       </div>
     </PageLayout>
   );

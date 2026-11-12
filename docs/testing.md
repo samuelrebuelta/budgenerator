@@ -2,7 +2,7 @@
 
 URL de producción: [https://budgenerator.web.app/](https://budgenerator.web.app/).
 
-Cuenta de administración para pruebas: `budgenerator@gmail.com`.
+Cuenta de administración para pruebas: `budgenerator@gmail.com`. Desde el endurecimiento del 12-11-2026 el panel de administración exige el custom claim `admin` (ver [Firebase](firebase.md#administración)); asígnalo con `scripts/set-admin-claim.mjs` antes de desplegar las reglas nuevas.
 
 La contraseña está en la [nota local de acceso](testing-access.local.md), excluida expresamente de Git. Esa nota es específica de esta máquina y no se distribuye al clonar el repositorio. Mantener las contraseñas fuera de los documentos versionados.
 
@@ -21,24 +21,43 @@ La aplicación se abre en [http://localhost:3000/](http://localhost:3000/). Requ
 
 ```bash
 pnpm lint
+pnpm format:check
 pnpm test
-pnpm test:integration
+pnpm test:rules:emulator          # reglas en emulador, puertos alternativos 48xxx
+pnpm test:notifications:emulator  # integración de Functions (avisos, cuenta, abuso, retención)
+pnpm test:integration             # reglas + navegador con Auth, Firestore y Functions
 pnpm build
 ```
 
-Comprobar los resultados de las cuatro validaciones. El script de despliegue incluye el build, pero no ejecuta lint ni las pruebas.
+`scripts/deploy.mjs` ejecuta por sí mismo lint, formato, unitarias, reglas y, si se despliegan Functions, su build e integración, y comprueba el bundle; la suite de navegador se confía a CI.
+
+### Emuladores en puertos alternativos
+
+`test:integration` y `firebase:emulators` usan los puertos por defecto de `firebase.json` (9199, 8180, 5001). Si están ocupados, copia `firebase.json` a `firebase.local-test.json` (ignorado por Git) con otros puertos y ejecuta, por ejemplo:
+
+```bash
+pnpm build:functions
+pnpm exec firebase emulators:exec --config firebase.local-test.json --project demo-cimbra \
+  --only auth,firestore,functions \
+  "FUNCTIONS_EMULATOR_HOST=127.0.0.1:47301 E2E_PREVIEW_PORT=47173 pnpm test:rules && \
+   FUNCTIONS_EMULATOR_HOST=127.0.0.1:47301 E2E_PREVIEW_PORT=47173 pnpm test:e2e"
+```
+
+`scripts/test-preview.mjs` propaga los puertos de Auth, Firestore y Functions al build de prueba y desactiva App Check. Los E2E marcan las cuentas sembradas como verificadas y dan el claim `admin` a la principal mediante la API del emulador.
 
 ## Desplegar en producción
 
 El proyecto de Firebase Hosting configurado en `.firebaserc` es `budgenerator`.
 
-Con el CLI de Firebase autenticado y permisos en ese proyecto:
+Con el CLI de Firebase autenticado y permisos en ese proyecto, desde `main` limpio y con CI en verde:
 
 ```bash
-pnpm firebase:deploy:all
+pnpm firebase:deploy:all     # hosting, rules, indexes y functions
+node scripts/deploy.mjs functions,rules   # objetivos concretos
+pnpm firebase:deploy:staging # cuando exista el proyecto de staging
 ```
 
-Este comando ejecuta `pnpm build` y despliega Hosting y reglas de Firestore. Después se puede probar el resultado en [Budgenerator](https://budgenerator.web.app/).
+El script valida y construye antes de desplegar; ver [Operación y despliegue](firebase.md#operación-y-despliegue). Después se puede probar el resultado en [Budgenerator](https://budgenerator.web.app/).
 
 La cuenta de administración de la aplicación no autentica al CLI de Firebase. El despliegue requiere la sesión de Google/Firebase del desarrollador con permisos sobre el proyecto.
 
