@@ -159,6 +159,11 @@
       "collectionGroup": "profile",
       "fieldPath": "logo",
       "indexes": []
+    },
+    {
+      "collectionGroup": "content",
+      "fieldPath": "data",
+      "indexes": []
     }
   ]
 }

@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { Save, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { useTemplateStore } from '@/entities/template';
+import { useBudgetStore, useActiveBudget, useActiveBudgetRecord } from '@/entities/budget';
+import { useTemplateStore, type TemplateRecord } from '@/entities/template';
+import { ExportBc3Button } from '@/features/bc3-exchange';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
 import { AddWorkItemButton } from '@/features/budget-editor/ui/AddWorkItemButton';
 import { BudgetSummary } from '@/features/budget-editor/ui/BudgetSummary';
@@ -17,7 +18,6 @@ import {
   OfflineUnavailable,
 } from '@/shared/ui';
 import { generateId } from '@/shared/lib';
-import type { BudgetTemplate } from '@/shared/types';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 import { useNetworkStore } from '@/shared/model/network';
@@ -32,7 +32,7 @@ function TemplateEditor({
   template,
 }: {
   templateId: string;
-  template: BudgetTemplate | null;
+  template: TemplateRecord | null;
 }) {
   const routerNavigate = useNavigate();
   const { navigateBack } = usePageNavigation();
@@ -40,20 +40,19 @@ function TemplateEditor({
 
   const templatesLoaded = useTemplateStore((s) => s.loaded);
   const online = useNetworkStore((s) => s.online);
-  const addTemplate = useTemplateStore((s) => s.addTemplate);
+  const createTemplateFrom = useTemplateStore((s) => s.createTemplateFrom);
   const updateTemplate = useTemplateStore((s) => s.updateTemplate);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
 
   const loadTemplateForEditing = useBudgetStore((s) => s.loadTemplateForEditing);
   const discardDraft = useBudgetStore((s) => s.discardDraft);
   const activeBudget = useActiveBudget();
+  const activeRecord = useActiveBudgetRecord();
 
   const updateInfo = useBudgetStore((s) => s.updateInfo);
   const templateName = activeBudget?.info.clientName ?? '';
   const [saveError, setSaveError] = useState('');
-  const [initialTemplate] = useState<BudgetTemplate>(
-    () => template ?? { id: '', name: '', workItems: [], createdAt: '' },
-  );
+  const [initialTemplate] = useState<TemplateRecord | null>(() => template);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -77,7 +76,7 @@ function TemplateEditor({
   useEffect(() => {
     loadTemplateForEditing(initialTemplate);
     return () => {
-      useBudgetStore.setState({ draftBudget: null, draftKey: null, draftDirty: false });
+      useBudgetStore.setState({ draft: null, draftKey: null, draftDirty: false });
     };
   }, [initialTemplate, loadTemplateForEditing]);
   const blocker = useBlocker(
@@ -102,26 +101,15 @@ function TemplateEditor({
     setSaving(true);
     setSaveError('');
     try {
-      if (isNew) {
-        await addTemplate({
-          id: newTemplateId.current,
-          name: templateName.trim() || t('templates.untitled'),
-          workItems: activeBudget.workItems,
-          adjustment: activeBudget.adjustment,
-          catalogId: activeBudget.catalogId,
-          ivaRate: activeBudget.ivaRate,
-          createdAt: new Date().toISOString(),
-        });
-      } else {
-        await updateTemplate({
-          ...template!,
-          name: templateName.trim() || template!.name,
-          workItems: activeBudget.workItems,
-          adjustment: activeBudget.adjustment,
-          catalogId: activeBudget.catalogId,
-          ivaRate: activeBudget.ivaRate,
-        });
-      }
+      if (!activeRecord) return;
+      const name =
+        templateName.trim() || (isNew ? t('templates.untitled') : template!.document.business.name);
+      const document = {
+        ...activeRecord.document,
+        business: { ...activeRecord.document.business, name },
+      };
+      if (isNew) await createTemplateFrom(document, name, newTemplateId.current);
+      else await updateTemplate(template!.id, document);
       discardDraft();
       navigateBack('/templates');
     } catch (e) {
@@ -195,10 +183,18 @@ function TemplateEditor({
                     {t('common.delete')}
                   </Button>
                 )}
-                <Button onClick={handleSave} loading={saving} className={isNew ? 'ml-auto' : ''}>
-                  <Save size={16} />
-                  {saving ? t('common.saving') : t('common.save')}
-                </Button>
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {!isNew && (
+                    <ExportBc3Button
+                      document={activeRecord?.document}
+                      name={`plantilla-${templateName || 'budgenerator'}`}
+                    />
+                  )}
+                  <Button onClick={handleSave} loading={saving}>
+                    <Save size={16} />
+                    {saving ? t('common.saving') : t('common.save')}
+                  </Button>
+                </div>
               </div>
             </div>
           </Card>

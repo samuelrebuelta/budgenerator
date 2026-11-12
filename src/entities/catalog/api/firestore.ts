@@ -1,90 +1,65 @@
-import {
-  collection,
-  runTransaction,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
-import type { Tariff, TariffCatalog } from '@/shared/types';
-import { catalogParts } from '../model/migrate';
 import { runNetworkMutation } from '@/shared/lib/networkMutation';
+import {
+  createInTransaction,
+  newRootFields,
+  readStoredDocument,
+  saveStoredDocument,
+} from '@/entities/construction-document/api/storage';
+import type { ConstructionDocument } from '@/entities/construction-document/model';
+import type { CatalogRecord } from '../model/record';
 
-function legacyTariffsCol(uid: string) {
-  return collection(db, 'users', uid, 'tariffs');
+/** The account has a single catalog document. */
+export const CATALOG_DOCUMENT_ID = 'main';
+
+export function catalogRef(uid: string) {
+  return doc(db, 'users', uid, 'catalog', CATALOG_DOCUMENT_ID);
 }
 
-function catalogsCol(uid: string) {
-  return collection(db, 'users', uid, 'tariffCatalogs');
+export async function fetchCatalog(uid: string): Promise<CatalogRecord | null> {
+  const stored = await readStoredDocument(catalogRef(uid));
+  if (!stored) return null;
+  const { root, document } = stored;
+  return {
+    id: root.id,
+    revision: root.revision,
+    createdAt: root.createdAt,
+    updatedAt: root.updatedAt,
+    document,
+  };
 }
 
-function activeCatalogDoc(uid: string) {
-  return doc(db, 'users', uid, 'settings', 'tariffCatalog');
-}
-
-export async function fetchLegacyTariffs(uid: string): Promise<Tariff[]> {
-  const snap = await getDocs(legacyTariffsCol(uid));
-  return snap.docs.map((d) => d.data() as Tariff);
-}
-
-export async function deleteLegacyTariffs(uid: string) {
-  const snap = await getDocs(legacyTariffsCol(uid));
-  const batch = writeBatch(db);
-  snap.docs.forEach((d) => batch.delete(d.ref));
-  await batch.commit();
-}
-
-export async function fetchTariffCatalogs(uid: string): Promise<TariffCatalog[]> {
-  const snap = await getDocs(catalogsCol(uid));
-  return snap.docs.map((d) => d.data() as TariffCatalog);
-}
-
-export async function saveTariffCatalog(uid: string, catalog: TariffCatalog) {
-  await runNetworkMutation(() => setDoc(doc(catalogsCol(uid), catalog.id), catalog));
-}
-
-export async function updateTariffCatalogDoc(
+/** Creates the catalog from a seed only if it does not exist yet (idempotent across tabs). */
+export async function ensureCatalog(
   uid: string,
-  catalogId: string,
-  data: Partial<TariffCatalog>,
-) {
-  await runNetworkMutation(() => updateDoc(doc(catalogsCol(uid), catalogId), data));
-}
-
-export async function deleteTariffCatalogDoc(uid: string, catalogId: string) {
-  await deleteDoc(doc(catalogsCol(uid), catalogId));
-}
-
-export async function fetchActiveTariffCatalogId(uid: string): Promise<string | null> {
-  const snap = await getDoc(activeCatalogDoc(uid));
-  if (!snap.exists()) return null;
-  const data = snap.data() as { activeCatalogId?: string | null };
-  return data.activeCatalogId ?? null;
-}
-
-export async function saveActiveTariffCatalogId(uid: string, catalogId: string | null) {
-  await runNetworkMutation(() =>
-    setDoc(activeCatalogDoc(uid), { activeCatalogId: catalogId }, { merge: true }),
+  seed: ConstructionDocument,
+): Promise<CatalogRecord> {
+  const existing = await fetchCatalog(uid);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  const created = await runNetworkMutation(() =>
+    runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(catalogRef(uid));
+      if (snap.exists()) return false;
+      createInTransaction(
+        transaction,
+        catalogRef(uid),
+        seed,
+        newRootFields(CATALOG_DOCUMENT_ID, seed, now),
+      );
+      return true;
+    }),
   );
+  if (created)
+    return { id: CATALOG_DOCUMENT_ID, revision: 1, createdAt: now, updatedAt: now, document: seed };
+  const record = await fetchCatalog(uid);
+  if (!record) throw new Error('No se ha podido preparar el catálogo.');
+  return record;
 }
 
-/** The fixed destination is read inside the transaction: concurrent tabs never overwrite it. */
-export async function ensureSingleCatalog(
-  uid: string,
-  initial: TariffCatalog,
-): Promise<TariffCatalog> {
-  return runTransaction(db, async (transaction) => {
-    const ref = doc(catalogsCol(uid), 'main-v1');
-    const snapshot = await transaction.get(ref);
-    const stored = snapshot.exists() ? (snapshot.data() as TariffCatalog) : initial;
-    const catalog = { ...stored, parts: catalogParts(stored) };
-    delete catalog.tariffs;
-    if (!snapshot.exists() || 'tariffs' in stored) transaction.set(ref, catalog as TariffCatalog);
-    transaction.set(activeCatalogDoc(uid), { activeCatalogId: catalog.id }, { merge: true });
-    return catalog;
-  });
+export async function saveCatalog(uid: string, record: CatalogRecord, expectedRevision: number) {
+  return runNetworkMutation(() =>
+    saveStoredDocument(db, catalogRef(uid), record.document, expectedRevision),
+  );
 }

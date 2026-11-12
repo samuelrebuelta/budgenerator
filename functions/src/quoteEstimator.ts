@@ -2,12 +2,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import type {
-  CatalogPart,
-  CompanyProfile,
-  Tariff,
-  TariffCatalog,
-} from '../../src/shared/types/index.js';
+import type { CatalogPart, CompanyProfile, Tariff } from '../../src/shared/types/index.js';
+import {
+  decodeContent,
+  projectCatalogParts,
+} from '../../src/entities/construction-document/model/index.js';
 import {
   calculateQuoteRange,
   getAvailableEstimatorServices,
@@ -41,7 +40,6 @@ import type {
 
 if (getApps().length === 0) initializeApp();
 const firestore = getFirestore();
-const functionRegion = 'europe-west1';
 const tokenPattern = /^[A-Za-z0-9_-]{32}$/;
 const perTokenLimit = 20;
 const rateWindowMs = 60_000;
@@ -86,7 +84,7 @@ function profileRef(uid: string) {
 }
 
 function catalogRef(uid: string) {
-  return firestore.doc(`users/${uid}/tariffCatalogs/main-v1`);
+  return firestore.doc(`users/${uid}/catalog/main`);
 }
 
 function tokenRef(token: string) {
@@ -115,12 +113,31 @@ function asSettings(value: unknown): QuoteEstimatorSettings {
   return settings;
 }
 
-function getCatalogValues(value: unknown) {
-  const catalog = value as TariffCatalog | undefined;
-  if (!catalog) throw new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
-  const parts: CatalogPart[] = Array.isArray(catalog.parts) ? catalog.parts : [];
-  const legacyTariffs: Tariff[] = Array.isArray(catalog.tariffs) ? catalog.tariffs : [];
-  return { parts, legacyTariffs };
+/** Reads the canonical FIEBDC catalog (root + content chunks) and derives its chapter view. */
+async function getCatalogValues(
+  uid: string,
+): Promise<{ parts: CatalogPart[]; legacyTariffs: Tariff[] }> {
+  const unavailable = () => new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const root = await catalogRef(uid).get();
+    const data = root.data() as
+      { revision?: number; contentRevision?: number; chunkCount?: number } | undefined;
+    if (!data || !Number.isInteger(data.chunkCount) || !Number.isInteger(data.contentRevision))
+      throw unavailable();
+    const chunks = await Promise.all(
+      Array.from({ length: data.chunkCount! }, (_, index) =>
+        catalogRef(uid).collection('content').doc(String(index)).get(),
+      ),
+    );
+    if (chunks.some((chunk) => chunk.data()?.revision !== data.contentRevision)) continue;
+    try {
+      const content = decodeContent(chunks.map((chunk) => String(chunk.data()?.data ?? '')));
+      return { parts: projectCatalogParts(content), legacyTariffs: [] };
+    } catch {
+      throw unavailable();
+    }
+  }
+  throw unavailable();
 }
 
 function validateMappedPrices(
@@ -251,8 +268,7 @@ export async function publishPublicEstimator(uid: string) {
       'Añade una URL HTTPS al aviso de privacidad en Mi empresa antes de publicar.',
     );
   if (!isSimpleQuoteEstimatorSettings(settings)) {
-    const catalogSnapshot = await catalogRef(uid).get();
-    const { parts, legacyTariffs } = getCatalogValues(catalogSnapshot.data());
+    const { parts, legacyTariffs } = await getCatalogValues(uid);
     validateMappedPrices(settings, parts, legacyTariffs);
   }
   publicProfile(profileData, settings);
@@ -328,8 +344,7 @@ export async function getPublicEstimator(
   if (isSimpleQuoteEstimatorSettings(settings)) {
     availableServices = getSimpleEstimatorServices(settings);
   } else {
-    const catalogSnapshot = await catalogRef(ownerUid).get();
-    const { parts, legacyTariffs } = getCatalogValues(catalogSnapshot.data());
+    const { parts, legacyTariffs } = await getCatalogValues(ownerUid);
     availableServices = getAvailableEstimatorServices(settings, parts, legacyTariffs).map(
       ({ room, scope, quality }) => ({ room, scope, quality }),
     );
@@ -387,7 +402,7 @@ export async function calculatePublicEstimate(
   const settings = asSettings(settingsSnapshot.data());
   const { parts, legacyTariffs } = isSimpleQuoteEstimatorSettings(settings)
     ? { parts: [], legacyTariffs: [] }
-    : getCatalogValues((await catalogRef(ownerUid).get()).data());
+    : await getCatalogValues(ownerUid);
   try {
     return calculateQuoteRange(settings, parts, selections, legacyTariffs);
   } catch {
@@ -476,7 +491,7 @@ export async function submitPublicLead(value: unknown) {
   const settings = asSettings(settingsSnapshot.data());
   const { parts, legacyTariffs } = isSimpleQuoteEstimatorSettings(settings)
     ? { parts: [], legacyTariffs: [] }
-    : getCatalogValues((await catalogRef(ownerUid).get()).data());
+    : await getCatalogValues(ownerUid);
   let estimate: QuoteEstimate;
   try {
     estimate = calculateQuoteRange(settings, parts, data.selections, legacyTariffs);
@@ -542,13 +557,6 @@ export async function submitPublicLead(value: unknown) {
   });
   return { received: true as const, estimate: storedEstimate };
 }
-
-export const quoteEstimatorFunctionOptions = {
-  region: functionRegion,
-  invoker: 'public',
-  maxInstances: 10,
-  minInstances: 0,
-} as const;
 
 export function requireOwnerUid(uid: string | undefined) {
   if (!uid) throw new HttpsError('unauthenticated', 'Inicia sesión para gestionar el enlace.');

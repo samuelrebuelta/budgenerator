@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FileText, LayoutTemplate, Plus } from 'lucide-react';
-import { useTemplateStore } from '@/entities/template';
+import { useTemplateStore, useTemplateViews } from '@/entities/template';
+import { ImportBc3Dialog } from '@/features/bc3-exchange';
 import { Button, ConfirmModal, Skeleton, PageHeader, PageLink, SwipeActions } from '@/shared/ui';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
@@ -10,7 +11,8 @@ import { useNetworkStore } from '@/shared/model/network';
 import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
 
 export function TemplatesPage() {
-  const templates = useTemplateStore((s) => s.templates);
+  const templates = useTemplateViews();
+  const createTemplateFrom = useTemplateStore((s) => s.createTemplateFrom);
   const loaded = useTemplateStore((s) => s.loaded);
   const online = useNetworkStore((s) => s.online);
   const removeTemplate = useTemplateStore((s) => s.removeTemplate);
@@ -44,6 +46,21 @@ export function TemplatesPage() {
             </Button>
           }
         />
+        <div className="mb-4 flex flex-wrap gap-2">
+          <ImportBc3Dialog
+            target="template"
+            disabled={!loaded || !online}
+            onConfirm={async (document) => {
+              const id = await withTimeout(
+                createTemplateFrom(
+                  document,
+                  document.business.name || document.header.title || 'Plantilla importada',
+                ),
+              );
+              navigate(`/templates/${id}`);
+            }}
+          />
+        </div>
 
         {!loaded && online ? (
           <div className="space-y-3" role="status" aria-label="Cargando plantillas">

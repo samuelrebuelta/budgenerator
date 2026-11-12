@@ -23,7 +23,8 @@ import type {
 import { isMeasuredUnit, serviceKey } from './types.js';
 
 const measuredUnits = new Set(['m2', 'm3', 'ml']);
-const fixedUnits = new Set(['unit', 'hour']);
+// Free FIEBDC units (kg, pa…) have no safe surface semantics and are never estimated.
+const fixedUnits = new Set(['ud', 'h', 'unit', 'hour']);
 const MAX_AREA_M2 = 1000;
 const MAX_RATE_CENTS_PER_M2 = 10_000_000;
 
@@ -313,6 +314,6 @@ export function calculateQuoteRange(
     : calculateLegacyQuoteRange(settings, catalogParts, selections, legacyTariffs);
 }
 
-function isKnownUnit(value: unknown): value is 'm2' | 'm3' | 'ml' | 'unit' | 'hour' {
+function isKnownUnit(value: unknown): value is string {
   return typeof value === 'string' && (measuredUnits.has(value) || fixedUnits.has(value));
 }

@@ -61,6 +61,64 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/users/$(uid)/budgets/$(id))
         && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.id == id;
     }
+    // ── Canonical FIEBDC documents (budgets, templates, catalog) ──
+    // Root: light metadata + business fields; content/{0..7}: FIEBDC JSON chunks of one revision.
+    function validAdjustment(d) {
+      return !('adjustment' in d) || (
+        d.adjustment is map && d.adjustment.keys().hasOnly(['multiplier', 'reason'])
+        && d.adjustment.multiplier is number
+        && d.adjustment.multiplier >= 0 && d.adjustment.multiplier <= 11
+        && d.adjustment.reason is string && d.adjustment.reason.size() <= 300
+      );
+    }
+    function validDocumentRoot(id, d, kind) {
+      return d.keys().hasOnly([
+          'id', 'kind', 'schemaVersion', 'revision', 'contentRevision', 'chunkCount',
+          'createdAt', 'updatedAt', 'name', 'clientName', 'address', 'date', 'budgetNumber',
+          'ivaRate', 'adjustment', 'number', 'acceptedAt', 'projectId', 'sourceLeadId'
+        ])
+        && d.id == id && d.kind == kind && d.schemaVersion == 1
+        && d.revision is int && d.revision >= 1
+        && d.contentRevision is int && d.contentRevision >= 1 && d.contentRevision <= d.revision
+        && d.chunkCount is int && d.chunkCount >= 1 && d.chunkCount <= 8
+        && d.createdAt is string && d.createdAt.size() <= 40
+        && d.updatedAt is string && d.updatedAt.size() <= 40
+        && d.name is string && d.name.size() <= 200
+        && d.clientName is string && d.clientName.size() <= 200
+        && d.address is string && d.address.size() <= 300
+        && d.date is string && d.date.size() <= 40
+        && d.budgetNumber is string && d.budgetNumber.size() <= 40
+        && d.ivaRate is number && d.ivaRate >= 0 && d.ivaRate <= 1
+        && validAdjustment(d);
+    }
+    // Every root update bumps the revision by one (optimistic concurrency across devices).
+    function validRootUpdate(uid, collection, id, kind) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return validDocumentRoot(id, after, kind)
+        && after.revision == before.revision + 1
+        && after.createdAt == before.createdAt
+        && (after.contentRevision == before.contentRevision
+          || (after.contentRevision == after.revision
+            && getAfter(/databases/$(database)/documents/users/$(uid)/$(collection)/$(id)/content/0).data.revision == after.revision));
+    }
+    function validChunk(index, rootPath) {
+      let root = getAfter(rootPath).data;
+      let data = request.resource.data;
+      return data.keys().hasOnly(['index', 'revision', 'data'])
+        && index.matches('^[0-7]$') && data.index == int(index)
+        && data.index < root.chunkCount
+        && data.revision == root.contentRevision
+        && data.data is string && data.data.size() <= 1000000
+        && (exists(rootPath)
+          ? root.revision == get(rootPath).data.revision + 1
+          : root.revision == 1);
+    }
+    function validChunkDelete(index, rootPath) {
+      return !existsAfter(rootPath)
+        || (int(index) >= getAfter(rootPath).data.chunkCount
+          && getAfter(rootPath).data.revision == get(rootPath).data.revision + 1);
+    }
     function validProjectLink(uid, id) {
       let projectId = request.resource.data.get('projectId', '');
       let projectAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data;
@@ -100,28 +158,23 @@ service cloud.firestore {
         && existsAfter(budgetPath)
         && budget.id == budgetId && budget.projectId == projectId
         && budget.get('acceptedAt', null) is string
-        && budget.info is map
-        && budget.info.address == project.title
-        && budget.info.clientName == project.clientName;
+        && budget.address == project.title
+        && budget.clientName == project.clientName;
     }
     function validLinkedBudgetMetadataUpdate(uid, budgetId) {
       let budget = request.resource.data;
-      let oldInfo = resource.data.get('info', {});
-      let newInfo = budget.get('info', {});
       let changed = budget.diff(resource.data).affectedKeys();
       let projectId = resource.data.get('projectId', '');
       let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
       let project = getAfter(projectPath).data;
-      return changed.hasOnly(['info'])
-        && oldInfo is map && newInfo is map
-        && newInfo.diff(oldInfo).affectedKeys().hasOnly(['address', 'clientName'])
-        && validProjectName(newInfo.get('address', null))
-        && validProjectClientName(newInfo.get('clientName', null))
+      return changed.hasOnly(['address', 'clientName', 'revision', 'updatedAt'])
+        && validProjectName(budget.address)
+        && validProjectClientName(budget.clientName)
         && projectId is string && projectId.size() > 0
         && existsAfter(projectPath)
         && project.id == projectId && project.sourceBudgetId == budgetId
-        && project.title == newInfo.address && project.address == newInfo.address
-        && project.clientName == newInfo.clientName;
+        && project.title == budget.address && project.address == budget.address
+        && project.clientName == budget.clientName;
     }
     function validWorkforceMember(memberId, data) {
       return data.keys().hasOnly(['id', 'name', 'status', 'createdAt', 'updatedAt'])
@@ -282,31 +335,25 @@ service cloud.firestore {
         && after.percent is int && after.percent >= 0 && after.percent < 100
         && after.get('completedAt', null) == null;
     }
+    function progressCompleted(uid, projectId, supplementId) {
+      let statePath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/progress/state;
+      return exists(statePath)
+        && get(statePath).data.completed.get('concept_' + supplementId, null) is string;
+    }
     function validSupplementVoidLink(uid, projectId, supplementId) {
       let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
       let voidPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId);
-      let workItemId = 'supplement_' + supplementId;
-      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
       let voidAfter = getAfter(voidPath).data;
-      let workBefore = get(workItemPath).data;
-      let workAfter = getAfter(workItemPath).data;
       return exists(supplementPath) && !exists(voidPath)
         && voidAfter.supplementId == supplementId
         && voidAfter.reason is string && voidAfter.reason.size() > 0 && voidAfter.reason.size() <= 500
-        && voidAfter.voidedAt is string
-        && workBefore.supplementId == supplementId
-        && workBefore.get('voidedAt', null) == null
-        && workAfter.voidedAt == voidAfter.voidedAt
-        && workAfter.tasks == workBefore.tasks;
+        && voidAfter.voidedAt is string;
     }
     function validVoidProjectProgress(uid, projectId, supplementId) {
       let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
-      let workItemId = 'supplement_' + supplementId;
-      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
       let before = get(projectPath).data;
       let after = getAfter(projectPath).data;
-      let workItem = get(workItemPath).data;
-      let completed = workItem.tasks[0].get('completedAt', null) is string;
+      let completed = progressCompleted(uid, projectId, supplementId);
       let totalConcepts = before.totalConcepts - 1;
       let completedConcepts = before.completedConcepts - (completed ? 1 : 0);
       let changed = after.diff(before).affectedKeys();
@@ -332,9 +379,7 @@ service cloud.firestore {
       let before = get(projectPath).data;
       let after = getAfter(projectPath).data;
       let supplement = get(supplementPath).data;
-      let workItemId = 'supplement_' + supplementId;
-      let workItem = get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId)).data;
-      let completed = workItem.tasks[0].get('completedAt', null) is string;
+      let completed = progressCompleted(uid, projectId, supplementId);
       return closeEnough(after.get('supplementsSubtotal', 0), before.get('supplementsSubtotal', 0) - supplement.subtotal)
         && closeEnough(after.get('supplementsIva', 0), before.get('supplementsIva', 0) - supplement.iva)
         && closeEnough(after.get('updatedTotal', before.total), before.get('updatedTotal', before.total) - supplement.total)
@@ -348,12 +393,9 @@ service cloud.firestore {
     }
     function validSupplementCreate(uid, projectId, supplementId) {
       let projectPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId);
-      let workItemId = 'supplement_' + supplementId;
       let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
-      let workItemAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId)).data;
       let projectBefore = get(projectPath).data;
       let data = getAfter(supplementPath).data;
-      let task = workItemAfter.tasks[0];
       return data.keys().hasOnly([
           'id', 'description', 'quantity', 'unit', 'unitPrice', 'vatRate',
           'subtotal', 'iva', 'total', 'createdAt', 'workItemId'
@@ -361,86 +403,53 @@ service cloud.firestore {
         && data.id == supplementId && supplementId.matches('^[A-Za-z0-9_-]{1,100}$')
         && data.description is string && data.description.size() > 0 && data.description.size() <= 300
         && data.quantity is number && data.quantity > 0 && data.quantity <= 1000000
-        && data.unit in ['m2', 'm3', 'ml', 'unit', 'hour']
+        && data.unit is string && data.unit.size() > 0 && data.unit.size() <= 20
         && data.unitPrice is number && data.unitPrice > 0 && data.unitPrice <= 1000000
         && data.vatRate == projectBefore.ivaRate
         && data.subtotal is number && closeEnough(data.subtotal, data.quantity * data.unitPrice)
         && data.iva is number && closeEnough(data.iva, data.subtotal * data.vatRate)
         && data.total is number && closeEnough(data.total, data.subtotal + data.iva)
-        && data.createdAt is string && data.workItemId == workItemId
+        && data.createdAt is string && data.workItemId == 'supplement_' + supplementId
         && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId))
-        && workItemAfter.id == workItemId
-        && workItemAfter.keys().hasOnly(['id', 'name', 'position', 'supplementId', 'tasks'])
-        && workItemAfter.name == data.description
-        && workItemAfter.position == projectBefore.workItemCount
-        && workItemAfter.supplementId == supplementId
-        && workItemAfter.tasks is list && workItemAfter.tasks.size() == 1
-        && task.keys().hasOnly(['id', 'description', 'quantity', 'unit', 'price', 'cost'])
-        && task.id == 'concept_' + supplementId
-        && task.description == data.description
-        && task.quantity == data.quantity && task.unit == data.unit
-        && task.price == data.unitPrice && task.cost == 0
         && validProjectSupplementUpdate(uid, projectId, supplementId);
     }
     function validSupplementVoidCreate(uid, projectId, supplementId) {
       let supplementPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId);
-      let workItemId = 'supplement_' + supplementId;
-      let workItemPath = /databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId);
       return request.resource.data.keys().hasOnly(['supplementId', 'reason', 'voidedAt'])
         && request.resource.data.supplementId == supplementId
         && request.resource.data.reason is string
         && request.resource.data.reason.size() > 0
         && request.resource.data.reason.size() <= 500
         && request.resource.data.voidedAt is string
-        && exists(supplementPath) && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId))
-        && get(workItemPath).data.get('voidedAt', null) == null
+        && exists(supplementPath)
         && validProjectSupplementVoidUpdate(uid, projectId, supplementId);
     }
-    function validSupplementTaskUpdate(uid, projectId, workItemId) {
-      let supplementId = resource.data.get('supplementId', '');
-      let supplement = get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplements/$(supplementId)).data;
-      let task = request.resource.data.tasks[0];
-      return supplementId is string && supplementId.size() > 0
-        && workItemId == 'supplement_' + supplementId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks'])
-        && request.resource.data.id == workItemId
-        && request.resource.data.supplementId == supplementId
-        && request.resource.data.name == resource.data.name
-        && request.resource.data.position == resource.data.position
-        && request.resource.data.tasks is list && request.resource.data.tasks.size() == 1
-        && task.keys().hasOnly(['id', 'description', 'quantity', 'unit', 'price', 'cost', 'completedAt'])
-        && task.id == 'concept_' + supplementId
-        && task.description == supplement.description
-        && task.quantity == supplement.quantity && task.unit == supplement.unit
-        && task.price == supplement.unitPrice && task.cost == 0;
-    }
-    function validSupplementVoidWorkItemUpdate(uid, projectId, workItemId) {
-      let supplementId = resource.data.get('supplementId', '');
-      let voidAfter = getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/supplementVoids/$(supplementId)).data;
-      return supplementId is string && supplementId.size() > 0
-        && workItemId == 'supplement_' + supplementId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voidedAt'])
-        && request.resource.data.get('voidedAt', null) == voidAfter.voidedAt
-        && request.resource.data.tasks == resource.data.tasks
-        && validProjectSupplementVoidUpdate(uid, projectId, supplementId);
+    function validProgressState(data) {
+      return data.keys().hasOnly(['completed', 'updatedAt'])
+        && data.completed is map && data.completed.size() <= 10000
+        && data.updatedAt is string && data.updatedAt.size() <= 40;
     }
     function validBudgetUpdate(uid, id) {
-      let changed = request.resource.data.diff(resource.data).affectedKeys();
-      let oldAccepted = resource.data.get('acceptedAt', null);
-      let newAccepted = request.resource.data.get('acceptedAt', null);
-      let oldProject = resource.data.get('projectId', null);
-      let newProject = request.resource.data.get('projectId', null);
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      let oldAccepted = before.get('acceptedAt', null);
+      let newAccepted = after.get('acceptedAt', null);
+      let oldProject = before.get('projectId', null);
+      let newProject = after.get('projectId', null);
       let editable = oldAccepted == null && newAccepted == null && oldProject == null && newProject == null;
-      let acceptanceChange = changed.hasOnly(['acceptedAt']) && oldProject == null && newProject == null
+      let acceptanceChange = changed.hasOnly(['acceptedAt', 'revision', 'updatedAt'])
+        && oldProject == null && newProject == null
         && (oldAccepted == null ? newAccepted is string : newAccepted == null);
-      let conversion = changed.hasOnly(['projectId']) && oldAccepted is string && oldProject == null
+      let conversion = changed.hasOnly(['projectId', 'revision', 'updatedAt'])
+        && oldAccepted is string && oldProject == null
         && validProjectLink(uid, id);
       let linkedMetadata = oldAccepted is string && newAccepted == oldAccepted
         && oldProject is string && newProject == oldProject
         && validLinkedBudgetMetadataUpdate(uid, id);
-      return canUse(uid) && request.resource.data.id == id
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200
+      return canUse(uid) && validRootUpdate(uid, 'budgets', id, 'budget')
+        && after.number == before.number
+        && after.get('sourceLeadId', null) == before.get('sourceLeadId', null)
         && (editable || acceptanceChange || conversion || linkedMetadata);
     }
     match /users/{uid} {
@@ -465,14 +474,68 @@ service cloud.firestore {
         allow delete: if canUse(uid)
           && resource.data.get('acceptedAt', null) == null
           && resource.data.get('projectId', null) == null;
+        // Creation consumes one quota slot and takes the next number from the account counter.
         allow create: if owner(uid)
-          && request.resource.data.id == id && request.resource.data.info is map
-          && request.resource.data.workItems is list && request.resource.data.workItems.size() <= 200
+          && validDocumentRoot(id, request.resource.data, 'budget')
+          && request.resource.data.revision == 1 && request.resource.data.contentRevision == 1
+          && request.resource.data.number is int
+          && request.resource.data.number == getAfter(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated
           && request.resource.data.get('acceptedAt', null) == null
           && request.resource.data.get('projectId', null) == null
+          && (request.resource.data.get('sourceLeadId', null) == null
+            || (request.resource.data.sourceLeadId is string && request.resource.data.sourceLeadId.size() <= 128))
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.lastCreatedBudgetId == id
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated == get(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated + 1;
         allow update: if validBudgetUpdate(uid, id);
+        match /content/{index} {
+          allow read: if canUse(uid);
+          // Content is frozen once the budget is accepted or converted.
+          allow create, update: if owner(uid)
+            && validChunk(index, /databases/$(database)/documents/users/$(uid)/budgets/$(id))
+            && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.get('acceptedAt', null) == null
+            && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.get('projectId', null) == null;
+          allow delete: if owner(uid)
+            && validChunkDelete(index, /databases/$(database)/documents/users/$(uid)/budgets/$(id));
+        }
+      }
+      match /templates/{id} {
+        allow read: if canUse(uid);
+        allow create: if owner(uid)
+          && validDocumentRoot(id, request.resource.data, 'template')
+          && request.resource.data.revision == 1 && request.resource.data.contentRevision == 1
+          && !('number' in request.resource.data) && !('acceptedAt' in request.resource.data)
+          && !('projectId' in request.resource.data) && !('sourceLeadId' in request.resource.data);
+        allow update: if owner(uid) && validRootUpdate(uid, 'templates', id, 'template')
+          && !('number' in request.resource.data) && !('acceptedAt' in request.resource.data)
+          && !('projectId' in request.resource.data) && !('sourceLeadId' in request.resource.data);
+        allow delete: if owner(uid);
+        match /content/{index} {
+          allow read: if canUse(uid);
+          allow create, update: if owner(uid)
+            && validChunk(index, /databases/$(database)/documents/users/$(uid)/templates/$(id));
+          allow delete: if owner(uid)
+            && validChunkDelete(index, /databases/$(database)/documents/users/$(uid)/templates/$(id));
+        }
+      }
+      // Single catalog per account.
+      match /catalog/{docId} {
+        allow read: if canUse(uid);
+        allow create: if owner(uid) && docId == 'main'
+          && validDocumentRoot(docId, request.resource.data, 'catalog')
+          && request.resource.data.revision == 1 && request.resource.data.contentRevision == 1
+          && !('number' in request.resource.data) && !('acceptedAt' in request.resource.data)
+          && !('projectId' in request.resource.data) && !('sourceLeadId' in request.resource.data);
+        allow update: if owner(uid) && docId == 'main' && validRootUpdate(uid, 'catalog', docId, 'catalog')
+          && !('number' in request.resource.data) && !('acceptedAt' in request.resource.data)
+          && !('projectId' in request.resource.data) && !('sourceLeadId' in request.resource.data);
+        allow delete: if false;
+        match /content/{index} {
+          allow read: if canUse(uid);
+          allow create, update: if owner(uid) && docId == 'main'
+            && validChunk(index, /databases/$(database)/documents/users/$(uid)/catalog/$(docId));
+          allow delete: if owner(uid)
+            && validChunkDelete(index, /databases/$(database)/documents/users/$(uid)/catalog/$(docId));
+        }
       }
       match /projects/{projectId} {
         allow read: if canUse(uid);
@@ -505,26 +568,16 @@ service cloud.firestore {
           allow create: if owner(uid) && validSupplementVoidCreate(uid, projectId, supplementId);
           allow update, delete: if false;
         }
-        match /workItems/{workItemId} {
+        // Completion date per item occurrence (node ID) or supplement task.
+        match /progress/{stateId} {
           allow read: if canUse(uid);
-          allow create: if owner(uid)
-            && request.resource.data.id == workItemId
-            && !exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)/workItems/$(workItemId))
-            && (
-              (!exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
-                && getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data.id == projectId)
-              || (exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
-                && validSupplementCreate(uid, projectId, request.resource.data.get('supplementId', '')))
-            );
-          allow update: if canUse(uid)
-            && get(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data.id == projectId
-            && (
-              (resource.data.get('supplementId', null) == null
-                && request.resource.data.id == workItemId
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks']))
-              || validSupplementTaskUpdate(uid, projectId, workItemId)
-              || validSupplementVoidWorkItemUpdate(uid, projectId, workItemId)
-            );
+          allow create: if owner(uid) && stateId == 'state'
+            && validProgressState(request.resource.data)
+            && (exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+              || getAfter(/databases/$(database)/documents/users/$(uid)/projects/$(projectId)).data.id == projectId);
+          allow update: if owner(uid) && stateId == 'state'
+            && exists(/databases/$(database)/documents/users/$(uid)/projects/$(projectId))
+            && validProgressState(request.resource.data);
           allow delete: if false;
         }
         match /assignments/{assignmentId} {
@@ -621,26 +674,28 @@ service cloud.firestore {
         allow delete: if owner(uid);
       }
       match /{collectionName}/{documentId} {
-        allow read: if canUse(uid) && collectionName in ['tariffCatalogs', 'templates', 'profile', 'settings', 'tariffs'];
-        allow write: if canUse(uid) && (
-          collectionName in ['tariffCatalogs', 'templates']
-          || (collectionName == 'settings' && documentId in ['profile', 'tariffCatalog'])
-        );
-        allow delete: if canUse(uid) && collectionName == 'tariffs';
+        allow read: if canUse(uid) && collectionName == 'settings';
+        allow write: if false;
       }
     }
     match /sharedBudgets/{token} {
-      // Legacy snapshots may contain costs: fail closed until safely republished.
-      allow get: if resource.data.schemaVersion == 2 && resource.data.expiresAt > request.time.toMillis();
+      // v3: public FIEBDC content without costs, breakdowns or private extensions.
+      allow get: if resource.data.schemaVersion == 3 && resource.data.expiresAt > request.time.toMillis();
       allow list: if false;
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['schemaVersion', 'ownerUid', 'expiresAt', 'budget', 'company', 'ivaRate', 'sharedAt'])
-        && request.resource.data.schemaVersion == 2 && request.resource.data.ownerUid == request.auth.uid
+      allow create: if signedIn() && verifiedEmail()
+        && request.resource.data.keys().hasOnly(['schemaVersion', 'ownerUid', 'expiresAt', 'sharedAt', 'company', 'budget', 'content'])
+        && request.resource.data.schemaVersion == 3 && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.expiresAt is int
         && request.resource.data.expiresAt > request.time.toMillis()
         && request.resource.data.expiresAt <= request.time.toMillis() + 2678400000
-        && request.resource.data.budget.keys().hasOnly(['id', 'info', 'workItems', 'createdAt', 'ivaRate', 'adjustment'])
-        && request.resource.data.budget.workItems is list
+        && request.resource.data.sharedAt is string && request.resource.data.sharedAt.size() <= 40
+        && request.resource.data.budget is map
+        && request.resource.data.budget.keys().hasOnly(['id', 'clientName', 'address', 'date', 'budgetNumber', 'ivaRate', 'adjustment', 'createdAt'])
+        && request.resource.data.budget.id is string && request.resource.data.budget.id.size() <= 128
+        && request.resource.data.budget.ivaRate is number
+        && validAdjustment(request.resource.data.budget)
+        && request.resource.data.content is string && request.resource.data.content.size() <= 1000000
+        && request.resource.data.company is map
         && request.resource.data.company.keys().hasOnly(['name', 'cif', 'address', 'phone', 'email', 'logo']);
       allow update: if false;
       allow delete: if signedIn() && (resource.data.get('ownerUid', '') == request.auth.uid || isAdmin());

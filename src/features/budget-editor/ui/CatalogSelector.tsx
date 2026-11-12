@@ -1,9 +1,9 @@
 import { memo, useMemo, useState } from 'react';
 import { ListPlus, Search, X } from 'lucide-react';
 import { useActiveBudget, useBudgetStore } from '@/entities/budget';
-import { useCatalogStore, searchTariffs } from '@/entities/catalog';
+import { getCatalogContent, searchTariffs, useCatalogView } from '@/entities/catalog';
 import { Modal, Button } from '@/shared/ui';
-import { UNIT_LABELS } from '@/shared/types';
+import { unitLabel } from '@/shared/types';
 interface CatalogSelectorProps {
   workItemId: string;
   taskId: string;
@@ -14,15 +14,14 @@ export const CatalogSelector = memo(function CatalogSelector({
   taskId,
   workItemName,
 }: CatalogSelectorProps) {
-  const tariffs = useCatalogStore((s) => s.tariffs);
-  const parts = useCatalogStore((s) => s.catalogs[0]?.parts ?? []);
+  const { tariffs, parts } = useCatalogView();
   const budget = useActiveBudget();
   const workItem = budget?.workItems.find((item) => item.id === workItemId);
   const catalogPartId =
     workItem?.catalogPartId ?? parts.find((part) => part.name === workItemName)?.id;
   const partName = parts.find((part) => part.id === catalogPartId)?.name;
   const partTariffs = tariffs.filter((tariff) => tariff.partId === catalogPartId);
-  const applyTariff = useBudgetStore((s) => s.applyTariff);
+  const applyCatalogConcept = useBudgetStore((s) => s.applyCatalogConcept);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const results = useMemo(() => searchTariffs(partTariffs, query), [partTariffs, query]);
@@ -77,16 +76,8 @@ export const CatalogSelector = memo(function CatalogSelector({
               type="button"
               className="catalog-picker-result"
               onClick={() => {
-                applyTariff(
-                  workItemId,
-                  taskId,
-                  tariff.partId!,
-                  tariff.id,
-                  tariff.description,
-                  tariff.unit,
-                  tariff.basePrice,
-                  tariff.cost,
-                );
+                const catalog = getCatalogContent();
+                if (catalog) applyCatalogConcept(taskId, catalog, tariff.id, tariff.partId);
                 setOpen(false);
               }}
             >
@@ -95,7 +86,7 @@ export const CatalogSelector = memo(function CatalogSelector({
                 <small>{tariff.category}</small>
               </span>
               <span>
-                {tariff.basePrice.toLocaleString('es-ES')} €/{UNIT_LABELS[tariff.unit]}
+                {tariff.basePrice.toLocaleString('es-ES')} €/{unitLabel(tariff.unit)}
               </span>
             </button>
           ))}

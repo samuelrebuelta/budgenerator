@@ -1,17 +1,16 @@
 export {
-  DEFAULT_TARIFFS,
-  RENOVATION_CATEGORIES,
-  getTariffById,
-  getTariffsByCategory,
-  getCategories,
-} from './model/catalog';
-export { useCatalogStore, setCatalogAuthGetter } from './model/store';
-export { BASE_CATALOGS } from './model/baseCatalogs';
-export { TRADE_CATALOGS } from './model/baseCatalogs';
+  useCatalogStore,
+  setCatalogAuthGetter,
+  useCatalogView,
+  getCatalogContent,
+  type TradeImportScope,
+  type TradeImportResult,
+  type CatalogConceptInput,
+} from './model/store';
+export { BASE_CATALOGS, TRADE_CATALOGS } from './model/baseCatalogs';
 export type { BaseCatalog } from './model/baseCatalogs';
-export type { TradeImportScope, TradeImportResult } from './model/tradeImport';
-export type { TariffCatalog } from '@/shared/types';
-
+export { baseCatalogDocument } from './model/bases';
+export { catalogView, type CatalogRecord, type CatalogView } from './model/record';
 export {
   searchCatalogParts,
   searchTariffs,

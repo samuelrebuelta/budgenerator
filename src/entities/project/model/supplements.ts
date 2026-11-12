@@ -1,8 +1,6 @@
 import { money } from '@/shared/lib/budgetMath';
-import type { Unit } from '@/shared/types';
+import { normalizeUnit } from '@/shared/types';
 import type { NewProjectSupplement, Project, ProjectSupplement, ProjectWorkItem } from './types';
-
-const units: readonly Unit[] = ['m2', 'm3', 'ml', 'unit', 'hour'];
 
 export function buildProjectSupplement(
   project: Project,
@@ -17,7 +15,8 @@ export function buildProjectSupplement(
     throw new Error('La descripción debe tener entre 1 y 300 caracteres.');
   if (!Number.isFinite(input.quantity) || input.quantity <= 0 || input.quantity > 1_000_000)
     throw new Error('La cantidad debe ser mayor que cero.');
-  if (!units.includes(input.unit as Unit)) throw new Error('La unidad no es válida.');
+  const unit = normalizeUnit(input.unit);
+  if (!unit || unit.length > 20 || /[|~\\]/.test(unit)) throw new Error('La unidad no es válida.');
   if (!Number.isFinite(input.unitPrice) || input.unitPrice <= 0 || input.unitPrice > 1_000_000)
     throw new Error('El precio unitario debe ser mayor que cero.');
   if (!Number.isFinite(project.ivaRate) || project.ivaRate < 0 || project.ivaRate > 1)
@@ -30,7 +29,7 @@ export function buildProjectSupplement(
     id,
     description,
     quantity: input.quantity,
-    unit: input.unit,
+    unit,
     unitPrice: input.unitPrice,
     vatRate: project.ivaRate,
     subtotal,
@@ -55,9 +54,14 @@ export function createSupplementWorkItem(
         id: `concept_${supplement.id}`,
         description: supplement.description,
         quantity: supplement.quantity,
-        unit: supplement.unit as Unit,
+        conceptId: '',
+        code: '',
+        unit: supplement.unit,
         price: supplement.unitPrice,
         cost: 0,
+        measured: false,
+        composed: false,
+        shared: false,
       },
     ],
   };

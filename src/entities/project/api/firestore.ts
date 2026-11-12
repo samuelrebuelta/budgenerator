@@ -15,8 +15,10 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { money, taskAmount } from '@/shared/lib/budgetMath';
-import { mapBudgetFromFirestore } from '@/entities/budget/model/serialization';
-import type { FirestoreBudget } from '@/entities/budget/model/serialization';
+import { readStoredDocument } from '@/entities/construction-document/api/storage';
+import type { ConstructionDocument } from '@/entities/construction-document/model';
+import type { BudgetRoot } from '@/entities/budget/api/firestore';
+import { budgetView } from '@/entities/budget/model/record';
 import type { CrewColor } from '@/shared/types';
 import { prepareProjectSnapshot } from '../model/conversion';
 import { getProjectLocalDateKey, normalizeProjectCompletionDate } from '../model/history';
@@ -42,6 +44,7 @@ import type {
   ProjectWorkItem,
 } from '../model/types';
 import { buildProjectSupplement, createSupplementWorkItem } from '../model/supplements';
+import { buildProjectWorkItems, type ProjectProgressState } from '../model/structure';
 import { normalizeEstimatedEndDate } from '../model/estimatedEndDate';
 import { guardNetworkMutation } from '@/shared/lib/networkMutation';
 
@@ -99,8 +102,6 @@ function progressAfterWorkItemChange(
 function projectsCollection(database: Firestore, uid: string) {
   return collection(database, 'users', uid, 'projects');
 }
-
-class ProjectWorkItemsChangedError extends Error {}
 
 function percentage(
   project: Project,
@@ -260,7 +261,7 @@ export function createProjectFirestoreApi(database: Firestore) {
       const budgetSnapshot = await transaction.get(budgetRef);
       if (!budgetSnapshot.exists())
         throw new Error('No se ha encontrado el presupuesto de origen.');
-      const budget = mapBudgetFromFirestore(budgetSnapshot.data() as FirestoreBudget);
+      const budget = budgetSnapshot.data() as BudgetRoot;
       if (budget.projectId !== projectId)
         throw new Error('El presupuesto de origen no está vinculado a este proyecto.');
 
@@ -270,44 +271,78 @@ export function createProjectFirestoreApi(database: Firestore) {
         clientName: normalizedClientName,
       };
       transaction.update(projectRef, metadata);
+      const budgetRevision = budget.revision + 1;
       transaction.update(budgetRef, {
-        'info.address': normalizedTitle,
-        'info.clientName': normalizedClientName,
+        address: normalizedTitle,
+        clientName: normalizedClientName,
+        revision: budgetRevision,
+        updatedAt: new Date().toISOString(),
       });
-      return metadata;
+      return { ...metadata, budgetRevision };
     });
   }
 
-  async function convertBudgetToProject(uid: string, budgetId: string): Promise<string> {
+  async function loadBudgetDocument(uid: string, budgetId: string) {
+    const stored = await readStoredDocument<BudgetRoot>(
+      doc(database, 'users', uid, 'budgets', budgetId),
+    );
+    if (!stored) throw new Error('No se ha encontrado el presupuesto de origen.');
+    return stored;
+  }
+
+  /** Converts an accepted budget. The project references the locked budget document. */
+  async function convertBudgetToProject(
+    uid: string,
+    budgetId: string,
+  ): Promise<{ projectId: string; budgetRevision: number }> {
     const budgetRef = doc(database, 'users', uid, 'budgets', budgetId);
     const projects = projectsCollection(database, uid);
     const candidateProjectRef = doc(projects, budgetId);
     const convertedAt = new Date().toISOString();
+    const source = await loadBudgetDocument(uid, budgetId);
 
     try {
       return await runTransaction(database, async (transaction) => {
         const budgetSnapshot = await transaction.get(budgetRef);
         if (!budgetSnapshot.exists()) throw new Error('No se ha encontrado el presupuesto.');
-        const budget = mapBudgetFromFirestore(budgetSnapshot.data() as FirestoreBudget);
+        const root = budgetSnapshot.data() as BudgetRoot;
 
-        if (budget.projectId) {
-          const existingProject = await transaction.get(doc(projects, budget.projectId));
+        if (root.projectId) {
+          const existingProject = await transaction.get(doc(projects, root.projectId));
           if (!existingProject.exists())
             throw new Error('No se ha encontrado el proyecto vinculado a este presupuesto.');
-          return budget.projectId;
+          return { projectId: root.projectId, budgetRevision: root.revision };
         }
+        if (root.revision !== source.root.revision)
+          throw new Error('El presupuesto ha cambiado. Recarga e inténtalo de nuevo.');
 
-        const snapshot = prepareProjectSnapshot(budget, candidateProjectRef.id, convertedAt);
+        const view = budgetView({
+          id: root.id,
+          revision: root.revision,
+          number: root.number,
+          createdAt: root.createdAt,
+          updatedAt: root.updatedAt,
+          ...(root.acceptedAt ? { acceptedAt: root.acceptedAt } : {}),
+          document: source.document,
+        });
+        const snapshot = prepareProjectSnapshot(view, candidateProjectRef.id, convertedAt);
         const collision = await transaction.get(candidateProjectRef);
         if (collision.exists())
           throw new Error('No se ha podido crear el proyecto. Vuelve a intentarlo.');
 
+        const budgetRevision = root.revision + 1;
         transaction.set(candidateProjectRef, snapshot.project);
-        for (const workItem of snapshot.workItems)
-          transaction.set(doc(candidateProjectRef, 'workItems', workItem.id), workItem);
-        transaction.update(budgetRef, { projectId: candidateProjectRef.id });
+        transaction.set(doc(candidateProjectRef, 'progress', 'state'), {
+          completed: {},
+          updatedAt: convertedAt,
+        } satisfies ProjectProgressState);
+        transaction.update(budgetRef, {
+          projectId: candidateProjectRef.id,
+          revision: budgetRevision,
+          updatedAt: convertedAt,
+        });
 
-        return candidateProjectRef.id;
+        return { projectId: candidateProjectRef.id, budgetRevision };
       });
     } catch (error) {
       // Two devices can read the same unconverted source before either commit.
@@ -322,7 +357,10 @@ export function createProjectFirestoreApi(database: Firestore) {
         currentProject.exists() &&
         currentProject.data().sourceBudgetId === budgetId
       ) {
-        return candidateProjectRef.id;
+        return {
+          projectId: candidateProjectRef.id,
+          budgetRevision: (currentBudget.data() as BudgetRoot).revision,
+        };
       }
       throw error;
     }
@@ -335,37 +373,66 @@ export function createProjectFirestoreApi(database: Firestore) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  async function fetchProject(uid: string, projectId: string): Promise<ProjectDetail | null> {
+  interface ProjectStructure {
+    project: Project;
+    document: ConstructionDocument;
+    supplements: ProjectSupplement[];
+    supplementVoids: ProjectSupplementVoid[];
+  }
+
+  async function loadStructure(uid: string, projectId: string): Promise<ProjectStructure | null> {
     const projectRef = doc(projectsCollection(database, uid), projectId);
     const snapshot = await getDoc(projectRef);
     if (!snapshot.exists()) return null;
-    const [workItemsSnapshot, supplementsSnapshot, voidsSnapshot, assignmentsSnapshot] =
-      await Promise.all([
-        getDocs(collection(projectRef, 'workItems')),
-        getDocs(collection(projectRef, 'supplements')),
-        getDocs(collection(projectRef, 'supplementVoids')),
-        getDocs(collection(projectRef, 'assignments')),
-      ]);
-    const workItems = workItemsSnapshot.docs
-      .map((workItem) => ({ ...workItem.data(), id: workItem.id }) as ProjectWorkItem)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-    const supplements = supplementsSnapshot.docs
-      .map((supplement) => ({ ...supplement.data(), id: supplement.id }) as ProjectSupplement)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const supplementVoids = voidsSnapshot.docs.map(
-      (supplementVoid) => supplementVoid.data() as ProjectSupplementVoid,
-    );
+    const project = { ...snapshot.data(), id: snapshot.id } as Project;
+    const [source, supplementsSnapshot, voidsSnapshot] = await Promise.all([
+      loadBudgetDocument(uid, project.sourceBudgetId),
+      getDocs(collection(projectRef, 'supplements')),
+      getDocs(collection(projectRef, 'supplementVoids')),
+    ]);
+    if (source.root.projectId !== projectId)
+      throw new Error('El presupuesto de origen no está vinculado a este proyecto.');
+    return {
+      project,
+      document: source.document,
+      supplements: supplementsSnapshot.docs
+        .map((supplement) => ({ ...supplement.data(), id: supplement.id }) as ProjectSupplement)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      supplementVoids: voidsSnapshot.docs.map(
+        (supplementVoid) => supplementVoid.data() as ProjectSupplementVoid,
+      ),
+    };
+  }
+
+  function progressRef(uid: string, projectId: string) {
+    return doc(projectsCollection(database, uid), projectId, 'progress', 'state');
+  }
+
+  async function fetchProject(uid: string, projectId: string): Promise<ProjectDetail | null> {
+    const projectRef = doc(projectsCollection(database, uid), projectId);
+    const structure = await loadStructure(uid, projectId);
+    if (!structure) return null;
+    const [progressSnapshot, assignmentsSnapshot] = await Promise.all([
+      getDoc(progressRef(uid, projectId)),
+      getDocs(collection(projectRef, 'assignments')),
+    ]);
+    const completed =
+      (progressSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
     const assignments = assignmentsSnapshot.docs
       .map((assignment) => ({ ...assignment.data(), id: assignment.id }) as ProjectAssignment)
       .sort((a, b) => a.assignedAt.localeCompare(b.assignedAt));
     return {
-      ...snapshot.data(),
-      id: snapshot.id,
-      workItems,
+      ...structure.project,
+      workItems: buildProjectWorkItems(
+        structure.document,
+        structure.supplements,
+        structure.supplementVoids,
+        completed,
+      ),
       assignments,
-      supplements,
-      supplementVoids,
-    } as ProjectDetail;
+      supplements: structure.supplements,
+      supplementVoids: structure.supplementVoids,
+    };
   }
 
   async function addAssignment(
@@ -509,25 +576,34 @@ export function createProjectFirestoreApi(database: Firestore) {
     });
   }
 
+  /** Applies a change to one chapter's completion map entries and the project summary. */
   async function mutateWorkItem(
     uid: string,
     projectId: string,
     workItemId: string,
     updateTasks: (tasks: ProjectTask[], completedAt: string) => ProjectTask[],
   ): Promise<ProjectProgressMutation> {
+    const structure = await loadStructure(uid, projectId);
+    if (!structure) throw new Error('No se ha encontrado el proyecto.');
     const projectRef = doc(projectsCollection(database, uid), projectId);
-    const workItemRef = doc(collection(projectRef, 'workItems'), workItemId);
+    const stateRef = progressRef(uid, projectId);
     const changedAt = new Date().toISOString();
 
     return runTransaction(database, async (transaction) => {
-      const [projectSnapshot, workItemSnapshot] = await Promise.all([
+      const [projectSnapshot, stateSnapshot] = await Promise.all([
         transaction.get(projectRef),
-        transaction.get(workItemRef),
+        transaction.get(stateRef),
       ]);
       if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
-      if (!workItemSnapshot.exists()) throw new Error('No se ha encontrado el capítulo.');
       const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
-      const workItem = { ...workItemSnapshot.data(), id: workItemSnapshot.id } as ProjectWorkItem;
+      const completed = (stateSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
+      const workItem = buildProjectWorkItems(
+        structure.document,
+        structure.supplements,
+        structure.supplementVoids,
+        completed,
+      ).find((item) => item.id === workItemId);
+      if (!workItem) throw new Error('No se ha encontrado el capítulo.');
       if (workItem.voidedAt) throw new Error('Esta ampliación está anulada.');
       const tasks = updateTasks(workItem.tasks, changedAt);
       const nextWorkItem = { ...workItem, tasks };
@@ -542,7 +618,11 @@ export function createProjectFirestoreApi(database: Firestore) {
       else Reflect.deleteProperty(nextProject, 'completedAt');
 
       if (JSON.stringify(tasks) !== JSON.stringify(workItem.tasks)) {
-        transaction.update(workItemRef, { tasks });
+        const nextCompleted = { ...completed };
+        for (const task of tasks)
+          if (task.completedAt) nextCompleted[task.id] = task.completedAt;
+          else delete nextCompleted[task.id];
+        transaction.set(stateRef, { completed: nextCompleted, updatedAt: changedAt });
         transaction.update(projectRef, projectUpdate);
       }
 
@@ -591,74 +671,67 @@ export function createProjectFirestoreApi(database: Firestore) {
     updateTasks: (tasks: ProjectTask[], normalizedDate: string) => ProjectTask[],
   ): Promise<ProjectProgressMutation> {
     const normalizedDate = normalizeProjectCompletionDate(completedAt);
+    const structure = await loadStructure(uid, projectId);
+    if (!structure) throw new Error('No se ha encontrado el proyecto.');
     const projectRef = doc(projectsCollection(database, uid), projectId);
-    const workItemsCollection = collection(projectRef, 'workItems');
+    const stateRef = progressRef(uid, projectId);
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const workItemsSnapshot = await getDocs(workItemsCollection);
-      const workItemRefs = workItemsSnapshot.docs.map((snapshot) => snapshot.ref);
-      try {
-        return await runTransaction(database, async (transaction) => {
-          const [projectSnapshot, ...workItemSnapshots] = await Promise.all([
-            transaction.get(projectRef),
-            ...workItemRefs.map((ref) => transaction.get(ref)),
-          ]);
-          if (!projectSnapshot?.exists()) throw new Error('No se ha encontrado el proyecto.');
-          const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
-          const workItems = workItemSnapshots.map((snapshot) =>
-            snapshot.exists() ? ({ ...snapshot.data(), id: snapshot.id } as ProjectWorkItem) : null,
-          );
-          const activeWorkItems = workItems.filter(
-            (workItem): workItem is ProjectWorkItem => !!workItem && !workItem.voidedAt,
-          );
-          if (
-            workItems.some((workItem) => !workItem) ||
-            activeWorkItems.length !== project.workItemCount
-          )
-            throw new ProjectWorkItemsChangedError('El proyecto ha cambiado.');
+    return runTransaction(database, async (transaction) => {
+      const [projectSnapshot, stateSnapshot] = await Promise.all([
+        transaction.get(projectRef),
+        transaction.get(stateRef),
+      ]);
+      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+      const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
+      const completed = (stateSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
+      const workItems = buildProjectWorkItems(
+        structure.document,
+        structure.supplements,
+        structure.supplementVoids,
+        completed,
+      );
+      const workItemIndex = workItems.findIndex((workItem) => workItem.id === workItemId);
+      const before = workItems[workItemIndex];
+      if (!before) throw new Error('No se ha encontrado el capítulo.');
+      if (before.voidedAt) throw new Error('Esta ampliación está anulada.');
+      const after = { ...before, tasks: updateTasks(before.tasks, normalizedDate) };
+      const nextWorkItems = [...workItems];
+      nextWorkItems[workItemIndex] = after;
+      const activeTasks = nextWorkItems
+        .filter((workItem) => !workItem.voidedAt)
+        .flatMap((workItem) => workItem.tasks);
+      if (activeTasks.length !== project.totalConcepts)
+        throw new Error(
+          'El historial no coincide con el resumen del proyecto. Recarga e inténtalo de nuevo.',
+        );
 
-          const workItemIndex = workItems.findIndex((workItem) => workItem?.id === workItemId);
-          const before = workItems[workItemIndex];
-          if (!before) throw new Error('No se ha encontrado el capítulo.');
-          if (before.voidedAt) throw new Error('Esta ampliación está anulada.');
-          const after = { ...before, tasks: updateTasks(before.tasks, normalizedDate) };
-          const nextWorkItems = [...workItems];
-          nextWorkItems[workItemIndex] = after;
-          const activeTasks = nextWorkItems
-            .filter((workItem): workItem is ProjectWorkItem => !!workItem && !workItem.voidedAt)
-            .flatMap((workItem) => workItem.tasks);
-          if (activeTasks.length !== project.totalConcepts)
-            throw new Error(
-              'El historial no coincide con el resumen del proyecto. Recarga e inténtalo de nuevo.',
-            );
+      const allComplete =
+        project.status === 'completed' &&
+        activeTasks.length > 0 &&
+        activeTasks.every((task) => !!task.completedAt);
+      const nextCompletedAt = allComplete
+        ? activeTasks
+            .map((task) => getProjectLocalDateKey(task.completedAt!))
+            .sort((a, b) => b.localeCompare(a))[0]
+        : undefined;
+      const nextProject = { ...project };
+      if (nextCompletedAt) nextProject.completedAt = nextCompletedAt;
+      else Reflect.deleteProperty(nextProject, 'completedAt');
 
-          const allComplete =
-            project.status === 'completed' &&
-            activeTasks.length > 0 &&
-            activeTasks.every((task) => !!task.completedAt);
-          const nextCompletedAt = allComplete
-            ? activeTasks
-                .map((task) => getProjectLocalDateKey(task.completedAt!))
-                .sort((a, b) => b.localeCompare(a))[0]
-            : undefined;
-          const nextProject = { ...project };
-          if (nextCompletedAt) nextProject.completedAt = nextCompletedAt;
-          else Reflect.deleteProperty(nextProject, 'completedAt');
-
-          const tasksChanged = JSON.stringify(after.tasks) !== JSON.stringify(before.tasks);
-          if (tasksChanged)
-            transaction.update(workItemRefs[workItemIndex]!, { tasks: after.tasks });
-          if (project.completedAt !== nextCompletedAt) {
-            transaction.update(projectRef, { completedAt: nextCompletedAt ?? deleteField() });
-          }
-          return { project: nextProject, workItem: after };
+      if (JSON.stringify(after.tasks) !== JSON.stringify(before.tasks)) {
+        const nextCompleted = { ...completed };
+        for (const task of after.tasks)
+          if (task.completedAt) nextCompleted[task.id] = task.completedAt;
+        transaction.set(stateRef, {
+          completed: nextCompleted,
+          updatedAt: new Date().toISOString(),
         });
-      } catch (error) {
-        if (!(error instanceof ProjectWorkItemsChangedError) || attempt === 2) throw error;
       }
-    }
-
-    throw new Error('El proyecto ha cambiado. Recarga e inténtalo de nuevo.');
+      if (project.completedAt !== nextCompletedAt) {
+        transaction.update(projectRef, { completedAt: nextCompletedAt ?? deleteField() });
+      }
+      return { project: nextProject, workItem: after };
+    });
   }
 
   async function setTaskCompletionDate(
@@ -724,23 +797,19 @@ export function createProjectFirestoreApi(database: Firestore) {
       ]);
       if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
       const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
-      const workItemId = `supplement_${supplementId}`;
-      const workItemRef = doc(collection(projectRef, 'workItems'), workItemId);
-      const workItemSnapshot = await transaction.get(workItemRef);
 
       if (supplementSnapshot.exists()) {
-        if (!workItemSnapshot.exists())
-          throw new Error('La ampliación guardada tiene registros incompletos.');
+        const existing = {
+          ...supplementSnapshot.data(),
+          id: supplementSnapshot.id,
+        } as ProjectSupplement;
         return {
           project,
-          supplement: {
-            ...supplementSnapshot.data(),
-            id: supplementSnapshot.id,
-          } as ProjectSupplement,
-          workItem: { ...workItemSnapshot.data(), id: workItemSnapshot.id } as ProjectWorkItem,
+          supplement: existing,
+          workItem: createSupplementWorkItem(existing, project.workItemCount - 1),
         };
       }
-      if (voidSnapshot.exists() || workItemSnapshot.exists())
+      if (voidSnapshot.exists())
         throw new Error('El identificador de la ampliación ya está ocupado.');
 
       const supplement = buildProjectSupplement(project, supplementId, input, createdAt);
@@ -784,7 +853,6 @@ export function createProjectFirestoreApi(database: Firestore) {
       const update = { ...projectUpdate, completedAt: deleteField() };
 
       transaction.set(supplementRef, supplement);
-      transaction.set(workItemRef, workItem);
       transaction.update(projectRef, update);
 
       return { project: nextProject, supplement, workItem };
@@ -806,125 +874,114 @@ export function createProjectFirestoreApi(database: Firestore) {
     const projectRef = doc(projectsCollection(database, uid), projectId);
     const supplementRef = doc(collection(projectRef, 'supplements'), supplementId);
     const voidRef = doc(collection(projectRef, 'supplementVoids'), supplementId);
-    const workItemRef = doc(collection(projectRef, 'workItems'), `supplement_${supplementId}`);
+    const stateRef = progressRef(uid, projectId);
     const voidedAt = new Date().toISOString();
+    const structure = await loadStructure(uid, projectId);
+    if (!structure) throw new Error('No se ha encontrado el proyecto.');
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const workItemsSnapshot = await getDocs(collection(projectRef, 'workItems'));
-      const workItemRefs = workItemsSnapshot.docs.map((snapshot) => snapshot.ref);
-      try {
-        return await runTransaction(database, async (transaction) => {
-          const [projectSnapshot, supplementSnapshot, voidSnapshot, ...workItemSnapshots] =
-            await Promise.all([
-              transaction.get(projectRef),
-              transaction.get(supplementRef),
-              transaction.get(voidRef),
-              ...workItemRefs.map((ref) => transaction.get(ref)),
-            ]);
-          if (!projectSnapshot?.exists()) throw new Error('No se ha encontrado el proyecto.');
-          if (!supplementSnapshot?.exists()) throw new Error('No se ha encontrado la ampliación.');
-          if (!voidSnapshot) throw new Error('No se ha podido leer el historial de ampliaciones.');
-          const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
-          const supplement = {
-            ...supplementSnapshot.data(),
-            id: supplementSnapshot.id,
-          } as ProjectSupplement;
-          const workItems = workItemSnapshots.map((snapshot) =>
-            snapshot.exists() ? ({ ...snapshot.data(), id: snapshot.id } as ProjectWorkItem) : null,
-          );
-          const workItemIndex = workItemRefs.findIndex((ref) => ref.id === workItemRef.id);
-          const workItem = workItems[workItemIndex];
-          if (!workItem) throw new Error('No se ha encontrado el trabajo añadido.');
+    return runTransaction(database, async (transaction) => {
+      const [projectSnapshot, supplementSnapshot, voidSnapshot, stateSnapshot] = await Promise.all([
+        transaction.get(projectRef),
+        transaction.get(supplementRef),
+        transaction.get(voidRef),
+        transaction.get(stateRef),
+      ]);
+      if (!projectSnapshot.exists()) throw new Error('No se ha encontrado el proyecto.');
+      if (!supplementSnapshot.exists()) throw new Error('No se ha encontrado la ampliación.');
+      const project = { ...projectSnapshot.data(), id: projectSnapshot.id } as Project;
+      const supplement = {
+        ...supplementSnapshot.data(),
+        id: supplementSnapshot.id,
+      } as ProjectSupplement;
+      const completed = (stateSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
+      const supplementVoids = voidSnapshot.exists()
+        ? [voidSnapshot.data() as ProjectSupplementVoid]
+        : structure.supplementVoids.filter((item) => item.supplementId !== supplementId);
+      const workItems = buildProjectWorkItems(
+        structure.document,
+        structure.supplements.some((item) => item.id === supplementId)
+          ? structure.supplements
+          : [...structure.supplements, supplement],
+        supplementVoids,
+        completed,
+      );
+      const workItem = workItems.find((item) => item.supplementId === supplementId);
+      if (!workItem) throw new Error('No se ha encontrado el trabajo añadido.');
 
-          if (voidSnapshot.exists()) {
-            const existingVoid = voidSnapshot.data() as ProjectSupplementVoid;
-            if (existingVoid.reason !== normalizedReason)
-              throw new Error('La ampliación ya se anuló con otro motivo.');
-            if (!workItem.voidedAt)
-              throw new Error('La anulación guardada tiene registros incompletos.');
-            return { project, supplementVoid: existingVoid, workItem };
-          }
-          if (workItem.voidedAt) throw new Error('La ampliación ya está marcada como anulada.');
-          if (workItem.supplementId !== supplementId)
-            throw new Error('La ampliación no coincide con el trabajo añadido.');
-          const activeWorkItems = workItems.filter(
-            (item): item is ProjectWorkItem => !!item && !item.voidedAt,
-          );
-          if (workItems.some((item) => !item) || activeWorkItems.length !== project.workItemCount)
-            throw new ProjectWorkItemsChangedError('El proyecto ha cambiado.');
-
-          const supplementVoid: ProjectSupplementVoid = {
-            supplementId,
-            reason: normalizedReason,
-            voidedAt,
-          };
-          const completedTasks = workItem.tasks.filter((task) => task.completedAt);
-          const completedConcepts = Math.max(0, project.completedConcepts - completedTasks.length);
-          const totalConcepts = Math.max(0, project.totalConcepts - workItem.tasks.length);
-          const completedAmount = money(
-            Math.max(0, project.completedAmount - amountForCompletedTasks(workItem.tasks)),
-          );
-          const totalAmount = money(Math.max(0, project.totalAmount - supplement.subtotal));
-          const status: Project['status'] =
-            completedConcepts === 0 || totalConcepts === 0
-              ? 'pending'
-              : completedConcepts === totalConcepts
-                ? 'completed'
-                : 'in_progress';
-          const supplementsSubtotal = money(
-            Math.max(0, (project.supplementsSubtotal ?? 0) - supplement.subtotal),
-          );
-          const supplementsIva = money(Math.max(0, (project.supplementsIva ?? 0) - supplement.iva));
-          const projectUpdate = {
-            lastSupplementId: supplementId,
-            lastSupplementAction: 'voided' as const,
-            supplementsSubtotal,
-            supplementsIva,
-            updatedTotal: money(
-              Math.max(0, (project.updatedTotal ?? project.total) - supplement.total),
-            ),
-            workItemCount: Math.max(0, project.workItemCount - 1),
-            totalConcepts,
-            completedConcepts,
-            totalAmount,
-            completedAmount,
-            percent: percentage(
-              project,
-              totalConcepts,
-              completedConcepts,
-              totalAmount,
-              completedAmount,
-            ),
-            status,
-          };
-          const remainingWorkItems = activeWorkItems.filter((item) => item.id !== workItem.id);
-          const remainingTasks = remainingWorkItems.flatMap((item) => item.tasks);
-          const completionDates =
-            status === 'completed' && remainingTasks.length > 0
-              ? remainingTasks.map((task) => getProjectLocalDateKey(task.completedAt!))
-              : [];
-          const completedAt = completionDates.sort((a, b) => b.localeCompare(a))[0];
-          const update = { ...projectUpdate, completedAt: completedAt ?? deleteField() };
-          const nextProject: Project = { ...project, ...projectUpdate };
-          if (completedAt) nextProject.completedAt = completedAt;
-          else Reflect.deleteProperty(nextProject, 'completedAt');
-
-          transaction.set(voidRef, supplementVoid);
-          transaction.update(workItemRef, { voidedAt });
-          transaction.update(projectRef, update);
-
-          return {
-            project: nextProject,
-            supplementVoid,
-            workItem: { ...workItem, voidedAt },
-          };
-        });
-      } catch (error) {
-        if (!(error instanceof ProjectWorkItemsChangedError) || attempt === 2) throw error;
+      if (voidSnapshot.exists()) {
+        const existingVoid = voidSnapshot.data() as ProjectSupplementVoid;
+        if (existingVoid.reason !== normalizedReason)
+          throw new Error('La ampliación ya se anuló con otro motivo.');
+        return { project, supplementVoid: existingVoid, workItem };
       }
-    }
 
-    throw new Error('El proyecto ha cambiado. Recarga e inténtalo de nuevo.');
+      const supplementVoid: ProjectSupplementVoid = {
+        supplementId,
+        reason: normalizedReason,
+        voidedAt,
+      };
+      const activeWorkItems = workItems.filter((item) => !item.voidedAt);
+      const completedTasks = workItem.tasks.filter((task) => task.completedAt);
+      const completedConcepts = Math.max(0, project.completedConcepts - completedTasks.length);
+      const totalConcepts = Math.max(0, project.totalConcepts - workItem.tasks.length);
+      const completedAmount = money(
+        Math.max(0, project.completedAmount - amountForCompletedTasks(workItem.tasks)),
+      );
+      const totalAmount = money(Math.max(0, project.totalAmount - supplement.subtotal));
+      const status: Project['status'] =
+        completedConcepts === 0 || totalConcepts === 0
+          ? 'pending'
+          : completedConcepts === totalConcepts
+            ? 'completed'
+            : 'in_progress';
+      const supplementsSubtotal = money(
+        Math.max(0, (project.supplementsSubtotal ?? 0) - supplement.subtotal),
+      );
+      const supplementsIva = money(Math.max(0, (project.supplementsIva ?? 0) - supplement.iva));
+      const projectUpdate = {
+        lastSupplementId: supplementId,
+        lastSupplementAction: 'voided' as const,
+        supplementsSubtotal,
+        supplementsIva,
+        updatedTotal: money(
+          Math.max(0, (project.updatedTotal ?? project.total) - supplement.total),
+        ),
+        workItemCount: Math.max(0, project.workItemCount - 1),
+        totalConcepts,
+        completedConcepts,
+        totalAmount,
+        completedAmount,
+        percent: percentage(
+          project,
+          totalConcepts,
+          completedConcepts,
+          totalAmount,
+          completedAmount,
+        ),
+        status,
+      };
+      const remainingTasks = activeWorkItems
+        .filter((item) => item.id !== workItem.id)
+        .flatMap((item) => item.tasks);
+      const completionDates =
+        status === 'completed' && remainingTasks.length > 0
+          ? remainingTasks.map((task) => getProjectLocalDateKey(task.completedAt!))
+          : [];
+      const completedAt = completionDates.sort((a, b) => b.localeCompare(a))[0];
+      const update = { ...projectUpdate, completedAt: completedAt ?? deleteField() };
+      const nextProject: Project = { ...project, ...projectUpdate };
+      if (completedAt) nextProject.completedAt = completedAt;
+      else Reflect.deleteProperty(nextProject, 'completedAt');
+
+      transaction.set(voidRef, supplementVoid);
+      transaction.update(projectRef, update);
+
+      return {
+        project: nextProject,
+        supplementVoid,
+        workItem: { ...workItem, voidedAt },
+      };
+    });
   }
 
   return {

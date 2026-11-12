@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, FileText, Mail, Phone, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { useBudgetStore } from '@/entities/budget';
+import { useBudgets } from '@/entities/budget';
 import {
   deleteLead,
   ESTIMATOR_QUALITIES,
@@ -78,7 +78,7 @@ export function LeadsPage() {
   const uid = useAuthStore((state) => state.user?.uid);
   const online = useNetworkStore((state) => state.online);
   const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
-  const budgets = useBudgetStore((state) => state.budgets);
+  const budgets = useBudgets();
   const [leadState, setLeadState] = useState<{
     uid: string;
     leads: QuoteLead[];

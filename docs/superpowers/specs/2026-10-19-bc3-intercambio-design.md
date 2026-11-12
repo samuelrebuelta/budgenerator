@@ -1,10 +1,10 @@
 # Diseño: intercambio BC3 en BudGenerator
 
-Estado: propuesta revisada el 20-10-2026 con autorización para rediseñar el modelo de datos; plan SDD preparado para revisión antes de implementar.
+Estado: implementado en la rama `claude/bc3-canonical` (12-11-2026), pendiente de revisión, merge y despliegue. Sin validar con archivos reales de Presto, Arquímedes o TCQ.
 
 ## Intención
 
-Permitir que empresas de reformas reutilicen en BudGenerator información que ya reciben en formato BC3 y que puedan entregar su catálogo y presupuestos a otras herramientas compatibles. El alcance acordado para estudiar incluye importar bases de precios al catálogo, importar presupuestos que puedan adaptarse al modelo de BudGenerator y exportar datos propios a BC3.
+Permitir que empresas de reformas gestionen en BudGenerator su catálogo, presupuestos y plantillas en un modelo de dominio nativo alineado con FIEBDC, y puedan intercambiarlos directamente con otras herramientas compatibles. BC3 será el formato estándar semántico de la app: los módulos compartirán la misma fuente de conceptos, estructura, descomposiciones y mediciones. La lectura y escritura de archivos convertirán entre bytes y el objeto canónico, sin traducir a un modelo de negocio paralelo.
 
 ## Por qué
 
@@ -19,12 +19,14 @@ Hipótesis a validar con muestras de usuarios: el flujo más frecuente es recibi
 - Exportar catálogo, presupuestos y plantillas de BudGenerator a archivos `.bc3` que se puedan abrir en software compatible.
 - Ofrecer vista previa, resumen de cambios y avisos explícitos antes de persistir o descargar.
 - Hacer que el modelo canónico de presupuestos, catálogos y plantillas represente nativamente la estructura FIEBDC, para importar y exportar sin aplanar ni reconstruir datos desde los modelos actuales.
+- Usar ese mismo modelo como fuente de verdad en todos los módulos de la app; permitir proyecciones de lectura para UI y APIs sólo como vistas derivadas, sin persistir modelos de presupuesto/catálogo paralelos.
+- Mantener la experiencia actual rápida y sencilla para reformistas y autónomos; las mediciones detalladas y el desglose de precios aparecen de forma opcional cuando el usuario los necesite.
 - Reutilizar autenticación, cuota y ciclo de guardado de la app, rediseñando el esquema Firestore, las reglas y los consumidores que dependan del modelo actual cuando haga falta.
 - Implementar sin dependencias nuevas y sin llamadas a backend para interpretar archivos del usuario.
 
 ## No objetivos
 
-- Importar certificaciones, pliegos, adjuntos, gráficos, relaciones comerciales, datos BIM o descripciones paramétricas en la primera entrega.
+- Importar certificaciones de obra, pliegos, adjuntos, gráficos, relaciones comerciales, datos BIM o descripciones paramétricas en la primera entrega.
 - Integrar proveedores de bancos de precios remotos o autenticación de terceros.
 - Convertir BC3 a `WorkItem[]`/`BudgetTask[]` o `CatalogPart[]` como modelo persistido canónico.
 - Prometer una conversión sin pérdida de información de cualquier BC3. Los datos que no tengan representación equivalente se deben advertir y no transformar silenciosamente.
@@ -39,6 +41,8 @@ Hipótesis a validar con muestras de usuarios: el flujo más frecuente es recibi
 - La base del proyecto es Firestore Standard en `europe-southwest1`. Firestore limita cada documento a 1 MiB y recomienda subcolecciones cuando listas crecen; las importaciones pueden exceder el tamaño práctico de un documento agregado. [Límite/tamaño de documentos](https://firebase.google.com/docs/firestore/storage-size) · [Elección de estructura](https://firebase.google.com/docs/firestore/manage-data/structure-data).
 - El guardado actual de presupuesto consume cuota en una transacción sobre el contador de usuario. El nuevo almacenamiento debe preservar esta regla sin exigir una transacción única para una obra entera.
 - No hay usuarios en producción. El usuario autoriza cambios del modelo y esquema de datos. Esto elimina la obligación de preservar el contrato plano como modelo activo, pero no autoriza borrar ni migrar datos remotos sin inspección y una operación explícita.
+- La interfaz corriente mantiene el formulario actual de descripción, cantidad, unidad y precio. Una partida sencilla se representa con una medición simple; ver o editar líneas de medición y descomposiciones será una acción explícita, no un requisito de cada alta.
+- El intercambio inicial admite bases/catálogos y presupuestos/obras; una cabecera BC3 que identifique una certificación se rechazará con un diagnóstico claro y nunca se reinterpretará como presupuesto.
 - La lógica PDF está separada. La implementación BC3 debe evitar alterar los importes o exportaciones PDF existentes.
 - El formato tiene registros con delimitadores, versiones y campos con caracteres escapados; requiere fixtures representativos y validación de importes antes de ampliar cobertura.
 
@@ -46,9 +50,9 @@ Hipótesis a validar con muestras de usuarios: el flujo más frecuente es recibi
 
 ### Documento de construcción
 
-Presupuestos, catálogos y plantillas compartirán un núcleo de dominio FIEBDC y diferirán en metadatos de negocio. El núcleo guardará la identidad/versiones del formato, conceptos indexados por su código original, la jerarquía de capítulos y referencias, relaciones de descomposición, unidades literales, precios identificados por rótulo, textos y líneas de medición con sus factores/expresiones. Mantendrá el orden de origen y la precisión numérica necesaria para reproducir los importes. No convertirá capítulos a grupos planos ni mediciones a una cantidad agregada.
+Toda la app usará un modelo de dominio canónico FIEBDC para presupuestos, catálogos, plantillas y proyectos. El núcleo guardará la identidad/versiones del formato, conceptos indexados por su código original, jerarquía de capítulos y referencias, relaciones de descomposición, unidades literales, precios identificados por rótulo, textos y líneas de medición con sus factores/expresiones. Mantendrá el orden de origen y la precisión numérica necesaria para reproducir los importes. No habrá una fuente persistida paralela basada en `WorkItem[]`, `BudgetTask[]` o `CatalogPart[]`.
 
-Un presupuesto añadirá cliente, obra, fecha, IVA/ajustes aprobados, aceptación y enlaces a proyecto. Un catálogo contendrá conceptos reutilizables y precios; una plantilla será el mismo tipo de estructura con metadatos propios. Los proyectos referenciarán el presupuesto aceptado y guardarán el avance por ocurrencia/partida, sin mutar la definición de conceptos original. Se actualizarán cálculos, editor, PDF, compartir y conversión a proyecto para consumir el nuevo modelo.
+Un presupuesto añadirá cliente, obra, fecha, IVA/ajustes aprobados, aceptación y enlaces a proyecto. Un catálogo contendrá conceptos reutilizables y precios; una plantilla será el mismo tipo de estructura con metadatos propios. Los proyectos referenciarán el presupuesto aceptado y guardarán avance por ocurrencia, sin mutar conceptos. Se actualizarán todos los consumidores (cálculos, editor, PDF, compartir, proyectos, estimador y plantillas) para consumir el nuevo modelo. Las vistas simples ocultarán campos avanzados que no se usan.
 
 El modelo incluirá registros centrales FIEBDC en tipos propios y conservará registros no interpretados como extensiones opacas, con su orden y contenido, mientras no se editen referencias que los invaliden. La primera cobertura funcional se limita a registros validados con los fixtures; si una importación de presupuesto no puede preservar una partida, medición o efecto económico, se bloquea.
 
@@ -102,6 +106,7 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 6. Cancelar no escribe datos; confirmar no duplica al doble clic; cambiar de sesión durante una operación no contamina datos de otra cuenta.
 7. Probar las reglas nuevas o modificadas con emuladores antes de considerarlas seguras; no desplegar reglas ni Functions como parte de la verificación local.
 8. Checks de cierre según instrucciones del proyecto y capturas responsive.
+9. Todos los módulos operan sobre la misma fuente `ConstructionDocument`; la UI de alta simple conserva sus campos y pasos actuales y muestra datos avanzados sólo cuando el usuario los abre.
 
 ## Decisiones confirmadas
 
@@ -110,6 +115,8 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 - Rediseñar el modelo canónico para estructura FIEBDC, incluyendo unidades libres y jerarquía/mediciones nativas.
 - Importar el precio BC3 como precio de venta y fijar coste a cero cuando el archivo no exprese un coste inequívoco.
 - Incluir plantillas en la exportación inicial como estructuras reutilizables.
+- Mantener las certificaciones fuera de esta entrega; reconocer y rechazar explícitamente ese tipo de archivo BC3.
+- Hacer del modelo canónico la fuente de verdad de toda la app, con presentación simple por defecto y detalles FIEBDC optativos.
 
 ## Decisiones de implementación propuestas
 
@@ -122,10 +129,19 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 
 - Variantes reales de codificación, separadores, caracteres escapados y versiones; cubrir sólo la versión formal no garantiza compatibilidad con todos los exportadores.
 - Descomposiciones y mediciones detalladas pueden ser relevantes para precio y total aunque el modelo actual sólo almacene una cantidad y un precio unitario.
-- La unidad libre debe mostrarse y exportarse correctamente en presupuesto, catálogo, plantillas, proyectos y PDF; la feature rediseña los contratos persistidos y varios consumidores de UI.
+- Un esquema de dominio rico puede complicar la UX si se expone en cada formulario; la vista simple debe conservar alta rápida y revelar detalles avanzados sólo bajo demanda.
+- La unidad libre debe mostrarse y exportarse correctamente en presupuesto, catálogo, plantillas, proyectos y PDF; la feature rediseña los contratos persistidos y todos sus consumidores.
 - La interpretación incorrecta de un precio o coeficiente puede causar presupuestos con totales plausibles pero erróneos; comparar siempre origen y destino en vista previa.
 - El requisito bidireccional FIEBDC hace mayor la entrega que un parser de importación aislado.
 
 ## Documentación relacionada
 
-Actualizar `docs/plan.md`, `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md` y `docs/firebase.md` al implementar. Esta propuesta y su plan no modifican código, reglas ni datos.
+Actualizar `docs/plan.md`, `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md` y `docs/firebase.md` durante la implementación. El trabajo local usa emuladores; no incluye despliegues ni escrituras en Firestore real.
+
+## Implementación (12-11-2026)
+
+- Modelo: `src/entities/construction-document/model` (conceptos por ID interno con código FIEBDC, árbol de ocurrencias, mediciones con líneas y expresiones, `~K`, extensiones opacas, negocio). Vistas derivadas para UI/PDF/proyectos.
+- Persistencia: raíz ligera + `content/{0..7}` (JSON troceado ≤ 900 KB) con `revision`/`contentRevision`; ver `docs/firebase.md`. Se descartó el staging por bloques del borrador anterior: cada guardado es una transacción atómica de hasta ~7,2 MB.
+- Codec: `src/entities/construction-document/bc3`. Política de importación de obra: bloquea certificaciones (tipo 3), actualizaciones (tipo 4), `~B`, `~N`, `~R`, referencias inexistentes, números inválidos, códigos duplicados, capítulos con rendimiento ≠ 1, mediciones ambiguas o cuyas líneas no suman el total declarado, precios descompuestos que no cuadran con su descomposición y total de obra distinto del declarado (> 0,01). Avisa (sin bloquear) de GG/BI/CI/baja de `~K` (se conservan y reexportan, no se aplican al total), varios precios por concepto (se usa el primero), extensiones conservadas, conceptos sin uso y rendimiento `~D` distinto de la medición `~M` (manda la medición).
+- Porcentajes (`%` en el código): se interpretan en tanto por uno sobre la suma de líneas anteriores (filtradas por máscara `CODIGO_PORCENTAJE`). Pendiente de validar con archivos reales.
+- Exportación: ANSI, CRLF y EOF; los caracteres reservados `~ | \` se sustituyen y se avisa; cliente, número, ajuste y costes no se exportan (aviso explícito); el IVA sí, en `~K`.
