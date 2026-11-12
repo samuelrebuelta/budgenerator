@@ -22,19 +22,20 @@ Comprueba el flujo afectado en móvil estrecho y escritorio con datos ficticios.
 
 Los tokens viven en el `@theme` de [tokens.css](../src/app/styles/tokens.css) y generan utilidades de Tailwind (`bg-surface`, `text-ink-muted`, `rounded-card`, `shadow-popover`, `shell:`) y variables CSS.
 
-| Grupo         | Tokens                                                                                                                                                                        |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Superficies   | `canvas` (cal, fondo), `surface` (papel), `surface-muted`, `sidebar`, `tint` y `tint-strong` (verde suave de hover y selección), `scrim`                                      |
-| Texto         | `ink`, `ink-strong` (petróleo de títulos), `ink-soft`, `ink-muted` y `ink-subtle`; todos ≥ 4,5:1 sobre cal y papel                                                            |
-| Bordes        | `line` y `line-strong`                                                                                                                                                        |
-| Acción        | `primary`, `primary-hover`, `on-primary`, `accent` (terracota decorativa y foco), `accent-strong` (terracota para texto), `focus`, `highlight`, `calendar-selected` (granate) |
-| Estados       | `{success,warning,danger,info}-surface`, `-line` e `-ink` (AA sobre su superficie) y `danger-solid`                                                                           |
-| Escalas       | `brand-50…900` (petróleo) y `gray-50…900` (neutros cálidos; `gray-400` y `gray-500` ya cumplen AA). `blue-*` es un alias obsoleto de `brand-*` que se retirará en la fase 2   |
-| Forma         | `rounded-control` (8 px), `rounded-card` (14 px), `rounded-sheet` (16 px), `rounded-pill`; `shadow-card`, `shadow-popover`, `shadow-toast`, `shadow-modal`                    |
-| Tipografía    | `font-sans` (Manrope), `font-display` (Fraunces), `text-display` para títulos y la escala `text-xs…4xl`; ningún texto por debajo de 12 px                                     |
-| Capas y ancho | `--z-dropdown` 30, `--z-sticky` 40, `--z-nav` 45, `--z-header` 50, `--z-popover` 60, `--z-tour` 80, `--z-toast` 90 (`z-(--z-toast)`); `shell:` y `max-shell:` en 801 px       |
+| Grupo         | Tokens                                                                                                                                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Superficies   | `canvas` (cal, fondo), `surface` (papel), `surface-muted`, `sidebar`, `tint` y `tint-strong` (verde suave de hover y selección), `scrim`                                                                                            |
+| Texto         | `ink`, `ink-strong` (petróleo de títulos), `ink-soft`, `ink-muted` y `ink-subtle`; todos ≥ 4,5:1 sobre cal y papel                                                                                                                  |
+| Bordes        | `line` y `line-strong`                                                                                                                                                                                                              |
+| Acción        | `primary`, `primary-hover`, `on-primary`, `accent` (terracota decorativa y foco), `accent-strong` (terracota para texto), `accent-surface` y `accent-line` (estado «En curso»), `focus`, `highlight`, `calendar-selected` (granate) |
+| Estados       | `{success,warning,danger,info}-surface`, `-line` e `-ink` (AA sobre su superficie) y `danger-solid`                                                                                                                                 |
+| Cuadrillas    | `crew-{blue,green,amber,rose,violet,cyan,slate}` (punto), `-surface` (fondo) e `-ink` (texto); `CREW_COLORS` de `@/entities/workforce` los expone como `var(--color-crew-…)`                                                        |
+| Escalas       | `brand-50…900` (petróleo) y `gray-50…900` (neutros cálidos; `gray-400` y `gray-500` ya cumplen AA). `blue-*` es un alias obsoleto de `brand-*` que se retirará en la fase 2                                                         |
+| Forma         | `rounded-control` (8 px), `rounded-card` (14 px), `rounded-sheet` (16 px), `rounded-pill`; `shadow-card`, `shadow-popover`, `shadow-toast`, `shadow-modal`                                                                          |
+| Tipografía    | `font-sans` (Manrope), `font-display` (Fraunces), `text-display` para títulos y la escala `text-xs…4xl`; ningún texto por debajo de 12 px                                                                                           |
+| Capas y ancho | `--z-dropdown` 30, `--z-sticky` 40, `--z-nav` 45, `--z-header` 50, `--z-popover` 60, `--z-tour` 80, `--z-toast` 90 (`z-(--z-toast)`); `shell:` y `max-shell:` en 801 px                                                             |
 
-ESLint rechaza colores hex arbitrarios en las carpetas ya migradas (`src/app`, `src/shared/ui`, Equipo, Solicitudes, Ayuda y la guía) y los imports a internos de entidades o entre páginas; la lista de excepciones pendientes está en `eslint.config.js`.
+ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y los imports a internos de entidades (`@/entities/<x>/<interno>`) o entre páginas, sin excepciones. Un color que no encaje en un token existente se añade como token semántico en `tokens.css`, nunca como hex en el componente.
 
 ### Capas de CSS
 
