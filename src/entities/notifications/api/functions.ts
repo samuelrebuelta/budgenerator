@@ -22,6 +22,8 @@ export async function setNotificationPreferences(preferences: NotificationPrefer
 export async function registerPushDevice(input: {
   installationId: string;
   registrationToken: string;
+  /** The PWA always registers as web; native apps send ios or android. */
+  platform: 'web' | 'ios' | 'android';
 }) {
   const call = httpsCallable<typeof input, { registered: true }>(functions, 'registerPushDevice');
   return (await call(input)).data;

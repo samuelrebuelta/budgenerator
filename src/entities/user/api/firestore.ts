@@ -1,4 +1,12 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from '@/shared/firebase/config';
 import type { UserData, UserPlan } from '@/shared/types';
 import { runNetworkMutation } from '@/shared/lib/networkMutation';
@@ -20,8 +28,22 @@ export async function fetchUserData(uid: string): Promise<UserData | null> {
   return null;
 }
 
-export async function saveUserData(uid: string, data: UserData) {
-  await setDoc(userDataDoc(uid), data, { merge: true });
+/**
+ * Creates or merges the account root. `legalAcceptanceVersion` is only sent when
+ * the account is created from the registration form; Rules require the server
+ * time as acceptance date.
+ */
+export async function saveUserData(uid: string, data: UserData, legalAcceptanceVersion?: string) {
+  await setDoc(
+    userDataDoc(uid),
+    legalAcceptanceVersion
+      ? {
+          ...data,
+          legalAcceptance: { version: legalAcceptanceVersion, acceptedAt: serverTimestamp() },
+        }
+      : data,
+    { merge: true },
+  );
 }
 
 export async function updateUserData(uid: string, data: Partial<UserData>) {

@@ -93,9 +93,11 @@ async function registerInstallationForUser(uid: string, id: string, registration
   if (auth.currentUser?.uid !== uid || installationsClosing.has(id)) {
     throw new Error('push_owner_changed');
   }
-  const pending = registerPushDevice({ installationId: id, registrationToken }).then(
-    () => undefined,
-  );
+  const pending = registerPushDevice({
+    installationId: id,
+    registrationToken,
+    platform: 'web',
+  }).then(() => undefined);
   const pendingForInstallation = registrationsInFlight.get(id) ?? new Set<Promise<void>>();
   pendingForInstallation.add(pending);
   registrationsInFlight.set(id, pendingForInstallation);
