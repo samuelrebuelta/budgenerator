@@ -1,14 +1,16 @@
 import { memo, useState } from 'react';
-import { Trash2, ChevronDown } from 'lucide-react';
+import { Trash2, ChevronDown, Ruler } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
 import { AddTaskButton } from './AddTaskButton';
 import { CatalogSelector } from './CatalogSelector';
-import type { Unit, BudgetTask as BudgetTaskType } from '@/shared/types';
+import { LineDetail } from './LineDetail';
+import type { BudgetTask as BudgetTaskType } from '@/shared/types';
 import { decimal, money, unitPrice } from '@/shared/lib/budgetMath';
 import { formatCurrency } from '@/shared/lib';
 import { Button, ConfirmModal, EditableRow, EditableRowHeader, InfoPopover } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
+import { ROOT_CHAPTER_ID } from '@/entities/construction-document/model';
 
 function getBudgetColumns(surcharge = false): ColumnDef[] {
   return [
@@ -48,11 +50,12 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
   const getTaskAmount = useBudgetStore((s) => s.getTaskAmount);
   // Subscribe to multiplier so memo re-renders when adjustment changes
   const _mult = useBudgetStore((s) => {
-    const b = s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
-    return b?.adjustment?.multiplier ?? 1;
+    const record = s.draft ?? s.records.find((b) => b.id === s.activeBudgetId);
+    return record?.document.business.adjustment?.multiplier ?? 1;
   });
+  const [showDetail, setShowDetail] = useState(false);
   const effectivePrice = unitPrice(task, _mult);
-  const amount = getTaskAmount(task);
+  const amount = getTaskAmount(task.id);
 
   return (
     <EditableRow
@@ -68,17 +71,21 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
           type: 'number',
           value: task.quantity,
           onChange: (v) => updateTask(workItemId, task.id, { quantity: decimal(v) }),
+          readOnly: task.measured,
+          readOnlyHint: 'Calculada con las líneas de medición',
         },
         unit: {
           type: 'unit-select',
           value: task.unit,
-          onChange: (v) => updateTask(workItemId, task.id, { unit: v as Unit }),
+          onChange: (v) => updateTask(workItemId, task.id, { unit: v }),
         },
         price: {
           type: 'number',
           value: task.price,
           onChange: (v) => updateTask(workItemId, task.id, { price: decimal(v) }),
           placeholder: '0',
+          readOnly: task.composed,
+          readOnlyHint: 'Calculado con la descomposición del precio',
         },
         amount: {
           type: 'display',
@@ -107,8 +114,21 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
       }}
       onDelete={() => removeTask(workItemId, task.id)}
       headerExtra={
-        <CatalogSelector workItemId={workItemId} taskId={task.id} workItemName={workItemName} />
+        <>
+          <CatalogSelector workItemId={workItemId} taskId={task.id} workItemName={workItemName} />
+          <button
+            type="button"
+            className={`catalog-picker-trigger no-print ${task.measured || task.composed ? 'is-active' : ''}`}
+            aria-label={`Mediciones y descomposición de ${task.description || 'la partida'}`}
+            aria-expanded={showDetail}
+            title="Mediciones y descomposición"
+            onClick={() => setShowDetail((open) => !open)}
+          >
+            <Ruler size={16} />
+          </button>
+        </>
       }
+      detail={showDetail ? <LineDetail taskId={task.id} onClose={() => setShowDetail(false)} /> : null}
       mobileFooter={{
         label: t('editor.amount'),
         value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span>,
@@ -193,12 +213,17 @@ export function BudgetEditor() {
                 />
               </div>
 
-              <input
-                aria-label="Nombre del capítulo"
-                value={workItem.name}
-                onChange={(e) => renameWorkItem(workItem.id, e.target.value)}
-                className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 uppercase"
-              />
+              {workItem.id === ROOT_CHAPTER_ID ? (
+                <span className="font-semibold text-gray-900 text-sm uppercase">{workItem.name}</span>
+              ) : (
+                <input
+                  aria-label="Nombre del capítulo"
+                  value={workItem.name}
+                  onChange={(e) => renameWorkItem(workItem.id, e.target.value)}
+                  style={workItem.depth ? { paddingLeft: `${workItem.depth}rem` } : undefined}
+                  className="font-semibold text-gray-900 bg-transparent border-none outline-none text-sm print:font-bold min-w-0 uppercase"
+                />
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm font-medium text-gray-500 whitespace-nowrap">

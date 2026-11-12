@@ -20,7 +20,7 @@ export function PwaStatus() {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const handledRecoveryVersion = useRef(0);
-  const draft = useBudgetStore((s) => s.draftBudget);
+  const draft = useBudgetStore((s) => s.draft);
   useEffect(() => {
     const connected = () => {
       setNetworkOnline(true);

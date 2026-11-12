@@ -4,7 +4,7 @@ import { createAllocator, createConcept, type Allocator } from './factory.js';
 import { bareCode, isChapterNode, walkNodes } from './invariants.js';
 import { measurementLinesTotal } from './measurement.js';
 import { createRateResolver } from './math.js';
-import { ROOT_CHAPTER_ID } from './projection.js';
+import { ROOT_CHAPTER_ID, ROOT_CHAPTER_NAME } from './projection.js';
 import type {
   ConstructionBusiness,
   ConstructionContent,
@@ -398,14 +398,6 @@ export function appendChapters<T extends ConstructionContent>(
           item.catalogConceptId,
           chapter.catalogChapterId,
         );
-        if (item.price !== undefined || item.description !== undefined)
-          document = updateItem(document, created.nodeId, {
-            ...(item.description !== undefined ? { description: item.description } : {}),
-            ...(item.price !== undefined &&
-            !document.concepts[locate(document, created.nodeId).conceptId]?.decomposition.length
-              ? { price: item.price }
-              : {}),
-          });
       }
     }
   }
@@ -492,8 +484,8 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
   let addedParts = 0;
   let addedConcepts = 0;
   const copied = new Map<string, string>();
-  const visit = (node: FiebdcNode, targetParent: string) => {
-    const concept = source.concepts[node.conceptId];
+  const visit = (node: FiebdcNode, targetParent: string, override?: FiebdcConcept) => {
+    const concept = override ?? source.concepts[node.conceptId];
     if (!concept) return;
     if (!isChapterNode(node, concept)) return;
     if (!include(concept.summary)) return;
@@ -536,6 +528,17 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
     }
   };
   source.tree.forEach((node) => visit(node, ROOT_CHAPTER_ID));
+  const looseItems = source.tree.filter(
+    (node) => !isChapterNode(node, source.concepts[node.conceptId]),
+  );
+  if (looseItems.length) {
+    const virtualConcept = '__loose__';
+    visit(
+      { id: '__loose__', conceptId: virtualConcept, factor: '', quantity: '1', children: looseItems },
+      ROOT_CHAPTER_ID,
+      { id: virtualConcept, code: 'SINCAP#', unit: '', summary: ROOT_CHAPTER_NAME, prices: [], dates: [], type: '0', decomposition: [] },
+    );
+  }
   return { document, addedParts, addedConcepts };
 }
 

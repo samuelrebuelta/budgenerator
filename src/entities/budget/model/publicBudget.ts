@@ -1,28 +1,47 @@
-import type { Budget, PublicBudget } from '@/shared/types';
-import { unitPrice } from '@/shared/lib/budgetMath';
-/** Deliberate allowlist. Never copy private task/catalog/account data into a public snapshot. */
-export function toPublicBudget(budget: Budget): PublicBudget {
-  const multiplier = budget.adjustment?.multiplier ?? 1;
+import { decodeContent, projectWorkItems } from '@/entities/construction-document/model';
+import type { PublicBudget } from '@/shared/types';
+import type { SharedBudget } from '../api/firestore';
+
+/** Derived view of a public snapshot. Prices in the snapshot already include the adjustment. */
+export function sharedBudgetView(shared: SharedBudget): PublicBudget {
+  const content = decodeContent([shared.content]);
+  const { budget } = shared;
+  const document = {
+    ...content,
+    business: {
+      name: '',
+      clientName: budget.clientName,
+      address: budget.address,
+      date: budget.date,
+      budgetNumber: budget.budgetNumber,
+      ivaRate: budget.ivaRate,
+    },
+  };
   return {
     id: budget.id,
     info: {
-      clientName: budget.info.clientName,
-      address: budget.info.address,
-      date: budget.info.date,
-      budgetNumber: budget.info.budgetNumber,
+      clientName: budget.clientName,
+      address: budget.address,
+      date: budget.date,
+      budgetNumber: budget.budgetNumber,
     },
     createdAt: budget.createdAt,
-    ivaRate: budget.ivaRate ?? 0.1,
-    ...(multiplier < 1 ? { adjustment: { multiplier, reason: budget.adjustment!.reason } } : {}),
-    workItems: budget.workItems.map((wi) => ({
-      id: wi.id,
-      name: wi.name,
-      tasks: wi.tasks.map((task) => ({
+    ivaRate: budget.ivaRate,
+    ...(budget.adjustment ? { adjustment: budget.adjustment } : {}),
+    workItems: projectWorkItems(document).map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      depth: item.depth,
+      tasks: item.tasks.map((task) => ({
         id: task.id,
+        code: task.code,
         description: task.description,
         quantity: task.quantity,
         unit: task.unit,
-        price: unitPrice(task, multiplier),
+        price: task.price,
+        measured: task.measured,
+        ...(task.text ? { text: task.text } : {}),
       })),
     })),
   };

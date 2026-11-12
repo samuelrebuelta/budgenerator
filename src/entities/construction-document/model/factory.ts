@@ -92,6 +92,32 @@ export function createEmptyDocument(
   };
 }
 
+/**
+ * Copies the FIEBDC content into a document of another kind (template ↔ budget). IDs and
+ * codes are document-scoped, so they can be kept; only the root code and business change.
+ */
+export function cloneAsKind(
+  document: ConstructionContent,
+  kind: ConstructionDocumentKind,
+  business: ConstructionBusiness,
+): ConstructionDocument {
+  const content = structuredClone(document);
+  const root = content.concepts[content.rootConceptId];
+  const title = kind === 'budget' ? business.address : business.name;
+  if (root && document.kind !== kind) root.code = ROOT_CODES[kind];
+  if (root) root.summary = title;
+  return {
+    ...content,
+    kind,
+    header: {
+      ...content.header,
+      title,
+      informationType: kind === 'catalog' ? 1 : 2,
+    },
+    business: { ...business },
+  };
+}
+
 function maxSuffix(values: Iterable<string>, pattern: RegExp) {
   let max = 0;
   for (const value of values) {

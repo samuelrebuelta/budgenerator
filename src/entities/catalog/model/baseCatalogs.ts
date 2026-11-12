@@ -1,4 +1,4 @@
-import type { Unit } from '@/shared/types';
+type Unit = 'm2' | 'm3' | 'ml' | 'unit' | 'hour';
 
 export interface BaseCatalog {
   id: string;

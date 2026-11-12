@@ -1,117 +1,161 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
-import type {
-  Budget,
-  BudgetAdjustment,
-  BudgetInfo,
-  BudgetTask,
-  BudgetTemplate,
-  Unit,
-  WorkItem,
-} from '@/shared/types';
+import type { Budget, BudgetAdjustment, BudgetInfo } from '@/shared/types';
 import { generateId } from '@/shared/lib';
-import { assertBudget, budgetTotals, taskAmount, workItemAmount } from '@/shared/lib/budgetMath';
 import { WriteQueue } from '@/shared/lib/writeQueue';
 import { isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import { registerFlusher } from '@/shared/model/sync';
-import { fetchBudgets, saveBudget, createBudget, deleteBudgetDoc } from '../api/firestore';
-import { createBudgetAcceptanceApi } from '../api/acceptance';
-import { useUserStore } from '@/entities/user';
 import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
+import { useUserStore } from '@/entities/user';
+import {
+  ROOT_CHAPTER_ID,
+  addChapter,
+  addItem,
+  appendChapters,
+  applyCatalogConcept,
+  cloneAsKind,
+  createEmptyDocument,
+  documentTotals,
+  emptyBusiness,
+  flattenItemPrice,
+  removeNode,
+  renameChapter,
+  setMeasurementLines,
+  updateBusiness,
+  updateItem,
+  validateConstructionContent,
+  type ChapterInput,
+  type ConstructionContent,
+  type ConstructionDocument,
+  type FiebdcMeasurementLine,
+  type ItemInput,
+} from '@/entities/construction-document/model';
+import {
+  RevisionConflictError,
+  RevisionTracker,
+} from '@/entities/construction-document/api/storage';
+import { createBudget, deleteBudgetDoc, fetchBudget, fetchBudgets, saveBudget } from '../api/firestore';
+import { createBudgetAcceptanceApi } from '../api/acceptance';
+import { assertPublishable, budgetView, type BudgetRecord } from './record';
+
+export interface TemplateSource {
+  id: string;
+  createdAt: string;
+  document: ConstructionDocument;
+}
 
 interface BudgetState {
-  budgets: Budget[];
+  records: BudgetRecord[];
   activeBudgetId: string | null;
-  draftBudget: Budget | null;
+  draft: BudgetRecord | null;
   loaded: boolean;
   draftKey: string | null;
   draftDirty: boolean;
   savingDraft: boolean;
+  /** Budget IDs whose last save was rejected because another client saved first. */
+  conflicts: string[];
   loadBudgets: (uid: string) => Promise<void>;
-  startDraft: (catalogId?: string) => void;
-  startDraftFromLead: (lead: { id: string; contact: { name: string } }, catalogId?: string) => void;
-  startDraftFromTemplate: (template: BudgetTemplate) => void;
+  startDraft: () => void;
+  startDraftFromLead: (lead: { id: string; contact: { name: string } }) => void;
+  startDraftFromTemplate: (template: TemplateSource) => void;
   startDraftFromBudget: (id: string) => void;
+  /** Opens a draft from an imported BC3 document (preview already confirmed). */
+  startDraftFromDocument: (document: ConstructionDocument) => void;
   acceptBudget: (id: string) => Promise<void>;
   withdrawBudgetAcceptance: (id: string) => Promise<void>;
-  linkProject: (id: string, projectId: string) => void;
+  linkProject: (id: string, projectId: string, revision?: number) => void;
   syncLinkedProjectMetadata: (
     id: string,
     metadata: Pick<BudgetInfo, 'address' | 'clientName'>,
+    revision?: number,
   ) => void;
-  loadTemplateForEditing: (template: BudgetTemplate) => void;
+  loadTemplateForEditing: (template: TemplateSource | null) => void;
   saveDraft: () => Promise<string>;
   discardDraft: () => void;
   deleteBudget: (id: string) => Promise<void>;
   setActiveBudget: (id: string | null) => void;
+  reloadBudget: (id: string) => Promise<void>;
+  overwriteBudget: (id: string) => Promise<void>;
   getBudgetTotal: (id: string) => number;
   getWorkItemSubtotal: (id: string) => number;
   getRawSubtotal: () => number;
   getSubtotal: () => number;
   getIva: () => number;
   getTotal: () => number;
-  getTaskAmount: (task: BudgetTask) => number;
+  getTaskAmount: (taskId: string) => number;
   updateInfo: (info: Partial<BudgetInfo>) => void;
-  addWorkItem: (name: string, catalogPartId?: string) => void;
-  appendStructure: (items: WorkItem[], expected: Budget) => void;
+  addWorkItem: (name: string, catalogPartId?: string) => string | null;
+  appendStructure: (chapters: ChapterInput[], expected: Budget, catalog?: ConstructionContent) => void;
   removeWorkItem: (id: string) => void;
   renameWorkItem: (id: string, name: string) => void;
-  addTask: (id: string) => void;
+  addTask: (workItemId: string, input?: ItemInput) => string | null;
   removeTask: (workItemId: string, id: string) => void;
-  updateTask: (workItemId: string, id: string, patch: Partial<BudgetTask>) => void;
-  applyTariff: (
-    workItemId: string,
-    id: string,
-    catalogPartId: string,
+  updateTask: (workItemId: string, id: string, patch: ItemInput) => void;
+  setTaskMeasurements: (id: string, lines: FiebdcMeasurementLine[]) => void;
+  useDirectTaskPrice: (id: string) => void;
+  applyCatalogConcept: (
+    taskId: string,
+    catalog: ConstructionContent,
     catalogConceptId: string,
-    description: string,
-    unit: Unit,
-    price: number,
-    cost: number,
+    catalogPartId?: string,
   ) => void;
   updateAdjustment: (value: BudgetAdjustment | undefined) => void;
   updateIvaRate: (rate: number) => void;
-  setBudgetCatalog: (id: string) => void;
   resetBudget: () => void;
 }
-const emptyTask = (): BudgetTask => ({
-  id: generateId(),
-  description: '',
-  quantity: 0,
-  unit: 'm2',
-  price: 0,
-  cost: 0,
-});
 
-const active = (s: Pick<BudgetState, 'draftBudget' | 'budgets' | 'activeBudgetId'>) =>
-  s.draftBudget ?? s.budgets.find((b) => b.id === s.activeBudgetId);
+const activeRecord = (s: Pick<BudgetState, 'draft' | 'records' | 'activeBudgetId'>) =>
+  s.draft ?? s.records.find((b) => b.id === s.activeBudgetId);
+
 function draftStorage(key: string) {
   return `cimbra-draft:${sessionUid()}:${key}`;
 }
-function rememberDraft(key: string | null, budget: Budget | null) {
+function rememberDraft(key: string | null, record: BudgetRecord | null) {
   if (!key) return;
   try {
-    if (budget) sessionStorage.setItem(draftStorage(key), JSON.stringify(budget));
+    if (record) sessionStorage.setItem(draftStorage(key), JSON.stringify(record));
     else sessionStorage.removeItem(draftStorage(key));
   } catch {
     /* Storage can be unavailable in private mode. */
   }
 }
-function recoverDraft(key: string, fallback: Budget): Budget {
+function recoverDraft(key: string, fallback: BudgetRecord): BudgetRecord {
   try {
     const raw = sessionStorage.getItem(draftStorage(key));
     if (raw) {
-      const parsed = JSON.parse(raw) as Budget;
-      assertBudget(parsed);
-      return parsed;
+      const parsed = JSON.parse(raw) as BudgetRecord;
+      if (
+        parsed?.document?.kind === fallback.document.kind &&
+        !validateConstructionContent(parsed.document).length &&
+        documentTotals(parsed.document).valid
+      )
+        return parsed;
     }
   } catch {
     /* Keep the valid server/default document. */
   }
   return fallback;
 }
-const queue = new WriteQueue<Budget>('budget:', async (key, budget) => {
+
+const revisions = new RevisionTracker();
+const queue = new WriteQueue<BudgetRecord>('budget:', async (key, record) => {
   const uid = key.split('/')[0]!;
-  await saveBudget(uid, budget);
+  const expected = revisions.get(key) ?? record.revision;
+  try {
+    const revision = await saveBudget(uid, record, expected);
+    revisions.set(key, revision);
+    if (isSessionCurrent(uid, sessionRevision()))
+      useBudgetStore.setState((state) => ({
+        records: state.records.map((item) => (item.id === record.id ? { ...item, revision } : item)),
+        conflicts: state.conflicts.filter((id) => id !== record.id),
+      }));
+  } catch (error) {
+    if (error instanceof RevisionConflictError)
+      useBudgetStore.setState((state) => ({
+        conflicts: [...new Set([...state.conflicts, record.id])],
+      }));
+    throw error;
+  }
 });
 async function getAcceptanceApi() {
   const { db } = await import('@/shared/firebase/config');
@@ -124,6 +168,7 @@ registerFlusher(async () => {
 });
 export function clearBudgetWrites() {
   queue.clear();
+  revisions.clear();
   creationId = null;
   draftSave = null;
 }
@@ -134,223 +179,227 @@ export function setBudgetAuthGetter(_fn: () => string | null) {
   void _fn;
 }
 const initial = {
-  budgets: [] as Budget[],
+  records: [] as BudgetRecord[],
   activeBudgetId: null as string | null,
-  draftBudget: null as Budget | null,
+  draft: null as BudgetRecord | null,
   draftKey: null as string | null,
   loaded: false,
   draftDirty: false,
   savingDraft: false,
+  conflicts: [] as string[],
 };
 export function resetBudgetStore() {
   clearBudgetWrites();
   useBudgetStore.setState(initial);
 }
+
+const today = () => new Date().toLocaleDateString('en-CA');
+
+function draftRecord(document: ConstructionDocument, patch: Partial<BudgetRecord> = {}): BudgetRecord {
+  return { id: '', revision: 0, number: 0, createdAt: '', updatedAt: '', document, ...patch };
+}
+
+function newBudgetDocument(patch: Parameters<typeof emptyBusiness>[0] = {}) {
+  return createEmptyDocument('budget', { date: today(), ...patch });
+}
+
 export const useBudgetStore = create<BudgetState>((set, get) => {
-  const edit = (updater: (budget: Budget) => Budget) => {
+  const edit = (updater: (document: ConstructionDocument) => ConstructionDocument) => {
     if (get().savingDraft) return;
-    const current = active(get());
+    const current = activeRecord(get());
     if (!current || current.acceptedAt || current.projectId) return;
-    const next = updater(current);
-    assertBudget(next);
-    if (get().draftBudget) {
-      set({ draftBudget: next, draftDirty: true });
+    const document = updater(current.document);
+    if (document === current.document) return;
+    const totals = documentTotals(document);
+    if (!totals.valid) throw new Error(totals.issues[0]?.message ?? 'Revisa el presupuesto.');
+    const next = { ...current, document };
+    if (get().draft) {
+      set({ draft: next, draftDirty: true });
       rememberDraft(get().draftKey, next);
     } else {
-      set((s) => ({ budgets: s.budgets.map((b) => (b.id === next.id ? next : b)) }));
+      set((s) => ({ records: s.records.map((b) => (b.id === next.id ? next : b)) }));
       const uid = sessionUid();
-      if (uid) queue.schedule(`${uid}/${next.id}`, next);
+      if (uid) {
+        const key = `${uid}/${next.id}`;
+        if (revisions.get(key) === undefined) revisions.set(key, current.revision);
+        queue.schedule(key, next);
+      }
     }
   };
-  const modifyItem = (id: string, fn: (item: WorkItem) => WorkItem) =>
-    edit((b) => ({
-      ...b,
-      workItems: b.workItems.map((item) => (item.id === id ? fn(item) : item)),
-    }));
   const totals = () => {
-    const b = active(get());
-    return b ? budgetTotals(b) : { raw: 0, subtotal: 0, iva: 0, total: 0 };
+    const record = activeRecord(get());
+    return record
+      ? documentTotals(record.document)
+      : { raw: 0, subtotal: 0, iva: 0, total: 0, nodes: new Map() };
   };
-  const newDraft = (catalogId?: string): Budget => ({
-    id: '',
-    info: {
-      clientName: '',
-      address: '',
-      date: new Date().toLocaleDateString('en-CA'),
-      budgetNumber: String(
-        Math.max(0, ...get().budgets.map((b) => parseInt(b.info.budgetNumber, 10) || 0)) + 1,
-      ),
-    },
-    workItems: [],
-    ...(catalogId ? { catalogId } : {}),
-    createdAt: '',
-  });
-  const openDraft = (key: string, budget: Budget) => {
+  const openDraft = (key: string, record: BudgetRecord) => {
     creationId = null;
-    const restored = recoverDraft(key, budget);
+    const restored = recoverDraft(key, record);
     set({
-      draftBudget: restored,
+      draft: restored,
       draftKey: key,
       draftDirty:
-        JSON.stringify(restored) !== JSON.stringify(budget) ||
-        (key === 'budget' && budget.workItems.length > 0),
+        JSON.stringify(restored) !== JSON.stringify(record) ||
+        (key === 'budget' && record.document.tree.length > 0),
       activeBudgetId: null,
     });
     rememberDraft(key, restored);
   };
+  const applyRemote = (id: string, patch: Partial<BudgetRecord>) =>
+    set((state) => ({
+      records: state.records.map((record) => (record.id === id ? { ...record, ...patch } : record)),
+    }));
   return {
     ...initial,
     loadBudgets: async (uid) => {
       const revision = sessionRevision();
-      const budgets = await fetchBudgets(uid);
+      const records = await fetchBudgets(uid);
       if (!isSessionCurrent(uid, revision)) return;
+      for (const record of records) revisions.set(`${uid}/${record.id}`, record.revision);
       set({
-        budgets: budgets.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        records: records.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
         loaded: true,
       });
     },
-    startDraft: (catalogId) => {
-      if (!get().draftBudget || get().draftKey !== 'budget')
-        openDraft('budget', newDraft(catalogId));
+    startDraft: () => {
+      if (!get().draft || get().draftKey !== 'budget')
+        openDraft('budget', draftRecord(newBudgetDocument()));
     },
-    startDraftFromLead: (lead, catalogId) => {
+    startDraftFromLead: (lead) => {
       const key = `budget:lead:${lead.id}`;
-      if (get().draftBudget && get().draftKey === key) return;
-      const draft = newDraft(catalogId);
-      openDraft(key, {
-        ...draft,
-        info: { ...draft.info, clientName: lead.contact.name },
-        sourceLeadId: lead.id,
-      });
+      if (get().draft && get().draftKey === key) return;
+      openDraft(
+        key,
+        draftRecord(newBudgetDocument({ clientName: lead.contact.name }), { sourceLeadId: lead.id }),
+      );
     },
     startDraftFromTemplate: (template) => {
-      const budget = {
-        ...newDraft(template.catalogId),
-        workItems: template.workItems.map((wi) => ({
-          ...wi,
-          id: generateId(),
-          tasks: wi.tasks.map((t) => ({ ...t, id: generateId() })),
-        })),
-        adjustment: template.adjustment,
-        ivaRate: template.ivaRate,
-      };
+      const { business } = template.document;
+      const document = cloneAsKind(
+        template.document,
+        'budget',
+        emptyBusiness({
+          date: today(),
+          ivaRate: business.ivaRate,
+          ...(business.adjustment ? { adjustment: { ...business.adjustment } } : {}),
+        }),
+      );
       rememberDraft('budget', null);
-      openDraft('budget', budget);
+      openDraft('budget', draftRecord(document));
     },
     startDraftFromBudget: (id) => {
-      const source = get().budgets.find((budget) => budget.id === id);
+      const source = get().records.find((budget) => budget.id === id);
       if (!source) throw new Error('No se ha encontrado el presupuesto.');
-      const copy: Budget = {
-        ...source,
-        id: '',
-        info: {
-          ...source.info,
-          date: new Date().toLocaleDateString('en-CA'),
-          budgetNumber: String(
-            Math.max(
-              0,
-              ...get().budgets.map((budget) => parseInt(budget.info.budgetNumber, 10) || 0),
-            ) + 1,
-          ),
-        },
-        workItems: source.workItems.map((item) => ({
-          ...item,
-          id: generateId(),
-          tasks: item.tasks.map((task) => ({ ...task, id: generateId() })),
-        })),
-        createdAt: '',
-      };
-      Reflect.deleteProperty(copy, 'acceptedAt');
-      Reflect.deleteProperty(copy, 'projectId');
+      const document = cloneAsKind(source.document, 'budget', {
+        ...source.document.business,
+        date: today(),
+        budgetNumber: '',
+      });
       rememberDraft('budget', null);
-      openDraft('budget', copy);
+      openDraft('budget', draftRecord(document));
+    },
+    startDraftFromDocument: (document) => {
+      if (document.kind !== 'budget') throw new Error('El documento no es un presupuesto.');
+      rememberDraft('budget', null);
+      openDraft('budget', draftRecord(structuredClone(document)));
+      set({ draftDirty: true });
     },
     acceptBudget: async (id) => {
       const uid = sessionUid();
       if (!uid) throw new Error('Inicia sesión para continuar.');
-      const source = get().budgets.find((budget) => budget.id === id);
+      await queue.flush();
+      const source = get().records.find((budget) => budget.id === id);
       if (!source) throw new Error('No se ha encontrado el presupuesto.');
+      if (get().conflicts.includes(id)) throw new RevisionConflictError();
+      assertPublishable(source);
       const acceptedAt = source.acceptedAt ?? new Date().toISOString();
-      const revision = sessionRevision();
-      await (await getAcceptanceApi()).acceptBudget(uid, id, acceptedAt);
-      if (isSessionCurrent(uid, revision))
-        set((state) => ({
-          budgets: state.budgets.map((budget) =>
-            budget.id === id ? { ...budget, acceptedAt } : budget,
-          ),
-        }));
+      const session = sessionRevision();
+      const key = `${uid}/${id}`;
+      const revision = await (
+        await getAcceptanceApi()
+      ).acceptBudget(uid, id, acceptedAt, revisions.get(key) ?? source.revision);
+      revisions.set(key, revision);
+      if (isSessionCurrent(uid, session)) applyRemote(id, { acceptedAt, revision });
     },
     withdrawBudgetAcceptance: async (id) => {
       const uid = sessionUid();
       if (!uid) throw new Error('Inicia sesión para continuar.');
-      const revision = sessionRevision();
-      await (await getAcceptanceApi()).withdrawBudgetAcceptance(uid, id);
-      if (isSessionCurrent(uid, revision))
+      const session = sessionRevision();
+      const revision = await (await getAcceptanceApi()).withdrawBudgetAcceptance(uid, id);
+      revisions.set(`${uid}/${id}`, revision);
+      if (isSessionCurrent(uid, session))
         set((state) => ({
-          budgets: state.budgets.map((budget) => {
+          records: state.records.map((budget) => {
             if (budget.id !== id) return budget;
-            const updated = { ...budget };
-            Reflect.deleteProperty(updated, 'acceptedAt');
+            const updated = { ...budget, revision };
+            delete updated.acceptedAt;
             return updated;
           }),
         }));
     },
-    linkProject: (id, projectId) =>
+    linkProject: (id, projectId, revision) => {
+      const uid = sessionUid();
+      if (uid && revision) revisions.set(`${uid}/${id}`, revision);
+      applyRemote(id, { projectId, ...(revision ? { revision } : {}) });
+    },
+    syncLinkedProjectMetadata: (id, metadata, revision) => {
+      const uid = sessionUid();
+      if (uid && revision) revisions.set(`${uid}/${id}`, revision);
       set((state) => ({
-        budgets: state.budgets.map((budget) =>
-          budget.id === id ? { ...budget, projectId } : budget,
-        ),
-      })),
-    syncLinkedProjectMetadata: (id, metadata) =>
-      set((state) => ({
-        budgets: state.budgets.map((budget) =>
+        records: state.records.map((budget) =>
           budget.id === id && budget.projectId
-            ? { ...budget, info: { ...budget.info, ...metadata } }
+            ? {
+                ...budget,
+                ...(revision ? { revision } : {}),
+                document: {
+                  ...budget.document,
+                  business: { ...budget.document.business, ...metadata },
+                },
+              }
             : budget,
         ),
-      })),
+      }));
+    },
     loadTemplateForEditing: (template) =>
-      openDraft(`template:${template.id || 'new'}`, {
-        id: template.id,
-        info: { clientName: template.name, address: '', date: '', budgetNumber: '' },
-        workItems: structuredClone(template.workItems),
-        catalogId: template.catalogId,
-        adjustment: template.adjustment,
-        ivaRate: template.ivaRate,
-        createdAt: template.createdAt,
-      }),
+      openDraft(
+        `template:${template?.id || 'new'}`,
+        draftRecord(
+          template ? structuredClone(template.document) : createEmptyDocument('template'),
+          template ? { id: template.id, createdAt: template.createdAt } : {},
+        ),
+      ),
     saveDraft: () => {
       if (draftSave) return draftSave;
-      const draft = get().draftBudget;
+      const draft = get().draft;
       const uid = sessionUid();
       const key = get().draftKey;
       if (!draft || !uid || (key !== 'budget' && !key?.startsWith('budget:lead:')))
         return Promise.resolve('');
       if (!useUserStore.getState().canCreateBudget())
         return Promise.reject(new Error('Has alcanzado el límite de tu plan.'));
-      assertBudget(draft);
       creationId ??= generateId();
-      const saved = { ...draft, id: creationId, createdAt: new Date().toISOString() };
-      const revision = sessionRevision();
+      const pending = { ...draft, id: creationId };
+      const session = sessionRevision();
       set({ savingDraft: true });
       draftSave = (async () => {
         try {
-          const userData = await createBudget(uid, saved);
-          if (isSessionCurrent(uid, revision)) {
+          const { userData, record } = await createBudget(uid, pending);
+          if (isSessionCurrent(uid, session)) {
+            revisions.set(`${uid}/${record.id}`, record.revision);
             useUserStore.setState({ userData });
             rememberDraft(get().draftKey, null);
             set((s) => ({
-              budgets: [...s.budgets.filter((b) => b.id !== saved.id), saved],
-              activeBudgetId: saved.id,
-              draftBudget: null,
+              records: [...s.records.filter((b) => b.id !== record.id), record],
+              activeBudgetId: record.id,
+              draft: null,
               draftKey: null,
               draftDirty: false,
             }));
             creationId = null;
           }
-          return saved.id;
+          return record.id;
         } finally {
-          if (isSessionCurrent(uid, revision)) set({ savingDraft: false });
+          if (isSessionCurrent(uid, session)) set({ savingDraft: false });
           draftSave = null;
         }
       })();
@@ -359,108 +408,177 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     discardDraft: () => {
       rememberDraft(get().draftKey, null);
       creationId = null;
-      set({ draftBudget: null, draftKey: null, draftDirty: false });
+      set({ draft: null, draftKey: null, draftDirty: false });
     },
     deleteBudget: async (id) => {
       const uid = sessionUid();
       if (!uid) throw new Error('Inicia sesión para continuar.');
-      const budget = get().budgets.find((item) => item.id === id);
+      const budget = get().records.find((item) => item.id === id);
       if (budget?.projectId)
         throw new Error('El presupuesto convertido se conserva como origen del proyecto.');
       if (budget?.acceptedAt)
         throw new Error('Retira la aceptación antes de eliminar el presupuesto.');
-      const revision = sessionRevision();
+      const session = sessionRevision();
       await queue.cancel(`${uid}/${id}`);
       await deleteBudgetDoc(uid, id);
-      if (isSessionCurrent(uid, revision))
+      revisions.delete(`${uid}/${id}`);
+      if (isSessionCurrent(uid, session))
         set((s) => ({
-          budgets: s.budgets.filter((b) => b.id !== id),
+          records: s.records.filter((b) => b.id !== id),
           activeBudgetId: s.activeBudgetId === id ? null : s.activeBudgetId,
+          conflicts: s.conflicts.filter((item) => item !== id),
         }));
     },
     setActiveBudget: (id) => set({ activeBudgetId: id }),
+    /** Discards local unsaved changes and loads the latest server version. */
+    reloadBudget: async (id) => {
+      const uid = sessionUid();
+      if (!uid) return;
+      const session = sessionRevision();
+      await queue.cancel(`${uid}/${id}`);
+      const fresh = await fetchBudget(uid, id);
+      if (!isSessionCurrent(uid, session)) return;
+      if (fresh) revisions.set(`${uid}/${id}`, fresh.revision);
+      set((state) => ({
+        records: fresh
+          ? state.records.map((record) => (record.id === id ? fresh : record))
+          : state.records.filter((record) => record.id !== id),
+        conflicts: state.conflicts.filter((item) => item !== id),
+      }));
+    },
+    /** Keeps the local version and saves it over the newer server version. */
+    overwriteBudget: async (id) => {
+      const uid = sessionUid();
+      if (!uid) return;
+      const fresh = await fetchBudget(uid, id);
+      const local = get().records.find((record) => record.id === id);
+      if (!fresh || !local) return;
+      if (fresh.acceptedAt || fresh.projectId)
+        throw new Error('La versión guardada está aceptada; recárgala para continuar.');
+      const key = `${uid}/${id}`;
+      revisions.set(key, fresh.revision);
+      set((state) => ({ conflicts: state.conflicts.filter((item) => item !== id) }));
+      queue.schedule(key, local);
+      await queue.flush();
+    },
     getBudgetTotal: (id) => {
-      const b = get().budgets.find((b) => b.id === id);
-      return b ? budgetTotals(b).total : 0;
+      const record = get().records.find((b) => b.id === id);
+      return record ? documentTotals(record.document).total : 0;
     },
     getWorkItemSubtotal: (id) => {
-      const b = active(get());
-      const wi = b?.workItems.find((wi) => wi.id === id);
-      return wi ? workItemAmount(wi, b?.adjustment?.multiplier) : 0;
+      const record = activeRecord(get());
+      if (!record) return 0;
+      const nodes = documentTotals(record.document).nodes;
+      if (id !== ROOT_CHAPTER_ID) return nodes.get(id)?.amount ?? 0;
+      return record.document.tree.reduce((sum, node) => {
+        const amount = nodes.get(node.id);
+        return amount && !amount.chapter ? sum + amount.amount : sum;
+      }, 0);
     },
     getRawSubtotal: () => totals().raw,
     getSubtotal: () => totals().subtotal,
     getIva: () => totals().iva,
     getTotal: () => totals().total,
-    getTaskAmount: (task) => taskAmount(task, active(get())?.adjustment?.multiplier),
-    updateInfo: (info) => edit((b) => ({ ...b, info: { ...b.info, ...info } })),
-    addWorkItem: (name, catalogPartId) =>
-      edit((b) => ({
-        ...b,
-        workItems: [
-          ...b.workItems,
-          {
-            id: generateId(),
-            name,
-            ...(catalogPartId ? { catalogPartId } : {}),
-            tasks: [emptyTask()],
-          },
-        ],
-      })),
-    appendStructure: (items, expected) => {
-      if (active(get()) !== expected || get().savingDraft || !sessionUid())
+    getTaskAmount: (taskId) => totals().nodes.get(taskId)?.amount ?? 0,
+    updateInfo: (info) =>
+      edit((document) => {
+        const template = document.kind === 'template';
+        return updateBusiness(document, {
+          ...(info.clientName !== undefined
+            ? template
+              ? { name: info.clientName }
+              : { clientName: info.clientName }
+            : {}),
+          ...(info.address !== undefined ? { address: info.address } : {}),
+          ...(info.date !== undefined ? { date: info.date } : {}),
+          ...(info.budgetNumber !== undefined ? { budgetNumber: info.budgetNumber } : {}),
+        });
+      }),
+    addWorkItem: (name, catalogPartId) => {
+      let chapterId: string | null = null;
+      edit((document) => {
+        const added = addChapter(document, name, catalogPartId ? { catalogChapterId: catalogPartId } : {});
+        chapterId = added.chapterId;
+        return addItem(added.document, added.chapterId).document;
+      });
+      return chapterId;
+    },
+    appendStructure: (chapters, expected, catalog) => {
+      const current = activeRecord(get());
+      if (!current || budgetView(current) !== expected || get().savingDraft || !sessionUid())
         throw new Error('El presupuesto ha cambiado. Vuelve a revisar la estructura.');
-      if (!items.length || items.some((item) => !item.name.trim() || !item.tasks.length))
+      if (!chapters.length || chapters.some((item) => !item.name.trim() || !item.items.length))
         throw new Error('Selecciona al menos una partida.');
-      const additions = items.map((item) => ({
-        ...item,
-        id: generateId(),
-        tasks: item.tasks.map((task) => ({ ...task, id: generateId() })),
-      }));
-      edit((b) => ({ ...b, workItems: [...b.workItems, ...additions] }));
+      edit((document) => appendChapters(document, chapters, catalog));
     },
     removeWorkItem: (id) =>
-      edit((b) => ({ ...b, workItems: b.workItems.filter((wi) => wi.id !== id) })),
-    renameWorkItem: (id, name) => modifyItem(id, (wi) => ({ ...wi, name })),
-    addTask: (id) => modifyItem(id, (wi) => ({ ...wi, tasks: [...wi.tasks, emptyTask()] })),
-    removeTask: (workItemId, id) =>
-      modifyItem(workItemId, (wi) => ({ ...wi, tasks: wi.tasks.filter((t) => t.id !== id) })),
-    updateTask: (workItemId, id, patch) =>
-      modifyItem(workItemId, (wi) => ({
-        ...wi,
-        tasks: wi.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-      })),
-    applyTariff: (
-      workItemId,
-      id,
-      catalogPartId,
-      catalogConceptId,
-      description,
-      unit,
-      price,
-      cost,
-    ) => {
-      modifyItem(workItemId, (workItem) => ({
-        ...workItem,
-        catalogPartId,
-        tasks: workItem.tasks.map((task) =>
-          task.id === id ? { ...task, catalogConceptId, description, unit, price, cost } : task,
-        ),
-      }));
+      edit((document) =>
+        id === ROOT_CHAPTER_ID
+          ? document.tree
+              .filter((node) => !node.children.length)
+              .reduce((doc, node) => {
+                const concept = doc.concepts[node.conceptId];
+                return concept?.code.endsWith('#') ? doc : removeNode(doc, node.id);
+              }, document)
+          : removeNode(document, id),
+      ),
+    renameWorkItem: (id, name) => edit((document) => renameChapter(document, id, name)),
+    addTask: (workItemId, input) => {
+      let nodeId: string | null = null;
+      edit((document) => {
+        const added = addItem(document, workItemId, input);
+        nodeId = added.nodeId;
+        return added.document;
+      });
+      return nodeId;
     },
-    updateAdjustment: (adjustment) => edit((b) => ({ ...b, adjustment })),
-    updateIvaRate: (rate) => edit((b) => ({ ...b, ivaRate: rate })),
-    setBudgetCatalog: (id) => edit((b) => ({ ...b, catalogId: id })),
-    resetBudget: () => edit((b) => ({ ...b, info: newDraft().info, workItems: [] })),
+    removeTask: (_workItemId, id) => edit((document) => removeNode(document, id)),
+    updateTask: (_workItemId, id, patch) => edit((document) => updateItem(document, id, patch)),
+    setTaskMeasurements: (id, lines) =>
+      edit((document) => setMeasurementLines(document, id, lines)),
+    useDirectTaskPrice: (id) => edit((document) => flattenItemPrice(document, id)),
+    applyCatalogConcept: (taskId, catalog, catalogConceptId, catalogPartId) =>
+      edit((document) =>
+        applyCatalogConcept(document, taskId, catalog, catalogConceptId, catalogPartId),
+      ),
+    updateAdjustment: (adjustment) =>
+      edit((document) => updateBusiness(document, { adjustment })),
+    updateIvaRate: (rate) => edit((document) => updateBusiness(document, { ivaRate: rate })),
+    resetBudget: () =>
+      edit((document) => {
+        const fresh = createEmptyDocument(document.kind, {
+          ...emptyBusiness({ date: document.kind === 'budget' ? today() : '' }),
+          ivaRate: document.business.ivaRate,
+        });
+        return fresh;
+      }),
   };
 });
 
-registerOfflineStore('budgets', useBudgetStore, sessionUid, (state) => ({
-  budgets: state.budgets,
+registerOfflineStore('budget-records', useBudgetStore, sessionUid, (state) => ({
+  records: state.records,
   activeBudgetId: state.activeBudgetId,
   loaded: state.loaded,
 }));
 
-export function useActiveBudget() {
-  return useBudgetStore((s) => active(s));
+/** Derived view of the budget or template being edited. */
+export function useActiveBudget(): Budget | undefined {
+  return useBudgetStore((s) => {
+    const record = activeRecord(s);
+    return record ? budgetView(record) : undefined;
+  });
+}
+
+export function useActiveBudgetRecord(): BudgetRecord | undefined {
+  return useBudgetStore((s) => activeRecord(s));
+}
+
+/** Derived views of all saved budgets. */
+export function useBudgets(): Budget[] {
+  const records = useBudgetStore((s) => s.records);
+  return useMemo(() => records.map(budgetView), [records]);
+}
+
+export function getBudgetViews(): Budget[] {
+  return useBudgetStore.getState().records.map(budgetView);
 }

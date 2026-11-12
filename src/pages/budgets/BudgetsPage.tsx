@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Plus,
   ArrowUpRight,
@@ -9,12 +9,11 @@ import {
   ChevronRight,
   ArrowRight,
 } from 'lucide-react';
-import { useBudgetStore } from '@/entities/budget';
-import { useTemplateStore } from '@/entities/template';
+import { useBudgetStore, useBudgets } from '@/entities/budget';
+import { ImportBc3Dialog } from '@/features/bc3-exchange';
+import { useTemplateStore, useTemplateViews } from '@/entities/template';
 import { useUserStore } from '@/entities/user';
 import { useCatalogStore } from '@/entities/catalog';
-import { useAuthStore } from '@/entities/auth';
-import { listConstructionDocuments } from '@/entities/construction-document/api/firestore';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
@@ -32,10 +31,12 @@ import {
   OfflineUnavailable,
 } from '@/shared/ui';
 export function BudgetsPage() {
-  const budgets = useBudgetStore((s) => s.budgets);
+  const budgets = useBudgets();
   const startFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
-  const templates = useTemplateStore((s) => s.templates);
-  const catalogs = useCatalogStore((s) => s.catalogs);
+  const startFromDocument = useBudgetStore((s) => s.startDraftFromDocument);
+  const templateRecords = useTemplateStore((s) => s.templates);
+  const templates = useTemplateViews();
+  const catalogCount = useCatalogStore((s) => (s.record ? 1 : 0));
   const account = useUserStore((s) => s.userData);
   const canCreate = useUserStore((s) => s.canCreateBudget);
   const loaded = useBudgetStore((s) => s.loaded);
@@ -45,43 +46,11 @@ export function BudgetsPage() {
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const total = useBudgetStore((s) => s.getBudgetTotal);
   const { navigate } = usePageNavigation();
-  const user = useAuthStore((s) => s.user);
-  const [nativeBudgetsEntry, setNativeBudgetsEntry] = useState<{
-    uid: string;
-    documents: Array<{ id: string; title?: string; nodeCount?: number; updatedAt?: string }>;
-  } | null>(null);
-  const nativeBudgets =
-    nativeBudgetsEntry && user && nativeBudgetsEntry.uid === user.uid
-      ? nativeBudgetsEntry.documents
-      : [];
   const [chooseTemplate, setChooseTemplate] = useState(false);
   const [limit, setLimit] = useState(false);
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('');
   const [page, setPage] = useState(0);
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    listConstructionDocuments(user.uid, 'budget')
-      .then((documents) => {
-        if (active)
-          setNativeBudgetsEntry({
-            uid: user.uid,
-            documents: documents.map((item) => ({
-              id: String(item.id),
-              title: typeof item.title === 'string' ? item.title : undefined,
-              nodeCount: typeof item.nodeCount === 'number' ? item.nodeCount : undefined,
-              updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : undefined,
-            })),
-          });
-      })
-      .catch(() => {
-        if (active) setNativeBudgetsEntry({ uid: user.uid, documents: [] });
-      });
-    return () => {
-      active = false;
-    };
-  }, [user]);
   const years = [...new Set(budgets.map((budget) => budget.info.date.slice(0, 4)))]
     .filter((value) => /^\d{4}$/.test(value))
     .sort((a, b) => b.localeCompare(a));
@@ -141,6 +110,17 @@ export function BudgetsPage() {
           </Button>
         }
       />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <ImportBc3Dialog
+          target="budget"
+          disabled={!loaded}
+          onConfirm={(document) => {
+            if (!canCreate()) throw new Error('Has alcanzado el límite de tu plan.');
+            startFromDocument(document);
+            navigate('/budget/new');
+          }}
+        />
+      </div>
       <section className="overview-grid" aria-label="Resumen de actividad">
         <div className="overview-card featured">
           <p>Valor presupuestado</p>
@@ -161,9 +141,9 @@ export function BudgetsPage() {
         <div className="overview-card">
           <p>Tu biblioteca</p>
           <Layers3 />
-          <strong>{String(catalogs.length + templates.length).padStart(2, '0')}</strong>
+          <strong>{String(catalogCount + templates.length).padStart(2, '0')}</strong>
           <small>
-            {catalogs.length} catálogo · {templates.length} plantillas
+            {catalogCount} catálogo · {templates.length} plantillas
           </small>
         </div>
       </section>
@@ -311,57 +291,6 @@ export function BudgetsPage() {
           )}
         </div>
       </section>
-      <section
-        className="mt-6 rounded-xl border border-gray-200 bg-white p-5"
-        aria-labelledby="native-budget-heading"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 id="native-budget-heading" className="text-lg font-semibold">
-              Presupuestos importados en BC3
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Se conservan con su estructura, códigos y mediciones originales.
-            </p>
-          </div>
-          <PageLink className="text-sm font-semibold text-blue-700" to="/bc3">
-            Importar o exportar BC3
-          </PageLink>
-        </div>
-        {nativeBudgets.length ? (
-          <ul className="mt-3 divide-y divide-gray-100">
-            {nativeBudgets.map((budget) => (
-              <li
-                key={budget.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3"
-              >
-                <div>
-                  <p className="font-medium">{budget.title || 'Presupuesto sin título'}</p>
-                  <p className="text-sm text-gray-500">
-                    Documento FIEBDC
-                    {budget.nodeCount !== undefined
-                      ? ` · ${budget.nodeCount} conceptos en la estructura`
-                      : ''}
-                    {budget.updatedAt
-                      ? ` · ${new Date(budget.updatedAt).toLocaleDateString('es-ES')}`
-                      : ''}
-                  </p>
-                </div>
-                <PageLink
-                  className="min-h-10 inline-flex items-center rounded-md px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-                  to={`/bc3?document=${encodeURIComponent(budget.id)}`}
-                >
-                  Abrir y editar
-                </PageLink>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-gray-500">
-            Los presupuestos que importes aparecerán aquí.
-          </p>
-        )}
-      </section>
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-5 mt-5">
         <p className="text-xs text-gray-500">Gestiona los precios desde tu catálogo.</p>
         <PageLink
@@ -395,7 +324,8 @@ export function BudgetsPage() {
               className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50"
               key={t.id}
               onClick={() => {
-                startFromTemplate(t);
+                const record = templateRecords.find((item) => item.id === t.id);
+                if (record) startFromTemplate(record);
                 navigate('/budget/new');
               }}
             >

@@ -4,105 +4,211 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   deleteDoc,
-  deleteField,
   runTransaction,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { db, auth } from '@/shared/firebase/config';
-import { assertBudget } from '@/shared/lib/budgetMath';
 import { runNetworkMutation } from '@/shared/lib/networkMutation';
 import { FREE_BUDGET_LIMIT, getBudgetSlotsUsed } from '@/shared/lib/utils';
-import { toPublicBudget } from '../model/publicBudget';
 import {
-  mapBudgetFromFirestore as mapFromFirestore,
-  mapBudgetToFirestore as mapToFirestore,
-} from '../model/serialization';
-import type { FirestoreBudget } from '../model/serialization';
-import type { Budget, CompanyProfile, SharedBudget, UserData } from '@/shared/types';
+  CONTENT_CHUNK_BYTES,
+  contentOf,
+  decodeContent,
+  documentTotals,
+  toPublicContent,
+  utf8ByteLength,
+  type ConstructionDocument,
+} from '@/entities/construction-document/model';
+import {
+  assembleDocument,
+  contentChunkRef,
+  createInTransaction,
+  deleteStoredDocument,
+  newRootFields,
+  readStoredDocument,
+  saveStoredDocument,
+  type StoredRoot,
+} from '@/entities/construction-document/api/storage';
+import { assertPublishable, type BudgetRecord } from '../model/record';
+import type { CompanyProfile, UserData } from '@/shared/types';
+
+export interface BudgetRoot extends StoredRoot {
+  number: number;
+  acceptedAt?: string;
+  projectId?: string;
+  sourceLeadId?: string;
+}
 
 function budgetsCol(uid: string) {
   return collection(db, 'users', uid, 'budgets');
 }
 
-export async function fetchBudgets(uid: string): Promise<Budget[]> {
-  const snap = await getDocs(budgetsCol(uid));
-  return snap.docs.map((d) => mapFromFirestore(d.data() as FirestoreBudget));
+export function budgetRef(uid: string, id: string): DocumentReference {
+  return doc(budgetsCol(uid), id);
 }
 
-export async function saveBudget(uid: string, budget: Budget) {
-  assertBudget(budget);
-  // Updates never recreate a document that has already been deleted.
-  await runNetworkMutation(() =>
-    updateDoc(doc(budgetsCol(uid), budget.id), {
-      ...mapToFirestore(budget),
-      adjustment: budget.adjustment ?? deleteField(),
-      catalogId: budget.catalogId ?? deleteField(),
+export function recordFromStored(root: BudgetRoot, document: ConstructionDocument): BudgetRecord {
+  return {
+    id: root.id,
+    revision: root.revision,
+    number: root.number,
+    createdAt: root.createdAt,
+    updatedAt: root.updatedAt,
+    ...(root.acceptedAt ? { acceptedAt: root.acceptedAt } : {}),
+    ...(root.projectId ? { projectId: root.projectId } : {}),
+    ...(root.sourceLeadId ? { sourceLeadId: root.sourceLeadId } : {}),
+    document,
+  };
+}
+
+export async function fetchBudget(uid: string, id: string): Promise<BudgetRecord | null> {
+  const stored = await readStoredDocument<BudgetRoot>(budgetRef(uid, id));
+  return stored ? recordFromStored(stored.root, stored.document) : null;
+}
+
+export async function fetchBudgets(uid: string): Promise<BudgetRecord[]> {
+  const snap = await getDocs(budgetsCol(uid));
+  return Promise.all(
+    snap.docs.map(async (rootSnap) => {
+      const root = rootSnap.data() as BudgetRoot;
+      const chunks = await Promise.all(
+        Array.from({ length: root.chunkCount }, (_, index) =>
+          getDoc(contentChunkRef(rootSnap.ref, index)),
+        ),
+      );
+      if (chunks.every((chunk) => chunk.exists() && chunk.data().revision === root.revision))
+        return recordFromStored(
+          root,
+          assembleDocument(root, decodeContent(chunks.map((chunk) => chunk.data()!.data as string))),
+        );
+      const fresh = await fetchBudget(uid, root.id);
+      if (!fresh) throw new Error('Un presupuesto se ha borrado mientras se cargaba.');
+      return fresh;
     }),
   );
 }
 
-export async function updateBudget(uid: string, budgetId: string, data: Partial<Budget>) {
-  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
-  await runNetworkMutation(() => updateDoc(doc(budgetsCol(uid), budgetId), clean));
+/** Saves a new version of an editable budget. Returns the new server revision. */
+export async function saveBudget(uid: string, record: BudgetRecord, expectedRevision: number) {
+  return runNetworkMutation(() =>
+    saveStoredDocument(db, budgetRef(uid, record.id), record.document, expectedRevision),
+  );
 }
 
 export async function deleteBudgetDoc(uid: string, budgetId: string) {
-  await runNetworkMutation(() => deleteDoc(doc(budgetsCol(uid), budgetId)));
+  await runNetworkMutation(() => deleteStoredDocument(db, budgetRef(uid, budgetId)));
 }
 
-export async function createBudget(uid: string, budget: Budget): Promise<UserData> {
-  assertBudget(budget);
+/**
+ * Creates the budget, consumes one quota slot and assigns the next sequential number from
+ * the account counter in a single transaction. Retrying the same ID never charges twice.
+ */
+export async function createBudget(
+  uid: string,
+  record: BudgetRecord,
+): Promise<{ userData: UserData; record: BudgetRecord }> {
+  const totals = documentTotals(record.document);
+  if (!totals.valid) throw new Error(totals.issues[0]?.message ?? 'Revisa el presupuesto.');
   return runNetworkMutation(() =>
     runTransaction(db, async (transaction) => {
       const userRef = doc(db, 'users', uid);
-      const budgetRef = doc(budgetsCol(uid), budget.id);
-      const leadRef = budget.sourceLeadId
-        ? doc(db, 'users', uid, 'leads', budget.sourceLeadId)
+      const rootRef = budgetRef(uid, record.id);
+      const leadRef = record.sourceLeadId
+        ? doc(db, 'users', uid, 'leads', record.sourceLeadId)
         : null;
       const [userSnap, existing, leadSnap] = await Promise.all([
         transaction.get(userRef),
-        transaction.get(budgetRef),
+        transaction.get(rootRef),
         leadRef ? transaction.get(leadRef) : Promise.resolve(null),
       ]);
       if (!userSnap.exists()) throw new Error('No se ha podido cargar tu cuenta.');
       const user = userSnap.data() as UserData;
-      if (existing.exists()) return user; // Retry the same creation id without charging quota twice.
+      if (existing.exists()) {
+        const root = existing.data() as BudgetRoot;
+        return { userData: user, record: { ...record, revision: root.revision, number: root.number } };
+      }
       if (leadRef && !leadSnap?.exists())
         throw new Error('No se ha encontrado la solicitud de origen.');
       const account = user.accountData;
       const premium =
         account.plan === 'premium' &&
         (!account.premiumExpiresAt || Date.parse(account.premiumExpiresAt) > Date.now());
-      const usedBudgetSlots = getBudgetSlotsUsed(user.totalBudgetsCreated);
-      if (!premium && usedBudgetSlots >= FREE_BUDGET_LIMIT)
+      if (!premium && getBudgetSlotsUsed(user.totalBudgetsCreated) >= FREE_BUDGET_LIMIT)
         throw new Error('Has alcanzado el límite de tu plan.');
-      const updated = {
-        ...user,
-        totalBudgetsCreated: user.totalBudgetsCreated + 1,
-        lastCreatedBudgetId: budget.id,
+      const number = user.totalBudgetsCreated + 1;
+      const now = new Date().toISOString();
+      const document: ConstructionDocument = {
+        ...record.document,
+        business: {
+          ...record.document.business,
+          budgetNumber: record.document.business.budgetNumber.trim() || String(number),
+        },
       };
-      transaction.set(budgetRef, mapToFirestore(budget));
-      transaction.update(userRef, {
-        totalBudgetsCreated: updated.totalBudgetsCreated,
-        lastCreatedBudgetId: budget.id,
+      createInTransaction(transaction, rootRef, document, {
+        ...newRootFields(record.id, document, now),
+        number,
+        ...(record.sourceLeadId ? { sourceLeadId: record.sourceLeadId } : {}),
       });
-      if (leadRef) transaction.update(leadRef, { budgetId: budget.id });
-      return updated;
+      transaction.update(userRef, {
+        totalBudgetsCreated: number,
+        lastCreatedBudgetId: record.id,
+      });
+      if (leadRef) transaction.update(leadRef, { budgetId: record.id });
+      return {
+        userData: { ...user, totalBudgetsCreated: number, lastCreatedBudgetId: record.id },
+        record: { ...record, document, revision: 1, number, createdAt: now, updatedAt: now },
+      };
     }),
   );
 }
 
-export async function shareBudget(budget: Budget, company: CompanyProfile): Promise<string> {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('Inicia sesión para compartir.');
-  assertBudget(budget, true);
-  const token = crypto.randomUUID();
-  const shared: SharedBudget = {
-    schemaVersion: 2,
-    ownerUid: uid,
-    expiresAt: Date.now() + 30 * 86400000,
-    budget: toPublicBudget(budget),
+/** Public snapshot: allowlisted business fields and FIEBDC content without private data. */
+export interface SharedBudget {
+  schemaVersion: 3;
+  ownerUid: string;
+  expiresAt: number;
+  sharedAt: string;
+  company: Omit<CompanyProfile, 'privacyPolicyUrl'>;
+  budget: {
+    id: string;
+    clientName: string;
+    address: string;
+    date: string;
+    budgetNumber: string;
+    ivaRate: number;
+    adjustment?: { multiplier: number; reason: string };
+    createdAt: string;
+  };
+  /** Public FIEBDC content as JSON (see `toPublicContent`). */
+  content: string;
+}
+
+export const SHARE_TTL_MS = 30 * 86400000;
+
+export function buildSharedBudget(
+  record: BudgetRecord,
+  company: CompanyProfile,
+  ownerUid: string,
+  now = Date.now(),
+): SharedBudget {
+  assertPublishable(record);
+  const totals = documentTotals(record.document);
+  const business = record.document.business;
+  const adjustedPrice = new Map<string, number>();
+  for (const node of totals.nodes.values())
+    if (!node.chapter) adjustedPrice.set(node.conceptId, node.adjustedUnitPrice);
+  const content = JSON.stringify(
+    toPublicContent(contentOf(record.document), (id) => adjustedPrice.get(id) ?? null),
+  );
+  if (utf8ByteLength(content) > CONTENT_CHUNK_BYTES)
+    throw new Error('El presupuesto es demasiado grande para compartirlo por enlace.');
+  const multiplier = business.adjustment?.multiplier ?? 1;
+  return {
+    schemaVersion: 3,
+    ownerUid,
+    expiresAt: now + SHARE_TTL_MS,
+    sharedAt: new Date(now).toISOString(),
     company: {
       name: company.name,
       cif: company.cif,
@@ -111,19 +217,37 @@ export async function shareBudget(budget: Budget, company: CompanyProfile): Prom
       email: company.email,
       ...(company.logo ? { logo: company.logo } : {}),
     },
-    ivaRate: budget.ivaRate ?? 0.1,
-    sharedAt: new Date().toISOString(),
+    budget: {
+      id: record.id,
+      clientName: business.clientName,
+      address: business.address,
+      date: business.date,
+      budgetNumber: business.budgetNumber,
+      ivaRate: business.ivaRate,
+      ...(multiplier < 1 ? { adjustment: { multiplier, reason: business.adjustment!.reason } } : {}),
+      createdAt: record.createdAt,
+    },
+    content,
   };
+}
+
+export async function shareBudget(record: BudgetRecord, company: CompanyProfile): Promise<string> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Inicia sesión para compartir.');
+  const shared = buildSharedBudget(record, company, uid);
+  const token = crypto.randomUUID();
   await runNetworkMutation(() => setDoc(doc(db, 'sharedBudgets', token), shared));
   return token;
 }
+
 export async function revokeSharedBudget(token: string) {
   await runNetworkMutation(() => deleteDoc(doc(db, 'sharedBudgets', token)));
 }
+
 export async function fetchSharedBudget(token: string): Promise<SharedBudget | null> {
   const snap = await getDoc(doc(db, 'sharedBudgets', token));
   if (!snap.exists()) return null;
   const shared = snap.data() as SharedBudget;
-  if (shared.schemaVersion !== 2 || shared.expiresAt <= Date.now()) return null;
+  if (shared.schemaVersion !== 3 || shared.expiresAt <= Date.now()) return null;
   return shared;
 }

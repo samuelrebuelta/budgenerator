@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
-import { UNIT_LABELS } from '@/shared/types';
+import { UnitField } from './UnitField';
 
 /* ── Column definition (shared across header + rows) ── */
 
@@ -24,6 +24,9 @@ export type CellDef =
       onChange: (v: string) => void;
       placeholder?: string;
       integer?: boolean;
+      /** Value derived from detail (measurements, decomposition); shown read-only. */
+      readOnly?: boolean;
+      readOnlyHint?: string;
     }
   | { type: 'unit-select'; value: string; onChange: (v: string) => void }
   | { type: 'display'; content: ReactNode };
@@ -57,6 +60,8 @@ interface EditableRowProps {
   headerExtra?: ReactNode;
   /** Footer line shown only on mobile */
   mobileFooter?: { label: string; value: ReactNode };
+  /** Optional detail panel rendered under the row (measurements, decomposition). */
+  detail?: ReactNode;
 }
 
 export function EditableRow({
@@ -65,6 +70,7 @@ export function EditableRow({
   onDelete,
   headerExtra,
   mobileFooter,
+  detail,
 }: EditableRowProps) {
   const grid = columns.map((c) => c.width).join(' ') + ' 48px';
   const descCell = cells.description;
@@ -148,6 +154,7 @@ export function EditableRow({
           </div>
         )}
       </div>
+      {detail}
     </div>
   );
 }
@@ -172,6 +179,16 @@ function desktopCell(cell: CellDef, label: string): ReactNode {
         />
       );
     case 'number':
+      if (cell.readOnly)
+        return (
+          <output
+            aria-label={label}
+            title={cell.readOnlyHint}
+            className="line-field block text-right text-gray-600"
+          >
+            {cell.value.toLocaleString('es-ES', { maximumFractionDigits: 4 })}
+          </output>
+        );
       return (
         <input
           aria-label={label}
@@ -187,18 +204,12 @@ function desktopCell(cell: CellDef, label: string): ReactNode {
       );
     case 'unit-select':
       return (
-        <select
-          aria-label={label}
+        <UnitField
+          label={label}
           value={cell.value}
-          onChange={(e) => cell.onChange(e.target.value)}
+          onChange={cell.onChange}
           className="line-field text-center print:appearance-none"
-        >
-          {Object.entries(UNIT_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
+        />
       );
     case 'display':
       return cell.content;
@@ -218,6 +229,16 @@ function mobileCell(cell: CellDef, label: string): ReactNode {
         />
       );
     case 'number':
+      if (cell.readOnly)
+        return (
+          <output
+            aria-label={label}
+            title={cell.readOnlyHint}
+            className="line-field block text-right text-gray-600"
+          >
+            {cell.value.toLocaleString('es-ES', { maximumFractionDigits: 4 })}
+          </output>
+        );
       return (
         <input
           aria-label={label}
@@ -233,18 +254,7 @@ function mobileCell(cell: CellDef, label: string): ReactNode {
       );
     case 'unit-select':
       return (
-        <select
-          aria-label={label}
-          value={cell.value}
-          onChange={(e) => cell.onChange(e.target.value)}
-          className="line-field"
-        >
-          {Object.entries(UNIT_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
+        <UnitField label={label} value={cell.value} onChange={cell.onChange} className="line-field" />
       );
     case 'display':
       return cell.content;

@@ -8,8 +8,8 @@ import { AddWorkItemButton } from '@/features/budget-editor/ui/AddWorkItemButton
 import { ExportPdfButton, PageLink } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
-import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { useCatalogStore } from '@/entities/catalog';
+import { useBudgetStore, useActiveBudget, useActiveBudgetRecord } from '@/entities/budget';
+import { ExportBc3Button } from '@/features/bc3-exchange';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
 import { useAuthStore } from '@/entities/auth';
@@ -86,7 +86,11 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const withdrawBudgetAcceptance = useBudgetStore((s) => s.withdrawBudgetAcceptance);
   const linkProject = useBudgetStore((s) => s.linkProject);
   const convertBudgetToProject = useProjectStore((s) => s.convertBudgetToProject);
-  const draftBudget = useBudgetStore((s) => s.draftBudget);
+  const draftBudget = useBudgetStore((s) => s.draft);
+  const conflict = useBudgetStore((s) => s.conflicts.includes(budgetId));
+  const reloadBudget = useBudgetStore((s) => s.reloadBudget);
+  const overwriteBudget = useBudgetStore((s) => s.overwriteBudget);
+  const [conflictError, setConflictError] = useState('');
   const canCreateBudget = useUserStore((s) => s.canCreateBudget);
   const userData = useUserStore((s) => s.userData);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -108,9 +112,9 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       return !prev;
     });
   const activeBudget = useActiveBudget();
-  const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
+  const activeRecord = useActiveBudgetRecord();
   const profile = useProfileStore((s) => s.profile);
-  const budgetExists = useBudgetStore((s) => s.budgets.some((b) => b.id === budgetId));
+  const budgetExists = useBudgetStore((s) => s.records.some((b) => b.id === budgetId));
   const budgetsLoaded = useBudgetStore((s) => s.loaded);
   const dataRefreshVersion = useNetworkStore((s) => s.dataRefreshVersion);
   const readOnlySource = !!activeBudget?.acceptedAt || !!activeBudget?.projectId;
@@ -125,7 +129,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           .then((lead) => {
             if (!active) return;
             setLeadContext(lead);
-            if (lead) startDraftFromLead(lead, activeCatalogId ?? undefined);
+            if (lead) startDraftFromLead(lead);
           })
           .catch((error) => {
             if (
@@ -139,7 +143,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           active = false;
         };
       }
-      startDraft(activeCatalogId ?? undefined);
+      startDraft();
     } else if (budgetId) {
       setActiveBudget(budgetId);
     }
@@ -152,7 +156,6 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     setActiveBudget,
     startDraft,
     startDraftFromLead,
-    activeCatalogId,
     leadId,
     uid,
   ]);
@@ -177,9 +180,10 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       allowDraftNavigation.current = false;
       return false;
     }
-    const draft = useBudgetStore.getState().draftBudget;
+    const draft = useBudgetStore.getState().draft;
     if (!draft) return false;
-    return draft.info.clientName !== '' || draft.info.address !== '' || draft.workItems.length > 0;
+    const { business, tree } = draft.document;
+    return business.clientName !== '' || business.address !== '' || tree.length > 0;
   });
 
   useEffect(() => {
@@ -198,10 +202,13 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   useEffect(() => {
     if (!isDraft) return;
     const handler = (e: BeforeUnloadEvent) => {
-      const draft = useBudgetStore.getState().draftBudget;
+      const draft = useBudgetStore.getState().draft;
+      const content = draft?.document;
       if (
-        draft &&
-        (draft.info.clientName !== '' || draft.info.address !== '' || draft.workItems.length > 0)
+        content &&
+        (content.business.clientName !== '' ||
+          content.business.address !== '' ||
+          content.tree.length > 0)
       ) {
         e.preventDefault();
       }
@@ -328,6 +335,42 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           <p className="field-error" role="alert">
             {saveError}
           </p>
+        )}
+        {conflict && (
+          <div
+            className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900"
+            role="alert"
+          >
+            <p className="font-semibold">Este presupuesto se ha guardado desde otro dispositivo.</p>
+            <p className="mt-1">
+              Tus últimos cambios no se han guardado para no sobrescribir la otra versión. Elige
+              qué versión conservar.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setConflictError('');
+                  void reloadBudget(budgetId).catch((e: unknown) =>
+                    setConflictError(e instanceof Error ? e.message : 'No se ha podido recargar.'),
+                  );
+                }}
+              >
+                Cargar la versión guardada
+              </Button>
+              <Button
+                onClick={() => {
+                  setConflictError('');
+                  void overwriteBudget(budgetId).catch((e: unknown) =>
+                    setConflictError(e instanceof Error ? e.message : 'No se ha podido guardar.'),
+                  );
+                }}
+              >
+                Guardar mis cambios
+              </Button>
+            </div>
+            {conflictError && <p className="mt-2 text-red-700">{conflictError}</p>}
+          </div>
         )}
         {activeBudget?.projectId && (
           <div
@@ -509,6 +552,10 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <ShareButton />
                   {activeBudget && <ExportPdfButton budget={activeBudget} company={profile} />}
+                  <ExportBc3Button
+                    document={activeRecord?.document}
+                    name={`presupuesto-${activeBudget?.info.budgetNumber || activeBudget?.info.address || 'budgenerator'}`}
+                  />
                 </div>
                 <div className="flex justify-end">
                   <SaveTemplateButton />

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { compareSpanish, useCatalogStore } from '@/entities/catalog';
+import { compareSpanish, useCatalogView } from '@/entities/catalog';
 import { Button } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 
@@ -11,7 +11,7 @@ export function AddWorkItemButton() {
   const [mode, setMode] = useState<'catalog' | 'custom'>('catalog');
   const addWorkItem = useBudgetStore((s) => s.addWorkItem);
   const budget = useActiveBudget();
-  const catalogParts = useCatalogStore((s) => s.catalogs[0]?.parts ?? []);
+  const catalogParts = useCatalogView().parts;
 
   const availableParts = useMemo(
     () =>

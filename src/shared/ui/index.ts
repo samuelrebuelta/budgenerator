@@ -22,3 +22,4 @@ export { CompanyAvatar } from './CompanyAvatar';
 export { InfoPopover } from './InfoPopover';
 export { SwipeActions } from './SwipeActions';
 export type { SwipeDirection } from './SwipeActions';
+export { UnitField } from './UnitField';
