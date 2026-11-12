@@ -27,7 +27,6 @@
     "@tailwindcss/vite": "^4.2.2",
     "clsx": "^2.1.1",
     "firebase": "^12.14.0",
-    "i18next": "^26.0.8",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",
