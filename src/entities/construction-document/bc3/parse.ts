@@ -671,7 +671,7 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     tree,
     extensions,
     business: emptyBusiness({
-      name: kind === 'catalog' ? title || root.summary : root.summary || title,
+      name: root.summary || title,
       address: kind === 'budget' ? root.summary || title : '',
       date: today,
       ivaRate,
