@@ -7,6 +7,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { sampleDocument, seedBudget } from './fixtures';
 
 let env: RulesTestEnvironment;
 const owner = () => env.authenticatedContext('alice').firestore();
@@ -49,19 +50,13 @@ beforeEach(async () => {
       acceptedAt,
       createdAt: acceptedAt,
     });
-    await setDoc(doc(db, ...budgetPath), {
-      id: budgetId,
-      info: {
-        clientName: 'Cliente original',
-        address: 'Obra original',
-        date: '2026-11-01',
-        budgetNumber: '01',
-      },
-      workItems: [],
-      acceptedAt,
-      projectId,
-      createdAt: acceptedAt,
-    });
+    await seedBudget(
+      db,
+      'alice',
+      budgetId,
+      { acceptedAt, projectId, revision: 3 },
+      sampleDocument('budget', { clientName: 'Cliente original', address: 'Obra original' }),
+    );
   });
 });
 
@@ -75,8 +70,10 @@ describe('project and source budget metadata rules', () => {
       clientName: 'Cliente renovado',
     });
     batch.update(doc(db, ...budgetPath), {
-      'info.address': 'Reforma renovada',
-      'info.clientName': 'Cliente renovado',
+      address: 'Reforma renovada',
+      clientName: 'Cliente renovado',
+      revision: 4,
+      updatedAt: acceptedAt,
     });
 
     await assertSucceeds(batch.commit());
@@ -90,7 +87,11 @@ describe('project and source budget metadata rules', () => {
         address: 'Reforma renovada',
       }),
     );
-    await assertFails(updateDoc(doc(db, ...budgetPath), { 'info.clientName': 'Cliente renovado' }));
+    await assertFails(updateDoc(doc(db, ...budgetPath), {
+        clientName: 'Cliente renovado',
+        revision: 4,
+        updatedAt: acceptedAt,
+      }));
   });
 
   it('denies mismatched values, unrelated project fields, and other accounts', async () => {
@@ -102,8 +103,10 @@ describe('project and source budget metadata rules', () => {
       clientName: 'Cliente renovado',
     });
     mismatch.update(doc(db, ...budgetPath), {
-      'info.address': 'Nombre diferente',
-      'info.clientName': 'Cliente renovado',
+      address: 'Nombre diferente',
+      clientName: 'Cliente renovado',
+      revision: 4,
+      updatedAt: acceptedAt,
     });
     await assertFails(mismatch.commit());
 
@@ -115,8 +118,10 @@ describe('project and source budget metadata rules', () => {
       status: 'completed',
     });
     extraField.update(doc(db, ...budgetPath), {
-      'info.address': 'Reforma renovada',
-      'info.clientName': 'Cliente renovado',
+      address: 'Reforma renovada',
+      clientName: 'Cliente renovado',
+      revision: 4,
+      updatedAt: acceptedAt,
     });
     await assertFails(extraField.commit());
 
@@ -128,8 +133,10 @@ describe('project and source budget metadata rules', () => {
       clientName: 'Cliente renovado',
     });
     foreignBatch.update(doc(foreignDb, ...budgetPath), {
-      'info.address': 'Reforma renovada',
-      'info.clientName': 'Cliente renovado',
+      address: 'Reforma renovada',
+      clientName: 'Cliente renovado',
+      revision: 4,
+      updatedAt: acceptedAt,
     });
     await assertFails(foreignBatch.commit());
   });

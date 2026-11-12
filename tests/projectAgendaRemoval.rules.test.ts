@@ -7,8 +7,9 @@ import {
 } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
-import type { Project, ProjectWorkItem } from '../src/entities/project/model/types';
-import { budget, user } from './fixtures';
+import type { Project } from '../src/entities/project/model/types';
+import { seedBudget, user } from './fixtures';
+import { addChapter, addItem, createEmptyDocument } from '../src/entities/construction-document/model';
 
 let env: RulesTestEnvironment;
 const emulator = new URL(`http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`);
@@ -41,15 +42,22 @@ const project = (): Project => ({
   updatedTotal: 121,
 });
 
-const workItem = (): ProjectWorkItem => ({
-  id: 'work-paint',
-  name: 'Pintura',
-  position: 0,
-  tasks: [
-    { id: 'walls', description: 'Paredes', quantity: 1, unit: 'unit', price: 50, cost: 20 },
-    { id: 'ceiling', description: 'Techo', quantity: 1, unit: 'unit', price: 50, cost: 20 },
-  ],
-});
+function sourceDocument() {
+  let document = createEmptyDocument('budget', { clientName: 'Cliente de prueba', address: 'Madrid' });
+  const chapter = addChapter(document, 'Pintura');
+  document = chapter.document;
+  for (const description of ['Paredes', 'Techo'])
+    document = addItem(document, chapter.chapterId, {
+      description,
+      quantity: 1,
+      unit: 'ud',
+      price: 50,
+      cost: 20,
+    }).document;
+  return document;
+}
+// Node IDs allocated by sampleDocument-like construction: chapter n1, items n2 and n3.
+const WORK = 'n1';
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -69,12 +77,18 @@ beforeEach(async () => {
   await env.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
     await setDoc(doc(db, 'users', 'alice'), { ...user('alice'), totalBudgetsCreated: 1 });
-    await setDoc(doc(db, 'users', 'alice', 'budgets', 'source'), budget('source'));
-    await setDoc(doc(db, 'users', 'alice', 'projects', projectId), project());
-    await setDoc(
-      doc(db, 'users', 'alice', 'projects', projectId, 'workItems', 'work-paint'),
-      workItem(),
+    await seedBudget(
+      db,
+      'alice',
+      'source',
+      { acceptedAt: '2026-10-11T10:00:00.000Z', projectId },
+      sourceDocument(),
     );
+    await setDoc(doc(db, 'users', 'alice', 'projects', projectId), project());
+    await setDoc(doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'), {
+      completed: {},
+      updatedAt: '2026-10-11T10:00:00.000Z',
+    });
   });
 });
 
@@ -85,8 +99,8 @@ describe('retired project agenda', () => {
     const db = alice();
     const api = createProjectFirestoreApi(db);
 
-    await api.toggleTask('alice', projectId, 'work-paint', 'walls');
-    const completion = await api.toggleTask('alice', projectId, 'work-paint', 'ceiling');
+    await api.toggleTask('alice', projectId, WORK, 'n2');
+    const completion = await api.toggleTask('alice', projectId, WORK, 'n3');
 
     expect(completion.project).toMatchObject({
       completedConcepts: 2,
@@ -104,17 +118,13 @@ describe('retired project agenda', () => {
     });
     expect(agendaAfterCompletionSize).toBe(0);
 
-    await api.setWorkItemCompletionDate('alice', projectId, 'work-paint', '2026-10-20');
+    await api.setWorkItemCompletionDate('alice', projectId, WORK, '2026-10-20');
     const updatedProject = await getDoc(doc(db, 'users', 'alice', 'projects', projectId));
-    const updatedWorkItem = await getDoc(
-      doc(db, 'users', 'alice', 'projects', projectId, 'workItems', 'work-paint'),
+    const state = await getDoc(
+      doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'),
     );
     expect(updatedProject.data()).toMatchObject({ status: 'completed', percent: 100 });
-    expect(
-      updatedWorkItem
-        .data()
-        ?.tasks.every((task: { completedAt?: string }) => task.completedAt === '2026-10-20'),
-    ).toBe(true);
+    expect(Object.values(state.data()?.completed ?? {})).toEqual(['2026-10-20', '2026-10-20']);
     let agendaAfterDateCorrectionSize = -1;
     await env.withSecurityRulesDisabled(async (context) => {
       agendaAfterDateCorrectionSize = (

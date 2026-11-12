@@ -14,7 +14,6 @@
     "test:notifications:integration": "vitest run --config vitest.notifications.config.ts",
     "test:notifications:emulator": "firebase emulators:exec --config firebase.notifications-test.json --project demo-bg010-notifications --only auth,firestore \"pnpm test:notifications:integration && pnpm exec vitest run --config vitest.rules.config.ts tests/notifications.rules.test.ts\"",
     "test:e2e": "playwright test",
-    "test:bc3": "pnpm build:functions && firebase emulators:exec --config firebase.bc3-test.json --project demo-cimbra --only auth,firestore,functions \"FUNCTIONS_EMULATOR_HOST=127.0.0.1:6601 FIRESTORE_EMULATOR_HOST=127.0.0.1:8688 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9699 pnpm exec playwright test tests/e2e/app.spec.ts -g 'native BC3 workspace'\"",
     "test:integration": "pnpm build:functions && firebase emulators:exec --project demo-cimbra --only auth,firestore,functions \"FUNCTIONS_EMULATOR_HOST=127.0.0.1:5001 pnpm test:rules && FUNCTIONS_EMULATOR_HOST=127.0.0.1:5001 pnpm test:e2e\"",
     "firebase:emulators": "firebase emulators:start --project demo-cimbra --only auth,firestore,functions",
     "build:functions": "pnpm --dir functions build",
