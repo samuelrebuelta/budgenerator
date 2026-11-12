@@ -1,13 +1,14 @@
 # Perfil de fixtures BC3
 
-Estado inicial: sólo fixtures sintéticos; compatibilidad de Presto, Arquímedes y TCQ pendiente de validar con ficheros reales saneados.
+Estado (12-11-2026): sólo fixtures sintéticos (los del borrador anterior se sustituyeron: estaban en UTF-8 declarando ANSI y usaban `##` como prefijo); compatibilidad de Presto, Arquímedes y TCQ pendiente de validar con ficheros reales saneados.
 
 ## Clases y productores
 
 | Fixture | Clase FIEBDC | Origen | Productor validado | Contenido |
 | --- | --- | --- | --- | --- |
-| `tests/fixtures/bc3/catalog-minimal.bc3` | Base de datos (tipo 1) | Sintético BudGenerator | No aplica | Conceptos simples y una partida compuesta con precios y descomposición. |
-| `tests/fixtures/bc3/budget-minimal.bc3` | Presupuesto (tipo 2) | Sintético BudGenerator | No aplica | Raíz, capítulo, partida, medición simple y línea dimensional. |
+| `tests/fixtures/bc3/base-precios-ansi.bc3` | Base de datos (tipo 1), ANSI | Sintético | No aplica | `~K`, capítulos `#`, sinónimos, dos rótulos de precio, descomposición triple y cuádruple con `%`, `~T` multilínea, `~X` opaco, concepto suelto. |
+| `tests/fixtures/bc3/obra-mediciones-850.bc3` | Presupuesto (tipo 2), página 850 | Sintético | No aplica | Capítulos anidados, partida en la raíz, concepto en dos capítulos, `~M` con varias líneas, subtotal y expresión `a*b*d`, `~K` con GG/BI/IVA, `~L` opaco, totales declarados que cuadran al céntimo (651,36). |
+| `tests/fixtures/bc3/certificacion.bc3` | Certificación (tipo 3) | Sintético | No aplica | Debe rechazarse. |
 
 No se han recibido ficheros reales de Presto, Arquímedes ni TCQ. Hasta añadirlos y validar sus resultados, ninguna versión de esos programas se anuncia como interoperable.
 

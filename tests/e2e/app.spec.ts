@@ -4,6 +4,7 @@ import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { seedDocument, writeStoredDocument } from './seed';
 const email = 'budgenerator@gmail.com';
 const password = 'Local-emulator-Only-2026';
 const project = process.env.E2E_FIREBASE_PROJECT_ID ?? 'demo-cimbra';
@@ -14,34 +15,32 @@ const firestoreEmulator = new URL(
 );
 const notificationLeadId = 'a'.repeat(64);
 let primaryUid = '';
-const fakeBudget = (id: string, name: string, address: string, price: number, number: string) => ({
-  id,
-  info: {
-    clientName: name,
-    address,
-    date: number === '01' ? '2025-10-14' : '2026-10-14',
-    budgetNumber: number,
+const paintChapter = (price: number) => [
+  {
+    name: 'Pintura',
+    items: [
+      {
+        description: 'Preparación y acabado de paredes',
+        quantity: 10.5,
+        unit: 'm2',
+        price,
+        cost: 4.25,
+      },
+    ],
   },
-  workItems: [
+];
+const fakeBudget = (name: string, address: string, price: number, number: string) =>
+  seedDocument(
+    'budget',
     {
-      id: 'item',
-      name: 'Pintura',
-      tasks: [
-        {
-          id: 'task',
-          description: 'Preparación y acabado de paredes',
-          quantity: 10.5,
-          unit: 'm2',
-          price,
-          cost: 4.25,
-        },
-      ],
+      clientName: name,
+      address,
+      date: number === '01' ? '2025-10-14' : '2026-10-14',
+      budgetNumber: number,
+      ivaRate: 0.21,
     },
-  ],
-  catalogId: 'catalog-paint',
-  ivaRate: 0.21,
-  createdAt: `2026-10-${number === '03' ? '14' : '12'}T10:00:00Z`,
-});
+    paintChapter(price),
+  );
 test.beforeAll(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST)
     throw new Error('Only local emulators are allowed.');
@@ -116,22 +115,53 @@ test.beforeAll(async () => {
       totalBudgetsCreated: 100,
       createdAt: '2026-10-01T10:00:00Z',
     });
-    for (const b of [
-      fakeBudget('demo-cocina', 'Reforma de cocina', 'Vivienda en Chamberí · Madrid', 420, '03'),
-      fakeBudget('demo-estudio', 'Un nuevo estudio', 'Local en Gràcia · Barcelona', 280, '02'),
-      fakeBudget(
-        'demo-pintura',
-        'Una casa con otra luz',
-        'Pintura y acabados · Valencia',
-        170,
-        '01',
+    for (const [id, name, address, price, number] of [
+      ['demo-cocina', 'Reforma de cocina', 'Vivienda en Chamberí · Madrid', 420, '03'],
+      ['demo-estudio', 'Un nuevo estudio', 'Local en Gràcia · Barcelona', 280, '02'],
+      ['demo-pintura', 'Una casa con otra luz', 'Pintura y acabados · Valencia', 170, '01'],
+    ] as const)
+      await writeStoredDocument(
+        db,
+        `users/${uid}/budgets/${id}`,
+        fakeBudget(name, address, price, number),
+        { number: Number(number) },
+        `2026-10-${number === '03' ? '14' : '12'}T10:00:00Z`,
+      );
+    // Accepted, converted source of the seeded project (read-only reference).
+    await writeStoredDocument(
+      db,
+      `users/${uid}/budgets/demo-navegacion`,
+      seedDocument(
+        'budget',
+        {
+          clientName: 'Cliente de navegación',
+          address: 'Proyecto de navegación',
+          date: '2026-10-12',
+          budgetNumber: '00',
+          ivaRate: 0.21,
+        },
+        [
+          {
+            name: 'Cocina',
+            items: [
+              {
+                description: 'Instalar la encimera',
+                quantity: 1,
+                unit: 'ud',
+                price: 420,
+                cost: 270,
+              },
+            ],
+          },
+        ],
       ),
-    ])
-      await setDoc(doc(db, 'users', uid, 'budgets', b.id), b);
+      { number: 4, acceptedAt: '2026-10-14T10:00:00Z', projectId: 'project-navigation' },
+      '2026-09-01T10:00:00Z',
+    );
     await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation'), {
       id: 'project-navigation',
-      sourceBudgetId: 'demo-cocina',
-      sourceBudgetNumber: '03',
+      sourceBudgetId: 'demo-navegacion',
+      sourceBudgetNumber: '00',
       title: 'Proyecto de navegación',
       clientName: 'Cliente de navegación',
       address: 'Dirección de demostración',
@@ -154,24 +184,10 @@ test.beforeAll(async () => {
       supplementsIva: 0,
       updatedTotal: 508.2,
     });
-    await setDoc(
-      doc(db, 'users', uid, 'projects', 'project-navigation', 'workItems', 'work-kitchen'),
-      {
-        id: 'work-kitchen',
-        name: 'Cocina',
-        position: 0,
-        tasks: [
-          {
-            id: 'task-countertop',
-            description: 'Instalar la encimera',
-            quantity: 1,
-            unit: 'unit',
-            price: 420,
-            cost: 270,
-          },
-        ],
-      },
-    );
+    await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation', 'progress', 'state'), {
+      completed: {},
+      updatedAt: '2026-10-14T10:00:00Z',
+    });
     await setDoc(doc(db, 'users', uid, 'teamMembers', 'member-demo-ana'), {
       id: 'member-demo-ana',
       name: 'Ana Demo',
@@ -204,40 +220,27 @@ test.beforeAll(async () => {
       phone: '',
       email,
     });
-    for (const [id, name] of [
-      ['catalog-main', 'Reformas · Mi selección'],
-      ['catalog-paint', 'Pintura y acabados'],
-    ])
-      await setDoc(doc(db, 'users', uid, 'tariffCatalogs', id!), {
-        id,
-        name,
-        tariffs: [
-          {
-            id: 'tariff',
-            description: 'Pintura interior (dos manos)',
-            unit: 'm2',
-            basePrice: 12.75,
-            cost: 5.25,
-            category: 'Pintura',
-          },
-        ],
-        createdAt: '2026-10-01',
-        updatedAt: '2026-10-01',
-      });
-    await setDoc(doc(db, 'users', uid, 'settings', 'tariffCatalog'), {
-      activeCatalogId: 'catalog-main',
-    });
+    await writeStoredDocument(
+      db,
+      `users/${uid}/catalog/main`,
+      seedDocument('catalog', { name: 'Reformas · Mi selección' }, [
+        {
+          name: 'Pintura',
+          items: [
+            { description: 'Pintura interior (dos manos)', unit: 'm2', price: 12.75, cost: 5.25 },
+          ],
+        },
+      ]),
+    );
     for (const [id, name] of [
       ['tpl-main', 'Reforma de baño'],
       ['tpl-paint', 'Puesta a punto'],
-    ])
-      await setDoc(doc(db, 'users', uid, 'templates', id!), {
-        id,
-        name,
-        workItems: fakeBudget('sample', 'Sample', '', 12, '01').workItems,
-        ivaRate: 0.21,
-        createdAt: '2026-10-01',
-      });
+    ] as const)
+      await writeStoredDocument(
+        db,
+        `users/${uid}/templates/${id}`,
+        seedDocument('template', { name, ivaRate: 0.21 }, paintChapter(12)),
+      );
     await setDoc(doc(db, 'users', uid, 'leads', notificationLeadId), {
       schemaVersion: 2,
       contact: { name: 'Lead aviso demo', email: 'lead@example.test', phone: '+34 600 111 222' },
@@ -3010,19 +3013,22 @@ test('edits a project name and client and synchronizes both fields to its source
 
   await env.withSecurityRulesDisabled(async (context) => {
     const seedDb = context.firestore();
-    await setDoc(doc(seedDb, 'users', primaryUid, 'budgets', budgetId), {
-      id: budgetId,
-      info: {
-        clientName: 'Cliente inicial',
-        address: 'Obra inicial',
-        date: '2026-11-01',
-        budgetNumber: '91',
-      },
-      workItems: [],
+    await writeStoredDocument(
+      seedDb,
+      `users/${primaryUid}/budgets/${budgetId}`,
+      seedDocument(
+        'budget',
+        {
+          clientName: 'Cliente inicial',
+          address: 'Obra inicial',
+          date: '2026-11-01',
+          budgetNumber: '91',
+        },
+        [],
+      ),
+      { number: 91, acceptedAt, projectId },
       acceptedAt,
-      projectId,
-      createdAt: acceptedAt,
-    });
+    );
     await setDoc(doc(seedDb, 'users', primaryUid, 'projects', projectId), {
       id: projectId,
       sourceBudgetId: budgetId,
@@ -3112,7 +3118,7 @@ test('edits a project name and client and synchronizes both fields to its source
       clientName: 'Cliente renovado',
     });
     const savedBudget = await getDoc(doc(db, 'users', primaryUid, 'budgets', budgetId));
-    expect(savedBudget.data()?.info).toMatchObject({
+    expect(savedBudget.data()).toMatchObject({
       address: 'Reforma renovada',
       clientName: 'Cliente renovado',
     });
@@ -3273,4 +3279,107 @@ test('creates standalone and completed-project work entries from a day in Equipo
   } finally {
     await env.cleanup();
   }
+});
+
+test('imports and exports BC3 in catalog, budgets and templates without a separate page', async ({
+  page,
+}) => {
+  const exportFile = async (button: ReturnType<Page['getByRole']>) => {
+    const downloadPromise = page.waitForEvent('download');
+    await button.click();
+    const warnings = page.getByRole('dialog', { name: 'Antes de exportar' });
+    if (await warnings.isVisible().catch(() => false))
+      await warnings.getByRole('button', { name: 'Descargar', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.bc3$/);
+    return readFile((await download.path())!, 'latin1');
+  };
+  const chooseFile = async (dialogName: string, file: string) => {
+    const dialog = page.getByRole('dialog', { name: dialogName });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Archivo FIEBDC-3 (.bc3)').setInputFiles(file);
+    return dialog;
+  };
+
+  await login(page);
+  await expect(page).not.toHaveURL(/\/bc3/);
+
+  // Cancel writes nothing; certifications are rejected with a clear diagnosis.
+  await page.goto('/budgets');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  let dialog = await chooseFile('Importar presupuesto BC3', 'tests/fixtures/bc3/certificacion.bc3');
+  await expect(dialog.getByRole('alert')).toContainText('certificación');
+  await expect(dialog.getByRole('button', { name: 'Crear presupuesto' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budgets$/);
+
+  // Budget: preview, confirm as draft, save once and export.
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar presupuesto BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await expect(dialog).toContainText('Presupuesto u obra');
+  await expect(dialog).toContainText('651,36');
+  await expect(dialog).toContainText('gastos generales 13 %');
+  await dialog.getByRole('button', { name: 'Crear presupuesto' }).dblclick();
+  await expect(page).toHaveURL(/\/budget\/new$/);
+  await expect(page.locator('input[value="Baño principal"]')).toBeVisible();
+  await expect(page.locator('#address')).toHaveValue('Reforma de vivienda');
+  await page.locator('#clientName').fill('Cliente BC3');
+  const detailButton = page.getByRole('button', {
+    name: 'Mediciones y descomposición de Alicatado de paramentos',
+  });
+  await detailButton.first().click();
+  await expect(page.getByLabel('Comentario de la línea 1').first()).toHaveValue('a*b*d');
+  await expect(page.getByText('Descomposición del precio')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budget\/(?!new)[^/]+$/);
+  const budgetText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(budgetText.startsWith('~V|')).toBe(true);
+  expect(budgetText).toContain('~C|OBRA##||Reforma de vivienda|651.36\\||0|');
+  expect(budgetText).toContain('~M|02#\\E02ALI|2\\1\\|12.3|3\\a*b*d\\2\\2.5\\\\2.46\\||');
+  expect(budgetText.endsWith('\r\n\u001a')).toBe(true);
+
+  // Catalog: merge a price base and export the account catalog.
+  await page.goto('/catalog');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar base de precios BC3',
+    'examples/bc3/base-precios-reformas.bc3',
+  );
+  await expect(dialog).toContainText('Base de precios');
+  await dialog.getByRole('button', { name: 'Añadir al catálogo' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'desde el archivo BC3' })).toContainText(
+    'Se añadieron 5 partidas',
+  );
+  await expect(page.locator('input[value="Alicatado de paramentos"]')).toBeVisible();
+  const catalogText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(catalogText).toContain('|1|');
+  expect(catalogText).toContain('~D|E01DEM||MO002\\1\\0.40\\\\MO001\\1\\0.10\\\\%MA\\1\\1\\MO\\|');
+
+  // Template: import a work as template and export it again.
+  await page.goto('/templates');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar plantilla BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await dialog.getByRole('button', { name: 'Crear plantilla' }).click();
+  await expect(page).toHaveURL(/\/templates\/(?!new)[^/]+$/);
+  const templateText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(templateText).toContain('~C|PLANTILLA##');
+  expect(templateText).toContain('E02ALI');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/budgets');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar presupuesto BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await page.screenshot({ path: 'docs/testing-evidence/bc3-import-mobile.png' });
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(width).toBeLessThanOrEqual(390);
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
 });

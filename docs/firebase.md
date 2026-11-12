@@ -10,23 +10,23 @@ Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting, 
 
 ```text
 users/{uid}                            Cuenta, plan y contador acumulado
-├── budgets/{id}                       Partidas y tareas embebidas
+├── budgets/{id}                       Raíz ligera: revisión, número, negocio y flujo (FIEBDC en content)
+│   └── content/{0..7}                 Contenido FIEBDC (JSON) de una revisión, troceado a ≤ 900 KB
 ├── teamMembers/{id}                   Persona del equipo
 ├── crews/{id}                          Cuadrilla con etiqueta, color y miembros
 ├── projects/{id}                      Snapshot del proyecto y resumen de avance
-│   ├── workItems/{id}                 Partida y copia de sus conceptos
+│   ├── progress/state                 Fecha de finalización por ocurrencia (nodo) o ampliación
 │   ├── assignments/{id}               Snapshot de persona o cuadrilla asignada
 │   ├── supplements/{id}                Registro inmutable de una ampliación
 │   └── supplementVoids/{id}            Anulación inmutable con motivo
-├── tariffCatalogs/main-v1             Catálogo único: partidas con conceptos embebidos
-├── templates/{id}                     Partidas, catálogo, ajuste e IVA
+├── catalog/main                       Catálogo único (raíz ligera) + content/{0..7}
+├── templates/{id}                     Plantilla (raíz ligera) + content/{0..7}
 ├── profile/data                      Datos de empresa y logo PNG como data URL
 ├── quoteEstimator/settings           Configuración privada del estimador público
 ├── leads/{leadId}                     Solicitudes privadas; titular puede listar/leer/borrar
-├── settings/tariffCatalog             Referencia compatible al catálogo único
 ├── settings/notifications              Preferencia push y fecha de activación; elimina campos email legacy al guardar
 └── pushDevices/{installationId}        Token FCM o FID legacy, hash, plataforma (web/ios/android), habilitación, recuperación y actividad; Admin SDK
-sharedBudgets/{token}                  DTO público v2 con propietario y caducidad
+sharedBudgets/{token}                  Snapshot público v3: negocio permitido + contenido FIEBDC sin datos privados, `expiresAt`
 publicQuoteTokens/{token}              Índice token → UID, sólo servidor
 quoteEstimatorLinks/{uid}              Token activo del propietario, sólo servidor
 quoteEstimateRateLimits/{token}        Ventana de frecuencia, sólo servidor
@@ -41,19 +41,29 @@ abuseRateLimits/{scope_hash_window}    Contadores anti-abuso por red, titular y 
 
 Los IDs son UUID y las fechas de auditoría son ISO strings. La fecha de finalización elegida por el usuario se guarda como día local `YYYY-MM-DD` para evitar cambios de día por zona horaria. El vencimiento premium añade milisegundos para las reglas; el vencimiento público es numérico.
 
+## Modelo canónico FIEBDC (BC3)
+
+Presupuestos, plantillas y catálogo se persisten como `ConstructionDocument` (`entities/construction-document`): conceptos por código FIEBDC con unidad literal, precios por rótulo, textos y descomposición; árbol de ocurrencias (capítulos y partidas) con rendimiento y mediciones `~M`; `~K` (decimales y porcentajes) y registros no interpretados como extensiones opacas. No existe otro modelo persistido de presupuesto, catálogo o plantilla: `WorkItem`, `BudgetTask` y `CatalogPart` son vistas derivadas en memoria.
+
+Persistencia: raíz ligera con `id`, `kind`, `schemaVersion: 1`, `revision`, `contentRevision`, `chunkCount`, fechas y los campos de negocio sin equivalente FIEBDC (`name`, `clientName`, `address`, `date`, `budgetNumber`, `ivaRate`, `adjustment`); los presupuestos añaden `number`, `acceptedAt`, `projectId` y `sourceLeadId`. El contenido FIEBDC se serializa a JSON y se trocea por bytes UTF-8 en `content/{0..7}` (`{ index, revision, data }`, ≤ 900 KB cada uno, ~7,2 MB en total). Se eligió un JSON troceado en lugar de un documento por concepto porque cada guardado es una única transacción (límite de 10 MiB) y las lecturas son 1 + n documentos, frente a miles de lecturas y escrituras por catálogo; los mapas anidados de Firestore además limitan la profundidad a 20 niveles, que un árbol de capítulos puede superar. `firestore.indexes.json` excluye `data` de la indexación.
+
+Concurrencia optimista: cada escritura de la raíz incrementa `revision` en uno (Rules) y el cliente guarda en transacción sólo si la revisión leída coincide con la última confirmada; si no, la app avisa («se ha guardado desde otro dispositivo») y ofrece cargar la versión guardada o sobrescribirla. Los trozos llevan `contentRevision`; las Rules exigen que se escriban en la misma petición que sube la revisión de la raíz, que el trozo 0 de una revisión de contenido nueva exista y que los sobrantes sólo se borren al encoger. Los lectores comprueban que todos los trozos tengan la `contentRevision` de la raíz y reintentan si no.
+
+Numeración: el número de presupuesto lo asigna la transacción de creación con el contador `totalBudgetsCreated` de la cuenta (`number == totalBudgetsCreated` tras el incremento, validado por Rules); el texto visible `budgetNumber` lo toma si el usuario no escribió otro. Ya no hay `max+1` local.
+
 ## Autorización y cuota
 
 Las reglas separan la raíz de cuenta de las colecciones editables; no usan un permiso recursivo que pueda reabrir la raíz. Los clientes nuevos solo pueden crear una cuenta free, no-admin y con contador cero. No pueden asignarse un rol, plan o vencimiento. El administrador se identifica sólo por el custom claim `admin: true` (ver «Administración» más abajo); el email y `accountData.isAdmin` no conceden permisos. El admin lee y lista la raíz `users/{uid}` y cambia `accountData` (plan y vencimiento); no lee presupuestos, proyectos, perfil, catálogo, plantillas ni solicitudes de otras cuentas. Puede borrar un `sharedBudgets` ajeno para retirar contenido abusivo.
 
 La creación de un presupuesto se ejecuta junto al incremento de `totalBudgetsCreated` y `lastCreatedBudgetId` en una transacción. Las reglas limitan Free a tres plazas de creación; borrar un presupuesto no devuelve cuota. Aceptar y convertirlo en proyecto conserva la plaza consumida por el presupuesto origen: la conversión enlaza presupuesto y proyecto de forma atómica, no reduce ni vuelve a incrementar el contador. Los antiguos campos `budgetSlotsReleased` y `lastConvertedBudgetId` pueden seguir presentes en datos previos, pero ya no intervienen en el límite. Actualizar un documento existente no consume otra creación.
 
-BG-009: el presupuesto puede guardar `acceptedAt` y `projectId`. El proyecto conserva el origen (`sourceBudgetId`/`sourceBudgetNumber`), cliente/obra, importes originales (`subtotal`, `iva`, `total`), resumen de ampliaciones (`supplementsSubtotal`, `supplementsIva`, `updatedTotal`) y resumen de progreso (`totalConcepts`, `completedConcepts`, `totalAmount`, `completedAmount`, `percent`, `status`, `completedAt`). En la interfaz, cada documento `workItem` es un capítulo y sus tareas son partidas; se mantienen los nombres de campos actuales para compatibilidad. Cada documento conserva las partidas copiadas y el estado del capítulo. Las fechas seleccionadas se normalizan a día local y no pueden ser futuras. La aceptación sólo cambia `acceptedAt`; un presupuesto aceptado queda bloqueado hasta retirar la aceptación. La conversión atómica crea el proyecto y sus capítulos y guarda `projectId` en el presupuesto, sin alterar la cuota.
+BG-009: el presupuesto puede guardar `acceptedAt` y `projectId`. El proyecto conserva el origen (`sourceBudgetId`/`sourceBudgetNumber`), cliente/obra, importes originales (`subtotal`, `iva`, `total`), resumen de ampliaciones (`supplementsSubtotal`, `supplementsIva`, `updatedTotal`) y resumen de progreso (`totalConcepts`, `completedConcepts`, `totalAmount`, `completedAmount`, `percent`, `status`, `completedAt`). En la interfaz, cada documento `workItem` es un capítulo y sus tareas son partidas; se mantienen los nombres de campos actuales para compatibilidad. Cada documento conserva las partidas copiadas y el estado del capítulo. Las fechas seleccionadas se normalizan a día local y no pueden ser futuras. La aceptación sólo cambia `acceptedAt` (y la revisión); un presupuesto aceptado o convertido no admite escrituras de `content`. La conversión atómica crea el proyecto y `progress/state` y guarda `projectId` en el presupuesto, sin alterar la cuota. El proyecto no copia partidas: su estructura se deriva del documento FIEBDC del presupuesto bloqueado y el avance se guarda por ID de ocurrencia.
 
-El propietario puede cambiar el nombre y el cliente de un proyecto ya convertido mediante una transacción de dos documentos. Las reglas sólo permiten `title`, `address` y `clientName` en el proyecto y los campos coincidentes `info.address`/`info.clientName` en su presupuesto aceptado; cada escritura valida el estado final del otro documento con `getAfter`. El nombre no puede quedar vacío, el cliente sí; capítulos e importes permanecen inmutables.
+El propietario puede cambiar el nombre y el cliente de un proyecto ya convertido mediante una transacción de dos documentos. Las reglas sólo permiten `title`, `address` y `clientName` en el proyecto y los campos coincidentes `address`/`clientName` de la raíz de su presupuesto aceptado (con subida de revisión); cada escritura valida el estado final del otro documento con `getAfter`. El nombre no puede quedar vacío, el cliente sí; capítulos e importes permanecen inmutables.
 
-Los suplementos viven en `supplements/{id}` junto a un capítulo asociado. El cliente crea el registro una vez; no lo edita ni lo borra. Anularlo crea un documento `supplementVoids/{id}` con motivo y marca el capítulo como anulado en la misma transacción; el historial queda preservado y las cifras/progreso activos se recalculan. La anulación no es una eliminación. Reglas de propietario/admin limitan el acceso a proyecto y subcolecciones; no se publican ni se borran proyectos desde el cliente. Completar partidas, editar fechas o ampliar trabajo escribe las partidas/capítulo y el resumen correspondiente en una transacción. Cada capítulo debe medir menos de 900.000 bytes UTF-8 y la conversión admite como máximo 200 capítulos.
+Los suplementos viven en `supplements/{id}` (unidad libre de hasta 20 caracteres) y se muestran como capítulo derivado. El cliente crea el registro una vez; no lo edita ni lo borra. Anularlo crea un documento `supplementVoids/{id}` con motivo en la misma transacción que actualiza el resumen; el historial queda preservado y las cifras/progreso activos se recalculan. La anulación no es una eliminación. Reglas de propietario/admin limitan el acceso a proyecto y subcolecciones; no se publican ni se borran proyectos desde el cliente. Completar partidas o editar fechas escribe `progress/state` y el resumen en una transacción. La conversión admite como máximo 200 capítulos.
 
-Los snapshots públicos permiten get individual, deniegan list y exigen propietario autenticado al crear. Caducan, son inmutables y su propietario puede revocarlos. El DTO elimina costes internos y metadatos privados antes de escribirlo. Los enlaces legacy no seguros quedan bloqueados; revisar la transición en stability-and-release.md.
+Los snapshots públicos (v3) permiten get individual, deniegan list y exigen propietario autenticado con email verificado al crear. Guardan el contenido FIEBDC público: sin costes, descomposiciones, enlaces de catálogo ni extensiones, con el precio unitario ya ajustado. Caducan, son inmutables y su propietario puede revocarlos. El DTO elimina costes internos y metadatos privados antes de escribirlo. Los enlaces legacy no seguros quedan bloqueados; revisar la transición en stability-and-release.md.
 
 El propietario lee y escribe `users/{uid}/quoteEstimator/settings`; la colección raíz `quoteEstimator` queda fuera de las reglas genéricas. El esquema 2 guarda tarifas manuales por estancia en céntimos por m²; el esquema 1 conserva combinaciones vinculadas al catálogo y sigue siendo compatible. Las selecciones nuevas llevan un `instanceId` UUID único para identificar cada estancia física, con su superficie y calidad. `quantity` (entero de 1 a 20) se mantiene para datos agrupados históricos; si falta, se interpreta como una estancia. El perfil conserva una URL HTTPS de privacidad. Las reglas permiten al titular leer/listar y borrar `users/{uid}/leads`, deniegan su creación desde cliente y restringen su única edición a `budgetId` hacia un presupuesto de la misma cuenta. La creación del lead solo ocurre en `submitPublicLead`, con Admin SDK. Las reglas deniegan clientes para el índice `publicQuoteTokens`, el enlace por UID y los contadores. `publishPublicEstimator`, `revokePublicEstimator` y `getOwnerEstimatorStatus` requieren Auth. `getPublicEstimator`, `calculatePublicEstimate` y `submitPublicLead` son públicos y reciben el token aleatorio de 24 bytes codificado base64url; el token localiza al usuario en Functions, nunca habilita una lectura Firestore del visitante. `getPublicEstimator` devuelve nombre de empresa, contactos optativos y combinaciones disponibles; el cálculo y el envío solo devuelven horquilla total, moneda, IVA y confirmación. No se devuelven UID, contacto del lead, catálogo, descripciones internas, precios unitarios ni `cost`.
 
@@ -76,7 +86,7 @@ No cambia el esquema, las reglas ni las Functions. Se mantienen lecturas puntual
 
 ## Migraciones
 
-Se siguen leyendo nombres antiguos de partidas/tareas. El perfil antiguo en settings/profile se traslada a profile/data. Las tarifas antiguas se agrupan en un catálogo determinista legacy-v1. Las cuentas legacy no se promocionan a roles de confianza desde un documento editable: requieren revisión administrativa. Las operaciones de migración no se deben interpretar como una migración global transaccional del proyecto.
+El modelo FIEBDC (12-11-2026) sustituye sin migración a `tariffCatalogs`, `tariffs`, `settings/tariffCatalog`, las partidas embebidas de `budgets`/`templates` y `projects/*/workItems`: no hay usuarios y esas rutas quedan cerradas por Rules. El perfil antiguo en settings/profile se traslada a profile/data. Las cuentas legacy no se promocionan a roles de confianza desde un documento editable: requieren revisión administrativa. Las operaciones de migración no se deben interpretar como una migración global transaccional del proyecto.
 
 ## Pruebas y publicación
 

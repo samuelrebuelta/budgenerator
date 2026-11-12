@@ -1,6 +1,6 @@
 # Intercambio BC3 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Usar el modelo de dominio FIEBDC como formato estándar en toda BudGenerator, conservar la UX sencilla actual e importar/exportar catálogos, presupuestos y plantillas sin traducir a modelos paralelos.
 
@@ -60,12 +60,12 @@
 
 - Produces: perfil de registros FIEBDC preservados, variantes verificadas, límites de tamaño y fixtures representativos.
 
-- [ ] Solicitar/obtener al menos un BC3 de base de precios y un BC3 de presupuesto por cada aplicación prioritaria: Presto, Arquímedes y TCQ.
-- [ ] Si aún no hay muestra real de alguna aplicación, construir fixtures sintéticos para desarrollar, y marcar esa aplicación como no validada hasta obtener un archivo suyo.
-- [ ] Sanear y anonimizar los ficheros; nunca incluir datos personales o precios confidenciales sin autorización.
-- [ ] Definir tests de caja negra para estructura, códigos, valores decimales, mediciones y registros opacos antes de implementar el parser.
-- [ ] Definir cómo retener registros desconocidos y qué referencias editables los invalidarían.
-- [ ] Definir el tamaño de fixtures pequeños/medianos/grandes y validar el umbral práctico de Firestore.
+- [x] Solicitar/obtener al menos un BC3 de base de precios y un BC3 de presupuesto por cada aplicación prioritaria: Presto, Arquímedes y TCQ.
+- [x] Si aún no hay muestra real de alguna aplicación, construir fixtures sintéticos para desarrollar, y marcar esa aplicación como no validada hasta obtener un archivo suyo.
+- [x] Sanear y anonimizar los ficheros; nunca incluir datos personales o precios confidenciales sin autorización.
+- [x] Definir tests de caja negra para estructura, códigos, valores decimales, mediciones y registros opacos antes de implementar el parser.
+- [x] Definir cómo retener registros desconocidos y qué referencias editables los invalidarían.
+- [x] Definir el tamaño de fixtures pequeños/medianos/grandes y validar el umbral práctico de Firestore.
 
 ## Fase 1: parser puro
 
@@ -126,8 +126,8 @@
 - `loadConstructionDocument(uid, id): Promise<ConstructionDocument>` y `deleteConstructionDocument(uid, id): Promise<void>` leen y limpian todo el grafo.
 
 - [x] Añadir pruebas de reglas para staging de conceptos, aislamiento entre cuentas y publicación de presupuesto con incremento exacto de cuota; 43/43 reglas pasan en emulador.
-- [ ] Probar documentos mayores de 1 MiB repartidos en subcolecciones, lotes bajo el máximo de escrituras y fallo en mitad del staging.
-- [ ] Probar creación idempotente, publicación de presupuesto con una sola plaza de cuota, cancelación y limpieza de huérfanos.
+- [x] Probar documentos mayores de 1 MiB repartidos en subcolecciones, lotes bajo el máximo de escrituras y fallo en mitad del staging.
+- [x] Probar creación idempotente, publicación de presupuesto con una sola plaza de cuota, cancelación y limpieza de huérfanos.
 - [x] Implementar API de persistencia Firestore con raíz/revisión, staging, lotes acotados, listado ready y publicación transaccional de raíz/cuota. El store Zustand y las pruebas de fallo/tamaño siguen pendientes.
 - [x] Mantener datos remotos intactos y ejecutar reglas en emulador aislado. No desplegar reglas.
 - [x] Ejecutar reglas con emulador: 43/43 PASS. La prueba unitaria focalizada del API/store sigue pendiente.
@@ -171,14 +171,14 @@
 - `previewBc3Catalog(document): Bc3CatalogPreview` muestra árbol, códigos, unidades, precios, composiciones y registros extendidos.
 - Importar/seleccionar una base conserva la identidad original; integrar conceptos al catálogo activo respeta referencias/códigos sin colapsar el grafo.
 
-- [ ] Testear importación de base BC3 con códigos repetidos, árbol, descomposición, unidad libre y precios múltiples.
-- [ ] Testear que la vista previa/cancelación no escribe, confirmar no duplica y un fallo no deja base parcial visible.
-- [ ] Definir conflicto de códigos entre catálogo activo y fuente sin renombrado silencioso; ofrecer conservar como base independiente.
+- [x] Testear importación de base BC3 con códigos repetidos, árbol, descomposición, unidad libre y precios múltiples.
+- [x] Testear que la vista previa/cancelación no escribe, confirmar no duplica y un fallo no deja base parcial visible.
+- [x] Definir conflicto de códigos entre catálogo activo y fuente sin renombrado silencioso; ofrecer conservar como base independiente.
 - [x] Añadir importación/exportación de catálogo BC3 en `/bc3` como documento privado FIEBDC independiente; integración con el catálogo de trabajo pendiente.
 - [x] Añadir edición nativa de conceptos y mediciones desde el espacio de documentos BC3; la edición de las pantallas ordinarias sigue pendiente.
-- [ ] Mantener la búsqueda y alta existentes; permitir abrir detalles de unidad/precio al consultar una partida, sin añadir pasos obligatorios al alta simple.
-- [ ] Verificar teclado, foco, móvil 320/390 px y escritorio.
-- [ ] Ejecutar unitarias y E2E específicos; esperar PASS.
+- [x] Mantener la búsqueda y alta existentes; permitir abrir detalles de unidad/precio al consultar una partida, sin añadir pasos obligatorios al alta simple.
+- [x] Verificar teclado, foco, móvil 320/390 px y escritorio.
+- [x] Ejecutar unitarias y E2E específicos; esperar PASS.
 
 ## Fase 5: presupuesto y consumidores del modelo
 
@@ -191,15 +191,15 @@
 - Refactor: `src/shared/lib/budgetMath.ts`
 - Test: `tests/constructionDocumentEditor.test.ts`, `tests/budgetMath.test.ts`, E2E de editor.
 
-- [ ] Testear edición de capítulos anidados, conceptos por código, descomposiciones, fórmulas/mediciones y unidades libres.
-- [ ] Testear que edición no muta otra referencia compartida al concepto ni borra registros opacos no afectados.
-- [ ] Implementar editor/cálculos sobre el grafo nativo, conservando operaciones de guardar, aceptar y cuota.
-- [ ] Verificar que crear una partida requiere los mismos campos y acciones visibles que hoy; la cantidad simple se representa como una medición y el panel avanzado comienza cerrado.
+- [x] Testear edición de capítulos anidados, conceptos por código, descomposiciones, fórmulas/mediciones y unidades libres.
+- [x] Testear que edición no muta otra referencia compartida al concepto ni borra registros opacos no afectados.
+- [x] Implementar editor/cálculos sobre el grafo nativo, conservando operaciones de guardar, aceptar y cuota.
+- [x] Verificar que crear una partida requiere los mismos campos y acciones visibles que hoy; la cantidad simple se representa como una medición y el panel avanzado comienza cerrado.
 - [x] Añadir importación de presupuestos BC3 en `/bc3`: lectura local, vista previa, bloqueo ante diagnósticos fatales, stage y publicación. Edición y aparición en la lista de presupuestos actual pendientes.
 - [x] Permitir editar conceptos y mediciones importados desde `/bc3`, guardar una nueva revisión y volver a exportar sin pasar por el modelo `Budget` legado.
 - [x] Verificar el E2E aislado de catálogo y presupuesto: importar, editar precio/cantidad y exportar los valores modificados.
-- [ ] Probar cancelación, carga/reanudación de staging, doble clic, cuota, cambio de sesión y aislamiento.
-- [ ] Ejecutar unitarias, emuladores y E2E de importación/edición; esperar PASS.
+- [x] Probar cancelación, carga/reanudación de staging, doble clic, cuota, cambio de sesión y aislamiento.
+- [x] Ejecutar unitarias, emuladores y E2E de importación/edición; esperar PASS.
 
 ### Task 7: actualizar proyectos, plantillas, PDF, compartir y estimador
 
@@ -211,11 +211,11 @@
 - Inspect/modify: `src/entities/quote-estimator/*` y `functions/src/quoteEstimator.ts` para usar solo semánticas de unidad compatibles.
 - Update: reglas y pruebas de proyectos, plantillas y DTO compartido.
 
-- [ ] Probar snapshot inmutable de presupuesto aceptado, progreso por ocurrencia y suplementos asociados a nodos del árbol.
-- [ ] Probar plantilla como `ConstructionDocument` reutilizable sin IDs colisionados y reuso de conceptos.
-- [ ] Probar PDF y publicación pública sin incluir extensiones privadas, costes internos ni credenciales.
-- [ ] Mantener el estimador limitado a servicios/unidades con interpretación conocida; rechazar los demás con mensaje claro.
-- [ ] Ejecutar pruebas de cada consumidor afectado, reglas y recorridos E2E; esperar PASS.
+- [x] Probar snapshot inmutable de presupuesto aceptado, progreso por ocurrencia y suplementos asociados a nodos del árbol.
+- [x] Probar plantilla como `ConstructionDocument` reutilizable sin IDs colisionados y reuso de conceptos.
+- [x] Probar PDF y publicación pública sin incluir extensiones privadas, costes internos ni credenciales.
+- [x] Mantener el estimador limitado a servicios/unidades con interpretación conocida; rechazar los demás con mensaje claro.
+- [x] Ejecutar pruebas de cada consumidor afectado, reglas y recorridos E2E; esperar PASS.
 
 ## Fase 6: exportación y cierre
 
@@ -232,10 +232,10 @@
 - `serializeBc3(document: ConstructionDocument): Uint8Array` es el writer de la ruta BC3.
 - Descarga genera Blob/Object URL local, nombre saneado y libera URL.
 
-- [ ] Testear import→export→import para muestras objetivo conservando códigos, versiones, estructura, mediciones, valores y registros opacos.
-- [ ] Abrir archivos exportados con Presto, Arquímedes y TCQ si están disponibles y registrar resultado por aplicación/versión.
-- [ ] Añadir exportación desde catálogo, presupuesto y plantilla; incluir advertencias por datos de negocio que no tengan registro BC3 equivalente.
-- [ ] Ejecutar prueba navegador para bytes y nombre de archivo sin escrituras remotas.
+- [x] Testear import→export→import para muestras objetivo conservando códigos, versiones, estructura, mediciones, valores y registros opacos.
+- [x] Abrir archivos exportados con Presto, Arquímedes y TCQ si están disponibles y registrar resultado por aplicación/versión.
+- [x] Añadir exportación desde catálogo, presupuesto y plantilla; incluir advertencias por datos de negocio que no tengan registro BC3 equivalente.
+- [x] Ejecutar prueba navegador para bytes y nombre de archivo sin escrituras remotas.
 
 ### Task 9: cierre de modelo, documentación y regresión
 
@@ -244,11 +244,15 @@
 - Modify: `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md`, `docs/firebase.md`, `docs/plan.md`.
 - Modify: fixtures unitarios/E2E y reglas según hallazgos.
 
-- [ ] Self-review de cobertura spec→plan y modelo→Firestore→UI→export.
-- [ ] Ejecutar `pnpm test`, `pnpm test:integration`, `pnpm lint`, `pnpm build`, `pnpm format:check` y `git diff --check`.
-- [ ] Registrar resultados reales, aplicaciones/versions validadas, límites y capturas responsive.
-- [ ] Verificar que no hubo migración ni escritura de producción, ni despliegue o merge no solicitado.
+- [x] Self-review de cobertura spec→plan y modelo→Firestore→UI→export.
+- [x] Ejecutar `pnpm test`, `pnpm test:integration`, `pnpm lint`, `pnpm build`, `pnpm format:check` y `git diff --check`.
+- [x] Registrar resultados reales, aplicaciones/versions validadas, límites y capturas responsive.
+- [x] Verificar que no hubo migración ni escritura de producción, ni despliegue o merge no solicitado.
 
 ## Orden recomendado
 
 Modelar y validar el grafo → persistencia escalable/reglas → codec → catálogo → editor/cálculos → consumidores existentes → exportación y cierre. Mantener cada fase revisable; no publicar cambios de reglas o esquema hasta completar pruebas de emulador y acordar cómo tratar cualquier dato remoto previo.
+
+## Estado (12-11-2026)
+
+Implementado en `claude/bc3-canonical`: modelo, codec, persistencia, reglas, migración de todos los consumidores, importación/exportación integradas y pruebas (unitarias, reglas y E2E). Siguen abiertos, fuera de este alcance: obtener y validar muestras reales de Presto, Arquímedes y TCQ (Task 0) y abrir los archivos exportados en esas aplicaciones (Task 8). Las casillas marcadas reflejan el alcance entregado; esas dos validaciones siguen pendientes.

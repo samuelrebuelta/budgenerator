@@ -1,6 +1,6 @@
 # Diseño: intercambio BC3 en BudGenerator
 
-Estado: implementación autorizada el 25-10-2026; el modelo de dominio FIEBDC será el formato estándar de toda la app, conservando la UX sencilla actual.
+Estado: implementado en la rama `claude/bc3-canonical` (12-11-2026), pendiente de revisión, merge y despliegue. Sin validar con archivos reales de Presto, Arquímedes o TCQ.
 
 ## Intención
 
@@ -107,7 +107,6 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 7. Probar las reglas nuevas o modificadas con emuladores antes de considerarlas seguras; no desplegar reglas ni Functions como parte de la verificación local.
 8. Checks de cierre según instrucciones del proyecto y capturas responsive.
 9. Todos los módulos operan sobre la misma fuente `ConstructionDocument`; la UI de alta simple conserva sus campos y pasos actuales y muestra datos avanzados sólo cuando el usuario los abre.
-9. Todos los módulos operan sobre la misma fuente `ConstructionDocument`; la UI de alta simple conserva sus campos y pasos actuales y muestra los datos avanzados sólo si el usuario los abre.
 
 ## Decisiones confirmadas
 
@@ -116,8 +115,6 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 - Rediseñar el modelo canónico para estructura FIEBDC, incluyendo unidades libres y jerarquía/mediciones nativas.
 - Importar el precio BC3 como precio de venta y fijar coste a cero cuando el archivo no exprese un coste inequívoco.
 - Incluir plantillas en la exportación inicial como estructuras reutilizables.
-- Mantener las certificaciones fuera de esta entrega; reconocer y rechazar explícitamente ese tipo de archivo BC3.
-- Hacer del modelo canónico la fuente de verdad de toda la app, con presentación simple por defecto y detalles FIEBDC optativos.
 - Mantener las certificaciones fuera de esta entrega; reconocer y rechazar explícitamente ese tipo de archivo BC3.
 - Hacer del modelo canónico la fuente de verdad de toda la app, con presentación simple por defecto y detalles FIEBDC optativos.
 
@@ -140,3 +137,11 @@ Las plantillas forman parte de la exportación inicial como estructuras reutiliz
 ## Documentación relacionada
 
 Actualizar `docs/plan.md`, `docs/architecture.md`, `docs/state-and-cache.md`, `docs/performance.md`, `docs/styles-and-responsive.md` y `docs/firebase.md` durante la implementación. El trabajo local usa emuladores; no incluye despliegues ni escrituras en Firestore real.
+
+## Implementación (12-11-2026)
+
+- Modelo: `src/entities/construction-document/model` (conceptos por ID interno con código FIEBDC, árbol de ocurrencias, mediciones con líneas y expresiones, `~K`, extensiones opacas, negocio). Vistas derivadas para UI/PDF/proyectos.
+- Persistencia: raíz ligera + `content/{0..7}` (JSON troceado ≤ 900 KB) con `revision`/`contentRevision`; ver `docs/firebase.md`. Se descartó el staging por bloques del borrador anterior: cada guardado es una transacción atómica de hasta ~7,2 MB.
+- Codec: `src/entities/construction-document/bc3`. Política de importación de obra: bloquea certificaciones (tipo 3), actualizaciones (tipo 4), `~B`, `~N`, `~R`, referencias inexistentes, números inválidos, códigos duplicados, capítulos con rendimiento ≠ 1, mediciones ambiguas o cuyas líneas no suman el total declarado, precios descompuestos que no cuadran con su descomposición y total de obra distinto del declarado (> 0,01). Avisa (sin bloquear) de GG/BI/CI/baja de `~K` (se conservan y reexportan, no se aplican al total), varios precios por concepto (se usa el primero), extensiones conservadas, conceptos sin uso y rendimiento `~D` distinto de la medición `~M` (manda la medición).
+- Porcentajes (`%` en el código): se interpretan en tanto por uno sobre la suma de líneas anteriores (filtradas por máscara `CODIGO_PORCENTAJE`). Pendiente de validar con archivos reales.
+- Exportación: ANSI, CRLF y EOF; los caracteres reservados `~ | \` se sustituyen y se avisa; cliente, número, ajuste y costes no se exportan (aviso explícito); el IVA sí, en `~K`.
