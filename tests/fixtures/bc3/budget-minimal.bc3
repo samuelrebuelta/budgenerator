@@ -1,9 +1,0 @@
-~V|BudGenerator fixtures|3/2024\25102026|BudGenerator|Presupuesto sintético\Venta|ANSI|Obra de prueba|2|
-~C|##OBRA||Reforma de prueba|0|||0|
-~C|#01||Pavimentos|0|||0|
-~C|PAV001|m2|Colocación de baldosa sintética|20.00|25102026|0|
-~D|##OBRA|#01\1\1|
-~D|#01|PAV001\1\1|
-~M|##OBRA\#01|1|1|1\Capítulo 1\1||
-~M|#01\PAV001|1|12|1\Colocación\1\3\4\1||
-

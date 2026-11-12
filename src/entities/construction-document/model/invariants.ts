@@ -1,105 +1,153 @@
+import { isDecimalText } from './decimal.js';
 import type {
-  ConstructionDocument,
+  ConstructionContent,
   ConstructionDocumentIssue,
   FiebdcConcept,
   FiebdcNode,
-} from './types';
+} from './types.js';
 
-function buildCodeIndex(document: ConstructionDocument) {
-  const index = new Map<string, FiebdcConcept>();
-  const duplicateCodes = new Set<string>();
+export const ROOT_MARKER = '##';
+export const CHAPTER_MARKER = '#';
 
-  for (const concept of Object.values(document.concepts)) {
-    if (!concept.id.trim()) continue;
-    for (const code of concept.codes) {
-      if (index.has(code) && index.get(code)?.id !== concept.id) duplicateCodes.add(code);
-      else index.set(code, concept);
+export function isRootCode(code: string) {
+  return code.endsWith(ROOT_MARKER);
+}
+
+export function isChapterCode(code: string) {
+  return code.endsWith(CHAPTER_MARKER) && !isRootCode(code);
+}
+
+/** Codes are compared without the trailing chapter/root markers, as FIEBDC references allow. */
+export function bareCode(code: string) {
+  return code.replace(/#+$/, '');
+}
+
+export function isPercentageCode(code: string) {
+  return code.includes('%');
+}
+
+export function isChapterNode(node: FiebdcNode, concept: FiebdcConcept | undefined) {
+  return node.children.length > 0 || (concept ? isChapterCode(concept.code) : false);
+}
+
+export function walkNodes(
+  nodes: readonly FiebdcNode[],
+  visit: (node: FiebdcNode, parent: FiebdcNode | null, depth: number) => void,
+  parent: FiebdcNode | null = null,
+  depth = 0,
+) {
+  for (const node of nodes) {
+    visit(node, parent, depth);
+    walkNodes(node.children, visit, node, depth + 1);
+  }
+}
+
+function optionalDecimal(value: string | undefined) {
+  return value === undefined || value.trim() === '' || isDecimalText(value);
+}
+
+/** Structural invariants of the canonical document. An empty list means it is consistent. */
+export function validateConstructionContent(
+  content: ConstructionContent,
+): ConstructionDocumentIssue[] {
+  const issues: ConstructionDocumentIssue[] = [];
+  const concepts = content.concepts;
+  const codes = new Map<string, string>();
+
+  for (const [key, concept] of Object.entries(concepts)) {
+    if (!concept.id.trim() || concept.id !== key)
+      issues.push({
+        code: 'invalid-concept-id',
+        message: `El concepto ${concept.code || key} no tiene un identificador interno válido.`,
+      });
+    for (const code of [concept.code, ...(concept.synonyms ?? [])]) {
+      const bare = bareCode(code);
+      if (!bare.trim()) {
+        issues.push({
+          code: 'invalid-concept-id',
+          message: 'Todo concepto necesita un código FIEBDC.',
+        });
+        continue;
+      }
+      const previous = codes.get(bare);
+      if (previous && previous !== concept.id)
+        issues.push({
+          code: 'duplicate-concept-code',
+          codeReference: code,
+          message: `El código FIEBDC ${code} identifica más de un concepto.`,
+        });
+      else codes.set(bare, concept.id);
+    }
+    if (concept.prices.some((price) => !optionalDecimal(price)) || !optionalDecimal(concept.cost))
+      issues.push({
+        code: 'invalid-number',
+        codeReference: concept.code,
+        message: `El precio del concepto ${concept.code} no es numérico.`,
+      });
+    for (const line of concept.decomposition) {
+      if (!concepts[line.conceptId])
+        issues.push({
+          code: 'unknown-concept-reference',
+          codeReference: concept.code,
+          message: `La descomposición de ${concept.code} referencia un concepto inexistente.`,
+        });
+      if (!optionalDecimal(line.factor) || !optionalDecimal(line.yield))
+        issues.push({
+          code: 'invalid-number',
+          codeReference: concept.code,
+          message: `La descomposición de ${concept.code} contiene un factor o rendimiento no numérico.`,
+        });
     }
   }
 
-  return { index, duplicateCodes };
-}
-
-export function validateConstructionDocument(
-  document: ConstructionDocument,
-): ConstructionDocumentIssue[] {
-  const issues: ConstructionDocumentIssue[] = [];
-  const { index, duplicateCodes } = buildCodeIndex(document);
-
-  if (document.kind === 'catalog' && document.header.informationType !== 1)
-    issues.push({
-      code: 'unsupported-information-type',
-      message: 'El tipo FIEBDC de cabecera no corresponde a una base de precios.',
-    });
-  if (
-    (document.kind === 'budget' || document.kind === 'template') &&
-    document.header.informationType !== 2
-  )
-    issues.push({
-      code: 'unsupported-information-type',
-      message: 'El tipo FIEBDC de cabecera no corresponde a un presupuesto.',
-    });
-
-  for (const code of duplicateCodes)
-    issues.push({
-      code: 'duplicate-concept-code',
-      codeReference: code,
-      message: `El código FIEBDC ${code} identifica más de un concepto.`,
-    });
-
-  for (const concept of Object.values(document.concepts)) {
-    if (!concept.id.trim())
-      issues.push({
-        code: 'invalid-concept-id',
-        message: 'Todo concepto debe tener un ID interno.',
-      });
-    for (const line of concept.decomposition)
-      if (!index.has(line.code))
-        issues.push({
-          code: 'unknown-concept-reference',
-          codeReference: line.code,
-          message: `La descomposición referencia el concepto inexistente ${line.code}.`,
-        });
-  }
+  if (!concepts[content.rootConceptId])
+    issues.push({ code: 'missing-root', message: 'El documento no tiene concepto raíz.' });
 
   const nodeIds = new Set<string>();
-  const visitNode = (node: FiebdcNode) => {
+  walkNodes(content.tree, (node) => {
     if (nodeIds.has(node.id))
       issues.push({
         code: 'duplicate-node-id',
-        message: `El ID de ocurrencia ${node.id} está repetido.`,
+        message: `El identificador de ocurrencia ${node.id} está repetido.`,
       });
-    else nodeIds.add(node.id);
-    if (!index.has(node.conceptCode))
+    nodeIds.add(node.id);
+    const concept = concepts[node.conceptId];
+    if (!concept)
       issues.push({
         code: 'unknown-concept-reference',
-        codeReference: node.conceptCode,
-        message: `La estructura referencia el concepto inexistente ${node.conceptCode}.`,
+        message: 'La estructura referencia un concepto inexistente.',
       });
-    node.children.forEach(visitNode);
-  };
-  document.roots.forEach(visitNode);
+    else if (concept.id === content.rootConceptId)
+      issues.push({
+        code: 'invalid-structure',
+        codeReference: concept.code,
+        message: 'El concepto raíz no puede aparecer dentro de la estructura.',
+      });
+    if (!optionalDecimal(node.quantity) || !optionalDecimal(node.factor))
+      issues.push({
+        code: 'invalid-number',
+        codeReference: concept?.code,
+        message: `La cantidad de ${concept?.code ?? node.id} no es numérica.`,
+      });
+  });
 
   const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const visitConcept = (code: string) => {
-    if (visiting.has(code)) {
+  const done = new Set<string>();
+  const visit = (id: string): void => {
+    if (done.has(id)) return;
+    if (visiting.has(id)) {
       issues.push({
         code: 'cyclic-decomposition',
-        codeReference: code,
-        message: `La descomposición del concepto ${code} contiene un ciclo.`,
+        codeReference: concepts[id]?.code,
+        message: `La descomposición del concepto ${concepts[id]?.code ?? id} contiene un ciclo.`,
       });
       return;
     }
-    if (visited.has(code)) return;
-    const concept = index.get(code);
-    if (!concept) return;
-    visiting.add(code);
-    concept.decomposition.forEach((line) => visitConcept(line.code));
-    visiting.delete(code);
-    visited.add(code);
+    visiting.add(id);
+    for (const line of concepts[id]?.decomposition ?? []) visit(line.conceptId);
+    visiting.delete(id);
+    done.add(id);
   };
-  for (const code of index.keys()) visitConcept(code);
-
+  Object.keys(concepts).forEach(visit);
   return issues;
 }

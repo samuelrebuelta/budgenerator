@@ -1,28 +1,40 @@
-export type Unit = 'm2' | 'm3' | 'ml' | 'unit' | 'hour';
-
 export * from './workforce.js';
+export * from './units.js';
 
-export const UNIT_LABELS: Record<Unit, string> = {
-  m2: 'M²',
-  m3: 'M³',
-  ml: 'ML',
-  unit: 'Ud.',
-  hour: 'Hr',
-};
+import type { Unit } from './units.js';
 
+/*
+ * Budgets, templates and the catalog are persisted as canonical FIEBDC documents
+ * (`entities/construction-document`). The interfaces below are *derived views* computed
+ * from those documents for components, PDF and projects. They are never persisted.
+ */
+
+/** Derived view of an item occurrence (FIEBDC node). `id` is the node ID. */
 export interface BudgetTask {
   id: string;
+  conceptId: string;
+  code: string;
   catalogConceptId?: string;
   description: string;
   quantity: number;
   unit: Unit;
   price: number;
   cost: number;
+  /** The quantity comes from detailed measurement lines. */
+  measured: boolean;
+  /** The unit price is computed from a decomposition. */
+  composed: boolean;
+  /** Other occurrences share the same concept. */
+  shared: boolean;
+  text?: string;
 }
 
+/** Derived view of a chapter node. `id` is the node ID. */
 export interface WorkItem {
   id: string;
+  code: string;
   name: string;
+  depth: number;
   catalogPartId?: string;
   tasks: BudgetTask[];
 }
@@ -40,12 +52,12 @@ export interface BudgetAdjustment {
   reason: string;
 }
 
+/** Derived view of a budget record and its canonical document. */
 export interface Budget {
   id: string;
   info: BudgetInfo;
   workItems: WorkItem[];
   sourceLeadId?: string;
-  catalogId?: string;
   adjustment?: BudgetAdjustment;
   ivaRate?: number;
   createdAt: string;
@@ -53,34 +65,29 @@ export interface Budget {
   projectId?: string;
 }
 
-export interface Tariff {
+/** Derived catalog item (a concept placed in a chapter). `id` is the concept ID. */
+export interface CatalogConcept {
   id: string;
+  code: string;
   description: string;
   unit: Unit;
   basePrice: number;
   cost: number;
-  category: string;
-  /** Membership in the catalog tree; populated on flattened client views. */
-  partId?: string;
+  composed: boolean;
 }
 
-export type CatalogConcept = Omit<Tariff, 'category' | 'partId'>;
+export interface Tariff extends CatalogConcept {
+  category: string;
+  partId: string;
+}
 
+/** Derived catalog chapter. `id` is the chapter node ID. */
 export interface CatalogPart {
   id: string;
+  code: string;
   name: string;
+  depth: number;
   concepts: CatalogConcept[];
-}
-
-export interface TariffCatalog {
-  id: string;
-  name: string;
-  baseCatalogId?: string;
-  parts: CatalogPart[];
-  /** Legacy flat representation; accepted only while reading older catalogs. */
-  tariffs?: Tariff[];
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface CompanyProfile {
@@ -93,27 +100,21 @@ export interface CompanyProfile {
   logo?: string;
 }
 
-export type PublicTask = Omit<BudgetTask, 'cost' | 'catalogConceptId'>;
-export type PublicBudget = Omit<Budget, 'workItems' | 'catalogId' | 'sourceLeadId'> & {
-  workItems: { id: string; name: string; tasks: PublicTask[] }[];
+export type PublicTask = Pick<
+  BudgetTask,
+  'id' | 'code' | 'description' | 'quantity' | 'unit' | 'price' | 'measured' | 'text'
+>;
+export type PublicBudget = Omit<Budget, 'workItems' | 'sourceLeadId'> & {
+  workItems: { id: string; code: string; name: string; depth: number; tasks: PublicTask[] }[];
 };
-export interface SharedBudget {
-  schemaVersion: 2;
-  ownerUid: string;
-  expiresAt: number;
-  budget: PublicBudget;
-  company: CompanyProfile;
-  ivaRate: number;
-  sharedAt: string;
-}
 
+/** Derived template view. */
 export interface BudgetTemplate {
-  ivaRate?: number;
   id: string;
   name: string;
   workItems: WorkItem[];
-  catalogId?: string;
   adjustment?: BudgetAdjustment;
+  ivaRate?: number;
   createdAt: string;
 }
 
