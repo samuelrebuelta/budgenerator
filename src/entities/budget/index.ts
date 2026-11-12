@@ -1,5 +1,6 @@
 export {
   useBudgetStore,
+  resetBudgetStore,
   useActiveBudget,
   useActiveBudgetRecord,
   useBudgets,
@@ -14,4 +15,5 @@ export {
   type BudgetRecord,
 } from './model/record';
 export { sharedBudgetView } from './model/publicBudget';
+export { fetchSharedBudget, revokeSharedBudget, shareBudget } from './api/firestore';
 export type { SharedBudget } from './api/firestore';

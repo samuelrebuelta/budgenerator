@@ -6,7 +6,7 @@ import type { TeamJob, TeamJobDraft, WorkCrew, WorkforceMember } from '@/entitie
 import { generateId } from '@/shared/lib';
 import { Alert, Button, Card, Field, Input, Modal, PageLink, Textarea } from '@/shared/ui';
 import { teamErrorMessage } from '../model/teamErrors';
-import { colorFor } from '../model/crewColors';
+import { colorFor } from '@/entities/workforce';
 
 interface NewTeamJobFormProps {
   initialDate: string;

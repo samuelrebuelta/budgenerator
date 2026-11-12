@@ -1,3 +1,4 @@
+export { CREW_COLORS, colorFor } from './model/crewColors';
 export { resetWorkforceStore, useWorkforceStore } from './model/store';
 export {
   buildTeamJobAssignment,

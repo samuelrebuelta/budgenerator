@@ -9,13 +9,13 @@ import {
 } from '@/shared/model/session';
 import { useSyncStore, flushWrites, hasPendingWrites } from '@/shared/model/sync';
 import { toUserMessage } from '@/shared/lib/errors';
-import { useBudgetStore, resetBudgetStore } from '@/entities/budget/model/store';
-import { useCatalogStore, resetCatalogStore } from '@/entities/catalog/model/store';
-import { useProfileStore, resetProfileStore } from '@/entities/profile/model/store';
+import { useBudgetStore, resetBudgetStore } from '@/entities/budget';
+import { useCatalogStore, resetCatalogStore } from '@/entities/catalog';
+import { useProfileStore, resetProfileStore } from '@/entities/profile';
 import { useProjectStore, resetProjectStore } from '@/entities/project';
 import { resetWorkforceStore } from '@/entities/workforce';
-import { useTemplateStore, resetTemplateStore } from '@/entities/template/model/store';
-import { useUserStore, resetUserStore } from '@/entities/user/model/store';
+import { useTemplateStore, resetTemplateStore } from '@/entities/template';
+import { useUserStore, resetUserStore } from '@/entities/user';
 import {
   clearMemoryResources,
   restorePersistedMemoryResources,

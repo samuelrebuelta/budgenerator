@@ -74,6 +74,33 @@
   /* Granate of the selected day in the team calendar. */
   --color-calendar-selected: #561321;
 
+  /* Accent tint for in-progress states (terracota family). */
+  --color-accent-surface: #f8eae4;
+  --color-accent-line: #dfb39f;
+
+  /* Crew palette (team calendar, project assignments): dot, `-surface` fill, `-ink` text. */
+  --color-crew-blue: #367760;
+  --color-crew-blue-surface: #dcece4;
+  --color-crew-blue-ink: #183e3b;
+  --color-crew-green: #648b43;
+  --color-crew-green-surface: #e3edd7;
+  --color-crew-green-ink: #354b27;
+  --color-crew-amber: #b4771e;
+  --color-crew-amber-surface: #f5e7cd;
+  --color-crew-amber-ink: #68420d;
+  --color-crew-rose: #b45e67;
+  --color-crew-rose-surface: #f4e0df;
+  --color-crew-rose-ink: #733a3e;
+  --color-crew-violet: #8062a6;
+  --color-crew-violet-surface: #ebe4f2;
+  --color-crew-violet-ink: #514069;
+  --color-crew-cyan: #3b8e94;
+  --color-crew-cyan-surface: #d9eceb;
+  --color-crew-cyan-ink: #28575a;
+  --color-crew-slate: #68756e;
+  --color-crew-slate-surface: #e5e7e4;
+  --color-crew-slate-ink: #3f4844;
+
   /* States: `*-surface` background, `*-line` border, `*-ink` text (AA on its surface). */
   --color-success-surface: #edf5f1;
   --color-success-line: #bad7ca;

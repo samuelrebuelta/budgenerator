@@ -74,7 +74,7 @@ export function BudgetHeader() {
             toggleClientInfo();
           }
         }}
-        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
+        className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus cursor-pointer mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
         aria-expanded={showClientInfo}
       >
         {showClientInfo ? <ChevronDown size={16} /> : <ChevronRight size={16} />}

@@ -225,9 +225,11 @@ export function BudgetsPage() {
                         <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
                         <p>{b.info.address || `${b.workItems.length} capítulos`}</p>
                         {b.projectId ? (
-                          <p className="mt-1 font-medium text-[#183e3b]">Proyecto en seguimiento</p>
+                          <p className="mt-1 font-medium text-ink-strong">
+                            Proyecto en seguimiento
+                          </p>
                         ) : b.acceptedAt ? (
-                          <p className="mt-1 font-medium text-[#52625a]">Presupuesto aceptado</p>
+                          <p className="mt-1 font-medium text-ink-muted">Presupuesto aceptado</p>
                         ) : null}
                       </div>
                     </div>

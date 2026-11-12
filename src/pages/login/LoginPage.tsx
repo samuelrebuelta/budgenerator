@@ -2,9 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
 import { Brand } from '@/shared/ui/Brand';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/shared/ui';
-import { Input } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Alert, Button, Input, Modal } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
 import { sendPasswordReset } from '@/entities/auth';
@@ -225,7 +223,9 @@ export function LoginPage() {
               )}
 
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+                <Alert tone="danger" plain role="none">
+                  {error}
+                </Alert>
               )}
 
               <Button
@@ -241,24 +241,21 @@ export function LoginPage() {
 
             {!isRegister && (
               <div className="mt-3 text-center">
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={openResetModal}
-                  className="text-sm text-gray-500 hover:text-blue-600 cursor-pointer"
+                  className="font-medium text-ink-muted"
                 >
                   {t('login.forgotPassword')}
-                </button>
+                </Button>
               </div>
             )}
 
             <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={toggleMode}
-                className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
-              >
+              <Button type="button" variant="link" onClick={toggleMode} className="font-medium">
                 {isRegister ? t('login.hasAccount') : t('login.noAccount')}
-              </button>
+              </Button>
             </div>
           </div>
           <LegalLinks className="mt-6 justify-center" />
@@ -271,12 +268,12 @@ export function LoginPage() {
         </h3>
         {resetSent ? (
           <div>
-            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-2">
+            <Alert tone="success" plain role="none" className="mb-2">
               {t('login.resetPasswordSent')}
-            </p>
-            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+            </Alert>
+            <Alert tone="warning" plain role="none" className="mb-4">
               {t('login.resetPasswordSpamHint')}
-            </p>
+            </Alert>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => setShowReset(false)}>
                 {t('common.cancel')}
@@ -295,9 +292,9 @@ export function LoginPage() {
               required
             />
             {resetError && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mt-2">
+              <Alert tone="danger" plain role="none" className="mt-2">
                 {resetError}
-              </p>
+              </Alert>
             )}
             <div className="flex items-center justify-end gap-3 mt-4">
               <Button variant="secondary" onClick={() => setShowReset(false)}>

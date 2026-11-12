@@ -5,6 +5,7 @@ import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore } from '@/entities/budget';
 import {
   getProjectLocalDateKey,
+  ProjectProgressBar,
   ProjectStatusTag,
   useProjectStore,
   type ProjectDetail,
@@ -15,6 +16,7 @@ import { money, taskAmount } from '@/shared/lib/budgetMath';
 import {
   Button,
   Card,
+  Field,
   Input,
   Modal,
   OfflineUnavailable,
@@ -25,7 +27,6 @@ import {
 import { unitLabel } from '@/shared/types';
 import { getMemoryResource } from '@/shared/lib/memoryResourceCache';
 import { useNetworkStore } from '@/shared/model/network';
-import { ProjectProgressBar } from '@/pages/projects/ProjectProgressBar';
 import { ProjectProgressHistoryDialog } from './ProjectProgressHistoryDialog';
 import { ProjectTaskCompletionDate } from './ProjectTaskCompletionDate';
 import { ProjectEstimatedEndDate } from './ProjectEstimatedEndDate';
@@ -302,21 +303,21 @@ export function ProjectDetailPage() {
       <section
         data-project-summary
         aria-labelledby="project-summary-title"
-        className="mb-8 rounded-2xl border border-[#c6d4cc] bg-[#eaf1ed] p-5 sm:p-7"
+        className="mb-8 rounded-2xl border border-line-strong bg-brand-50 p-5 sm:p-7"
       >
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 id="project-summary-title" className="text-lg font-semibold text-[#1f2b26]">
+            <h2 id="project-summary-title" className="text-lg font-semibold text-ink">
               Avance estimado
             </h2>
-            <p className="mt-1 text-sm text-[#52625a]">
+            <p className="mt-1 text-sm text-ink-muted">
               {project.completedConcepts} de {project.totalConcepts} partidas terminadas
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="secondary"
-              className="h-11 justify-center gap-2 rounded-full border-[#bfd0c8] bg-[#edf4ef] px-4 text-[#1f5d56] shadow-sm hover:bg-[#e0eee6]"
+              className="h-11 justify-center gap-2 rounded-full border-brand-200 bg-brand-50 px-4 text-primary shadow-sm hover:bg-brand-100"
               title="Ver progreso del proyecto"
               aria-haspopup="dialog"
               aria-expanded={progressHistoryOpen}
@@ -326,7 +327,7 @@ export function ProjectDetailPage() {
               <span>Ver progreso</span>
             </Button>
             <ProjectStatusTag status={project.status} />
-            <strong className="text-3xl font-semibold tabular-nums text-[#183e3b]">
+            <strong className="text-3xl font-semibold tabular-nums text-ink-strong">
               {project.percent}%
             </strong>
           </div>
@@ -335,17 +336,17 @@ export function ProjectDetailPage() {
           percent={project.percent}
           label={`Avance del proyecto: ${project.percent}%`}
         />
-        <p className="mt-3 text-xs leading-5 text-[#637166]">
+        <p className="mt-3 text-xs leading-5 text-ink-subtle">
           {project.mode === 'amount'
             ? `Ponderado por el importe neto previsto: ${formatCurrency(project.completedAmount)} de ${formatCurrency(project.totalAmount)}. No incluye IVA ni ajuste global.`
             : 'Calculado por partidas porque no todos los importes permiten una ponderación fiable.'}
         </p>
-        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[#52625a]">
+        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-muted">
           <span>Aceptado el {dateLabel(project.acceptedAt)}</span>
           <span>Proyecto creado el {dateLabel(project.createdAt)}</span>
           <span>Presupuesto {project.sourceBudgetNumber}</span>
         </div>
-        <div className="mt-5 border-t border-[#c6d4cc] pt-4">
+        <div className="mt-5 border-t border-line-strong pt-4">
           <ProjectEstimatedEndDate
             estimatedEndDate={project.estimatedEndDate}
             disabled={!!busy}
@@ -355,28 +356,28 @@ export function ProjectDetailPage() {
             }
           />
         </div>
-        <dl className="mt-5 grid gap-3 border-t border-[#c6d4cc] pt-4 sm:grid-cols-3">
+        <dl className="mt-5 grid gap-3 border-t border-line-strong pt-4 sm:grid-cols-3">
           <div>
-            <dt className="text-xs font-medium text-[#52625a]">Total aceptado · IVA incluido</dt>
-            <dd className="mt-1 text-base font-semibold tabular-nums text-[#1f2b26]">
+            <dt className="text-xs font-medium text-ink-muted">Total aceptado · IVA incluido</dt>
+            <dd className="mt-1 text-base font-semibold tabular-nums text-ink">
               {formatCurrency(project.total)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium text-[#52625a]">
+            <dt className="text-xs font-medium text-ink-muted">
               Suplementos activos · IVA incluido
             </dt>
-            <dd className="mt-1 text-base font-semibold tabular-nums text-[#1f2b26]">
+            <dd className="mt-1 text-base font-semibold tabular-nums text-ink">
               {formatCurrency((project.supplementsSubtotal ?? 0) + (project.supplementsIva ?? 0))}
             </dd>
-            <dd className="text-xs text-[#52625a]">
+            <dd className="text-xs text-ink-muted">
               Neto {formatCurrency(project.supplementsSubtotal ?? 0)} · IVA{' '}
               {formatCurrency(project.supplementsIva ?? 0)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium text-[#52625a]">Total actualizado</dt>
-            <dd className="mt-1 text-lg font-bold tabular-nums text-[#183e3b]">
+            <dt className="text-xs font-medium text-ink-muted">Total actualizado</dt>
+            <dd className="mt-1 text-lg font-bold tabular-nums text-ink-strong">
               {formatCurrency(project.updatedTotal ?? project.total)}
             </dd>
           </div>
@@ -387,30 +388,30 @@ export function ProjectDetailPage() {
 
       <details
         open
-        className="group mb-8 overflow-hidden rounded-2xl border border-[#d7dbd2] bg-white"
+        className="group mb-8 overflow-hidden rounded-2xl border border-line-strong bg-white"
       >
-        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#b7694d] sm:px-6 [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus sm:px-6 [&::-webkit-details-marker]:hidden">
           <div>
-            <h2 id="work-items-title" className="text-lg font-semibold text-[#1f2b26]">
+            <h2 id="work-items-title" className="text-lg font-semibold text-ink">
               Capítulos de trabajo
             </h2>
-            <span className="mt-1 block text-sm text-[#52625a]">
+            <span className="mt-1 block text-sm text-ink-muted">
               {project.workItems.filter((item) => !item.voidedAt).length} capítulos ·{' '}
               {project.totalConcepts} partidas
             </span>
           </div>
           <ChevronDown
             size={18}
-            className="shrink-0 text-[#52625a] transition-transform group-open:rotate-180"
+            className="shrink-0 text-ink-muted transition-transform group-open:rotate-180"
             aria-hidden="true"
           />
         </summary>
         <section
           data-project-work-items
           aria-labelledby="work-items-title"
-          className="space-y-5 border-t border-[#ecece4] p-5 sm:p-6"
+          className="space-y-5 border-t border-line p-5 sm:p-6"
         >
-          <p className="text-sm text-[#52625a]">Marca cada partida cuando esté terminada.</p>
+          <p className="text-sm text-ink-muted">Marca cada partida cuando esté terminada.</p>
 
           {project.workItems
             .filter((item) => !item.voidedAt)
@@ -422,8 +423,8 @@ export function ProjectDetailPage() {
                 <Card key={item.id} className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-base font-semibold text-[#1f2b26]">{item.name}</h3>
-                      <p className="mt-1 text-sm text-[#52625a]">
+                      <h3 className="text-base font-semibold text-ink">{item.name}</h3>
+                      <p className="mt-1 text-sm text-ink-muted">
                         {progress.completedConcepts} de {progress.totalConcepts} partidas ·{' '}
                         {progress.percent}%
                       </p>
@@ -461,7 +462,7 @@ export function ProjectDetailPage() {
                       label={`Avance del capítulo ${item.name}: ${progress.percent}%`}
                     />
                   </div>
-                  <ul className="divide-y divide-[#ecece4]">
+                  <ul className="divide-y divide-line">
                     {item.tasks.map((task) => {
                       const key = `${item.id}:${task.id}`;
                       const completed = !!task.completedAt;
@@ -471,13 +472,11 @@ export function ProjectDetailPage() {
                           className="flex items-start justify-between gap-4 py-3 first:pt-1 last:pb-1"
                         >
                           <div className="min-w-0">
-                            <p
-                              className={`text-sm ${completed ? 'text-[#52625a]' : 'text-[#1f2b26]'}`}
-                            >
+                            <p className={`text-sm ${completed ? 'text-ink-muted' : 'text-ink'}`}>
                               {task.description}
                             </p>
                             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                              <p className="text-xs text-[#637166]">
+                              <p className="text-xs text-ink-subtle">
                                 {task.quantity} {unitLabel(task.unit)} ·{' '}
                                 {formatCurrency(taskAmount(task))}
                               </p>
@@ -519,13 +518,13 @@ export function ProjectDetailPage() {
             })}
         </section>
       </details>
-      <details className="group mb-8 overflow-hidden rounded-2xl border border-[#d7dbd2] bg-white">
-        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#b7694d] sm:px-6 [&::-webkit-details-marker]:hidden">
+      <details className="group mb-8 overflow-hidden rounded-2xl border border-line-strong bg-white">
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus sm:px-6 [&::-webkit-details-marker]:hidden">
           <div>
-            <h2 id="supplements-title" className="text-lg font-semibold text-[#1f2b26]">
+            <h2 id="supplements-title" className="text-lg font-semibold text-ink">
               Ampliaciones
             </h2>
-            <span className="mt-1 block text-sm text-[#52625a]">
+            <span className="mt-1 block text-sm text-ink-muted">
               {project.supplements.length === 1
                 ? '1 ampliación registrada'
                 : `${project.supplements.length} ampliaciones registradas`}
@@ -533,16 +532,13 @@ export function ProjectDetailPage() {
           </div>
           <ChevronDown
             size={18}
-            className="shrink-0 text-[#52625a] transition-transform group-open:rotate-180"
+            className="shrink-0 text-ink-muted transition-transform group-open:rotate-180"
             aria-hidden="true"
           />
         </summary>
-        <section
-          aria-labelledby="supplements-title"
-          className="border-t border-[#ecece4] p-5 sm:p-6"
-        >
+        <section aria-labelledby="supplements-title" className="border-t border-line p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <p className="max-w-3xl text-sm leading-6 text-[#52625a]">
+            <p className="max-w-3xl text-sm leading-6 text-ink-muted">
               Añade aquí trabajos imprevistos. El presupuesto aceptado se conserva como referencia y
               cada ampliación queda registrada con su importe e IVA.
             </p>
@@ -555,7 +551,7 @@ export function ProjectDetailPage() {
 
           {supplementFormOpen && (
             <form
-              className="grid gap-3 rounded-xl bg-[#f6f6f0] p-4 sm:grid-cols-2"
+              className="grid gap-3 rounded-xl bg-canvas p-4 sm:grid-cols-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 const requestId = supplementRequestId ?? generateId();
@@ -571,50 +567,58 @@ export function ProjectDetailPage() {
                 });
               }}
             >
-              <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
-                Partida imprevista
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                  value={supplementDescription}
-                  onChange={(event) => setSupplementDescription(event.target.value)}
-                  maxLength={300}
-                  required
-                />
-              </label>
-              <label className="block text-xs font-semibold text-[#37443d]">
-                Cantidad
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={supplementQuantity}
-                  onChange={(event) => setSupplementQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="block text-xs font-semibold text-[#37443d]">
-                Unidad
-                <UnitField
-                  label="Unidad"
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                  value={supplementUnit}
-                  onChange={setSupplementUnit}
-                />
-              </label>
-              <label className="block text-xs font-semibold text-[#37443d] sm:col-span-2">
-                Precio unitario sin IVA
-                <input
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={supplementUnitPrice}
-                  onChange={(event) => setSupplementUnitPrice(event.target.value)}
-                  required
-                />
-              </label>
-              <p className="text-xs leading-5 text-[#52625a] sm:col-span-2">
+              <Field label="Partida imprevista" className="sm:col-span-2">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    value={supplementDescription}
+                    onChange={(event) => setSupplementDescription(event.target.value)}
+                    maxLength={300}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Cantidad">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    value={supplementQuantity}
+                    onChange={(event) => setSupplementQuantity(event.target.value)}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Unidad">
+                {(control) => (
+                  <UnitField
+                    id={control.id}
+                    label="Unidad"
+                    className="ui-control"
+                    value={supplementUnit}
+                    onChange={setSupplementUnit}
+                  />
+                )}
+              </Field>
+              <Field label="Precio unitario sin IVA" className="sm:col-span-2">
+                {(control) => (
+                  <input
+                    {...control}
+                    className="ui-control"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={supplementUnitPrice}
+                    onChange={(event) => setSupplementUnitPrice(event.target.value)}
+                    required
+                  />
+                )}
+              </Field>
+              <p className="text-xs leading-5 text-ink-muted sm:col-span-2">
                 Se aplica el IVA del presupuesto aceptado. El precio no vuelve a recibir el ajuste
                 global del presupuesto.
               </p>
@@ -635,9 +639,9 @@ export function ProjectDetailPage() {
           )}
 
           {project.supplements.length === 0 ? (
-            <p className="mt-4 text-sm text-[#637166]">Todavía no hay ampliaciones registradas.</p>
+            <p className="mt-4 text-sm text-ink-subtle">Todavía no hay ampliaciones registradas.</p>
           ) : (
-            <ul className="mt-4 divide-y divide-[#ecece4]" aria-label="Historial de ampliaciones">
+            <ul className="mt-4 divide-y divide-line" aria-label="Historial de ampliaciones">
               {project.supplements.map((supplement) => {
                 const supplementVoid = project.supplementVoids.find(
                   (entry) => entry.supplementId === supplement.id,
@@ -646,22 +650,20 @@ export function ProjectDetailPage() {
                   <li key={supplement.id} className="py-4 first:pt-1 last:pb-1">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-semibold text-[#1f2b26]">
-                          {supplement.description}
-                        </h3>
-                        <p className="mt-1 text-xs leading-5 text-[#52625a]">
+                        <h3 className="text-sm font-semibold text-ink">{supplement.description}</h3>
+                        <p className="mt-1 text-xs leading-5 text-ink-muted">
                           {supplement.quantity} {supplement.unit} ×{' '}
                           {formatCurrency(supplement.unitPrice)} · Añadido el{' '}
                           {dateLabel(supplement.createdAt)}
                         </p>
                         {supplementVoid && (
-                          <p className="mt-2 text-xs leading-5 text-[#83452f]">
+                          <p className="mt-2 text-xs leading-5 text-danger-ink">
                             Anulado el {dateLabel(supplementVoid.voidedAt)} ·{' '}
                             {supplementVoid.reason}
                           </p>
                         )}
                       </div>
-                      <strong className="shrink-0 text-sm tabular-nums text-[#183e3b]">
+                      <strong className="shrink-0 text-sm tabular-nums text-ink-strong">
                         {formatCurrency(supplement.total)}
                       </strong>
                     </div>
@@ -679,16 +681,18 @@ export function ProjectDetailPage() {
                               });
                             }}
                           >
-                            <label className="block text-xs font-semibold text-[#37443d]">
-                              Motivo de anulación
-                              <input
-                                className="mt-1.5 min-h-11 w-full rounded-lg border border-[#c9cfc7] bg-white px-3 py-2 text-sm font-normal text-[#1f2b26] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
-                                value={voidReason}
-                                onChange={(event) => setVoidReason(event.target.value)}
-                                maxLength={500}
-                                required
-                              />
-                            </label>
+                            <Field label="Motivo de anulación">
+                              {(control) => (
+                                <input
+                                  {...control}
+                                  className="ui-control"
+                                  value={voidReason}
+                                  onChange={(event) => setVoidReason(event.target.value)}
+                                  maxLength={500}
+                                  required
+                                />
+                              )}
+                            </Field>
                             <Button
                               type="submit"
                               variant="secondary"
@@ -741,8 +745,8 @@ export function ProjectDetailPage() {
         }}
         title="Editar nombre y cliente del proyecto"
       >
-        <h2 className="mb-2 text-lg font-semibold text-[#1f2b26]">Editar nombre y cliente</h2>
-        <p className="mb-5 text-sm text-[#52625a]">
+        <h2 className="mb-2 text-lg font-semibold text-ink">Editar nombre y cliente</h2>
+        <p className="mb-5 text-sm text-ink-muted">
           Los cambios también se reflejarán en el presupuesto de origen.
         </p>
         <form className="space-y-4" onSubmit={(event) => void saveProjectMetadata(event)}>

@@ -22,26 +22,6 @@ const arbitraryColor = {
   message: 'Usa los tokens de color del @theme (bg-surface, text-ink-muted…) en lugar de hex.',
 }
 
-// Phase 2: files that still bypass a public API; remove each entry when migrated.
-const pendingEntityImports = [
-  'src/app/session.ts',
-  'src/features/budget-structure/model.ts',
-  'src/pages/project-detail/**',
-  'src/pages/budget-detail/**',
-  'src/pages/budget-viewer/**',
-  'src/pages/account/**',
-  'src/pages/login/**',
-]
-// Phase 2: screens not yet migrated to colour tokens.
-const tokenizedUi = [
-  'src/app/**/*.tsx',
-  'src/shared/ui/**/*.tsx',
-  'src/features/app-tour/**/*.tsx',
-  'src/pages/workforce/**/*.tsx',
-  'src/pages/leads/**/*.tsx',
-  'src/pages/help/**/*.tsx',
-]
-
 export default defineConfig([
   globalIgnores(['dist', 'functions/lib', 'test-artifacts']),
   {
@@ -67,12 +47,10 @@ export default defineConfig([
   },
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: pendingEntityImports,
     rules: { 'no-restricted-imports': ['error', { patterns: [entityInternals] }] },
   },
   {
     files: ['src/pages/**/*.{ts,tsx}'],
-    ignores: pendingEntityImports,
     rules: { 'no-restricted-imports': ['error', { patterns: [entityInternals, otherPages] }] },
   },
   {
@@ -92,13 +70,12 @@ export default defineConfig([
   },
   {
     files: ['src/features/**/*.{ts,tsx}'],
-    ignores: pendingEntityImports,
     rules: {
       'no-restricted-imports': ['error', { patterns: [entityInternals, upperLayers(['pages', 'app'])] }],
     },
   },
   {
-    files: tokenizedUi,
+    files: ['src/**/*.tsx'],
     rules: { 'no-restricted-syntax': ['error', arbitraryColor] },
   },
   {

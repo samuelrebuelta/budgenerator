@@ -5,7 +5,7 @@ import { Badge, Button, IconButton } from '@/shared/ui';
 import { CrewDialog, MemberDialog } from './components/TeamDialogs';
 import { TeamPageFrame } from './components/TeamPageFrame';
 import { TEAM_COPY } from './model/copy';
-import { colorFor } from './model/crewColors';
+import { colorFor } from '@/entities/workforce';
 import { useTeamContext } from './model/teamContext';
 
 type EditTarget =

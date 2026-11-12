@@ -64,7 +64,7 @@ export function SaveTemplateButton() {
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder={t('templates.namePlaceholder')}
             autoFocus
-            className="min-w-0 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 min-h-11"
+            className="ui-control min-w-0"
           />
           <Button onClick={handleSave} disabled={!name.trim()} loading={saving}>
             {saving ? t('templates.saving') : t('common.save')}

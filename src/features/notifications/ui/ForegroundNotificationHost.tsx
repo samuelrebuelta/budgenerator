@@ -44,19 +44,19 @@ export function ForegroundNotificationHost() {
   if (!notice) return null;
   return (
     <div
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-[#cddbd1] bg-white p-4 shadow-[0_12px_36px_rgba(20,45,35,0.18)] md:bottom-5"
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-line-strong bg-white p-4 shadow-[0_12px_36px_rgba(20,45,35,0.18)] md:bottom-5"
       role="status"
       aria-live="polite"
     >
       <div className="flex items-start gap-3">
-        <Bell size={18} className="mt-0.5 shrink-0 text-[#315d4c]" aria-hidden="true" />
+        <Bell size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-gray-900">Nueva solicitud de presupuesto</p>
           <p className="mt-1 text-sm text-gray-600">Tienes una nueva solicitud en BudGenerator.</p>
           <PageLink
             to={notice.managementPath}
             onClick={() => setNotice(null)}
-            className="mt-3 inline-flex min-h-11 items-center font-medium text-[#234c40] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="mt-3 inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Ver solicitud
           </PageLink>

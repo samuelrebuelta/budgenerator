@@ -1,1 +1,1 @@
-export { useProfileStore, setProfileAuthGetter } from './model/store';
+export { useProfileStore, resetProfileStore, setProfileAuthGetter } from './model/store';

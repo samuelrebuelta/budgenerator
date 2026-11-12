@@ -1,6 +1,6 @@
 import type { Budget, CatalogPart } from '@/shared/types';
-import type { ChapterInput } from '@/entities/construction-document/model';
-import { compareSpanish, normalizeCatalogText } from '@/entities/catalog/search';
+import type { ChapterInput } from '@/entities/construction-document';
+import { compareSpanish, normalizeCatalogText } from '@/shared/lib';
 
 export function conceptKey(partId: string, conceptId: string): string {
   return JSON.stringify([partId, conceptId]);
