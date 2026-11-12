@@ -94,7 +94,7 @@ export function serializeBc3(
     else if (concept.decomposition.length) prices[0] = formatFixed(rate(concept.id), decimals.price);
     const codes = [codeOf(concept), ...(concept.synonyms ?? [])].map(f).join('\\');
     lines.push(
-      `~C|${codes}|${f(concept.unit)}|${f(concept.summary)}|${prices.map(f).join('\\')}${prices.length ? '\\' : ''}|${concept.dates.map(f).join('\\')}${concept.dates.length ? '\\' : ''}|${f(concept.type)}|`,
+      `~C|${codes}|${f(concept.unit)}|${f(concept.id === root.id ? title || concept.summary : concept.summary)}|${prices.map(f).join('\\')}${prices.length ? '\\' : ''}|${concept.dates.map(f).join('\\')}${concept.dates.length ? '\\' : ''}|${f(concept.type)}|`,
     );
   }
 

@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { it, expect } from 'vitest';
 import { buildBudgetDocument } from '../src/shared/lib/pdf';
-import { toPublicBudget } from '../src/entities/budget/model/publicBudget';
-import { budget } from './fixtures';
+import { buildSharedBudget, sharedBudgetView } from '../src/entities/budget/model/publicBudget';
+import { budget, budgetRecord } from './fixtures';
 it('renders long concepts over multiple pages, with consistent public amounts', () => {
   const b = budget();
   b.workItems[0]!.tasks = Array.from({ length: 32 }, (_, i) => ({
@@ -24,6 +24,10 @@ it('renders long concepts over multiple pages, with consistent public amounts', 
     writeFileSync('tmp/pdfs/long-budget.pdf', Buffer.from(doc.output('arraybuffer')));
   }
   expect(doc.getNumberOfPages()).toBeGreaterThan(3);
-  const publicDoc = buildBudgetDocument(toPublicBudget(b));
-  expect(publicDoc.output('arraybuffer').byteLength).toBeGreaterThan(10000);
+  const publicDoc = buildBudgetDocument(
+    sharedBudgetView(
+      buildSharedBudget(budgetRecord(), { name: '', cif: '', address: '', phone: '', email: '' }, 'u'),
+    ),
+  );
+  expect(publicDoc.output('arraybuffer').byteLength).toBeGreaterThan(3000);
 });

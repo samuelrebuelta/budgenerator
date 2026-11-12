@@ -34,6 +34,8 @@ export interface StoredRoot {
   kind: ConstructionDocumentKind;
   schemaVersion: typeof CONSTRUCTION_SCHEMA_VERSION;
   revision: number;
+  /** Revision of the content chunks; root-only updates (acceptance…) leave it unchanged. */
+  contentRevision: number;
   chunkCount: number;
   createdAt: string;
   updatedAt: string;
@@ -135,7 +137,7 @@ export async function readStoredDocument<R extends StoredRoot>(
       Array.from({ length: data.chunkCount }, (_, index) => getDoc(contentChunkRef(root, index))),
     );
     const consistent = chunks.every(
-      (chunk) => chunk.exists() && chunk.data().revision === data.revision,
+      (chunk) => chunk.exists() && chunk.data().revision === data.contentRevision,
     );
     if (!consistent) continue;
     const content = decodeContent(chunks.map((chunk) => chunk.data()!.data as string));
@@ -160,7 +162,7 @@ export function newRootFields(
   id: string,
   document: ConstructionDocument,
   now: string,
-): Omit<StoredRoot, 'chunkCount'> {
+): Omit<StoredRoot, 'chunkCount' | 'contentRevision'> {
   return {
     id,
     kind: document.kind,
@@ -177,10 +179,10 @@ export function createInTransaction(
   transaction: Transaction,
   root: DocumentReference,
   document: ConstructionDocument,
-  rootData: Omit<StoredRoot, 'chunkCount'> & Record<string, unknown>,
+  rootData: Omit<StoredRoot, 'chunkCount' | 'contentRevision'> & Record<string, unknown>,
 ) {
   const chunkCount = writeContent(transaction, root, document, 1, 0);
-  transaction.set(root, { ...rootData, revision: 1, chunkCount });
+  transaction.set(root, { ...rootData, revision: 1, contentRevision: 1, chunkCount });
   return chunkCount;
 }
 
@@ -208,6 +210,7 @@ export async function saveStoredDocument(
         ? { ...document.business.adjustment }
         : deleteField(),
       revision,
+      contentRevision: revision,
       chunkCount,
       updatedAt: new Date().toISOString(),
       ...extra,

@@ -88,15 +88,15 @@ it('builds selected catalog parts with their own concepts and stable source IDs'
   );
 
   expect(items.map((item) => item.name)).toEqual(['Suelos', 'Pintura']);
-  expect(items[0]).toMatchObject({ catalogPartId: 'floors' });
-  expect(items[0]?.tasks[0]).toMatchObject({
+  expect(items[0]).toMatchObject({ catalogChapterId: 'floors' });
+  expect(items[0]?.items[0]).toMatchObject({
     catalogConceptId: 'same',
     quantity: 0,
     price: 30,
     cost: 12,
     unit: 'ml',
   });
-  expect(items[1]?.tasks.map((task) => task.description)).toEqual(['Ángulo', 'Zócalo']);
+  expect(items[1]?.items.map((task) => task.description)).toEqual(['Ángulo', 'Zócalo']);
   expect(() => structureFromSelection(parts, ['missing'], [])).toThrow();
   expect(() => structureFromSelection(parts, ['paint'], [conceptKey('floors', 'same')])).toThrow();
 });
@@ -109,5 +109,5 @@ it('uses supplied quantities for selected concepts and leaves the rest incomplet
     { [conceptKey('paint', 'same')]: 2.5 },
   );
 
-  expect(items[0]?.tasks.map((task) => task.quantity)).toEqual([0, 2.5]);
+  expect(items[0]?.items.map((task) => task.quantity)).toEqual([0, 2.5]);
 });

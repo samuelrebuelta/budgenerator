@@ -1,12 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 const api = vi.hoisted(() => ({
-  fetchTariffCatalogs: vi.fn(),
-  fetchActiveTariffCatalogId: vi.fn(),
-  fetchLegacyTariffs: vi.fn(),
-  ensureSingleCatalog: vi.fn(),
-  deleteTariffCatalogDoc: vi.fn(),
-  deleteLegacyTariffs: vi.fn(),
-  updateTariffCatalogDoc: vi.fn(),
+  ensureCatalog: vi.fn(),
+  fetchCatalog: vi.fn(),
+  saveCatalog: vi.fn(),
 }));
 vi.mock('../src/entities/catalog/api/firestore', () => api);
 import {
@@ -14,195 +11,144 @@ import {
   resetCatalogStore,
   flushCatalogWrites,
 } from '../src/entities/catalog/model/store';
-import { catalog as fixtureCatalog } from './fixtures';
+import { catalogView, type CatalogRecord } from '../src/entities/catalog/model/record';
+import { parseBc3 } from '../src/entities/construction-document/bc3';
+import { RevisionConflictError } from '../src/entities/construction-document/api/storage';
 import { setSessionUid } from '../src/shared/model/session';
-const catalog = (id: string) => ({ id, name: id, parts: [], createdAt: '', updatedAt: '' });
+import { sampleDocument } from './fixtures';
+
+const record = (document = sampleDocument('catalog'), revision = 1): CatalogRecord => ({
+  id: 'main',
+  revision,
+  createdAt: '',
+  updatedAt: '',
+  document,
+});
+const view = () => catalogView(store.getState().record!);
+
 beforeEach(() => {
   vi.clearAllMocks();
   setSessionUid('alice');
   resetCatalogStore();
-  api.fetchTariffCatalogs.mockResolvedValue([]);
-  api.fetchActiveTariffCatalogId.mockResolvedValue(null);
-  api.fetchLegacyTariffs.mockResolvedValue([]);
-  api.ensureSingleCatalog.mockImplementation(async (_uid, value) => value);
-  api.deleteTariffCatalogDoc.mockResolvedValue(undefined);
+  api.ensureCatalog.mockImplementation(async (_uid, seed) => record(seed));
+  api.saveCatalog.mockImplementation(async (_uid, _record, expected: number) => expected + 1);
 });
 afterEach(resetCatalogStore);
-it('initializes one deterministic catalog with the complete renovation base', async () => {
+
+it('seeds the canonical catalog with the complete renovation base', async () => {
   await store.getState().loadCatalogs('alice');
-  expect(store.getState().catalogs).toHaveLength(1);
-  expect(store.getState().activeCatalogId).toBe('main-v1');
-  expect(new Set(store.getState().tariffs.map((tariff) => tariff.category))).toEqual(
-    new Set([
-      'Accesibilidad',
-      'Aislamiento',
-      'Albañilería',
-      'Carpintería',
-      'Cerrajería',
-      'Cimentación',
-      'Climatización',
-      'Cocinas',
-      'Cubiertas',
-      'Demolición',
-      'Electricidad',
-      'Energía solar',
-      'Enlucidos',
-      'Estructura',
-      'Exteriores',
-      'Fachadas',
-      'Fontanería',
-      'Gas',
-      'Jardinería',
-      'Limpieza',
-      'Mudanzas',
-      'Pavimentos',
-      'Pintura',
-      'Piscinas',
-      'Pladur',
-      'Revestimientos',
-      'Telecomunicaciones',
-      'Varios',
-      'Ventanas',
-      'Vidrio',
-    ]),
+  expect(api.ensureCatalog).toHaveBeenCalledTimes(1);
+  const seed = api.ensureCatalog.mock.calls[0]![1];
+  expect(seed.kind).toBe('catalog');
+  expect(view().parts.map((part) => part.name)).toEqual(
+    expect.arrayContaining(['Accesibilidad', 'Electricidad', 'Pintura', 'Vidrio']),
+  );
+  expect(view().tariffs.every((tariff) => ['m2', 'm3', 'ml', 'ud', 'h'].includes(tariff.unit))).toBe(
+    true,
   );
   await store.getState().loadCatalogs('alice');
-  expect(api.ensureSingleCatalog).toHaveBeenCalledTimes(1);
-});
-it('saves a canonical copy of the selected catalog before removing test catalogs', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([catalog('a'), catalog('b')]);
-  api.fetchActiveTariffCatalogId.mockResolvedValue('b');
-  await store.getState().loadCatalogs('alice');
-  expect(api.ensureSingleCatalog.mock.calls[0]?.[1]).toMatchObject({
-    id: 'main-v1',
-    name: 'Mi catálogo',
-  });
-  expect(api.ensureSingleCatalog.mock.invocationCallOrder[0]).toBeLessThan(
-    api.deleteTariffCatalogDoc.mock.invocationCallOrder[0]!,
-  );
-  expect(api.deleteTariffCatalogDoc).toHaveBeenCalledTimes(2);
-  expect(store.getState().catalogs).toHaveLength(1);
-});
-it('does not delete sources if creating the destination fails and can retry', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([catalog('a')]);
-  api.ensureSingleCatalog.mockRejectedValueOnce(Error('offline'));
-  await expect(store.getState().loadCatalogs('alice')).rejects.toThrow('offline');
-  expect(api.deleteTariffCatalogDoc).not.toHaveBeenCalled();
-  expect(store.getState().loaded).toBe(false);
-  await store.getState().loadCatalogs('alice');
-  expect(store.getState().loaded).toBe(true);
-});
-it('ignores stale sessions before deleting catalogs or populating state', async () => {
-  api.ensureSingleCatalog.mockImplementation(async (_uid, value) => {
-    setSessionUid('bob');
-    return value;
-  });
-  api.fetchTariffCatalogs.mockResolvedValue([catalog('a')]);
-  await store.getState().loadCatalogs('alice');
-  expect(api.deleteTariffCatalogDoc).not.toHaveBeenCalled();
-  expect(store.getState().loaded).toBe(false);
+  expect(api.ensureCatalog).toHaveBeenCalledTimes(1);
 });
 
-it('coalesces edits from the latest state instead of overwriting another field', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
-  await store.getState().loadCatalogs('alice');
-  await store.getState().updateTariff('tariff-a', { description: 'Updated' });
-  await store.getState().updateTariff('tariff-a', { cost: 5.25 });
-  await flushCatalogWrites();
-  expect(api.updateTariffCatalogDoc).toHaveBeenCalledTimes(1);
-  expect(api.updateTariffCatalogDoc.mock.calls[0]![2].parts[0].concepts[0]).toMatchObject({
-    description: 'Updated',
-    cost: 5.25,
-  });
-});
-it('loads a new account instead of reusing a previous loaded flag', async () => {
-  await store.getState().loadCatalogs('alice');
+it('ignores stale sessions before populating state', async () => {
+  let resolve!: (value: CatalogRecord) => void;
+  api.ensureCatalog.mockImplementation(() => new Promise((r) => (resolve = r)));
+  const loading = store.getState().loadCatalogs('alice');
   setSessionUid('bob');
   resetCatalogStore();
-  await store.getState().loadCatalogs('bob');
-  expect(api.fetchTariffCatalogs.mock.calls.map((c) => c[0])).toEqual(['alice', 'bob']);
-});
-it('retries cleanup without replacing the canonical destination', async () => {
-  const saved = { ...fixtureCatalog(), id: 'main-v1', name: 'Mi catálogo' };
-  api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
-  api.ensureSingleCatalog.mockResolvedValue(saved);
-  api.deleteTariffCatalogDoc.mockRejectedValueOnce(Error('cleanup failed'));
-  await expect(store.getState().loadCatalogs('alice')).rejects.toThrow('cleanup failed');
-  api.fetchTariffCatalogs.mockResolvedValue([saved, fixtureCatalog()]);
-  await store.getState().loadCatalogs('alice');
-  expect(store.getState().tariffs).toMatchObject([
-    { id: 'tariff-a', description: 'Original', category: 'Pintura', partId: 'part-pintura' },
-  ]);
-  expect(store.getState().catalogs).toEqual([saved]);
-});
-it('retries interrupted legacy cleanup after the canonical destination already exists', async () => {
-  api.fetchLegacyTariffs.mockResolvedValue([
-    {
-      id: 'tariff-a',
-      description: 'Original',
-      unit: 'm2',
-      basePrice: 10.75,
-      cost: 4.5,
-      category: 'Pintura',
-    },
-  ]);
-  api.deleteLegacyTariffs
-    .mockRejectedValueOnce(Error('cleanup failed'))
-    .mockResolvedValue(undefined);
-  await expect(store.getState().loadCatalogs('alice')).rejects.toThrow('cleanup failed');
-  const saved = { ...fixtureCatalog(), id: 'main-v1', name: 'Mi catálogo' };
-  api.fetchTariffCatalogs.mockResolvedValue([saved]);
-  await store.getState().loadCatalogs('alice');
-  expect(api.deleteLegacyTariffs).toHaveBeenCalledTimes(2);
-  expect(store.getState().loaded).toBe(true);
+  resolve(record());
+  await loading;
+  expect(store.getState().record).toBeNull();
 });
 
-it('keeps partida membership when renaming a chapter', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
+it('coalesces edits from the latest state and saves with the tracked revision', async () => {
+  api.ensureCatalog.mockResolvedValue(record(sampleDocument('catalog'), 3));
   await store.getState().loadCatalogs('alice');
-  store.getState().renamePart('part-pintura', 'Acabados');
-
-  expect(store.getState().catalogs[0]?.parts[0]).toMatchObject({
-    id: 'part-pintura',
-    name: 'Acabados',
-    concepts: [{ id: 'tariff-a', description: 'Original' }],
-  });
+  const part = view().parts[0]!;
+  const concept = part.concepts[0]!;
+  store.getState().updateConcept(part.id, concept.id, { basePrice: 12 });
+  store.getState().updateConcept(part.id, concept.id, { description: 'Pintura lisa' });
   await flushCatalogWrites();
+  expect(api.saveCatalog).toHaveBeenCalledTimes(1);
+  expect(api.saveCatalog.mock.calls[0]![2]).toBe(3);
+  expect(catalogView(api.saveCatalog.mock.calls[0]![1]).parts[0]!.concepts[0]).toMatchObject({
+    description: 'Pintura lisa',
+    basePrice: 12,
+    cost: 4.5,
+  });
+  expect(store.getState().record!.revision).toBe(4);
 });
 
-it('adds and removes a partida under its chapter without changing other chapters', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
+it('keeps partida membership when renaming a chapter and removes partidas only from it', async () => {
   await store.getState().loadCatalogs('alice');
-  store.getState().addConcept('part-pintura', {
+  api.ensureCatalog.mockClear();
+  store.setState({ record: record() });
+  const part = view().parts[0]!;
+  store.getState().renamePart(part.id, 'Acabados');
+  expect(view().parts[0]).toMatchObject({
+    id: part.id,
+    name: 'Acabados',
+    concepts: [{ description: 'Original' }],
+  });
+  const added = store.getState().addConcept(part.id, {
     description: 'Nueva pintura',
-    unit: 'm2',
+    unit: 'kg',
     basePrice: 18,
     cost: 8,
   });
-  const added = store.getState().catalogs[0]?.parts[0]?.concepts[1];
-  expect(added).toMatchObject({ description: 'Nueva pintura', basePrice: 18 });
-  if (added) store.getState().removeConcept('part-pintura', added.id);
-  expect(store.getState().catalogs[0]?.parts[0]?.concepts).toHaveLength(1);
+  expect(view().parts[0]!.concepts[1]).toMatchObject({ description: 'Nueva pintura', unit: 'kg' });
+  store.getState().removeConcept(part.id, added);
+  expect(view().parts[0]!.concepts).toHaveLength(1);
   await flushCatalogWrites();
 });
 
 it('imports a trade once and keeps concepts already customized in the catalog', async () => {
-  api.fetchTariffCatalogs.mockResolvedValue([fixtureCatalog()]);
   await store.getState().loadCatalogs('alice');
-
+  store.setState({ record: record() });
   const firstImport = store.getState().importTrade('reforma_integral');
   const secondImport = store.getState().importTrade('reforma_integral');
-  const paintPart = store.getState().catalogs[0]?.parts.find((part) => part.id === 'part-pintura');
-
+  const paintPart = view().parts.find((part) => part.name === 'Pintura');
   expect(firstImport.addedConcepts).toBeGreaterThan(0);
   expect(secondImport).toMatchObject({ addedParts: 0, addedConcepts: 0 });
-  expect(paintPart?.concepts).toContainEqual({
-    id: 'tariff-a',
-    description: 'Original',
-    unit: 'm2',
-    basePrice: 10.75,
-    cost: 4.5,
-  });
+  expect(paintPart?.concepts).toContainEqual(
+    expect.objectContaining({ description: 'Original', unit: 'm2', basePrice: 10.75, cost: 4.5 }),
+  );
   await flushCatalogWrites();
-  expect(api.updateTariffCatalogDoc).toHaveBeenCalledTimes(1);
+  expect(api.saveCatalog).toHaveBeenCalledTimes(1);
+});
+
+it('merges a BC3 price base once, keeping codes and decompositions', async () => {
+  await store.getState().loadCatalogs('alice');
+  store.setState({ record: record() });
+  const parsed = parseBc3(new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')), {
+    target: 'catalog',
+  });
+  const first = await store.getState().importDocument(parsed.document!);
+  expect(first).toEqual({ addedParts: 3, addedConcepts: 5 });
+  expect(api.saveCatalog).toHaveBeenCalledTimes(1);
+  const wall = view().tariffs.find((tariff) => tariff.code === 'E02ALI');
+  expect(wall).toMatchObject({ basePrice: 39.07, composed: true, category: 'Revestimientos y acabados' });
+  const second = await store.getState().importDocument(parsed.document!);
+  expect(second).toEqual({ addedParts: 0, addedConcepts: 0 });
+});
+
+it('rolls back a failed BC3 import and reports conflicts', async () => {
+  await store.getState().loadCatalogs('alice');
+  const before = record();
+  store.setState({ record: before });
+  api.saveCatalog.mockRejectedValueOnce(new Error('offline'));
+  const parsed = parseBc3(new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')), {
+    target: 'catalog',
+  });
+  await expect(store.getState().importDocument(parsed.document!)).rejects.toThrow('offline');
+  expect(store.getState().record).toBe(before);
+
+  api.saveCatalog.mockRejectedValueOnce(new RevisionConflictError());
+  store.getState().addPart('Nuevo');
+  await expect(flushCatalogWrites()).rejects.toBeInstanceOf(RevisionConflictError);
+  expect(store.getState().conflict).toBe(true);
+  api.fetchCatalog.mockResolvedValue(record(sampleDocument('catalog'), 9));
+  await store.getState().reloadCatalog();
+  expect(store.getState().conflict).toBe(false);
+  expect(store.getState().record!.revision).toBe(9);
 });
