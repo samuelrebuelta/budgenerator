@@ -38,8 +38,8 @@ test-artifacts/
 !.env.example
 !functions/.env
 
-# Local emulator configs with alternative ports
-.firebase-local/
+# Local emulator configs with alternative ports (copies of firebase.json)
+firebase.local*.json
 
 # Intermediate PDF QA
 tmp/
