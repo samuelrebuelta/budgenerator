@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react';
-import { cn } from '@/shared/lib';
+import { cn } from '@/shared/lib/utils';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface SwitchProps {

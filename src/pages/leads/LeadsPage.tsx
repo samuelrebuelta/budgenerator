@@ -28,7 +28,8 @@ import {
 import { notificationPathFromLeadId } from '@/features/notifications/model/navigation';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 import { deleteMemoryResource, setMemoryResource } from '@/shared/lib/memoryResourceCache';
-import { formatCents, formatDateTime, useMemoryResource } from '@/shared/lib';
+import { formatCents, formatDateTime } from '@/shared/lib';
+import { useMemoryResource } from '@/shared/lib/useMemoryResource';
 import { useNetworkStore } from '@/shared/model/network';
 
 const EMPTY_LEADS: QuoteLead[] = [];

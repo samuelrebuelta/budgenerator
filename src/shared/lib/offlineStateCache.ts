@@ -209,7 +209,12 @@ export function flushOfflineSnapshots() {
   }
 }
 
-if (typeof window !== 'undefined') {
+let flushListenersInstalled = false;
+
+/** Flushes pending snapshots when the page is hidden or unloaded (installed on first use). */
+function installFlushListeners() {
+  if (flushListenersInstalled || typeof window === 'undefined') return;
+  flushListenersInstalled = true;
   window.addEventListener('pagehide', flushOfflineSnapshots);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushOfflineSnapshots();
@@ -223,6 +228,7 @@ export function registerOfflineStore<TState extends object>(
   select: (state: TState) => Partial<TState>,
 ) {
   if (registrations.has(key)) return;
+  installFlushListeners();
   registrations.set(key, (snapshot) => store.setState(snapshot as Partial<TState>));
   let lastSelection: { uid: string; value: Record<string, unknown> } | undefined;
   store.subscribe((state) => {
