@@ -789,7 +789,7 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   if (extensionTypes.size)
     report(
       'extension-records',
-      `Se conservan sin interpretar ${extensions.length} registros (${[...extensionTypes].join(', ')}) para volver a exportarlos.`,
+      `Se conservan sin interpretar ${extensions.length} ${extensions.length === 1 ? 'registro' : 'registros'} (${[...extensionTypes].join(', ')}) para volver a exportarlos.`,
       'warning',
     );
 

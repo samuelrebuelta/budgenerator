@@ -288,7 +288,7 @@ export function ImportBc3Dialog({ target, onConfirm, label = 'Importar BC3', dis
                         <span>{chapter.name}</span>
                       )}
                       <span className="shrink-0 text-xs text-gray-500">
-                        {chapter.items} partidas
+                        {chapter.items} {chapter.items === 1 ? 'partida' : 'partidas'}
                         {target !== 'catalog' ? ` · ${formatCurrency(chapter.amount)}` : ''}
                       </span>
                     </li>

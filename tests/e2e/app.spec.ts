@@ -3358,7 +3358,9 @@ test('imports and exports BC3 in catalog, budgets and templates without a separa
   await expect(page.getByRole('status').filter({ hasText: 'desde el archivo BC3' })).toContainText(
     'Se añadieron 5 partidas',
   );
-  await expect(page.locator('input[aria-label="Descripción"][value="Alicatado de paramentos"]')).toBeVisible();
+  await expect(
+    page.locator('input[aria-label="Descripción"][value="Alicatado de paramentos"]'),
+  ).toBeVisible();
   const catalogText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
   expect(catalogText).toContain('|1|');
   expect(catalogText).toContain('~D|E01DEM||MO002\\1\\0.40\\\\MO001\\1\\0.10\\\\%MA\\1\\1\\MO\\|');
