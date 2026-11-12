@@ -6,6 +6,7 @@ import { isValidPrivacyPolicyUrl } from '@/entities/quote-estimator';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
 import {
   Button,
+  buttonClassName,
   ConfirmModal,
   Input,
   PageLayout,
@@ -222,7 +223,10 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/estimator"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
+            className={buttonClassName({
+              variant: 'outline',
+              className: 'self-start px-4 sm:self-auto',
+            })}
           >
             Ver
           </PageLink>
@@ -236,7 +240,10 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/profile/solicitudes"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
+            className={buttonClassName({
+              variant: 'outline',
+              className: 'self-start px-4 sm:self-auto',
+            })}
           >
             Ver
           </PageLink>

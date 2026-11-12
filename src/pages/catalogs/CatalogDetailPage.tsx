@@ -25,8 +25,10 @@ import type { BaseCatalog, CatalogView } from '@/entities/catalog';
 import { ExportBc3Button, ImportBc3Dialog } from '@/features/bc3-exchange';
 import type { TradeImportScope } from '@/entities/catalog';
 import {
+  Alert,
   Button,
   ConfirmModal,
+  Field,
   EditableRow,
   EditableRowHeader,
   PageLayout,
@@ -211,21 +213,22 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
         }
       />
       {conflict && (
-        <div
-          role="alert"
-          className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        <Alert
+          tone="warning"
+          plain
+          className="mb-4"
+          title="El catálogo se ha guardado desde otro dispositivo."
+          action={
+            <>
+              <Button variant="secondary" onClick={() => void reloadCatalog()}>
+                Cargar la versión guardada
+              </Button>
+              <Button onClick={() => void overwriteCatalog()}>Guardar mis cambios</Button>
+            </>
+          }
         >
-          <p className="font-semibold">El catálogo se ha guardado desde otro dispositivo.</p>
-          <p className="mt-1">
-            Tus últimos cambios no se han guardado. Elige qué versión conservar.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => void reloadCatalog()}>
-              Cargar la versión guardada
-            </Button>
-            <Button onClick={() => void overwriteCatalog()}>Guardar mis cambios</Button>
-          </div>
-        </div>
+          Tus últimos cambios no se han guardado. Elige qué versión conservar.
+        </Alert>
       )}
       <div className="mb-6 flex items-start gap-2 text-xs text-gray-500">
         <Info size={16} className="shrink-0" />
@@ -268,16 +271,18 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
             submitPart();
           }}
         >
-          <label className="min-w-48 flex-1 text-xs font-medium text-gray-600">
-            Nombre del capítulo
-            <input
-              autoFocus
-              value={newPartName}
-              onChange={(event) => setNewPartName(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Ej. Fontanería"
-            />
-          </label>
+          <Field label="Nombre del capítulo" className="min-w-48 flex-1">
+            {(control) => (
+              <input
+                {...control}
+                autoFocus
+                value={newPartName}
+                onChange={(event) => setNewPartName(event.target.value)}
+                className="ui-control"
+                placeholder="Ej. Fontanería"
+              />
+            )}
+          </Field>
           <Button type="submit" disabled={!newPartName.trim()}>
             <Plus size={16} /> Añadir
           </Button>
@@ -295,7 +300,7 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Buscar capítulos y partidas"
             placeholder="Buscar capítulo o partida…"
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+            className="ui-control pl-9"
           />
         </label>
         {catalog.parts.length > 0 && (
@@ -303,7 +308,7 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
             aria-label="Filtrar por capítulo"
             value={activePartId ?? ''}
             onChange={(event) => setActivePartId(event.target.value || null)}
-            className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:w-auto"
+            className="ui-control max-w-md sm:w-auto"
           >
             <option value="">Todos los capítulos ({catalog.parts.length})</option>
             {[...catalog.parts]
@@ -591,7 +596,7 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
                 value={categoryQuery}
                 onChange={(event) => setCategoryQuery(event.target.value)}
                 placeholder="Albañilería, fontanería, electricidad…"
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+                className="ui-control pl-9"
               />
             </span>
           </label>

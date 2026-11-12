@@ -48,13 +48,15 @@ export function ShareButton() {
               <LinkIcon size={13} />
               Abrir enlace
             </a>
-            <button
+            <Button
+              variant="link"
+              size="sm"
               onClick={() => setRevoke(true)}
-              className="text-red-600 inline-flex items-center gap-1"
+              className="gap-1 text-xs text-danger-ink"
             >
               <X size={13} />
               Revocar
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '@/entities/auth';
-import { Button, Input, PageLayout, PageHeader } from '@/shared/ui';
+import { Alert, Button, Input, PageLayout, PageHeader } from '@/shared/ui';
 import { t } from '@/shared/i18n';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
@@ -156,7 +156,11 @@ export function ChangePasswordPage() {
             <p className="text-xs text-red-500">{t('settings.passwordsDoNotMatch')}</p>
           )}
 
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          {error && (
+            <Alert tone="danger" plain role="none">
+              {error}
+            </Alert>
+          )}
 
           <div className="flex justify-end pt-2">
             <Button type="submit" disabled={!isValid} loading={saving}>
