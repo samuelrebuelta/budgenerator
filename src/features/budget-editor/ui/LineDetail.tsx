@@ -7,7 +7,7 @@ import {
   measurementRunningValues,
   parseDecimal,
   type FiebdcMeasurementLine,
-} from '@/entities/construction-document/model';
+} from '@/entities/construction-document';
 import { formatCurrency } from '@/shared/lib';
 import { unitLabel } from '@/shared/types';
 import { Button } from '@/shared/ui';

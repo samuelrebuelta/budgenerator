@@ -2,23 +2,71 @@
 
 ## Patrones de UI
 
-Antes de cambiar una pantalla, busca el flujo más parecido. Conserva su jerarquía, espaciado, componentes y estados, salvo que la tarea pida una diferencia concreta.
+Antes de cambiar una pantalla, busca el flujo más parecido. Conserva su jerarquía, espaciado, componentes y estados, salvo que la tarea pida una diferencia concreta. Usa las primitivas de `src/shared/ui` y los tokens del tema; no escribas colores hex ni botones o campos a mano.
 
-| Necesidad                           | Punto de partida                                                                                                                                                                                                                                                     |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Confirmar una acción                | [ConfirmModal](../src/shared/ui/ConfirmModal.tsx) ya compone título, mensaje, acciones, guardado y error.                                                                                                                                                            |
-| Editar en un diálogo                | [Modal](../src/shared/ui/Modal.tsx), [Input](../src/shared/ui/Input.tsx) y [Button](../src/shared/ui/Button.tsx). Para un formulario corto, usa como referencia [Añadir persona desde Nuevo trabajo](../src/pages/workforce/NewTeamJobForm.tsx#L404).                |
-| Elegir entre muchas opciones        | Revisa el [selector de catálogo](../src/features/budget-editor/ui/CatalogSelector.tsx) para búsqueda y lista desplazable. El [importador por categoría en móvil](testing-evidence/bg008-category-import-mobile.png) ilustra el panel inferior reservado a ese flujo. |
-| Menú o ayuda contextual             | [SwipeActions](../src/shared/ui/SwipeActions.tsx) para acciones de fila e [InfoPopover](../src/shared/ui/InfoPopover.tsx) para ayuda contextual.                                                                                                                     |
-| Cabecera, carga o falta de conexión | Reutiliza [PageHeader](../src/shared/ui/PageHeader.tsx), [Skeleton](../src/shared/ui/Skeleton.tsx) y [OfflineUnavailable](../src/shared/ui/OfflineUnavailable.tsx) según el estado.                                                                                  |
+| Necesidad                           | Punto de partida                                                                                                                                                                                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Confirmar una acción                | [ConfirmModal](../src/shared/ui/ConfirmModal.tsx) ya compone título, mensaje, acciones, guardado y error.                                                                                                                                                             |
+| Editar en un diálogo                | [Modal](../src/shared/ui/Modal.tsx) con `ModalHeader` y `ModalFooter`, [Input](../src/shared/ui/Input.tsx) y [Button](../src/shared/ui/Button.tsx). Referencia: [diálogos de Equipo](../src/pages/workforce/components/TeamDialogs.tsx).                              |
+| Formulario con ayuda o error        | [Field](../src/shared/ui/Field.tsx), o `Input`, `Textarea` y `Select` con `label`, `hint` y `error`; errores de envío con [Alert](../src/shared/ui/Alert.tsx).                                                                                                        |
+| Elegir entre muchas opciones        | Revisa el [selector de catálogo](../src/features/budget-editor/ui/CatalogSelector.tsx) para búsqueda y lista desplazable. El [importador por categoría en móvil](testing-evidence/bg008-category-import-mobile.png) ilustra el panel inferior (`Modal size="sheet"`). |
+| Menú o ayuda contextual             | [SwipeActions](../src/shared/ui/SwipeActions.tsx) para acciones de fila e [InfoPopover](../src/shared/ui/InfoPopover.tsx) para ayuda contextual.                                                                                                                      |
+| Cabecera, carga o falta de conexión | Reutiliza [PageHeader](../src/shared/ui/PageHeader.tsx), [Skeleton](../src/shared/ui/Skeleton.tsx), [EmptyState](../src/shared/ui/EmptyState.tsx) y [OfflineUnavailable](../src/shared/ui/OfflineUnavailable.tsx) según el estado.                                    |
+| Datos de una ruta con caché offline | `useMemoryResource` de `src/shared/lib/useMemoryResource.ts` (referencia: [Solicitudes](../src/pages/leads/LeadsPage.tsx)).                                                                                                                                           |
 
-Para un diálogo nuevo, pasa un `title` específico que describa el mismo propósito que el encabezado visible. Conserva los botones compartidos y muestra el error junto al formulario. Si el guardado impide cerrar, aplica el mismo criterio a Cancelar, Escape y el fondo. Usa ajustes de tamaño propios solo si el contenido los necesita.
+Para un diálogo nuevo, pasa un `title` específico que describa el mismo propósito que el encabezado visible, o usa `ModalHeader`, que nombra el diálogo con `aria-labelledby`. Conserva los botones compartidos y muestra el error junto al formulario. Si el guardado impide cerrar, aplica el mismo criterio a Cancelar, Escape y el fondo. Usa `size` antes que clases de tamaño propias.
 
 Comprueba el flujo afectado en móvil estrecho y escritorio con datos ficticios. En diálogos, revisa el nombre accesible, foco inicial y de retorno, Escape y pulsación fuera, desplazamiento con contenido largo y acciones durante guardado o error. Amplía el [recorrido Playwright más cercano](../tests/e2e/app.spec.ts) si falta una comprobación que evitaría la regresión.
 
+### Tokens
+
+Los tokens viven en el `@theme` de [tokens.css](../src/app/styles/tokens.css) y generan utilidades de Tailwind (`bg-surface`, `text-ink-muted`, `rounded-card`, `shadow-popover`, `shell:`) y variables CSS.
+
+| Grupo         | Tokens                                                                                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Superficies   | `canvas` (cal, fondo), `surface` (papel), `surface-muted`, `sidebar`, `tint` y `tint-strong` (verde suave de hover y selección), `scrim`                                      |
+| Texto         | `ink`, `ink-strong` (petróleo de títulos), `ink-soft`, `ink-muted` y `ink-subtle`; todos ≥ 4,5:1 sobre cal y papel                                                            |
+| Bordes        | `line` y `line-strong`                                                                                                                                                        |
+| Acción        | `primary`, `primary-hover`, `on-primary`, `accent` (terracota decorativa y foco), `accent-strong` (terracota para texto), `focus`, `highlight`, `calendar-selected` (granate) |
+| Estados       | `{success,warning,danger,info}-surface`, `-line` e `-ink` (AA sobre su superficie) y `danger-solid`                                                                           |
+| Escalas       | `brand-50…900` (petróleo) y `gray-50…900` (neutros cálidos; `gray-400` y `gray-500` ya cumplen AA). `blue-*` es un alias obsoleto de `brand-*` que se retirará en la fase 2   |
+| Forma         | `rounded-control` (8 px), `rounded-card` (14 px), `rounded-sheet` (16 px), `rounded-pill`; `shadow-card`, `shadow-popover`, `shadow-toast`, `shadow-modal`                    |
+| Tipografía    | `font-sans` (Manrope), `font-display` (Fraunces), `text-display` para títulos y la escala `text-xs…4xl`; ningún texto por debajo de 12 px                                     |
+| Capas y ancho | `--z-dropdown` 30, `--z-sticky` 40, `--z-nav` 45, `--z-header` 50, `--z-popover` 60, `--z-tour` 80, `--z-toast` 90 (`z-(--z-toast)`); `shell:` y `max-shell:` en 801 px       |
+
+ESLint rechaza colores hex arbitrarios en las carpetas ya migradas (`src/app`, `src/shared/ui`, Equipo, Solicitudes, Ayuda y la guía) y los imports a internos de entidades o entre páginas; la lista de excepciones pendientes está en `eslint.config.js`.
+
+### Capas de CSS
+
+`src/index.css` solo importa, en este orden: Tailwind, `tokens.css`, `utilities.css` (`print:`, `scrollbar-none`, `focus-ring`), `base.css` (`@layer base`: fuentes, foco, altura táctil y cápsula por defecto de los botones) y, dentro de `@layer components`, `components/primitives.css`, los ficheros `legacy/*` y `motion.css` y `print.css`. Así cualquier utilidad de Tailwind gana a los estilos de componente: no hacen falta `!important` ni `!px-3`. El CSS de `legacy/` es deuda: al migrar una pantalla, pasa sus clases a utilidades con tokens (como Ayuda) y borra las reglas.
+
+### Primitivas
+
+| Componente                    | API                                                                                                                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`                      | `variant`: `primary`, `secondary`, `outline`, `ghost`, `danger`, `link`; `size`: `sm` 36 px, `md` 44 px, `lg` 48 px; `icon`, `fullWidth`, `loading`. `buttonClassName()` da el mismo estilo a enlaces |
+| `IconButton`                  | `label` obligatorio (nombre accesible y `title`), `icon`, `variant` (por defecto `ghost`) y `size`                                                                                                    |
+| `Field`                       | `label`, `hint`, `error`, `required`, `id`, `hideLabel` y un hijo función que recibe `id`, `aria-invalid` y `aria-describedby`                                                                        |
+| `Input`, `Textarea`, `Select` | Controles `ui-control`; con `label` usan `Field` y aceptan `hint` y `error`                                                                                                                           |
+| `Alert`                       | `tone`: `info`, `success`, `warning`, `danger`; `title`, `action`, `onDismiss`, `plain`. Rol `alert` para errores y avisos, `status` para el resto                                                    |
+| `Badge`                       | `tone`: `neutral`, `brand`, `info`, `success`, `warning`, `danger`; `icon`                                                                                                                            |
+| `EmptyState`                  | `icon`, `title`, `description`, `action`, `variant` (`card` o `plain`), `headingLevel`, `role`                                                                                                        |
+| `CollapsibleSection`          | `title`, `aside`, `defaultOpen` u `open`/`onOpenChange`, `headingLevel`; botón real con `aria-expanded` y `aria-controls`, contenido `inert` al cerrar                                                |
+| `Card`                        | `variant`: `raised` (por defecto), `plain`, `muted`, `interactive`; `padding`                                                                                                                         |
+| `Modal`                       | `size`: `sm` 384 px, `md`, `lg`, `xl`, `sheet` (panel inferior en móvil); slots `ModalHeader` (`title`, `description`, `onClose`), `ModalBody` y `ModalFooter`                                        |
+| `ToastHost` y `showToast()`   | Un único aviso global con `tone` (`info`, `success`, `warning`, `error`), `title`, `duration` y `priority`; `showOfflineMutationToast()` lo reutiliza                                                 |
+
+### Utilidades compartidas
+
+- `src/shared/lib/format.ts`: `formatEuros`, `formatRoundedEuros`, `formatCents`, `formatQuantity`, `formatPercent`, `formatDate`, `formatLongDate` y `formatDateTime` (es-ES). `formatCurrency` queda como alias obsoleto.
+- `src/shared/lib/dateKey.ts`: días locales `YYYY-MM-DD` (`toDateKey`, `dateFromKey`, `isDateKey`, `startOfWeek`, `shiftWeeks`, `weekDateKeys`), siempre a las 12:00 para evitar saltos de horario.
+- `src/shared/lib/errors.ts`: `toUserMessage(error, contexto)` clasifica por `code` de Firebase y nunca muestra mensajes técnicos; lanza `UserFacingError` para textos pensados para el usuario.
+- `src/shared/lib/useMemoryResource.ts`: carga de ruta con caché en memoria e IndexedDB, revalidación al volver la red, `retry()` y `setData()`.
+- Textos: la app es solo en español. El código nuevo escribe los textos directamente y agrupa los repetidos en un `copy.ts` de la página (por ejemplo, `pages/workforce/model/copy.ts`). `t()` de `src/shared/i18n` es una búsqueda síncrona transitoria para las claves que aún existen.
+
 ## Base visual y responsive
 
-budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y tokens en index.css. La identidad visual se documenta en design-proposal.md: petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
+budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y los tokens de `src/app/styles/tokens.css`. La identidad visual se documenta en design-proposal.md: petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
 
 La shell tiene navegación lateral en escritorio y navegación inferior bajo 800 px únicamente en las cuatro rutas raíz `/budgets`, `/projects`, `/team` y `/profile/solicitudes`. En móvil, el header queda sticky bajo el área segura. Las tabs raíz muestran la marca y el acceso al menú de cuenta; las páginas secundarias ocultan ambos y suben el `BackButton` al header, junto al estado de guardado. Debajo queda el título y subtítulo alineados a la izquierda, dentro del contenido desplazable; las acciones de página usan una fila propia. El indicador de guardado conserva un espacio fijo de 32 px para no mover los controles al comenzar o terminar una escritura. El catálogo está en el menú, debajo de Mi empresa. Las demás opciones de empresa, cuenta, ayuda, cierre de sesión y administración se conservan en el menú; escritorio mantiene los accesos laterales de cuenta y ayuda. El panel usa una tarjeta completa para el valor monetario en móvil, evitando recortar importes. El editor conserva tabla en escritorio y cards bajo el breakpoint sm de Tailwind (640 px).
 

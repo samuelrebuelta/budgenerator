@@ -11,7 +11,8 @@ import {
   type User,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '@/shared/firebase/config';
+import { auth } from '@/shared/firebase/auth';
+import { functions } from '@/shared/firebase/functions';
 import { runNetworkMutation } from '@/shared/lib/networkMutation';
 
 export function signInWithEmail(email: string, password: string) {

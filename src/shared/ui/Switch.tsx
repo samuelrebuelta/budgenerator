@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react';
-import { cn } from '@/shared/lib';
+import { cn } from '@/shared/lib/utils';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface SwitchProps {
@@ -43,11 +43,11 @@ export function Switch({
       <span className="flex min-w-0 flex-1 items-center gap-3">
         {leading && <span className="shrink-0 self-start pt-0.5">{leading}</span>}
         <span className="min-w-0">
-          <span id={labelId} className="block font-medium leading-5 text-gray-900">
+          <span id={labelId} className="block font-medium leading-5 text-ink">
             {label}
           </span>
           {description && (
-            <span id={descriptionId} className="mt-1 block text-sm leading-5 text-gray-600">
+            <span id={descriptionId} className="mt-1 block text-sm leading-5 text-ink-muted">
               {description}
             </span>
           )}
@@ -71,7 +71,7 @@ export function Switch({
           />
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-full bg-gray-300 transition-colors duration-150 peer-checked:bg-[#426457] peer-focus-visible:ring-2 peer-focus-visible:ring-[#234c40] peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed motion-reduce:transition-none after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:content-[''] after:transition-transform after:duration-150 peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
+            className="pointer-events-none absolute inset-0 rounded-full bg-gray-300 transition-colors duration-150 peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed motion-reduce:transition-none after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:content-[''] after:transition-transform after:duration-150 peer-checked:after:translate-x-5 motion-reduce:after:transition-none"
           />
         </span>
       </span>

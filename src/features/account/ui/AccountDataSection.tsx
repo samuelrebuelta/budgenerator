@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, Trash2 } from 'lucide-react';
-import { deleteAccount, exportAccountData } from '@/entities/auth/api/firebase';
+import { deleteAccount, exportAccountData } from '@/entities/auth';
 import { Button, Card, Input, Modal } from '@/shared/ui';
 
 function errorMessage(error: unknown) {

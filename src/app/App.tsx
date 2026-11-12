@@ -1,23 +1,29 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { useAuthStore } from '@/entities/auth';
-import { loadSession, resetSession } from './session';
 import { hasPendingWrites, flushWrites } from '@/shared/model/sync';
-import { useBudgetStore } from '@/entities/budget';
+import { ToastHost } from '@/shared/ui/ToastHost';
 import { router } from './router';
 import { PwaStatus } from './PwaStatus';
-import { ToastHost } from '@/shared/ui';
+import { loadedSessionModule, loadSessionModule } from './sessionModule';
 export function App() {
   const init = useAuthStore((s) => s.init);
   const user = useAuthStore((s) => s.user);
   useEffect(() => init(), [init]);
   useEffect(() => {
-    if (user) void loadSession(user);
-    else resetSession(null);
+    let current = true;
+    if (user)
+      void loadSessionModule().then((session) => {
+        if (current) void session.loadSession(user);
+      });
+    else loadedSessionModule()?.resetSession(null);
+    return () => {
+      current = false;
+    };
   }, [user]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (hasPendingWrites() || useBudgetStore.getState().draftDirty) {
+      if (hasPendingWrites() || loadedSessionModule()?.hasDirtyBudgetDraft()) {
         event.preventDefault();
         void flushWrites().catch(() => {});
       }

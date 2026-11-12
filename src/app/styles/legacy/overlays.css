@@ -1,0 +1,212 @@
+/* Legacy dialog panels, app tour and overview cards. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  border: 0;
+  padding: 20px;
+  color: inherit;
+  overflow-y: auto;
+}
+.modal-overlay[open] {
+  display: grid;
+  place-items: center;
+}
+.modal-overlay[data-keyboard-navigation='false'] :focus-visible {
+  outline: none;
+}
+select:focus,
+.modal-overlay[data-keyboard-navigation='false'] select:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.modal-overlay::backdrop {
+  background: var(--color-scrim);
+  backdrop-filter: blur(5px);
+}
+.modal-panel {
+  animation: modal-enter 0.18s ease-out;
+  box-shadow: 0 30px 100px #102d2b20;
+}
+.category-import-panel {
+  display: flex;
+  flex-direction: column;
+  height: min(82dvh, 44rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+}
+@media (max-width: 639px) {
+  .modal-overlay.category-import-overlay[open] {
+    place-items: end center;
+    padding: max(8px, env(safe-area-inset-top)) 8px 0;
+  }
+  .modal-panel.category-import-panel {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    padding: 1rem 1rem max(1rem, env(safe-area-inset-bottom));
+    border-radius: 1rem 1rem 0 0;
+  }
+}
+.app-tour-layer {
+  position: fixed;
+  z-index: var(--z-tour);
+  inset: 0;
+  pointer-events: none;
+}
+.app-tour-scrim,
+.app-tour-spotlight {
+  position: fixed;
+  pointer-events: none;
+}
+.app-tour-scrim {
+  inset: 0;
+  background: var(--color-scrim);
+}
+.app-tour-spotlight {
+  border: 2px solid #d4a33b;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px var(--color-scrim);
+  transition:
+    top 180ms ease-out,
+    left 180ms ease-out,
+    width 180ms ease-out,
+    height 180ms ease-out;
+}
+.app-tour-card {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: min(480px, calc(100vw - 48px));
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 20px 60px #102d2b30;
+  color: var(--color-ink);
+  pointer-events: auto;
+}
+.app-tour-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-tour-mascot {
+  width: 56px;
+  height: 64px;
+  flex: none;
+  transform-origin: 50% 90%;
+  animation: app-tour-worker-idle 1.8s ease-in-out infinite;
+}
+.app-tour-progress {
+  margin-bottom: 3px;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+.app-tour-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.app-tour-description {
+  margin: 12px 0 16px;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.app-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+@keyframes app-tour-worker-idle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(-2deg);
+  }
+}
+@media (max-width: 800px) {
+  .app-tour-card {
+    right: 12px;
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    width: auto;
+    padding: 14px;
+  }
+  .app-tour-mascot {
+    width: 48px;
+    height: 56px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-tour-mascot,
+  .app-tour-spotlight {
+    animation: none;
+    transition: none;
+  }
+}
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 381px) and (max-width: 800px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overview-card.featured {
+    grid-column: 1/-1;
+    min-height: 136px;
+    padding: 20px;
+  }
+  .overview-card.featured strong {
+    font-size: 34px;
+  }
+  .overview-card.featured p {
+    margin-bottom: 16px;
+  }
+  .overview-card:not(.featured) {
+    min-height: 118px;
+  }
+}
+
+@media (max-width: 800px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+    margin: 16px 0 22px;
+  }
+  .overview-card:not(.featured) {
+    display: none;
+  }
+  .overview-card.featured {
+    min-height: auto;
+    padding: 13px 16px;
+  }
+  .overview-card.featured p {
+    margin-bottom: 6px;
+  }
+  .overview-card.featured strong {
+    font-size: clamp(23px, 7vw, 30px);
+  }
+  .overview-card.featured small {
+    margin-top: 4px;
+  }
+}

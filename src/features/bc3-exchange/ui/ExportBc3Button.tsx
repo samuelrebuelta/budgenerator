@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, X } from 'lucide-react';
-import type { ConstructionDocument } from '@/entities/construction-document/model';
+import type { ConstructionDocument } from '@/entities/construction-document';
 import { Button, Modal } from '@/shared/ui';
 import { downloadBytes, prepareBc3Export, type PreparedExport } from '../model/download';
 

@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { Modal } from './Modal';
+import { Alert } from './Alert';
 import { Button } from './Button';
+import { toUserMessage } from '@/shared/lib/errors';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -34,7 +36,7 @@ export function ConfirmModal({
     try {
       await onConfirm();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se ha podido completar. Vuelve a intentarlo.');
+      setError(toUserMessage(e, 'No se ha podido completar. Vuelve a intentarlo.'));
     } finally {
       inFlight.current = false;
       setSaving(false);
@@ -51,12 +53,12 @@ export function ConfirmModal({
         }
       }}
     >
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-600 mb-6">{message}</p>
+      <h3 className="text-lg font-semibold text-ink mb-2">{title}</h3>
+      <p className="text-sm text-ink-muted mb-6">{message}</p>
       {error && (
-        <p className="field-error" role="alert">
+        <Alert tone="danger" className="my-4">
           {error}
-        </p>
+        </Alert>
       )}
       <div className="flex items-center justify-end gap-3">
         <Button variant="secondary" disabled={saving} onClick={onClose}>

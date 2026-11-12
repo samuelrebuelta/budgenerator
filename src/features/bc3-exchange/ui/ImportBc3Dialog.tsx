@@ -1,13 +1,13 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, FileUp, Info, X } from 'lucide-react';
-import { parseBc3, type Bc3ParseResult } from '@/entities/construction-document/bc3';
+import { parseBc3, type Bc3ParseResult } from '@/entities/construction-document';
 import {
   documentTotals,
   isChapterNode,
   projectWorkItems,
   type ConstructionDocument,
   type ConstructionDocumentKind,
-} from '@/entities/construction-document/model';
+} from '@/entities/construction-document';
 import { formatCurrency } from '@/shared/lib';
 import { sessionRevision } from '@/shared/model/session';
 import { Button, Modal } from '@/shared/ui';

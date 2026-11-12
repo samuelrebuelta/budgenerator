@@ -10,7 +10,7 @@ import { formatCurrency } from '@/shared/lib';
 import { Button, ConfirmModal, EditableRow, EditableRowHeader, InfoPopover } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { t } from '@/shared/i18n';
-import { ROOT_CHAPTER_ID } from '@/entities/construction-document/model';
+import { ROOT_CHAPTER_ID } from '@/entities/construction-document';
 
 function getBudgetColumns(surcharge = false): ColumnDef[] {
   return [

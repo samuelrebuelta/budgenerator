@@ -6,7 +6,7 @@ import {
   useNetworkStore,
 } from '@/shared/model/network';
 import { withTimeout } from '@/shared/model/session';
-import { loadSession } from './session';
+import { loadSessionModule } from './sessionModule';
 
 export async function refreshAfterNetworkRecovery(
   user: User | null,
@@ -19,6 +19,7 @@ export async function refreshAfterNetworkRecovery(
     if (user && (!sessionAlreadyRefreshed || hadPendingWrites)) {
       await withTimeout(flushWrites());
       if (hasPendingWrites() || !useNetworkStore.getState().online) return false;
+      const { loadSession } = await loadSessionModule();
       await loadSession(user, true, true);
       if (!useNetworkStore.getState().online) return false;
     }

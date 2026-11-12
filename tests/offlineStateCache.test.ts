@@ -23,6 +23,7 @@ registerOfflineStore('offline-cache-test', store, sessionUid, (state) => ({
 
 describe('offline state cache', () => {
   beforeEach(async () => {
+    await waitForOfflinePersistence();
     await deleteOfflineUserData(testUid);
     setSessionUid(testUid);
     store.setState({ value: 'initial' });
@@ -41,6 +42,36 @@ describe('offline state cache', () => {
     await restoreOfflineStores(testUid);
 
     expect(store.getState().value).toBe('Cuenta A');
+  });
+
+  it('writes the first change at once and coalesces the following ones', async () => {
+    store.getState().update('Cuenta A');
+    await waitForOfflinePersistence();
+    store.getState().update('B');
+    store.getState().update('BC');
+    store.getState().update('BCD');
+
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'B',
+    });
+    await waitForOfflinePersistence();
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'BCD',
+    });
+  });
+
+  it('discards a pending snapshot when the account changes', async () => {
+    store.getState().update('Cuenta A');
+    await waitForOfflinePersistence();
+    store.getState().update('Primera');
+    store.getState().update('Pendiente');
+    setSessionUid('another-offline-cache-user');
+    await waitForOfflinePersistence();
+    setSessionUid(testUid);
+
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'Primera',
+    });
   });
 
   it('clears one account cache without removing another account data', async () => {

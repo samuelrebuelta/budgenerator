@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MailCheck } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { resendVerificationEmail } from '@/entities/auth/api/firebase';
+import { resendVerificationEmail } from '@/entities/auth';
 import { Button } from '@/shared/ui';
 
 /**

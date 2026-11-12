@@ -1,11 +1,26 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const files = [];
+// Static files the app shell never requests: Open Graph previews, licences, iOS launch
+// images (fetched by iOS on install), translations already bundled and unused legacy assets.
+const notPrecached = [
+  /^dist\/brand\/social-preview\./,
+  /^dist\/brand\/licenses\//,
+  /^dist\/brand\/splash\//,
+  /^dist\/locales\//,
+  /^dist\/logo\.png$/,
+  /^dist\/icons\.svg$/,
+];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = `${dir}/${entry.name}`;
     if (entry.isDirectory()) await walk(path);
-    else if (!path.endsWith('.map') && !path.endsWith('/sw.js')) files.push(path);
+    else if (
+      !path.endsWith('.map') &&
+      !path.endsWith('/sw.js') &&
+      !notPrecached.some((pattern) => pattern.test(path))
+    )
+      files.push(path);
   }
 }
 await walk('dist');

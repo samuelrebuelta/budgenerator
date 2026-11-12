@@ -4,8 +4,9 @@ import type { Project } from '@/entities/project';
 import { buildTeamJobAssignment, validateTeamJobDraft } from '@/entities/workforce';
 import type { TeamJob, TeamJobDraft, WorkCrew, WorkforceMember } from '@/entities/workforce';
 import { generateId } from '@/shared/lib';
-import { Button, Card, Input, Modal, PageLink } from '@/shared/ui';
-import { colorFor } from './crewColors';
+import { Alert, Button, Card, Field, Input, Modal, PageLink, Textarea } from '@/shared/ui';
+import { teamErrorMessage } from '../model/teamErrors';
+import { colorFor } from '../model/crewColors';
 
 interface NewTeamJobFormProps {
   initialDate: string;
@@ -157,9 +158,7 @@ export function NewTeamJobForm({
       setSelectedMemberIds((current) => [...new Set([...current, member.id])]);
       setMemberModalOpen(false);
     } catch (reason) {
-      setNewMemberError(
-        reason instanceof Error ? reason.message : 'No se ha podido guardar la persona.',
-      );
+      setNewMemberError(teamErrorMessage(reason, 'No se ha podido guardar la persona.'));
     } finally {
       setSavingNewMember(false);
     }
@@ -183,9 +182,7 @@ export function NewTeamJobForm({
       draft = validateTeamJobDraft(input);
     } catch (validationError) {
       setError(
-        validationError instanceof Error
-          ? validationError.message
-          : 'Revisa los datos del trabajo e inténtalo de nuevo.',
+        teamErrorMessage(validationError, 'Revisa los datos del trabajo e inténtalo de nuevo.'),
       );
       return;
     }
@@ -198,9 +195,7 @@ export function NewTeamJobForm({
       await onSave(job);
     } catch (saveError) {
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'No se ha podido guardar el trabajo. Vuelve a intentarlo.',
+        teamErrorMessage(saveError, 'No se ha podido guardar el trabajo. Vuelve a intentarlo.'),
       );
     } finally {
       savingRef.current = false;
@@ -217,8 +212,8 @@ export function NewTeamJobForm({
       >
         <Card className="space-y-5 p-4 sm:p-6">
           <div>
-            <h2 className="text-lg font-semibold text-[#183e3b]">Datos del trabajo</h2>
-            <p className="mt-1 text-sm text-[#637166]">
+            <h2 className="text-lg font-semibold text-ink-strong">Datos del trabajo</h2>
+            <p className="mt-1 text-sm text-ink-subtle">
               Programa una visita puntual sin cambiar el avance de la obra.
             </p>
           </div>
@@ -232,30 +227,32 @@ export function NewTeamJobForm({
             required
           />
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="team-job-project" className="text-sm font-medium text-gray-700">
-              Proyecto (opcional)
-            </label>
-            <select
-              id="team-job-project"
-              className="min-h-11 rounded-md border border-gray-300 bg-white px-3 text-sm text-[#273a32] outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              value={projectId}
-              onChange={(event) => chooseProject(event.target.value)}
-            >
-              <option value="">Sin proyecto</option>
-              {projectOptions.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title}
-                  {project.status === 'completed' ? ' · Finalizado' : ''}
-                </option>
-              ))}
-            </select>
-            {selectedProject && (
-              <p className="text-xs text-[#637166]">
-                El trabajo queda enlazado a la obra sin reabrirla ni modificar su avance.
-              </p>
+          <Field
+            id="team-job-project"
+            label="Proyecto (opcional)"
+            hint={
+              selectedProject
+                ? 'El trabajo queda enlazado a la obra sin reabrirla ni modificar su avance.'
+                : undefined
+            }
+          >
+            {(control) => (
+              <select
+                {...control}
+                className="ui-control"
+                value={projectId}
+                onChange={(event) => chooseProject(event.target.value)}
+              >
+                <option value="">Sin proyecto</option>
+                {projectOptions.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.title}
+                    {project.status === 'completed' ? ' · Finalizado' : ''}
+                  </option>
+                ))}
+              </select>
             )}
-          </div>
+          </Field>
 
           <Input
             id="team-job-title"
@@ -272,31 +269,27 @@ export function NewTeamJobForm({
             required
           />
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="team-job-description" className="text-sm font-medium text-gray-700">
-              Descripción (opcional)
-            </label>
-            <textarea
-              id="team-job-description"
-              className="min-h-28 resize-y rounded-md border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              maxLength={2_000}
-              placeholder="Describe qué hay que revisar o rematar."
-            />
-            {!projectId && (
-              <p className="text-xs text-[#637166]">
-                El título es obligatorio; puedes dejar la descripción en blanco.
-              </p>
-            )}
-          </div>
+          <Textarea
+            id="team-job-description"
+            label="Descripción (opcional)"
+            hint={
+              projectId
+                ? undefined
+                : 'El título es obligatorio; puedes dejar la descripción en blanco.'
+            }
+            className="min-h-28"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={2_000}
+            placeholder="Describe qué hay que revisar o rematar."
+          />
         </Card>
 
         <Card className="space-y-5 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-[#183e3b]">Equipo asignado</h2>
-              <p className="mt-1 text-sm text-[#637166]">
+              <h2 className="text-lg font-semibold text-ink-strong">Equipo asignado</h2>
+              <p className="mt-1 text-sm text-ink-subtle">
                 Elige una o más personas o cuadrillas activas.
               </p>
             </div>
@@ -307,11 +300,11 @@ export function NewTeamJobForm({
           </div>
 
           {activeMembers.length === 0 && activeCrews.length === 0 ? (
-            <div className="rounded-xl bg-[#f6f6f0] p-4">
-              <p className="text-sm text-[#52625a]">No hay personas ni cuadrillas activas.</p>
+            <div className="rounded-xl bg-surface-muted p-4">
+              <p className="text-sm text-ink-muted">No hay personas ni cuadrillas activas.</p>
               <PageLink
                 to="/team/manage"
-                className="mt-2 inline-block text-sm font-semibold text-[#24564c] underline"
+                className="mt-2 inline-block text-sm font-semibold text-primary underline"
               >
                 Gestionar equipo
               </PageLink>
@@ -320,26 +313,26 @@ export function NewTeamJobForm({
             <>
               {activeMembers.length > 0 && (
                 <fieldset className="space-y-1">
-                  <legend className="mb-2 text-sm font-semibold text-[#263a32]">Personas</legend>
+                  <legend className="mb-2 text-sm font-semibold text-ink">Personas</legend>
                   {activeMembers.map((member) => {
                     const includedInCrew = selectedCrewMemberIds.has(member.id);
                     return (
                       <label
                         key={member.id}
-                        className={`flex min-h-11 items-center gap-3 rounded-lg px-3 ${includedInCrew ? 'cursor-not-allowed bg-[#f5f6f1] opacity-65' : 'cursor-pointer hover:bg-[#f5f7f2]'}`}
+                        className={`flex min-h-11 items-center gap-3 rounded-lg px-3 ${includedInCrew ? 'cursor-not-allowed bg-surface-muted opacity-65' : 'cursor-pointer hover:bg-surface-muted'}`}
                       >
                         <input
                           type="checkbox"
                           checked={includedInCrew || selectedMemberIds.includes(member.id)}
                           disabled={includedInCrew}
                           onChange={(event) => toggleMember(member, event.target.checked)}
-                          className="size-4 accent-[#24564c]"
+                          className="size-4 accent-primary"
                         />
-                        <span className="min-w-0 flex-1 truncate text-sm text-[#253c34]">
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
                           {member.name}
                         </span>
                         {includedInCrew && (
-                          <span className="text-xs text-[#637166]">En cuadrilla</span>
+                          <span className="text-xs text-ink-subtle">En cuadrilla</span>
                         )}
                       </label>
                     );
@@ -348,8 +341,8 @@ export function NewTeamJobForm({
               )}
 
               {activeCrews.length > 0 && (
-                <fieldset className="space-y-1 border-t border-[#ecece4] pt-4">
-                  <legend className="mb-2 text-sm font-semibold text-[#263a32]">Cuadrillas</legend>
+                <fieldset className="space-y-1 border-t border-line pt-4">
+                  <legend className="mb-2 text-sm font-semibold text-ink">Cuadrillas</legend>
                   {activeCrews.map((crew) => {
                     const selected = selectedCrewIds.includes(crew.id);
                     const crewMembers = crewMembersById.get(crew.id) ?? [];
@@ -364,14 +357,14 @@ export function NewTeamJobForm({
                     return (
                       <label
                         key={crew.id}
-                        className={`flex min-h-12 items-center gap-3 rounded-lg px-3 ${overlaps ? 'cursor-not-allowed bg-[#f5f6f1] opacity-65' : 'cursor-pointer hover:bg-[#f5f7f2]'}`}
+                        className={`flex min-h-12 items-center gap-3 rounded-lg px-3 ${overlaps ? 'cursor-not-allowed bg-surface-muted opacity-65' : 'cursor-pointer hover:bg-surface-muted'}`}
                       >
                         <input
                           type="checkbox"
                           checked={selected}
                           disabled={overlaps || crewMembers.length === 0}
                           onChange={(event) => toggleCrew(crew, event.target.checked)}
-                          className="size-4 accent-[#24564c]"
+                          className="size-4 accent-primary"
                         />
                         <span
                           className="min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-sm font-semibold"
@@ -384,7 +377,7 @@ export function NewTeamJobForm({
                           </span>
                         </span>
                         {overlaps && (
-                          <span className="text-xs text-[#637166]">Recurso repetido</span>
+                          <span className="text-xs text-ink-subtle">Recurso repetido</span>
                         )}
                       </label>
                     );
@@ -395,11 +388,7 @@ export function NewTeamJobForm({
           )}
         </Card>
 
-        {error && (
-          <p className="field-error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <Alert tone="danger">{error}</Alert>}
       </form>
       <Modal
         open={memberModalOpen}
@@ -410,8 +399,8 @@ export function NewTeamJobForm({
       >
         <form onSubmit={(event) => void submitNewMember(event)} className="space-y-5">
           <div>
-            <h2 className="text-xl font-semibold text-[#183e3b]">Añadir persona</h2>
-            <p className="mt-1 text-sm leading-5 text-[#637166]">
+            <h2 className="text-xl font-semibold text-ink-strong">Añadir persona</h2>
+            <p className="mt-1 text-sm leading-5 text-ink-subtle">
               Se guardará como activa y quedará asignada a este trabajo.
             </p>
           </div>
@@ -425,11 +414,7 @@ export function NewTeamJobForm({
             autoComplete="name"
             required
           />
-          {newMemberError && (
-            <p className="field-error" role="alert">
-              {newMemberError}
-            </p>
-          )}
+          {newMemberError && <Alert tone="danger">{newMemberError}</Alert>}
           <div className="flex justify-end gap-2">
             <Button
               variant="secondary"

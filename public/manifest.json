@@ -1,7 +1,7 @@
 {
   "name": "budgenerator · Presupuestos",
   "short_name": "budgenerator",
-  "description": "Tu oficio, tus números. Presupuestos profesionales con personalidad.",
+  "description": "Crea, organiza y comparte tus presupuestos.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F2EB",
@@ -28,7 +28,6 @@
   "scope": "/",
   "lang": "es",
   "orientation": "portrait",
-  "display_override": ["standalone"],
   "shortcuts": [
     {
       "name": "Nuevo presupuesto",
@@ -42,7 +41,13 @@
     },
     {
       "name": "Mis presupuestos",
-      "url": "/budgets"
+      "url": "/budgets",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

@@ -1,9 +1,5 @@
-import {
-  bc3FileName,
-  serializeBc3,
-  type Bc3ExportResult,
-} from '@/entities/construction-document/bc3';
-import type { ConstructionDocument } from '@/entities/construction-document/model';
+import { bc3FileName, serializeBc3, type Bc3ExportResult } from '@/entities/construction-document';
+import type { ConstructionDocument } from '@/entities/construction-document';
 
 export interface PreparedExport extends Bc3ExportResult {
   fileName: string;
