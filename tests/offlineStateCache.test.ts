@@ -44,6 +44,29 @@ describe('offline state cache', () => {
     expect(store.getState().value).toBe('Cuenta A');
   });
 
+  it('applies a restored snapshot to a store registered later (lazy route chunk)', async () => {
+    await writeOfflineValue(`session:${testUid}:offline-cache-lazy`, { value: 'Semana cargada' });
+    await restoreOfflineStores(testUid);
+    const lazyStore = create<{ value: string }>(() => ({ value: 'initial' }));
+    registerOfflineStore('offline-cache-lazy', lazyStore, sessionUid, (state) => ({
+      value: state.value,
+    }));
+
+    expect(lazyStore.getState().value).toBe('Semana cargada');
+  });
+
+  it('does not apply a pending snapshot to another account', async () => {
+    await writeOfflineValue(`session:${testUid}:offline-cache-lazy-other`, { value: 'Cuenta A' });
+    await restoreOfflineStores(testUid);
+    setSessionUid('another-offline-cache-user');
+    const lazyStore = create<{ value: string }>(() => ({ value: 'initial' }));
+    registerOfflineStore('offline-cache-lazy-other', lazyStore, sessionUid, (state) => ({
+      value: state.value,
+    }));
+
+    expect(lazyStore.getState().value).toBe('initial');
+  });
+
   it('writes the first change at once and coalesces the following ones', async () => {
     store.getState().update('Cuenta A');
     await waitForOfflinePersistence();

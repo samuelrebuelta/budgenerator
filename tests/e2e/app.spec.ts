@@ -399,7 +399,7 @@ test('primary routes keep tabs and secondary routes use the common return on mob
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.locator('.eyebrow')).toHaveCount(0);
-    await expect(page.locator('.back-button')).toHaveCount(0);
+    await expect(page.locator('.back-button:visible')).toHaveCount(0);
     await expect(page.locator('.workspace-header')).toBeVisible();
   }
   await page.goto('/budgets');
@@ -803,7 +803,11 @@ test('keeps team management available without agenda links', async ({ page }) =>
   await login(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/projects');
-  await expect(page.getByRole('link', { name: 'Equipo', exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Navegación principal' })
+      .getByRole('link', { name: 'Equipo', exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: /Cliente de navegación/ }).click();
   await expect(page.getByRole('link', { name: 'Gestionar equipo', exact: true })).toBeVisible();
@@ -830,8 +834,8 @@ test('returns from an account-menu page to the tab it was opened from', async ({
     .click();
 
   await expect(page).toHaveURL(/\/profile$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
 
@@ -841,15 +845,15 @@ test('returns from an account-menu page to the tab it was opened from', async ({
     .getByRole('link', { name: 'Mi cuenta', exact: true })
     .click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 
   await page.getByRole('button', { name: /Cambiar contraseña/ }).click();
   await expect(page).toHaveURL(/\/account\/password$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/account');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/account');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
 });
@@ -903,7 +907,7 @@ test('keeps browser back native while animating the explicit project back button
     (window as typeof window & { pageTransitionDirections?: string[] }).pageTransitionDirections =
       [];
   });
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/projects$/);
   await expect
     .poll(() =>
@@ -925,6 +929,7 @@ test('places budgets first in desktop and mobile navigation', async ({ page }) =
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
     'Presupuestos',
     'Proyectos',
+    'Equipo',
     'Solicitudes',
   ]);
 });
@@ -1208,13 +1213,13 @@ test('UX quota and missing catalog screens keep the common header and safe retur
   await expect(
     page.getByRole('heading', { level: 1, name: 'Nuevo presupuesto', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
   await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCount(0);
   await page.goto('/catalogs/missing');
   await expect(page.locator('[data-page-header]')).toBeVisible();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Catálogo');
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 });
 
 test('budget list filters by year and centers its search icon', async ({ page }) => {
@@ -1282,7 +1287,7 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
   await page.goto('/templates');
   await expect(page.getByRole('button', { name: 'Crear plantilla', exact: true })).toBeVisible();
   await expect(page.locator('.workspace-header')).toBeVisible();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
   await page.goto('/budgets');
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
@@ -1345,8 +1350,8 @@ test('UX help has real links and contextual information supports keyboard and Es
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
-  await expect(page.locator('.workspace-header')).toBeHidden();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toBeVisible();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 });
 
 test('UX company avatar contains a wide logo and falls back when the image fails', async ({
@@ -1567,9 +1572,9 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
     .click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(tabs).toHaveCount(0);
-  await expect(page.locator('.workspace-header')).toBeHidden();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toBeVisible();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(tabs).toBeVisible();
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
@@ -1582,7 +1587,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
   await expect(tabs).toHaveCount(0);
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(tabs).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
@@ -1590,7 +1595,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.getByRole('button', { name: 'Empezar en blanco', exact: true }).click();
   await expect(page).toHaveURL(/\/budget\/new$/);
   await expect(tabs).toHaveCount(0);
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -2069,7 +2074,7 @@ test('PWA install banner consumes prompts, stays hidden after dismissal and in s
   await expect(banner).toHaveCount(0);
 });
 
-test('PWA opens offline, offers a bounded retry and applies an update on demand', async ({
+test('PWA reopens offline with the last state and applies an update on demand', async ({
   page,
   context,
 }) => {
@@ -2080,17 +2085,16 @@ test('PWA opens offline, offers a bounded retry and applies an update on demand'
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
   await page.reload();
+  // BG-012: a reload without network restores the last local copy instead of an error screen.
   await expect(page.getByText(/Sin conexión\./)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'No se ha podido cargar la página' })).toBeVisible(
-    {
-      timeout: 22000,
-    },
-  );
-  await context.setOffline(false);
-  await page.getByRole('button', { name: 'Volver a intentarlo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Presupuestos', exact: true })).toBeVisible({
     timeout: 22000,
   });
+  await expect(page.getByRole('heading', { name: 'No se ha podido cargar la página' })).toHaveCount(
+    0,
+  );
+  await context.setOffline(false);
+  await expect(page.getByText(/Sin conexión\./)).toHaveCount(0, { timeout: 22000 });
   const index = await readFile('dist/index.html', 'utf8');
   await writeFile('dist/index.html', index + '<!-- local update regression -->');
   execFileSync('node', ['scripts/build-sw.mjs']);
@@ -2509,8 +2513,15 @@ test('plans project teams by week and saves person changes only for the selected
       ].join('-');
     });
   });
-  const estimatedEndDateKey = currentWeekDateKeys[3]!;
-  const afterEstimatedEndDateKey = currentWeekDateKeys[4]!;
+  // The test edits today's and tomorrow's assignments, so the end-date pair must not overlap them
+  // (a fixed weekday made the test fail on the days when it did).
+  const endDateIndex = [3, 1, 4, 0, 5, 2].find(
+    (index) =>
+      ![todayKey, tomorrowKey].includes(currentWeekDateKeys[index]!) &&
+      ![todayKey, tomorrowKey].includes(currentWeekDateKeys[index + 1]!),
+  )!;
+  const estimatedEndDateKey = currentWeekDateKeys[endDateIndex]!;
+  const afterEstimatedEndDateKey = currentWeekDateKeys[endDateIndex + 1]!;
   const nextYearEstimatedEndDateKey = `2027${estimatedEndDateKey.slice(4)}`;
 
   await env.withSecurityRulesDisabled(async (context) => {

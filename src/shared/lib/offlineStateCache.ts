@@ -14,6 +14,11 @@ const databaseName = 'budgenerator-offline-state';
 const objectStoreName = 'entries';
 const fallbackEntries = new Map<string, OfflineEntry>();
 const registrations = new Map<string, (snapshot: Record<string, unknown>) => void>();
+/**
+ * Restored snapshots of stores whose module was not loaded yet (route chunks load lazily). They
+ * are applied when the store registers, as long as the same account is still signed in.
+ */
+const pendingSnapshots = new Map<string, { uid: string; value: Record<string, unknown> }>();
 const pendingWrites = new Set<Promise<void>>();
 let database: Promise<IDBDatabase | null> | null = null;
 let persistenceSuspended = 0;
@@ -177,6 +182,8 @@ export async function deleteOfflineValue(key: string): Promise<void> {
 }
 
 export async function deleteOfflineUserData(uid: string): Promise<void> {
+  for (const [key, pending] of pendingSnapshots)
+    if (pending.uid === uid) pendingSnapshots.delete(key);
   await Promise.all([
     deleteOfflineValues(`session:${uid}:`),
     deleteOfflineValues(`resource:private:${uid}:`),
@@ -259,6 +266,16 @@ export function registerOfflineStore<TState extends object>(
   installFlushListeners();
   registrations.set(key, (snapshot) => store.setState(snapshot as Partial<TState>));
   let lastSelection: { uid: string; value: Record<string, unknown> } | undefined;
+  const pending = pendingSnapshots.get(key);
+  pendingSnapshots.delete(key);
+  if (pending && pending.uid === getUid()) {
+    persistenceSuspended += 1;
+    try {
+      store.setState(pending.value as Partial<TState>);
+    } finally {
+      persistenceSuspended -= 1;
+    }
+  }
   store.subscribe((state) => {
     const uid = getUid();
     if (!uid || persistenceSuspended) return;
@@ -276,12 +293,16 @@ export function registerOfflineStore<TState extends object>(
 
 export async function restoreOfflineStores(uid: string): Promise<boolean> {
   const snapshots = await readOfflineValues(`session:${uid}:`);
+  pendingSnapshots.clear();
   if (!snapshots.length) return false;
   persistenceSuspended += 1;
   try {
     for (const entry of snapshots) {
       const key = entry.key.slice(`session:${uid}:`.length);
-      registrations.get(key)?.(entry.value as Record<string, unknown>);
+      const value = entry.value as Record<string, unknown>;
+      const apply = registrations.get(key);
+      if (apply) apply(value);
+      else pendingSnapshots.set(key, { uid, value });
     }
   } finally {
     persistenceSuspended -= 1;

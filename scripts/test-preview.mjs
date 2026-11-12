@@ -29,6 +29,8 @@ const env = {
   VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT: functionsEmulatorUrl.port || '5001',
   // App Check stays off against emulators.
   VITE_FIREBASE_APPCHECK_SITE_KEY: '',
+  // Placeholder so the push flow is reachable; E2E stubs the browser permission and never subscribes.
+  VITE_FIREBASE_VAPID_KEY: process.env.VITE_FIREBASE_VAPID_KEY ?? 'demo-e2e-vapid-key',
 };
 const result = spawnSync('pnpm', ['build'], { env, stdio: 'inherit' });
 if (result.status !== 0) process.exit(result.status ?? 1);

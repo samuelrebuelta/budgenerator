@@ -108,8 +108,10 @@ export function useTeamSchedule(uid: string | undefined, dateKeys: DateKey[]) {
     [loadTeamSchedule, projectIds, uid],
   );
 
+  // Runs offline too: loadTeamJobs then reads the week from the persisted resource cache, which
+  // is written as soon as it loads (the store snapshot may still be inside its write window).
   useEffect(() => {
-    if (!uid || !online || !projectsLoaded) return;
+    if (!uid || !projectsLoaded) return;
     let current = true;
     void loadTeamJobs(uid, startDate, endDate)
       .then(() => {
