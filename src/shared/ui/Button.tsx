@@ -1,41 +1,40 @@
 import type { ButtonHTMLAttributes, Ref } from 'react';
-import { cn } from '@/shared/lib';
+import { buttonClassName, type ButtonSize, type ButtonVariant } from './buttonStyles';
 import { LoadingSpinner } from './LoadingSpinner';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type { ButtonSize, ButtonVariant };
 
-const variantStyles: Record<Variant, string> = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700',
-  secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300',
-  danger: 'bg-red-50 text-red-600 hover:bg-red-100',
-  ghost: 'text-gray-600 hover:bg-gray-100',
-};
-
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: Variant;
-  ref?: Ref<HTMLButtonElement>;
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  /** `sm` 36 px, `md` 44 px (default, touch size), `lg` 48 px. */
+  size?: ButtonSize;
+  /** Square button for a single icon; prefer `IconButton`, which requires a label. */
+  icon?: boolean;
+  fullWidth?: boolean;
   loading?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({
   variant = 'primary',
+  size = 'md',
+  icon = false,
+  fullWidth = false,
   className,
   ref,
   loading = false,
   disabled,
+  type = 'button',
   children,
   ...props
 }: ButtonProps) {
   return (
     <button
       ref={ref}
+      type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(
-        'ui-button inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]',
-        variantStyles[variant],
-        className,
-      )}
+      className={buttonClassName({ variant, size, icon, fullWidth, className })}
       {...props}
     >
       {loading && <LoadingSpinner />}

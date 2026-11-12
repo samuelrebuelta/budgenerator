@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
+import { toUserMessage } from '@/shared/lib/errors';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -34,7 +35,7 @@ export function ConfirmModal({
     try {
       await onConfirm();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se ha podido completar. Vuelve a intentarlo.');
+      setError(toUserMessage(e, 'No se ha podido completar. Vuelve a intentarlo.'));
     } finally {
       inFlight.current = false;
       setSaving(false);

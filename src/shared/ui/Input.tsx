@@ -1,26 +1,39 @@
-import type { InputHTMLAttributes } from 'react';
-import { cn } from '@/shared/lib';
+import type { InputHTMLAttributes, Ref } from 'react';
+import { cn } from '@/shared/lib/utils';
+import { Field } from './Field';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  hint?: string;
+  error?: string;
+  ref?: Ref<HTMLInputElement>;
 }
 
-export function Input({ label, className, id, ...props }: InputProps) {
+/** Text input. With `label` it renders a `Field` (generated id, help and error wiring). */
+export function Input({ label, hint, error, className, id, required, ...props }: InputProps) {
+  if (!label)
+    // The wrapper is kept for layout compatibility with existing callers.
+    return (
+      <div className="flex flex-col gap-1">
+        <input
+          id={id}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          className={cn('ui-control', className)}
+          {...props}
+        />
+      </div>
+    );
   return (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={id} className="text-sm font-medium text-gray-700">
-          {label}
-        </label>
+    <Field label={label} hint={hint} error={error} id={id} required={required}>
+      {(control) => (
+        <input
+          {...control}
+          required={required}
+          className={cn('ui-control', className)}
+          {...props}
+        />
       )}
-      <input
-        id={id}
-        className={cn(
-          'rounded-md border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[44px]',
-          className,
-        )}
-        {...props}
-      />
-    </div>
+    </Field>
   );
 }
