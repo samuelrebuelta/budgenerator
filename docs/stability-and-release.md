@@ -67,7 +67,7 @@ Cambios de seguridad que requieren considerar el estado existente:
 
 1. Los snapshots antiguos no tienen esquema seguro ni propietario. Las reglas nuevas deniegan su lectura para dejar de exponer costes. Se deben volver a compartir los presupuestos que necesiten un enlace público; los enlaces nuevos caducan a los 30 días.
 2. Los premium antiguos con vencimiento ISO necesitan el campo numérico `premiumExpiresAtMillis` para comparar con el reloj del servidor. El administrador puede guardar de nuevo la fecha desde el panel, que escribe ambos campos. Sin esa migración se aplica el límite free cuando corresponda, de forma conservadora. Premium sin vencimiento sigue siendo válido.
-3. Se conserva el admin existente asociado a `budgenerator@gmail.com` y su documento protegido. Ningún cliente puede asignar roles nuevos. La provisión o recuperación de un rol requiere una operación de confianza en Firebase; los registros nuevos siempre son free/no-admin.
+3. Desde el 12-11-2026 el admin se identifica por el custom claim `admin`, no por el email ni por `accountData.isAdmin`. Ningún cliente puede asignar roles. Antes de desplegar las reglas nuevas hay que asignar el claim con `scripts/set-admin-claim.mjs`; los registros nuevos siempre son free/no-admin.
 4. Revisar con un registro de confianza los planes y contadores existentes: la versión anterior permitía editarlos desde el cliente. La nueva regla impide cambios futuros, pero no puede distinguir una modificación previa de un dato legítimo.
 5. Ya no se promueven datos de cuenta legacy editables a roles de confianza desde el navegador. Las cuentas antiguas que no tengan documento raíz requieren una migración administrativa antes de su uso.
 
@@ -85,3 +85,23 @@ Las consultas de presupuestos siguen recuperando la colección del usuario y la 
 - PDF largo de 13 páginas renderizado y revisado; exportación de navegador comprobada como PDF real.
 - Capturas de diseño obtenidas del build con datos ficticios.
 - Pruebas automatizadas sin modificaciones de datos de producción.
+
+## Endurecimiento del back (12-11-2026)
+
+Entrega en la rama `claude/backend-hardening`, sin desplegar. Detalle técnico en [Firebase](firebase.md#endurecimiento-del-back-12-11-2026).
+
+Orden de publicación recomendado, primero en staging cuando exista:
+
+1. Asignar el claim `admin` a la cuenta administradora con `scripts/set-admin-claim.mjs` (simulación y después `--apply --confirm budgenerator`).
+2. Crear la clave reCAPTCHA y registrar App Check; poner `VITE_FIREBASE_APPCHECK_SITE_KEY` en el entorno de build. `APP_CHECK_MODE` sigue en `monitor`.
+3. `node scripts/deploy.mjs indexes,rules,functions`; a la pregunta de borrar las Functions de `europe-west1`, responder no.
+4. `node scripts/deploy.mjs hosting`. El cliente pasa a llamar a `europe-southwest1`.
+5. Comprobar el estimador público, un lead de prueba en staging, los avisos y Mi cuenta (exportar y borrar con una cuenta de prueba).
+6. Borrar las Functions antiguas de `europe-west1`.
+7. Pasar `APP_CHECK_MODE=enforce` cuando los logs no muestren `app_check_missing` de tráfico legítimo.
+
+Cambios de comportamiento visibles: contraseña mínima de 8 caracteres y casilla de condiciones en el registro; aviso de verificación de email; guardar o publicar el estimador exige email verificado; el admin deja de ver datos privados de otras cuentas; los leads se borran a los 12 meses y los enlaces públicos caducados se eliminan; el logo se guarda como WebP de 400 px y un logo antiguo mayor de 200.000 caracteres impedirá guardar el perfil hasta volver a subirlo.
+
+Riesgos: los contadores anti-abuso son aproximados; los límites por IP pueden afectar a varias personas detrás de la misma red (60 cálculos por minuto, 10 solicitudes por hora); el borrado de cuenta es irreversible y no hay copia previa salvo los backups programados.
+
+Verificación del 12-11-2026 (Node 24.14, emuladores `demo-*` en puertos alternativos): `pnpm lint`, `pnpm format:check` y `pnpm build` correctos; `pnpm test` 241/241; reglas en emulador 88/88 (14 ficheros); `pnpm test:notifications:emulator` 23/23 de integración de Functions y 2/2 de reglas. Navegador (`test:integration` equivalente): 33/48 correctos. Las mismas 13 pruebas de `app.spec.ts` fallan también en `cd57b60` sin estos cambios (navegación con la pestaña Equipo, botones de volver duplicados, catálogo y PWA offline: expectativas desactualizadas, no regresiones); dos pruebas de planificación semanal fallan de forma intermitente y pasan al repetirlas. `public-estimator.spec.ts` publica, calcula, envía el lead y revoca correctamente; sólo falla su expectativa de navegación móvil, que no incluye Equipo (pasa al corregirla en local).

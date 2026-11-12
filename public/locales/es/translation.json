@@ -27,7 +27,7 @@
     "register": "Registrarse",
     "hasAccount": "¿Ya tienes cuenta? Inicia sesión",
     "noAccount": "¿No tienes cuenta? Regístrate",
-    "passwordMinLength": "Mínimo 6 caracteres",
+    "passwordMinLength": "Mínimo 8 caracteres",
     "passwordUppercase": "Una letra mayúscula",
     "passwordLowercase": "Una letra minúscula",
     "passwordNumber": "Un número",

@@ -1,10 +1,10 @@
 # Firebase
 
-Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting y Cloud Functions para el estimador público. No hay Storage, servidor propio o pasarela de pagos en este checkout.
+Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting, Cloud Functions (estimador público, avisos, cuenta y retención), Cloud Messaging y App Check. No hay Storage, servidor propio o pasarela de pagos en este checkout.
 
 ## Configuración
 
-`shared/firebase/config.ts` utiliza las variables `VITE_FIREBASE_*` de `.env.example`. Con `VITE_USE_FIREBASE_EMULATORS=true` exige un projectId `demo-` y conecta a Auth local 9199, Firestore local 8180 y Functions local 5001 en `europe-west1`. Functions usa Node.js 22, sin instancias mínimas y con máximo 10 instancias por función. El build de pruebas fuerza valores demo; los scripts de deploy rechazan esos valores.
+`shared/firebase/config.ts` utiliza las variables `VITE_FIREBASE_*` de `.env.example`. Con `VITE_USE_FIREBASE_EMULATORS=true` exige un projectId `demo-` y conecta a Auth local 9199, Firestore local 8180 y Functions local 5001 (puertos sobrescribibles con `VITE_FIREBASE_*_EMULATOR_*`). La región de Functions es `europe-southwest1`, la misma que Firestore; se fija en `functions/src/core/config.ts` (`FUNCTION_REGION`) y en el cliente con `VITE_FIREBASE_FUNCTIONS_REGION` (por defecto la misma). Functions usa Node.js 24, sin instancias mínimas, 256 MiB, 15 s en las callables públicas, 30 s en las autenticadas, 300 s/512 MiB en las de cuenta y 540 s en las programadas. La configuración no secreta de Functions vive en `functions/.env` (versionado); un proyecto concreto puede sobrescribirla con `functions/.env.<projectId>`, ignorado por Git. El build de pruebas fuerza valores demo; los scripts de deploy rechazan esos valores.
 
 ## Documentos
 
@@ -25,7 +25,7 @@ users/{uid}                            Cuenta, plan y contador acumulado
 ├── leads/{leadId}                     Solicitudes privadas; titular puede listar/leer/borrar
 ├── settings/tariffCatalog             Referencia compatible al catálogo único
 ├── settings/notifications              Preferencia push y fecha de activación; elimina campos email legacy al guardar
-└── pushDevices/{installationId}        Token FCM o FID legacy, hash de asociación, habilitación, recuperación y actividad; Admin SDK
+└── pushDevices/{installationId}        Token FCM o FID legacy, hash, plataforma (web/ios/android), habilitación, recuperación y actividad; Admin SDK
 sharedBudgets/{token}                  DTO público v2 con propietario y caducidad
 publicQuoteTokens/{token}              Índice token → UID, sólo servidor
 quoteEstimatorLinks/{uid}              Token activo del propietario, sólo servidor
@@ -34,13 +34,16 @@ quoteLeadRateLimits/{token}            Límite de envíos de leads, sólo servid
 leadNotificationJobs/{jobId}            Cola técnica de entrega, sólo servidor
 pushInstallationIndex/{credentialHash} Asociación única token FCM/FID → usuario/dispositivo, sólo servidor
 notificationDeviceCounts/{uid}         Límite de dispositivos, sólo servidor
+abuseRateLimits/{scope_hash_window}    Contadores anti-abuso por red, titular y global con TTL `expiresAt`, sólo servidor
 ```
+
+`users/{uid}` admite además `legalAcceptance: { version, acceptedAt }` en el alta; las reglas exigen `acceptedAt == request.time`.
 
 Los IDs son UUID y las fechas de auditoría son ISO strings. La fecha de finalización elegida por el usuario se guarda como día local `YYYY-MM-DD` para evitar cambios de día por zona horaria. El vencimiento premium añade milisegundos para las reglas; el vencimiento público es numérico.
 
 ## Autorización y cuota
 
-Las reglas separan la raíz de cuenta de las colecciones editables; no usan un permiso recursivo que pueda reabrir la raíz. Los clientes nuevos solo pueden crear una cuenta free, no-admin y con contador cero. No pueden asignarse un rol, plan o vencimiento. El admin existente está restringido a la identidad designada y al flag protegido. La provisión de roles nuevos requiere una operación de confianza.
+Las reglas separan la raíz de cuenta de las colecciones editables; no usan un permiso recursivo que pueda reabrir la raíz. Los clientes nuevos solo pueden crear una cuenta free, no-admin y con contador cero. No pueden asignarse un rol, plan o vencimiento. El administrador se identifica sólo por el custom claim `admin: true` (ver «Administración» más abajo); el email y `accountData.isAdmin` no conceden permisos. El admin lee y lista la raíz `users/{uid}` y cambia `accountData` (plan y vencimiento); no lee presupuestos, proyectos, perfil, catálogo, plantillas ni solicitudes de otras cuentas. Puede borrar un `sharedBudgets` ajeno para retirar contenido abusivo.
 
 La creación de un presupuesto se ejecuta junto al incremento de `totalBudgetsCreated` y `lastCreatedBudgetId` en una transacción. Las reglas limitan Free a tres plazas de creación; borrar un presupuesto no devuelve cuota. Aceptar y convertirlo en proyecto conserva la plaza consumida por el presupuesto origen: la conversión enlaza presupuesto y proyecto de forma atómica, no reduce ni vuelve a incrementar el contador. Los antiguos campos `budgetSlotsReleased` y `lastConvertedBudgetId` pueden seguir presentes en datos previos, pero ya no intervienen en el límite. Actualizar un documento existente no consume otra creación.
 
@@ -54,7 +57,7 @@ Los snapshots públicos permiten get individual, deniegan list y exigen propieta
 
 El propietario lee y escribe `users/{uid}/quoteEstimator/settings`; la colección raíz `quoteEstimator` queda fuera de las reglas genéricas. El esquema 2 guarda tarifas manuales por estancia en céntimos por m²; el esquema 1 conserva combinaciones vinculadas al catálogo y sigue siendo compatible. Las selecciones nuevas llevan un `instanceId` UUID único para identificar cada estancia física, con su superficie y calidad. `quantity` (entero de 1 a 20) se mantiene para datos agrupados históricos; si falta, se interpreta como una estancia. El perfil conserva una URL HTTPS de privacidad. Las reglas permiten al titular leer/listar y borrar `users/{uid}/leads`, deniegan su creación desde cliente y restringen su única edición a `budgetId` hacia un presupuesto de la misma cuenta. La creación del lead solo ocurre en `submitPublicLead`, con Admin SDK. Las reglas deniegan clientes para el índice `publicQuoteTokens`, el enlace por UID y los contadores. `publishPublicEstimator`, `revokePublicEstimator` y `getOwnerEstimatorStatus` requieren Auth. `getPublicEstimator`, `calculatePublicEstimate` y `submitPublicLead` son públicos y reciben el token aleatorio de 24 bytes codificado base64url; el token localiza al usuario en Functions, nunca habilita una lectura Firestore del visitante. `getPublicEstimator` devuelve nombre de empresa, contactos optativos y combinaciones disponibles; el cálculo y el envío solo devuelven horquilla total, moneda, IVA y confirmación. No se devuelven UID, contacto del lead, catálogo, descripciones internas, precios unitarios ni `cost`.
 
-El límite por token válido de estimación es de 20 llamadas por minuto, compartido por resolución del formulario y cálculo. El envío de leads tiene un límite separado de 10 por token en una hora. Las peticiones con tokens inválidos aún invocan la función y hacen una lectura del índice antes de rechazarse; estos límites por token no protegen frente a ráfagas globales ni fijan un máximo de coste. El despliegue requiere valorar controles globales y alertas de presupuesto. Solo se persiste el contador de ventana en los documentos de límites; no se guarda IP. El lead conserva contacto, selecciones, plazo de inicio elegido, horquilla, fechas de consentimiento y URL de privacidad hasta que el titular lo borre manualmente; no hay TTL. El plazo es una de cuatro opciones generales y no implica duración ni compromiso de fecha. El nombre de empresa se muestra; teléfono y correo solo se incluyen si el propietario lo habilita. La horquilla puede permitir inferir parcialmente precios subyacentes al comparar muchas combinaciones, aunque el endpoint no los exponga directamente.
+El límite por token válido de estimación es de 20 llamadas por minuto, compartido por resolución del formulario y cálculo. El envío de leads tiene un límite separado de 10 por token en una hora. Además, antes de cada handler público se aplican límites por red (IP, IPv6 agrupada por /64), por titular y globales; se describen en «Abuso» más abajo. Ni la IP ni el UID se guardan en claro: los contadores usan un hash. El lead conserva contacto, selecciones, plazo de inicio elegido, horquilla, fechas de consentimiento y URL de privacidad hasta que el titular lo borre o se cumpla la retención (12 meses por defecto). El plazo es una de cuatro opciones generales y no implica duración ni compromiso de fecha. El nombre de empresa se muestra; teléfono y correo solo se incluyen si el propietario lo habilita. La horquilla puede permitir inferir parcialmente precios subyacentes al comparar muchas combinaciones, aunque el endpoint no los exponga directamente.
 
 ### BG-011 — equipo y asignaciones
 
@@ -77,7 +80,7 @@ Se siguen leyendo nombres antiguos de partidas/tareas. El perfil antiguo en sett
 
 ## Pruebas y publicación
 
-`pnpm test:integration` construye Functions y ejecuta reglas y navegador sobre emuladores de Auth, Firestore y Functions. `pnpm firebase:deploy` publica solo Hosting; `pnpm firebase:deploy:all` publica reglas y Hosting, pero no incluye Functions. Para desplegar Functions se usa Firebase CLI con `--only functions`. El build remoto usa pnpm y requiere `functions/pnpm-workspace.yaml` con aprobación explícita de los scripts de `@firebase/util` y `protobufjs`, además de `@google-cloud/functions-framework` como dependencia directa.
+`pnpm test:integration` construye Functions y ejecuta reglas y navegador sobre emuladores de Auth, Firestore y Functions. El despliegue se hace siempre con `scripts/deploy.mjs` (ver «Operación y despliegue»). El build remoto usa pnpm y requiere `functions/pnpm-workspace.yaml` con aprobación explícita de los scripts de `@firebase/util` y `protobufjs`, además de `@google-cloud/functions-framework` como dependencia directa.
 
 BG-005 se desplegó el 18-10-2026 al proyecto `budgenerator`: Hosting en https://budgenerator.web.app; seis Cloud Functions v2 ACTIVE en `europe-west1` con runtime Node.js 22; y las reglas de Firestore. Se configuró limpieza automática de imágenes de Functions tras 1 día. Firestore Standard está en `europe-southwest1`; no se escribieron ni migraron datos durante el despliegue. La región de Functions es independiente de la base Firestore. CI no despliega. La cuenta admin de la aplicación no autentica al CLI.
 
@@ -136,3 +139,126 @@ Planificación semanal BG-011 (06-11-2026): desplegadas Firestore Rules y Hostin
 Equipo como tab principal (06-11-2026): Hosting se actualizó en `budgenerator` con PWA `fae198999289df03`, para mostrar Equipo tercero en la navegación principal y Solicitudes cuarto. Los 100 archivos estáticos coinciden byte a byte con `dist`; `/team`, `/projects`, `/projects/project-navigation` y `/profile/solicitudes` responden HTTP 200. No cambiaron reglas, Functions ni documentos reales; el worktree sigue sin integrar en `main`.
 
 Filtro semanal flotante BG-011 (06-11-2026): se publicó sólo Hosting en `budgenerator` desde `codex/bg011-equipo-agenda`, PWA `494dda764656241f`. `index.html`, el bundle CSS, el chunk de Equipo y ambos service workers coinciden byte a byte con `dist`; `/team`, `/team/manage` y `/projects` responden HTTP 200. Pasaron lint, build, Prettier de los archivos modificados y `git diff --check`; no se ejecutaron tests. No se desplegaron Rules ni Functions ni se modificaron datos reales. El worktree sigue sin integrar en `main`.
+
+## Endurecimiento del back (12-11-2026)
+
+Aplica las fases 0 a 2 del [análisis del back](analysis/backend.md) que son código o configuración versionable. No se ha desplegado nada ni se ha tocado el proyecto real. Las tareas de consola están al final de esta sección.
+
+### Operación y despliegue
+
+`scripts/deploy.mjs <objetivos> [--project <alias>]` es la única vía de despliegue. Objetivos: `hosting`, `rules`, `indexes`, `functions` o `all`. Atajos: `pnpm firebase:deploy` (Hosting), `pnpm firebase:deploy:all` (todo en producción) y `pnpm firebase:deploy:staging` (todo en staging). El script se detiene si:
+
+- el árbol de Git tiene cambios sin confirmar;
+- en producción (`default`), la rama no es `main`, `main` no coincide con `origin/main`, o el último run de CI de `main` no está en verde o no corresponde al commit (con `gh`; si no está disponible, avisa);
+- fallan `lint`, `format:check`, `test`, las reglas en emulador (`test:rules:emulator`) o, si se despliegan Functions, `build:functions` y `test:notifications:emulator`;
+- el entorno web apunta a emuladores, le faltan variables o su `VITE_FIREBASE_PROJECT_ID` no es el destino;
+- el bundle de `dist` contiene un `projectId` distinto del destino o un `authDomain` demo, o no contiene el `authDomain` configurado (incidente del 18-10-2026).
+
+La suite de navegador (`test:integration`) se ejecuta en CI, no en el script. CI ejecuta ahora también `format:check`, `build:functions` y `test:notifications:emulator`.
+
+**Staging.** `.firebaserc` tiene el alias `staging` con el id de ejemplo `CHANGE-ME-budgenerator-staging`; el script se niega a usarlo hasta que se sustituya por el id real. El build de staging lee `.env.staging` (modo Vite `staging`) y Functions puede tener `functions/.env.<projectId>`. No se ha creado ningún proyecto.
+
+**Región y runtime.** Functions pasa de `europe-west1` a `europe-southwest1` (Madrid), la región de Firestore: Cloud Functions 2.ª gen está disponible allí y elimina el salto entre regiones de cada lectura y del trigger. El runtime pasa a Node.js 24 (GA en Firebase CLI 15, fin de soporte 30-04-2028); `functions/package.json`, la raíz y CI usan Node 24. Migración en producción, en este orden: desplegar `functions` (la CLI crea las funciones nuevas y pregunta si borra las de `europe-west1`: responder **no**), desplegar `hosting` (el cliente llama ya a la región nueva), comprobar el estimador y los avisos, y borrar las antiguas con `pnpm exec firebase functions:delete <nombres> --region europe-west1 --project budgenerator`. Las opciones `invoker: 'public'` aplican `roles/run.invoker` a `allUsers` al crear los servicios nuevos; comprobarlo tras el despliegue. Si Cloud Scheduler no estuviera disponible en la región, basta con cambiar `FUNCTION_REGION` sólo para las tareas programadas.
+
+### Abuso
+
+**App Check.** El cliente inicializa App Check con reCAPTCHA Enterprise (o v3 con `VITE_FIREBASE_APPCHECK_PROVIDER=v3`) sólo si existe `VITE_FIREBASE_APPCHECK_SITE_KEY` y no se usan emuladores. Las callables públicas leen `APP_CHECK_MODE` de `functions/.env`: `monitor` (valor actual) acepta y registra `app_check_missing`; `enforce` activa `enforceAppCheck` y rechaza con `failed-precondition`/`app_check_required`; `off` lo ignora. Pasar a `enforce` cuando el evento `app_check_missing` deje de aparecer en tráfico legítimo. `consumeAppCheckToken` (protección de repetición) queda para cuando se use `limitedUseAppCheckTokens` en el cliente.
+
+**Límites.** Además de los límites por token existentes, `functions/src/abuse/` aplica, antes del handler:
+
+| Ámbito | Límite por defecto | Variable |
+|---|---|---|
+| Estimador por red | 60/min | `LIMIT_ESTIMATOR_PER_IP_PER_MINUTE` |
+| Estimador global | 20.000/día | `LIMIT_ESTIMATOR_GLOBAL_PER_DAY` |
+| Leads por red | 10/h | `LIMIT_LEADS_PER_IP_PER_HOUR` |
+| Leads por titular | 50/día | `LIMIT_LEADS_PER_OWNER_PER_DAY` |
+| Leads global | 500/día | `LIMIT_LEADS_GLOBAL_PER_DAY` |
+| Push de leads por titular | 5/h | `LIMIT_LEAD_PUSH_PER_OWNER_PER_HOUR` |
+
+Los contadores son ventanas fijas en `abuseRateLimits`, con el sujeto hasheado y TTL en `expiresAt`. Son aproximados (lectura + `increment` sin transacción) para no bloquear los documentos globales; en una ráfaga concurrente pueden excederse en unas pocas unidades. Una petición inválida también consume cupo. Al superar el límite de push, el lead se guarda igual y aparece en Solicitudes, pero no genera aviso; el trigger también descarta eventos con más de 6 h.
+
+**Verificación de email.** El alta envía el email de verificación. Mi cuenta y el estimador muestran un aviso con «Reenviar email» y «Ya lo he verificado», que recarga el usuario y fuerza un token nuevo. Las reglas exigen `email_verified` para guardar `quoteEstimator/settings` y la callable `publishPublicEstimator` lo exige para publicar. Presupuestos, catálogo y proyectos no lo exigen. Queda pendiente exigirlo también al crear `sharedBudgets` (ese bloque lo reescribe el trabajo BC3; añadir `verifiedEmail()` al integrar). La contraseña mínima pasa a 8 caracteres en la UI; la política de Auth se configura en consola.
+
+### RGPD
+
+- **Borrado de cuenta.** Callable `deleteAccount`, con inicio de sesión de menos de 5 minutos (`auth_time`; la UI pide la contraseña y reautentica). Borra tokens del estimador y sus contadores, `quoteEstimatorLinks`, `sharedBudgets` del titular, `pushInstallationIndex`, `leadNotificationJobs`, `notificationDeviceCounts`, el árbol `users/{uid}` completo con `recursiveDelete` y, por último, el usuario de Auth. Es idempotente: un reintento completa un borrado parcial. Los contadores anti-abuso sólo guardan hashes y caducan solos.
+- **Exportación.** Callable `exportAccount`: JSON con todos los documentos del árbol del usuario, sus `sharedBudgets`, el enlace del estimador y los metadatos de Auth. Excluye tokens y hashes push. Botón «Descargar mis datos» en Mi cuenta.
+- **Retención.** `applyRetentionPolicies` (diaria, 03:30 Europe/Madrid) borra leads con más de `LEAD_RETENTION_MONTHS` (12), `sharedBudgets` con `expiresAt` numérico vencido (sin cambiar su formato) y contadores caducados, incluidos los antiguos `quoteEstimateRateLimits`/`quoteLeadRateLimits` sin uso en 2 días. Se borra en lotes de 300, máximo 6.000 por colección y día. La TTL nativa de `sharedBudgets` necesitaría un `Timestamp`; se valorará al cerrar el modelo BC3.
+- **Aceptación legal.** El registro exige marcar las condiciones y la privacidad; `users/{uid}.legalAcceptance` guarda la versión (`LEGAL_TERMS_VERSION`) y la hora del servidor. Las páginas públicas `/legal/privacidad`, `/legal/condiciones`, `/legal/aviso-legal` y `/legal/cookies` son plantillas con `[COMPLETAR: …]` que el titular debe rellenar antes de abrir el registro.
+
+### Administración
+
+El admin es quien tiene el custom claim `admin: true`. Se asigna con `node scripts/set-admin-claim.mjs --project <id> --email <email>`: sin `--apply` sólo simula; en un proyecto real exige además `--confirm <id>` y credenciales ADC (`gcloud auth application-default login`). `--revoke` lo retira. El script refleja el valor en `accountData.isAdmin` sólo como dato informativo. El usuario debe cerrar sesión y volver a entrar. La UI (`AdminGuard`, menú) lee el claim del token.
+
+### Logo del perfil
+
+El logo se reduce a 400 px y se codifica en WebP (JPEG si el navegador no codifica WebP), bajando la calidad hasta quedar por debajo de 150.000 caracteres. Las reglas de `profile/data` validan campos, longitudes, URL HTTPS de privacidad y un logo `data:image/(webp|jpeg|png)` de hasta 200.000 caracteres. El índice de `profile.logo` está exento.
+
+Alternativa con Storage, no aplicada para no añadir un servicio: guardar el original en `users/{uid}/logo.webp` con reglas por UID y tamaño, y en Firestore sólo la ruta; para los enlaces públicos, copiar una miniatura inmutable en `public/logos/{token}.webp` o seguir embebiendo la miniatura acotada. Exige `storage.rules`, tests en emulador, CORS para el PDF y borrar los ficheros en `deleteAccount`.
+
+### Notificaciones
+
+`registerPushDevice` acepta `platform: web | ios | android` (por defecto `web`) y lo guarda en el dispositivo. La web mantiene el payload sólo de datos, porque el service worker muestra el aviso; iOS y Android reciben `notification`, `data`, `apns` (sonido, prioridad 10, caducidad 1 h) y `android` (prioridad alta, canal `leads`). `cleanupPushDevices` (lunes 04:00) revoca dispositivos sin actividad en 270 días o pendientes de recuperación más de 60, por la misma vía que la revocación manual. El error de FCM sigue retirando el token al instante.
+
+### Observabilidad
+
+Todas las Functions pasan por `observe()` (`functions/src/core/observability.ts`) y registran con `firebase-functions/logger` un evento por invocación: `function_succeeded`, `function_rejected`, `function_failed`, `rate_limited`, además de `rate_limit_exceeded`, `app_check_missing`, `lead_push_throttled`, `lead_event_discarded`, `account_deleted`, `account_exported`, `retention_applied`, `push_devices_cleaned` y `push_delivery_failed`. Nunca registran UID, token, IP, email ni contenido; los identificadores van seudonimizados (`pseudonym`). Los errores inesperados llegan al cliente como `internal` con `details.reason = 'internal'`; los rechazos esperados llevan `details.reason` (`rate_limited`, `app_check_required`, `email_not_verified`, `recent_login_required`, `unauthenticated`).
+
+### Tareas del propietario en consola o `gcloud`
+
+No se han ejecutado. Sustituir `BILLING_ACCOUNT_ID` y el email.
+
+```bash
+# 1. Presupuesto de facturación con avisos al 50, 90 y 100 %
+gcloud billing budgets create --billing-account=BILLING_ACCOUNT_ID \
+  --display-name="BudGenerator mensual" --budget-amount=25EUR \
+  --filter-projects=projects/budgenerator \
+  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
+
+# 2. PITR (7 días) y backups programados
+gcloud firestore databases update --database='(default)' --enable-pitr --project=budgenerator
+gcloud firestore backups schedules create --database='(default)' \
+  --recurrence=daily --retention=14d --project=budgenerator
+gcloud firestore backups schedules create --database='(default)' \
+  --recurrence=weekly --day-of-week=SUN --retention=8w --project=budgenerator
+gcloud firestore backups schedules list --database='(default)' --project=budgenerator
+
+# 3. Canal de avisos y métricas basadas en logs
+gcloud beta monitoring channels create --display-name="Propietario" --type=email \
+  --channel-labels=email_address=PROPIETARIO@EXAMPLE.COM --project=budgenerator
+for event in function_failed rate_limit_exceeded app_check_missing lead_push_throttled; do
+  gcloud logging metrics create "bg_${event}" --project=budgenerator \
+    --description="BudGenerator ${event}" \
+    --log-filter="resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"${event}\""
+done
+
+# 4. Alerta: algún function_failed en 5 minutos (repetir con otras métricas y umbrales)
+cat > /tmp/bg-alert-failed.json <<'JSON'
+{
+  "displayName": "BudGenerator: errores de Functions",
+  "combiner": "OR",
+  "conditions": [{
+    "displayName": "function_failed > 0",
+    "conditionThreshold": {
+      "filter": "metric.type=\"logging.googleapis.com/user/bg_function_failed\" AND resource.type=\"cloud_run_revision\"",
+      "comparison": "COMPARISON_GT", "thresholdValue": 0, "duration": "0s",
+      "aggregations": [{ "alignmentPeriod": "300s", "perSeriesAligner": "ALIGN_SUM" }]
+    }
+  }],
+  "notificationChannels": ["projects/budgenerator/notificationChannels/CHANNEL_ID"]
+}
+JSON
+gcloud alpha monitoring policies create --policy-from-file=/tmp/bg-alert-failed.json --project=budgenerator
+
+# 5. Clave reCAPTCHA Enterprise para App Check (después, registrarla en Firebase > App Check
+#    y ponerla en VITE_FIREBASE_APPCHECK_SITE_KEY del build de producción)
+gcloud services enable recaptchaenterprise.googleapis.com --project=budgenerator
+gcloud recaptcha keys create --web --display-name="BudGenerator web" \
+  --domains=budgenerator.web.app,budgenerator.firebaseapp.com --integration-type=SCORE \
+  --project=budgenerator
+
+# 6. Comprobar las TTL (se crean al desplegar firestore:indexes)
+gcloud firestore fields ttls list --project=budgenerator
+```
+
+En la consola de Firebase: Authentication > Configuración > Política de contraseñas con mínimo 8 caracteres y protección contra enumeración de emails; plantillas de email en español (verificación y restablecimiento); dominios autorizados. Asignar el claim al admin real con el script antes de desplegar las reglas nuevas, o el panel de administración quedará inaccesible. Ensayar una restauración de backup en staging cada trimestre: `gcloud firestore databases restore --source-backup=… --destination-database=restore-test`.

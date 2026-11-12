@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUserStore } from '@/entities/user';
+import { useAuthStore } from '@/entities/auth';
 import { AuthGuard } from './AuthGuard';
 function AdminContent({ children }: { children: ReactNode }) {
-  const userData = useUserStore((s) => s.userData);
-  return userData?.accountData.isAdmin ? children : <Navigate to="/budgets" replace />;
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  return isAdmin ? children : <Navigate to="/budgets" replace />;
 }
 export function AdminGuard({ children }: { children: ReactNode }) {
   return (
