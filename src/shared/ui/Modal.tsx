@@ -138,7 +138,7 @@ export function ModalHeader({
   return (
     <div className="mb-4 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 id={titleId} className="text-lg font-semibold text-ink">
+        <h2 id={titleId} className="text-xl font-semibold text-ink-strong">
           {title}
         </h2>
         {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}

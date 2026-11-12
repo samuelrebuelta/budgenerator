@@ -71,6 +71,8 @@
   --color-accent-strong: #a94c2f;
   --color-focus: #c65d3b;
   --color-highlight: #d6e9b9;
+  /* Granate of the selected day in the team calendar. */
+  --color-calendar-selected: #561321;
 
   /* States: `*-surface` background, `*-line` border, `*-ink` text (AA on its surface). */
   --color-success-surface: #edf5f1;
@@ -110,6 +112,7 @@
 :root {
   color-scheme: light;
   /* Stacking scale: `z-(--z-toast)` in TSX, `var(--z-toast)` in CSS. */
+  --z-dropdown: 30;
   --z-sticky: 40;
   --z-nav: 45;
   --z-header: 50;

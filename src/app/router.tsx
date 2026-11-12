@@ -47,12 +47,28 @@ export const router = createBrowserRouter([
         }),
       },
       {
-        path: '/team/jobs/new',
-        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
-      },
-      {
-        path: '/team/:view?',
-        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
+        // Layout shared by the team routes: roster loading and the calendar view state.
+        path: '/team',
+        lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamLayout }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamSchedulePage }),
+          },
+          {
+            path: 'manage',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamManagePage }),
+          },
+          {
+            path: 'jobs/new',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).NewTeamJobPage }),
+          },
+          {
+            path: 'new-work',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).NewTeamJobPage }),
+          },
+          { path: '*', element: <Navigate to="/team" replace /> },
+        ],
       },
       {
         path: '/catalog',

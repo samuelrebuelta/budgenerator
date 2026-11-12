@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import type { Project, ProjectAssignment } from '@/entities/project';
 import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
 import { Button, Modal } from '@/shared/ui';
-import { colorFor } from './crewColors';
+import { colorFor } from '../model/crewColors';
 
 interface DailyProjectAssignmentsDialogProps {
   project: Project;

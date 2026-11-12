@@ -5,7 +5,7 @@ import { buildTeamJobAssignment, validateTeamJobDraft } from '@/entities/workfor
 import type { TeamJob, TeamJobDraft, WorkCrew, WorkforceMember } from '@/entities/workforce';
 import { generateId } from '@/shared/lib';
 import { Button, Card, Input, Modal, PageLink } from '@/shared/ui';
-import { colorFor } from './crewColors';
+import { colorFor } from '../model/crewColors';
 
 interface NewTeamJobFormProps {
   initialDate: string;
