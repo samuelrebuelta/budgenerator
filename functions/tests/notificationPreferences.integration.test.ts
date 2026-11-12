@@ -98,7 +98,10 @@ describe('notification preferences and private push devices', () => {
     const owner = await createOwner();
     const deviceId = installationId(3);
     const privateToken = `projects/budgenerator/messages/${'b'.repeat(120)}`;
-    await registerPushDevice(owner.uid, { installationId: deviceId, registrationToken: privateToken });
+    await registerPushDevice(owner.uid, {
+      installationId: deviceId,
+      registrationToken: privateToken,
+    });
 
     const deviceRef = firestore.doc(`users/${owner.uid}/pushDevices/${deviceId}`);
     const device = await deviceRef.get();
