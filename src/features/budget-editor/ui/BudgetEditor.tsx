@@ -207,7 +207,7 @@ export function BudgetEditor() {
                     toggleWorkItem(workItem.id);
                   }
                 }}
-                className="no-print shrink-0 p-0.5 rounded hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] transition-colors cursor-pointer"
+                className="no-print shrink-0 p-0.5 rounded hover:bg-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus transition-colors cursor-pointer"
               >
                 <ChevronDown
                   size={16}

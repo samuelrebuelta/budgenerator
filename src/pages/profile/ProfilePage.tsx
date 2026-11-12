@@ -222,7 +222,7 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/estimator"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
           >
             Ver
           </PageLink>
@@ -236,7 +236,7 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/profile/solicitudes"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:self-auto"
           >
             Ver
           </PageLink>

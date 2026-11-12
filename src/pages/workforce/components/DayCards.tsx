@@ -3,7 +3,7 @@ import type { Project, ProjectAssignment } from '@/entities/project';
 import type { TeamJob, TeamJobAssignment } from '@/entities/workforce';
 import { cn } from '@/shared/lib';
 import { PageLink } from '@/shared/ui';
-import { colorFor } from '../model/crewColors';
+import { colorFor } from '@/entities/workforce';
 
 const cardClass = 'rounded-xl border border-line bg-surface p-2.5 shadow-card';
 /** 32 px circular action on a calendar card (docs/styles-and-responsive.md, BG-011). */

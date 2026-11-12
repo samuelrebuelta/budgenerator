@@ -366,14 +366,14 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
         )}
         {activeBudget?.projectId && (
           <div
-            className="mb-4 rounded-xl bg-[#e8eee3] px-4 py-4 text-sm text-[#183e3b]"
+            className="mb-4 rounded-xl bg-tint-strong px-4 py-4 text-sm text-ink-strong"
             role="status"
           >
             <p className="font-semibold">Presupuesto convertido en proyecto</p>
             <p className="mt-1">La oferta aceptada permanece aquí como documento de referencia.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <PageLink
-                className="inline-flex min-h-11 items-center gap-2 font-semibold text-[#183e3b] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                className="inline-flex min-h-11 items-center gap-2 font-semibold text-ink-strong underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 to={`/projects/${activeBudget.projectId}`}
               >
                 <FolderKanban size={16} />
@@ -383,10 +383,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           </div>
         )}
         {activeBudget?.acceptedAt && !activeBudget.projectId && (
-          <div
-            className="mb-4 rounded-xl bg-[#f2f2e9] px-4 py-4 text-sm text-[#36473e]"
-            role="status"
-          >
+          <div className="mb-4 rounded-xl bg-canvas px-4 py-4 text-sm text-ink-soft" role="status">
             <p className="font-semibold">
               Presupuesto aceptado el{' '}
               {new Date(activeBudget.acceptedAt).toLocaleDateString('es-ES')}.
@@ -405,7 +402,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
 
             {isDraft && leadContext && draftBudget?.sourceLeadId === leadContext.id && (
               <section aria-label="Contexto de la solicitud" className="mt-5">
-                <Card className="border-[#cddbd1] bg-[#f8faf7] p-4 sm:p-5">
+                <Card className="border-line-strong bg-surface-muted p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h2 className="font-semibold text-gray-900">
@@ -427,7 +424,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                     <PageLink
                       back
                       to="/profile/solicitudes"
-                      className="text-sm font-medium text-[#426457] underline underline-offset-2"
+                      className="text-sm font-medium text-primary underline underline-offset-2"
                     >
                       Volver a solicitudes
                     </PageLink>
@@ -473,7 +470,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                         ?.label ?? leadContext.startTiming}
                     </p>
                   )}
-                  <p className="mt-3 text-sm font-medium text-[#426457]">
+                  <p className="mt-3 text-sm font-medium text-primary">
                     Horquilla orientativa:{' '}
                     {(leadContext.estimate.minimumCents / 100).toLocaleString('es-ES', {
                       style: 'currency',
@@ -502,7 +499,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                   togglePartidas();
                 }
               }}
-              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
+              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
               aria-expanded={showPartidas}
             >
               {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}

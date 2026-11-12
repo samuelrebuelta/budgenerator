@@ -8,17 +8,17 @@ const statusContent: Record<
   pending: {
     label: 'Pendiente',
     icon: CircleDashed,
-    className: 'border-[#d5d8cd] bg-[#f2f2e9] text-[#43534a]',
+    className: 'border-line-strong bg-canvas text-ink-muted',
   },
   in_progress: {
     label: 'En curso',
     icon: Wrench,
-    className: 'border-[#dfb39f] bg-[#f8eae4] text-[#83452f]',
+    className: 'border-accent-line bg-accent-surface text-accent-strong',
   },
   completed: {
     label: 'Completado',
     icon: CheckCircle2,
-    className: 'border-[#a8cbbb] bg-[#e6f1ea] text-[#245746]',
+    className: 'border-success-line bg-success-surface text-success-ink',
   },
 };
 

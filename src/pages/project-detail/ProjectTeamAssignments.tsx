@@ -6,27 +6,15 @@ import {
   findCrewAssignmentForMember,
   useProjectStore,
 } from '@/entities/project';
-import { useWorkforceStore } from '@/entities/workforce';
+import { colorFor, useWorkforceStore } from '@/entities/workforce';
 import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
 import type { ProjectDetail } from '@/entities/project';
-import type { CrewColor } from '@/shared/types';
-import { Button, Card, Modal, PageLink } from '@/shared/ui';
-import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
+import { Button, Card, Modal, OfflineUnavailable, PageLink } from '@/shared/ui';
 import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
 
 interface ProjectTeamAssignmentsProps {
   project: ProjectDetail;
 }
-
-const CREW_STYLE: Record<CrewColor, { card: string; dot: string }> = {
-  blue: { card: 'border-[#bfd0c8] bg-[#eaf1ed] text-[#183e3b]', dot: '#367760' },
-  green: { card: 'border-[#d5dfc7] bg-[#edf2e7] text-[#354b27]', dot: '#648b43' },
-  amber: { card: 'border-[#e8d4ae] bg-[#f8f0e1] text-[#68420d]', dot: '#b4771e' },
-  rose: { card: 'border-[#e8cece] bg-[#f7eaea] text-[#733a3e]', dot: '#b45e67' },
-  violet: { card: 'border-[#d9cfe4] bg-[#f0ebf5] text-[#514069]', dot: '#8062a6' },
-  cyan: { card: 'border-[#c8dfde] bg-[#e6f2f1] text-[#28575a]', dot: '#3b8e94' },
-  slate: { card: 'border-[#d5d9d6] bg-[#eceeec] text-[#3f4844]', dot: '#68756e' },
-};
 
 function activeCrewMembers(crew: WorkCrew, members: WorkforceMember[]) {
   const activeById = new Map(
@@ -117,21 +105,21 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
   };
 
   return (
-    <Card className="mb-8 overflow-hidden border-[#d7dbd2] shadow-none">
+    <Card className="mb-8 overflow-hidden border-line-strong shadow-none">
       <section aria-labelledby="team-assignments-title" className="p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 id="team-assignments-title" className="text-lg font-semibold text-[#1f2b26]">
+            <h2 id="team-assignments-title" className="text-lg font-semibold text-ink">
               Equipo asignado
             </h2>
-            <p className="mt-1 text-sm text-[#52625a]">
+            <p className="mt-1 text-sm text-ink-muted">
               Las asignaciones guardan una instantánea de los nombres y la composición actuales.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <PageLink
               to="/team"
-              className="inline-flex min-h-11 items-center rounded-full border border-[#c9cfc7] px-4 text-sm font-medium text-[#1f5d56] hover:bg-[#f3f6f2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+              className="inline-flex min-h-11 items-center rounded-full border border-line-strong px-4 text-sm font-medium text-primary hover:bg-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               Gestionar equipo
             </PageLink>
@@ -147,8 +135,8 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
         </div>
 
         {loadError ? (
-          <div className="mt-4 rounded-xl bg-[#f8efec] p-4">
-            <p role="alert" className="text-sm text-[#83452f]">
+          <div className="mt-4 rounded-xl bg-danger-surface p-4">
+            <p role="alert" className="text-sm text-danger-ink">
               {loadError}
             </p>
             <Button
@@ -167,7 +155,7 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
             </Button>
           </div>
         ) : !ready && online ? (
-          <p className="mt-5 text-sm text-[#637166]" role="status">
+          <p className="mt-5 text-sm text-ink-subtle" role="status">
             Cargando personas y cuadrillas…
           </p>
         ) : !ready ? (
@@ -175,17 +163,18 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
             <OfflineUnavailable />
           </div>
         ) : project.assignments.length === 0 ? (
-          <p className="mt-5 rounded-xl bg-[#f6f6f0] px-4 py-3 text-sm text-[#637166]">
+          <p className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm text-ink-subtle">
             Todavía no hay personas ni cuadrillas asignadas a este proyecto.
           </p>
         ) : (
           <ul className="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Asignaciones del proyecto">
             {project.assignments.map((assignment) => {
-              const color = assignment.color ? CREW_STYLE[assignment.color] : null;
+              const color = assignment.color ? colorFor(assignment.color) : null;
               return (
                 <li
                   key={assignment.id}
-                  className={`min-w-0 rounded-xl border p-4 ${color?.card ?? 'border-[#d7dbd2] bg-[#f7f7f3] text-[#1f2b26]'}`}
+                  className={`min-w-0 rounded-xl border p-4 ${color ? 'border-line' : 'border-line-strong bg-surface-muted text-ink'}`}
+                  style={color ? { backgroundColor: color.fill, color: color.ink } : undefined}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-2.5">
@@ -238,7 +227,7 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
           </ul>
         )}
         {actionError && (
-          <p role="alert" className="mt-4 text-sm text-[#83452f]">
+          <p role="alert" className="mt-4 text-sm text-danger-ink">
             {actionError}
           </p>
         )}
@@ -251,8 +240,8 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-[#1f2b26]">Asignar equipo</h2>
-            <p className="mt-1 text-sm text-[#52625a]">Elige una persona o una cuadrilla activa.</p>
+            <h2 className="text-lg font-semibold text-ink">Asignar equipo</h2>
+            <p className="mt-1 text-sm text-ink-muted">Elige una persona o una cuadrilla activa.</p>
           </div>
           <Button
             type="button"
@@ -265,11 +254,11 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
           </Button>
         </div>
         {activeMembers.length === 0 && availableCrews.length === 0 ? (
-          <div className="mt-5 rounded-xl bg-[#f6f6f0] p-4">
-            <p className="text-sm text-[#52625a]">No hay recursos activos disponibles.</p>
+          <div className="mt-5 rounded-xl bg-canvas p-4">
+            <p className="text-sm text-ink-muted">No hay recursos activos disponibles.</p>
             <PageLink
               to="/team"
-              className="mt-3 inline-block text-sm font-semibold text-[#1f5d56] underline"
+              className="mt-3 inline-block text-sm font-semibold text-primary underline"
             >
               Gestionar equipo
             </PageLink>
@@ -278,10 +267,10 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
           <div className="mt-5 max-h-[55vh] space-y-5 overflow-y-auto pr-1">
             {activeMembers.length > 0 && (
               <section aria-labelledby="assign-members-title">
-                <h3 id="assign-members-title" className="mb-2 text-sm font-semibold text-[#1f2b26]">
+                <h3 id="assign-members-title" className="mb-2 text-sm font-semibold text-ink">
                   Personas
                 </h3>
-                <ul className="divide-y divide-[#ecece4] rounded-xl border border-[#e1e3dc]">
+                <ul className="divide-y divide-line rounded-xl border border-line">
                   {activeMembers.map((member) => {
                     const assigned = project.assignments.some(
                       (item) => item.resourceType === 'member' && item.resourceId === member.id,
@@ -293,9 +282,9 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
                     return (
                       <li key={member.id} className="flex items-center justify-between gap-3 p-3">
                         <div className="min-w-0">
-                          <span className="text-sm font-medium text-[#1f2b26]">{member.name}</span>
+                          <span className="text-sm font-medium text-ink">{member.name}</span>
                           {!assigned && assignedCrew && (
-                            <p className="mt-0.5 text-xs text-[#637166]">
+                            <p className="mt-0.5 text-xs text-ink-subtle">
                               Incluida en {assignedCrew.label}
                             </p>
                           )}
@@ -322,10 +311,10 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
             )}
             {availableCrews.length > 0 && (
               <section aria-labelledby="assign-crews-title">
-                <h3 id="assign-crews-title" className="mb-2 text-sm font-semibold text-[#1f2b26]">
+                <h3 id="assign-crews-title" className="mb-2 text-sm font-semibold text-ink">
                   Cuadrillas
                 </h3>
-                <ul className="divide-y divide-[#ecece4] rounded-xl border border-[#e1e3dc]">
+                <ul className="divide-y divide-line rounded-xl border border-line">
                   {availableCrews.map((crew) => {
                     const assigned = project.assignments.some(
                       (item) => item.resourceType === 'crew' && item.resourceId === crew.id,
@@ -347,18 +336,18 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
                         <div className="flex min-w-0 items-center gap-2">
                           <span
                             className="h-3 w-3 shrink-0 rounded-full"
-                            style={{ backgroundColor: CREW_STYLE[crew.color].dot }}
+                            style={{ backgroundColor: colorFor(crew.color).dot }}
                             aria-hidden="true"
                           />
                           <div className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-[#1f2b26]">
+                            <span className="block truncate text-sm font-medium text-ink">
                               {crew.label}
-                              <span className="ml-2 text-xs font-normal text-[#637166]">
+                              <span className="ml-2 text-xs font-normal text-ink-subtle">
                                 {count} {count === 1 ? 'integrante activo' : 'integrantes activos'}
                               </span>
                             </span>
                             {overlapDescription && (
-                              <span className="mt-0.5 block text-xs text-[#8a5418]">
+                              <span className="mt-0.5 block text-xs text-warning-ink">
                                 {overlapDescription}
                               </span>
                             )}
@@ -385,7 +374,7 @@ export function ProjectTeamAssignments({ project }: ProjectTeamAssignmentsProps)
           </div>
         )}
         {actionError && (
-          <p role="alert" className="mt-4 text-sm text-[#83452f]">
+          <p role="alert" className="mt-4 text-sm text-danger-ink">
             {actionError}
           </p>
         )}

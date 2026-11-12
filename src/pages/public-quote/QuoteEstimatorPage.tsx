@@ -310,7 +310,7 @@ function PublicEstimator({ token }: { token: string }) {
 
   if (loading && online) {
     return (
-      <main className="min-h-screen bg-[#f3f5f1] px-4 py-6 sm:py-10" aria-busy="true">
+      <main className="min-h-screen bg-canvas px-4 py-6 sm:py-10" aria-busy="true">
         <div className="mx-auto max-w-3xl">
           <header className="flex items-center justify-between gap-3">
             <Brand />
@@ -342,7 +342,7 @@ function PublicEstimator({ token }: { token: string }) {
 
   if (!online && cachedCompany === undefined && !company) {
     return (
-      <main className="min-h-screen bg-[#f3f5f1] px-4 py-12 sm:py-20">
+      <main className="min-h-screen bg-canvas px-4 py-12 sm:py-20">
         <div className="mx-auto max-w-3xl">
           <Brand />
           <OfflineUnavailable />
@@ -353,7 +353,7 @@ function PublicEstimator({ token }: { token: string }) {
 
   if (unavailable || !company) {
     return (
-      <main className="min-h-screen bg-[#f3f5f1] px-4 py-12 sm:py-20">
+      <main className="min-h-screen bg-canvas px-4 py-12 sm:py-20">
         <div className="mx-auto max-w-xl">
           <Brand />
           <Card className="mt-12 p-7 text-center sm:p-10">
@@ -375,23 +375,23 @@ function PublicEstimator({ token }: { token: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f3f5f1] px-4 py-6 sm:py-10">
+    <main className="min-h-screen bg-canvas px-4 py-6 sm:py-10">
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between gap-3">
           <Brand />
-          <span className="hidden rounded-full border border-[#dae4dc] bg-white/70 px-3 py-1.5 text-xs font-medium text-[#426457] sm:inline-flex">
+          <span className="hidden rounded-full border border-line bg-white/70 px-3 py-1.5 text-xs font-medium text-primary sm:inline-flex">
             Orientación inicial
           </span>
         </header>
 
-        <section className="mt-7 rounded-2xl bg-[#234c40] px-5 py-7 text-white shadow-sm sm:mt-9 sm:px-9 sm:py-9">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c2d5c9]">
+        <section className="mt-7 rounded-2xl bg-primary px-5 py-7 text-white shadow-sm sm:mt-9 sm:px-9 sm:py-9">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-200">
             {company.companyName}
           </p>
           <h1 className="mt-3 max-w-2xl font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
             Cuéntanos qué quieres renovar
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-[#e0eae4]">
+          <p className="mt-3 max-w-xl text-sm leading-6 text-brand-100">
             Responde unas preguntas rápidas y recibe una horquilla orientativa según el tipo de
             reforma y la superficie.
           </p>
@@ -401,7 +401,7 @@ function PublicEstimator({ token }: { token: string }) {
           <section aria-labelledby="rooms-title">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#668175]">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-subtle">
                   01 · La reforma
                 </p>
                 <h2
@@ -422,7 +422,7 @@ function PublicEstimator({ token }: { token: string }) {
                   {ESTIMATOR_SCOPES.map((option) => (
                     <label
                       key={option.id}
-                      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-3 text-sm ${scope === option.id ? 'border-[#91a99b] bg-[#edf3ef] text-[#234c40]' : 'border-gray-200 text-gray-700'}`}
+                      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-md border px-3 text-sm ${scope === option.id ? 'border-brand-300 bg-brand-50 text-primary' : 'border-gray-200 text-gray-700'}`}
                     >
                       <input
                         type="radio"
@@ -430,7 +430,7 @@ function PublicEstimator({ token }: { token: string }) {
                         value={option.id}
                         checked={scope === option.id}
                         onChange={() => changeScope(option.id)}
-                        className="h-4 w-4 accent-[#426457]"
+                        className="h-4 w-4 accent-primary"
                       />
                       {option.label}
                     </label>
@@ -456,7 +456,7 @@ function PublicEstimator({ token }: { token: string }) {
                 return (
                   <Card
                     key={room.id}
-                    className={`overflow-hidden transition-colors ${selected ? 'border-[#91a99b] ring-1 ring-[#91a99b]/30' : ''}`}
+                    className={`overflow-hidden transition-colors ${selected ? 'border-brand-300 ring-1 ring-brand-300/30' : ''}`}
                   >
                     <label className="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3">
                       <input
@@ -464,7 +464,7 @@ function PublicEstimator({ token }: { token: string }) {
                         checked={Boolean(selected)}
                         disabled={disabled}
                         onChange={(event) => changeRoom(room.id, event.target.checked)}
-                        className="h-4 w-4 accent-[#426457]"
+                        className="h-4 w-4 accent-primary"
                       />
                       <span className="font-medium text-gray-900">
                         {roomSelections.length > 1
@@ -495,7 +495,7 @@ function PublicEstimator({ token }: { token: string }) {
                                 {room.id !== 'fullHome' && (
                                   <button
                                     type="button"
-                                    className="min-h-10 rounded-md px-3 text-sm font-medium text-gray-600 underline underline-offset-2 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457]"
+                                    className="min-h-10 rounded-md px-3 text-sm font-medium text-gray-600 underline underline-offset-2 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                                     aria-label={`Quitar ${room.label.toLowerCase()} ${index + 1}`}
                                     onClick={() => {
                                       setSelections((current) =>
@@ -610,7 +610,7 @@ function PublicEstimator({ token }: { token: string }) {
 
           {company.leadCaptureEnabled && (
             <section aria-labelledby="start-timing-title">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#668175]">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-subtle">
                 02 · Plazo
               </p>
               <h2
@@ -642,9 +642,9 @@ function PublicEstimator({ token }: { token: string }) {
           {company.leadCaptureEnabled && (
             <section
               aria-labelledby="contact-title"
-              className="rounded-xl border border-[#dfe5df] bg-white p-4 sm:p-5"
+              className="rounded-xl border border-line bg-white p-4 sm:p-5"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#668175]">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-subtle">
                 03 · Tus datos
               </p>
               <h2
@@ -688,7 +688,7 @@ function PublicEstimator({ token }: { token: string }) {
                     href={company.privacyPolicyUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-[#426457] underline underline-offset-2"
+                    className="font-medium text-primary underline underline-offset-2"
                   >
                     aviso de privacidad de {company.companyName}
                   </a>
@@ -705,7 +705,7 @@ function PublicEstimator({ token }: { token: string }) {
                     setSubmitted(false);
                     submissionKey.current = null;
                   }}
-                  className="mt-0.5 h-4 w-4 accent-[#426457]"
+                  className="mt-0.5 h-4 w-4 accent-primary"
                   required
                 />
                 <span>
@@ -730,7 +730,7 @@ function PublicEstimator({ token }: { token: string }) {
               type="submit"
               disabled={submitted}
               loading={calculating}
-              className="justify-center bg-[#234c40] px-5 hover:bg-[#1b3e34]"
+              className="justify-center bg-primary px-5 hover:bg-primary-hover"
             >
               {company.leadCaptureEnabled
                 ? submitted
@@ -744,25 +744,25 @@ function PublicEstimator({ token }: { token: string }) {
 
         {estimate && (
           <section aria-labelledby="estimate-title" className="mt-6">
-            <Card className="overflow-hidden border-[#cddbd1]">
-              <div className="bg-[#e8f0e9] p-5 sm:p-7">
+            <Card className="overflow-hidden border-line-strong">
+              <div className="bg-tint p-5 sm:p-7">
                 {submitted && (
                   <p
                     role="status"
-                    className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-[#426457]"
+                    className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-primary"
                   >
                     <CheckCircle2 size={17} /> Hemos recibido tu solicitud
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-sm font-medium text-[#426457]">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
                   <CheckCircle2 size={17} /> Estimación orientativa
                 </div>
                 <h2 id="estimate-title" className="mt-2 text-lg font-semibold text-gray-900">
                   El rango aproximado de tu reforma
                 </h2>
-                <p className="mt-4 font-serif text-3xl font-medium tracking-tight text-[#234c40] sm:text-4xl">
+                <p className="mt-4 font-serif text-3xl font-medium tracking-tight text-primary sm:text-4xl">
                   {formatEuro(estimate.minimumCents)}{' '}
-                  <span className="px-1 text-2xl text-[#81978b]">—</span>{' '}
+                  <span className="px-1 text-2xl text-ink-subtle">—</span>{' '}
                   {formatEuro(estimate.maximumCents)}
                 </p>
                 <p className="mt-3 text-xs leading-5 text-gray-600">
@@ -783,7 +783,7 @@ function PublicEstimator({ token }: { token: string }) {
                   {phoneHref && (
                     <a
                       href={phoneHref}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#234c40] px-4 text-sm font-medium text-white hover:bg-[#1b3e34]"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover"
                     >
                       <Phone size={16} /> Llamar a la empresa
                     </a>
@@ -794,7 +794,7 @@ function PublicEstimator({ token }: { token: string }) {
           </section>
         )}
 
-        <footer className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-[#dfe5df] pt-4 text-xs text-gray-500 sm:flex-row">
+        <footer className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-line pt-4 text-xs text-gray-500 sm:flex-row">
           <span>Preparado para {company.companyName}</span>
           <span>Estimador de BudGenerator</span>
         </footer>

@@ -1,26 +1,27 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 const entityInternals = {
   group: ['@/entities/*/*'],
   message: 'Importa la entidad desde su API pública (@/entities/<nombre>).',
-}
+};
 const otherPages = {
   group: ['@/pages/*'],
   message: 'Una página no importa otra: mueve el código compartido a entities, features o shared.',
-}
+};
 const upperLayers = (layers) => ({
   group: layers.map((layer) => `@/${layer}/*`),
   message: 'Respeta las capas FSD: una capa solo importa capas inferiores (docs/architecture.md).',
-})
+});
 const arbitraryColor = {
-  selector: 'Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/], TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]/]',
+  selector:
+    'Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/], TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]/]',
   message: 'Usa los tokens de color del @theme (bg-surface, text-ink-muted…) en lugar de hex.',
-}
+};
 
 // Phase 2: files that still bypass a public API; remove each entry when migrated.
 const pendingEntityImports = [
@@ -31,16 +32,7 @@ const pendingEntityImports = [
   'src/pages/budget-viewer/**',
   'src/pages/account/**',
   'src/pages/login/**',
-]
-// Phase 2: screens not yet migrated to colour tokens.
-const tokenizedUi = [
-  'src/app/**/*.tsx',
-  'src/shared/ui/**/*.tsx',
-  'src/features/app-tour/**/*.tsx',
-  'src/pages/workforce/**/*.tsx',
-  'src/pages/leads/**/*.tsx',
-  'src/pages/help/**/*.tsx',
-]
+];
 
 export default defineConfig([
   globalIgnores(['dist', 'functions/lib', 'test-artifacts']),
@@ -94,15 +86,18 @@ export default defineConfig([
     files: ['src/features/**/*.{ts,tsx}'],
     ignores: pendingEntityImports,
     rules: {
-      'no-restricted-imports': ['error', { patterns: [entityInternals, upperLayers(['pages', 'app'])] }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [entityInternals, upperLayers(['pages', 'app'])] },
+      ],
     },
   },
   {
-    files: tokenizedUi,
+    files: ['src/**/*.tsx'],
     rules: { 'no-restricted-syntax': ['error', arbitraryColor] },
   },
   {
     files: ['tests/**/*.ts', 'scripts/**/*.{js,mjs}', '*.config.{js,ts}'],
     languageOptions: { globals: { ...globals.node } },
   },
-])
+]);

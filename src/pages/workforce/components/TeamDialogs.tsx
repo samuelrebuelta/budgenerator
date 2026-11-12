@@ -4,7 +4,7 @@ import type { WorkCrew, WorkforceMember } from '@/entities/workforce';
 import type { CrewColor } from '@/shared/types';
 import { cn, generateId } from '@/shared/lib';
 import { Alert, Button, Input, Modal, ModalFooter, ModalHeader } from '@/shared/ui';
-import { CREW_COLORS } from '../model/crewColors';
+import { CREW_COLORS } from '@/entities/workforce';
 import { teamErrorMessage } from '../model/teamErrors';
 
 interface MemberDialogProps {

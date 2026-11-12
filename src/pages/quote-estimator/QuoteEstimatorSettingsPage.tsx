@@ -391,7 +391,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       <EmailVerificationNotice reason="Hasta entonces no podrás guardar ni publicar el estimador." />
 
       {(hasSavedSettings || token) && (
-        <Card className="mb-6 border-[#dfe9e3] bg-[#fbfdfb] p-5 sm:p-6">
+        <Card className="mb-6 border-line bg-surface-muted p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-semibold text-gray-900">Resumen del estimador</h2>
@@ -423,7 +423,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                   href={publicUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#234c40] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1c3e34] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457]"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                   <ExternalLink size={15} /> Abrir formulario
                 </a>
@@ -457,13 +457,13 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
         </Card>
       )}
 
-      <Card className="mb-6 border-0 bg-[#edf3ef] p-5 sm:p-6">
+      <Card className="mb-6 border-0 bg-brand-50 p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <p className="max-w-2xl text-sm leading-6 text-gray-700">
             Define una horquilla aproximada por m². Alta y lujo se calculan a partir de un único
             incremento que puedes ajustar.
           </p>
-          <span className="mt-1 w-fit shrink-0 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-[#426457]">
+          <span className="mt-1 w-fit shrink-0 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-primary">
             Sin IVA · No vinculante
           </span>
         </div>
@@ -482,10 +482,10 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             <li
               key={label}
               aria-current={step === index ? 'step' : undefined}
-              className={`flex min-h-11 flex-1 items-center gap-2 border-b-2 pb-2 text-sm ${step === index ? 'border-[#426457] font-semibold text-[#234c40]' : index < step ? 'border-[#b5c8bb] text-gray-700' : 'border-gray-200 text-gray-500'}`}
+              className={`flex min-h-11 flex-1 items-center gap-2 border-b-2 pb-2 text-sm ${step === index ? 'border-primary font-semibold text-primary' : index < step ? 'border-brand-200 text-gray-700' : 'border-gray-200 text-gray-500'}`}
             >
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${step === index ? 'bg-[#234c40] text-white' : 'bg-gray-100'}`}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${step === index ? 'bg-primary text-white' : 'bg-gray-100'}`}
               >
                 {index + 1}
               </span>
@@ -509,13 +509,13 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
               return (
                 <label
                   key={room.id}
-                  className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${selected ? 'border-[#91a99b] bg-[#edf3ef] text-[#234c40]' : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50'}`}
+                  className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${selected ? 'border-brand-300 bg-brand-50 text-primary' : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50'}`}
                 >
                   <input
                     type="checkbox"
                     checked={selected}
                     onChange={(event) => updateRoom(room.id, event.target.checked)}
-                    className="h-4 w-4 accent-[#426457]"
+                    className="h-4 w-4 accent-primary"
                   />
                   {room.label}
                 </label>
@@ -637,9 +637,9 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                   </div>
                   <ul className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
                     {qualityRanges.map((range) => (
-                      <li key={range.label} className="rounded-md bg-[#f3f5f1] px-3 py-2">
+                      <li key={range.label} className="rounded-md bg-canvas px-3 py-2">
                         <span className="block text-xs text-gray-600">{range.label}</span>
-                        <span className="font-medium tabular-nums text-[#234c40]">
+                        <span className="font-medium tabular-nums text-primary">
                           {euros(range.minimum)} – {euros(range.maximum)}/m²
                         </span>
                       </li>
@@ -684,7 +684,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             </div>
           </Card>
 
-          <Card className="mt-4 border-[#dfe9e3] bg-[#fbfdfb] p-4 sm:p-5">
+          <Card className="mt-4 border-line bg-surface-muted p-4 sm:p-5">
             <h3 className="font-semibold text-gray-900">Publicación</h3>
             <p className="mt-1 text-sm leading-6 text-gray-600">
               {token

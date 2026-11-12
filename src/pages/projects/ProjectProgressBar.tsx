@@ -7,11 +7,11 @@ export function ProjectProgressBar({ percent, label }: { percent: number; label:
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={safePercent}
-      className="h-2 overflow-hidden rounded-full bg-[#e7e7db]"
+      className="h-2 overflow-hidden rounded-full bg-line"
     >
       <div
         aria-hidden="true"
-        className="h-full rounded-full bg-[#183e3b] transition-[width] duration-200"
+        className="h-full rounded-full bg-primary-hover transition-[width] duration-200"
         style={{ width: `${safePercent}%` }}
       />
     </div>

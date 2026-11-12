@@ -68,10 +68,10 @@ export function ProjectEstimatedEndDate({
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-[#354b42]">
+      <label className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-soft">
         <span>Fecha estimada de fin del proyecto</span>
         <span
-          className="relative inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#b8c9be] bg-white px-3 text-sm font-medium text-[#315c4c] focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#b7694d]"
+          className="relative inline-flex min-h-9 items-center gap-2 rounded-lg border border-brand-200 bg-white px-3 text-sm font-medium text-primary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus"
           aria-busy={loading || undefined}
         >
           <CalendarDays size={15} aria-hidden="true" />
@@ -80,7 +80,7 @@ export function ProjectEstimatedEndDate({
             type="date"
             defaultValue={estimatedEndDate ?? ''}
             aria-label="Fecha estimada de fin del proyecto"
-            className="min-w-0 bg-transparent text-sm text-[#263a32] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-w-0 bg-transparent text-sm text-ink outline-none disabled:cursor-not-allowed disabled:opacity-60"
             disabled={disabled || loading}
             onPointerDown={() => {
               pointerSelectionRef.current = true;
@@ -96,7 +96,7 @@ export function ProjectEstimatedEndDate({
           />
         </span>
       </label>
-      <p className="text-xs text-[#637166]" aria-live="polite">
+      <p className="text-xs text-ink-subtle" aria-live="polite">
         {loading
           ? 'Guardando fecha…'
           : 'Se guarda al cambiarla. En Equipo se mostrará el proyecto hasta esa fecha.'}
