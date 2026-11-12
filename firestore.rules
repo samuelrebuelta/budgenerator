@@ -3,13 +3,42 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
-    // Existing role documents are trusted only for the designated admin identity.
-    // New roles must be provisioned with Admin SDK; no client may assign isAdmin.
+    // Admins are identified by the `admin` custom claim, assigned only with Admin SDK
+    // (scripts/set-admin-claim.mjs). `accountData.isAdmin` is informative and never trusted.
     function isAdmin() {
-      return signedIn() && request.auth.token.email == 'budgenerator@gmail.com'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountData.isAdmin == true;
+      return signedIn() && request.auth.token.get('admin', false) == true;
     }
-    function canUse(uid) { return owner(uid) || isAdmin(); }
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.get('email_verified', false) == true;
+    }
+    // Private account content (budgets, projects, catalog, templates...) is owner-only.
+    // Admins manage plans on the account root and do not read customers' documents.
+    function canUse(uid) { return owner(uid); }
+    function validLegalAcceptance(data) {
+      return !('legalAcceptance' in data) || (
+        data.legalAcceptance is map
+        && data.legalAcceptance.keys().hasOnly(['version', 'acceptedAt'])
+        && data.legalAcceptance.version is string
+        && data.legalAcceptance.version.size() > 0 && data.legalAcceptance.version.size() <= 20
+        && data.legalAcceptance.acceptedAt == request.time
+      );
+    }
+    function optionalText(data, key, max) {
+      return !(key in data) || (data[key] is string && data[key].size() <= max);
+    }
+    function validProfile(data) {
+      return data.keys().hasOnly(['name', 'cif', 'address', 'phone', 'email', 'privacyPolicyUrl', 'logo'])
+        && optionalText(data, 'name', 200) && optionalText(data, 'cif', 40)
+        && optionalText(data, 'address', 400) && optionalText(data, 'phone', 40)
+        && optionalText(data, 'email', 254)
+        && (!('privacyPolicyUrl' in data) || data.privacyPolicyUrl == ''
+          || (data.privacyPolicyUrl is string && data.privacyPolicyUrl.size() <= 500
+            && data.privacyPolicyUrl.matches('^https://[^\\s]+$')))
+        // Compressed client-side to ~400 px WebP/JPEG; keeps the document far from 1 MiB.
+        && (!('logo' in data) || data.logo == ''
+          || (data.logo is string && data.logo.size() <= 200000
+            && data.logo.matches('^data:image/(webp|jpeg|png);base64,.*')));
+    }
     function validAccount(a) {
       return a.keys().hasOnly(['isAdmin', 'plan', 'premiumExpiresAt', 'premiumExpiresAtMillis'])
         && a.isAdmin is bool && a.plan in ['free', 'premium']
@@ -415,10 +444,11 @@ service cloud.firestore {
         && (editable || acceptanceChange || conversion || linkedMetadata);
     }
     match /users/{uid} {
-      allow get: if canUse(uid);
+      allow get: if owner(uid) || isAdmin();
       allow list: if isAdmin();
       allow create: if owner(uid)
-        && request.resource.data.keys().hasOnly(['uid', 'email', 'accountData', 'totalBudgetsCreated', 'createdAt', 'budgetSlotsReleased'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'accountData', 'totalBudgetsCreated', 'createdAt', 'budgetSlotsReleased', 'legalAcceptance'])
+        && validLegalAcceptance(request.resource.data)
         && request.resource.data.uid == uid && request.resource.data.email == request.auth.token.email
         && request.resource.data.totalBudgetsCreated == 0
         && request.resource.data.get('budgetSlotsReleased', 0) == 0
@@ -570,7 +600,15 @@ service cloud.firestore {
       match /quoteEstimator/{documentId} {
         allow get: if owner(uid) && documentId == 'settings';
         allow list: if false;
-        allow create, update, delete: if owner(uid) && documentId == 'settings';
+        // Saving the settings prepares a public page: require a verified email.
+        allow create, update: if owner(uid) && documentId == 'settings' && verifiedEmail();
+        allow delete: if owner(uid) && documentId == 'settings';
+      }
+      match /profile/{documentId} {
+        allow read: if owner(uid);
+        allow create, update: if owner(uid) && documentId == 'data'
+          && validProfile(request.resource.data);
+        allow delete: if owner(uid);
       }
       match /leads/{leadId} {
         allow get, list: if owner(uid);
@@ -585,7 +623,7 @@ service cloud.firestore {
       match /{collectionName}/{documentId} {
         allow read: if canUse(uid) && collectionName in ['tariffCatalogs', 'templates', 'profile', 'settings', 'tariffs'];
         allow write: if canUse(uid) && (
-          collectionName in ['tariffCatalogs', 'templates', 'profile']
+          collectionName in ['tariffCatalogs', 'templates']
           || (collectionName == 'settings' && documentId in ['profile', 'tariffCatalog'])
         );
         allow delete: if canUse(uid) && collectionName == 'tariffs';
@@ -612,5 +650,7 @@ service cloud.firestore {
     match /quoteEstimatorLinks/{uid} { allow read, write: if false; }
     match /quoteEstimateRateLimits/{token} { allow read, write: if false; }
     match /quoteLeadRateLimits/{token} { allow read, write: if false; }
+    // Anti-abuse counters (per network, owner and global); written only by Functions.
+    match /abuseRateLimits/{key} { allow read, write: if false; }
   }
 }

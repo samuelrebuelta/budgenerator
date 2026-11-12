@@ -72,12 +72,16 @@ beforeEach(async () => {
   });
 });
 
-const alice = () => env.authenticatedContext('alice').firestore();
+const alice = () => env.authenticatedContext('alice', { email_verified: true }).firestore();
+const unverifiedAlice = () => env.authenticatedContext('alice').firestore();
 const bob = () => env.authenticatedContext('bob').firestore();
 const anonymous = () => env.unauthenticatedContext().firestore();
 
 describe('public estimator Firestore boundary', () => {
   it('lets only the owner read and write their estimator settings', async () => {
+    await assertFails(
+      setDoc(doc(unverifiedAlice(), 'users', 'alice', 'quoteEstimator', 'settings'), settings),
+    );
     const ownerDoc = doc(alice(), 'users', 'alice', 'quoteEstimator', 'settings');
     await assertSucceeds(setDoc(ownerDoc, settings));
     await assertSucceeds(getDoc(ownerDoc));
