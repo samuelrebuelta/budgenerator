@@ -183,6 +183,39 @@ export async function deleteOfflineUserData(uid: string): Promise<void> {
   ]);
 }
 
+/** Store snapshots are coalesced: one IndexedDB write per store and pause in editing. */
+export const OFFLINE_SNAPSHOT_DELAY_MS = 600;
+
+interface ScheduledSnapshot {
+  uid: string;
+  write: () => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+const scheduledSnapshots = new Map<string, ScheduledSnapshot>();
+
+function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown>) {
+  if (!a) return false;
+  const keys = Object.keys(b);
+  return keys.length === Object.keys(a).length && keys.every((key) => Object.is(a[key], b[key]));
+}
+
+/** Writes every pending store snapshot now (before unload, sign-out or tests). */
+export function flushOfflineSnapshots() {
+  for (const [key, scheduled] of scheduledSnapshots) {
+    clearTimeout(scheduled.timer);
+    scheduledSnapshots.delete(key);
+    scheduled.write();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushOfflineSnapshots);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushOfflineSnapshots();
+  });
+}
+
 export function registerOfflineStore<TState extends object>(
   key: string,
   store: PersistedStore<TState>,
@@ -191,10 +224,28 @@ export function registerOfflineStore<TState extends object>(
 ) {
   if (registrations.has(key)) return;
   registrations.set(key, (snapshot) => store.setState(snapshot as Partial<TState>));
+  let lastSelection: { uid: string; value: Record<string, unknown> } | undefined;
   store.subscribe((state) => {
     const uid = getUid();
     if (!uid || persistenceSuspended) return;
-    void writeOfflineValue(`session:${uid}:${key}`, select(state));
+    const selection = select(state) as Record<string, unknown>;
+    // Unrelated store changes (loading flags, UI state) do not rewrite the snapshot.
+    if (lastSelection?.uid === uid && shallowEqual(lastSelection.value, selection)) return;
+    lastSelection = { uid, value: selection };
+    clearTimeout(scheduledSnapshots.get(key)?.timer);
+    const write = () => {
+      // An account switch or sign-out in the meantime discards the previous account's write.
+      if (getUid() !== uid) return;
+      void writeOfflineValue(`session:${uid}:${key}`, select(store.getState()));
+    };
+    scheduledSnapshots.set(key, {
+      uid,
+      write,
+      timer: setTimeout(() => {
+        scheduledSnapshots.delete(key);
+        write();
+      }, OFFLINE_SNAPSHOT_DELAY_MS),
+    });
   });
 }
 
@@ -223,5 +274,6 @@ export function withOfflinePersistenceSuspended<T>(operation: () => T): T {
 }
 
 export async function waitForOfflinePersistence(): Promise<void> {
+  flushOfflineSnapshots();
   await Promise.all([...pendingWrites]);
 }

@@ -43,6 +43,35 @@ describe('offline state cache', () => {
     expect(store.getState().value).toBe('Cuenta A');
   });
 
+  it('coalesces rapid edits into one snapshot written after a pause', async () => {
+    store.getState().update('Cuenta A');
+    await waitForOfflinePersistence();
+    store.getState().update('B');
+    store.getState().update('BC');
+    store.getState().update('BCD');
+
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'Cuenta A',
+    });
+    await waitForOfflinePersistence();
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'BCD',
+    });
+  });
+
+  it('discards a pending snapshot when the account changes', async () => {
+    store.getState().update('Cuenta A');
+    await waitForOfflinePersistence();
+    store.getState().update('Pendiente');
+    setSessionUid('another-offline-cache-user');
+    await waitForOfflinePersistence();
+    setSessionUid(testUid);
+
+    await expect(readOfflineValue(`session:${testUid}:offline-cache-test`)).resolves.toEqual({
+      value: 'Cuenta A',
+    });
+  });
+
   it('clears one account cache without removing another account data', async () => {
     await writeOfflineValue(`resource:private:${testUid}:project:one`, { id: 'one' });
     await writeOfflineValue('resource:private:another-user:project:two', { id: 'two' });
