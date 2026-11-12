@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import { getProjectLocalDateKey } from '@/entities/project/model/history';
+import { getProjectLocalDateKey } from '@/entities/project';
 import { LoadingSpinner } from '@/shared/ui';
 
 interface ProjectTaskCompletionDateProps {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchSharedBudget } from '@/entities/budget/api/firestore';
-import { sharedBudgetView, type SharedBudget } from '@/entities/budget';
+import { fetchSharedBudget, sharedBudgetView, type SharedBudget } from '@/entities/budget';
 import { unitLabel } from '@/shared/types';
 import { formatCurrency } from '@/shared/lib';
 import { Card, ExportPdfButton, OfflineUnavailable, Skeleton } from '@/shared/ui';

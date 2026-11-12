@@ -1,10 +1,9 @@
 import { ArrowRight, FolderOpen, UsersRound } from 'lucide-react';
-import { ProjectStatusTag, useProjectStore } from '@/entities/project';
+import { ProjectProgressBar, ProjectStatusTag, useProjectStore } from '@/entities/project';
 import { formatCurrency } from '@/shared/lib';
 import { Button, PageHeader, PageLink, Skeleton } from '@/shared/ui';
 import { OfflineUnavailable } from '@/shared/ui/OfflineUnavailable';
 import { useNetworkStore } from '@/shared/model/network';
-import { ProjectProgressBar } from './ProjectProgressBar';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
 
 function dateLabel(value: string) {

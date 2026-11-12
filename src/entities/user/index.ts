@@ -1,1 +1,1 @@
-export { useUserStore, setUserAuthGetter, FREE_BUDGET_LIMIT } from './model/store';
+export { useUserStore, resetUserStore, setUserAuthGetter, FREE_BUDGET_LIMIT } from './model/store';

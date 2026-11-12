@@ -5,6 +5,7 @@ import { useAuthStore } from '@/entities/auth';
 import { useBudgetStore } from '@/entities/budget';
 import {
   getProjectLocalDateKey,
+  ProjectProgressBar,
   ProjectStatusTag,
   useProjectStore,
   type ProjectDetail,
@@ -25,7 +26,6 @@ import {
 import { unitLabel } from '@/shared/types';
 import { getMemoryResource } from '@/shared/lib/memoryResourceCache';
 import { useNetworkStore } from '@/shared/model/network';
-import { ProjectProgressBar } from '@/pages/projects/ProjectProgressBar';
 import { ProjectProgressHistoryDialog } from './ProjectProgressHistoryDialog';
 import { ProjectTaskCompletionDate } from './ProjectTaskCompletionDate';
 import { ProjectEstimatedEndDate } from './ProjectEstimatedEndDate';

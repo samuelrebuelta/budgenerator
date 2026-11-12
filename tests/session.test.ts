@@ -17,15 +17,15 @@ vi.mock('@/shared/model/sync', () => ({
   hasPendingWrites: fakes.hasPendingWrites,
   scheduleFlushWrites: vi.fn(),
 }));
-vi.mock('@/entities/budget/model/store', () => ({
+vi.mock('@/entities/budget', () => ({
   useBudgetStore: { getState: () => ({ loadBudgets: fakes.loadBudgets }) },
   resetBudgetStore: fakes.reset,
 }));
-vi.mock('@/entities/catalog/model/store', () => ({
+vi.mock('@/entities/catalog', () => ({
   useCatalogStore: { getState: () => ({ loadCatalogs: fakes.loadCatalogs }) },
   resetCatalogStore: fakes.reset,
 }));
-vi.mock('@/entities/profile/model/store', () => ({
+vi.mock('@/entities/profile', () => ({
   useProfileStore: { getState: () => ({ loadProfile: fakes.loadProfile }) },
   resetProfileStore: fakes.reset,
 }));
@@ -34,11 +34,11 @@ vi.mock('@/entities/project', () => ({
   resetProjectStore: fakes.reset,
 }));
 vi.mock('@/entities/workforce', () => ({ resetWorkforceStore: fakes.reset }));
-vi.mock('@/entities/template/model/store', () => ({
+vi.mock('@/entities/template', () => ({
   useTemplateStore: { getState: () => ({ loadTemplates: fakes.loadTemplates }) },
   resetTemplateStore: fakes.reset,
 }));
-vi.mock('@/entities/user/model/store', () => ({
+vi.mock('@/entities/user', () => ({
   useUserStore: { getState: () => ({ loadUserData: fakes.loadUserData }) },
   resetUserStore: fakes.reset,
 }));

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { calculateProjectProgressHistory } from '@/entities/project/model/history';
+import { calculateProjectProgressHistory } from '@/entities/project';
 import type { ProjectProgressMode, ProjectWorkItem } from '@/entities/project';
 import { Button, Modal } from '@/shared/ui';
 

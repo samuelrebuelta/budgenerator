@@ -1,5 +1,6 @@
 export {
   useCatalogStore,
+  resetCatalogStore,
   setCatalogAuthGetter,
   useCatalogView,
   getCatalogContent,

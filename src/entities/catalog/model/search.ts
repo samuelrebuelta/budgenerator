@@ -1,12 +1,7 @@
 import type { CatalogPart, Tariff } from '@/shared/types';
-export const normalizeCatalogText = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es')
-    .trim();
-export const compareSpanish = (a: string, b: string) =>
-  a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true });
+import { compareSpanish, normalizeCatalogText } from '@/shared/lib/text';
+
+export { compareSpanish, normalizeCatalogText };
 export function searchTariffs(tariffs: readonly Tariff[], query: string): Tariff[] {
   const words = normalizeCatalogText(query).split(/\s+/).filter(Boolean);
   return tariffs
