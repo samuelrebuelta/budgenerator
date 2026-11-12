@@ -14,6 +14,8 @@ export default defineConfig({
             { name: 'firebase-firestore', test: /node_modules[\\/]@firebase[\\/]firestore/ },
             { name: 'firebase-auth', test: /node_modules[\\/]@firebase[\\/]auth/ },
             { name: 'react-core', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            // One shared chunk instead of dozens of sub-kilobyte icon chunks.
+            { name: 'icons', test: /node_modules[\\/]lucide-react[\\/]/ },
           ],
         },
       },
@@ -23,8 +25,13 @@ export default defineConfig({
     port: 3000,
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Optional jsPDF dependencies (`.html()` and SVG) that the PDF export never uses.
+      {
+        find: /^(html2canvas|dompurify|canvg)$/,
+        replacement: path.resolve(__dirname, './src/shared/lib/stubs/unsupportedOptionalModule.ts'),
+      },
+    ],
   },
 });
