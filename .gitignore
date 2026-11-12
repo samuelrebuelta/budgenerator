@@ -39,3 +39,7 @@ test-artifacts/
 
 # Intermediate PDF QA
 tmp/
+
+# Claude Code (local)
+.claude/worktrees/
+.claude/settings.local.json
