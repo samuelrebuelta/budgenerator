@@ -1,6 +1,6 @@
 # BudGenerator — Plan vigente
 
-Actualizado el 09-11-2026. Para trabajar en una tarea, consulta el área correspondiente en [AGENTS.md](../AGENTS.md). El [archivo del plan](archive/plan-history.md) conserva las entregas, verificaciones y decisiones históricas.
+Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área correspondiente en [AGENTS.md](../AGENTS.md). El [archivo del plan](archive/plan-history.md) conserva las entregas, verificaciones y decisiones históricas.
 
 ## Estado actual
 
@@ -8,13 +8,22 @@ Actualizado el 09-11-2026. Para trabajar en una tarea, consulta el área corresp
 - **BG-005 y BG-010.** Estimador público y solicitudes publicados para pruebas. Los avisos son push y se activan por dispositivo.
 - **BG-007 a BG-009.** UX, catálogo único, creación guiada y seguimiento de proyectos integrados. Queda como seguimiento opcional comprobar teclado, área segura y gestos en PWA física.
 - **BG-011 y BG-012.** Planificación semanal, gestión de equipo, consulta offline y refresco al recuperar conexión integrados y desplegados. La [especificación offline](specs/BG-012-modo-offline.md) describe el contrato.
-- **Base de frontend (fase 1).** Tokens semánticos y CSS por capas, primitivas de `shared/ui`, Equipo dividido en tres rutas, carga diferida de la sesión, i18next retirado y splash de iOS, según el [análisis del frontend](analysis/frontend-pwa.md). La fase 2 aplica las primitivas y los tokens en las pantallas de presupuestos, catálogo, proyectos, cuenta y login.
-
-- **Endurecimiento del back (12-11-2026).** En `claude/backend-hardening`, sin desplegar: despliegue con guardarraíles y alias de staging, Functions en `europe-southwest1` con Node 24, App Check en observación, límites anti-abuso, verificación de email, borrado y exportación de cuenta, retención de leads y enlaces, admin por custom claim, textos legales plantilla, logo comprimido, push multiplataforma y logs estructurados. Pendiente: tareas de consola y orden de publicación en [Firebase](firebase.md#tareas-del-propietario-en-consola-o-gcloud) y [Estabilización](archive/stability-and-release.md#endurecimiento-del-back-12-11-2026).
+- **Integración del 13-11-2026 (rama `claude/project-analysis-improvement-914b89`, sin desplegar).** Reúne CI arreglada, contexto para agentes (`CLAUDE.md`, skills y subagentes), endurecimiento del back, el modelo canónico BC3 y la base de frontend:
+  - **Back.** Despliegue con guardarraíles y alias de staging, Functions en `europe-southwest1` con Node 24, App Check en observación, límites anti-abuso, verificación de email (también para crear enlaces públicos), borrado y exportación de cuenta, retención de leads y enlaces, admin por custom claim, textos legales plantilla, push multiplataforma y logs estructurados.
+  - **BC3.** El modelo FIEBDC es la única fuente de verdad de presupuestos, catálogo, plantillas, enlaces públicos y proyectos, con importación y exportación `.bc3` en Catálogo, Presupuestos y Plantillas. Ver [spec](specs/2026-10-19-bc3-intercambio-design.md) y [plan](specs/plans/2026-10-19-bc3-intercambio.md).
+  - **Frontend.** Tokens semánticos y CSS por capas, primitivas de `shared/ui`, Equipo dividido en tres rutas, carga diferida de la sesión, i18next retirado, splash de iOS y fronteras FSD en ESLint, según el [análisis del frontend](analysis/frontend-pwa.md).
+  - **Documentación.** Históricos en `archive/`, specs y planes unificados en `specs/` con [índice](specs/README.md) y `pnpm docs:check` en CI.
+  - **Verificación local.** `pnpm lint`, `format:check`, `test` (295), `build`, reglas con emulador (93) y E2E con emuladores (49/49 tras los arreglos de esta integración).
+- **Pendiente de la integración.**
+  - Tareas de consola del propietario antes de publicar: ver [Firebase](firebase.md#tareas-del-propietario-en-consola-o-gcloud).
+  - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
+  - Comprobar teclado, área segura y gestos en una PWA física.
+  - Decisiones de producto abiertas: retención de leads (borrar o anonimizar), límites por IP, decisiones D1–D10 de la [app nativa](analysis/native-app-plan.md).
 
 ## Trabajo futuro y decisiones
 
-- **BC3 (12-11-2026).** En `claude/bc3-canonical`, sin desplegar: el modelo FIEBDC es la única fuente de verdad de presupuestos, catálogo, plantillas, enlaces públicos y proyectos, con importación y exportación `.bc3` integradas en Catálogo, Presupuestos y Plantillas. Pendiente: validar con archivos reales de Presto, Arquímedes y TCQ. Ver [spec](specs/2026-10-19-bc3-intercambio-design.md) y [plan](specs/plans/2026-10-19-bc3-intercambio.md).
+- **App nativa.** Plan con React Native + Expo en el [análisis](analysis/native-app-plan.md) (BG-N01, propuesto).
+- **Lanzamiento.** Viabilidad y campaña en Meta en el [análisis de mercado](analysis/market-viability-meta-ads.md).
 - **BG-004.** Monetización y Stripe aplazados hasta validar el MVP. Se mantienen los planes y la administración actuales.
 - **BG-006.** Generación con IA retirada del roadmap. El asistente es el flujo vigente de creación guiada.
 

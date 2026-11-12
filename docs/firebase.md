@@ -187,7 +187,7 @@ La suite de navegador (`test:integration`) se ejecuta en CI, no en el script. CI
 
 Los contadores son ventanas fijas en `abuseRateLimits`, con el sujeto hasheado y TTL en `expiresAt`. Son aproximados (lectura + `increment` sin transacción) para no bloquear los documentos globales; en una ráfaga concurrente pueden excederse en unas pocas unidades. Una petición inválida también consume cupo. Al superar el límite de push, el lead se guarda igual y aparece en Solicitudes, pero no genera aviso; el trigger también descarta eventos con más de 6 h.
 
-**Verificación de email.** El alta envía el email de verificación. Mi cuenta y el estimador muestran un aviso con «Reenviar email» y «Ya lo he verificado», que recarga el usuario y fuerza un token nuevo. Las reglas exigen `email_verified` para guardar `quoteEstimator/settings` y la callable `publishPublicEstimator` lo exige para publicar. Presupuestos, catálogo y proyectos no lo exigen. Queda pendiente exigirlo también al crear `sharedBudgets` (ese bloque lo reescribe el trabajo BC3; añadir `verifiedEmail()` al integrar). La contraseña mínima pasa a 8 caracteres en la UI; la política de Auth se configura en consola.
+**Verificación de email.** El alta envía el email de verificación. Mi cuenta y el estimador muestran un aviso con «Reenviar email» y «Ya lo he verificado», que recarga el usuario y fuerza un token nuevo. Las reglas exigen `email_verified` para guardar `quoteEstimator/settings` y la callable `publishPublicEstimator` lo exige para publicar. Crear un enlace público (`sharedBudgets`) también lo exige. Presupuestos, catálogo y proyectos no lo exigen. La contraseña mínima pasa a 8 caracteres en la UI; la política de Auth se configura en consola.
 
 ### RGPD
 
