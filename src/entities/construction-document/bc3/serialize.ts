@@ -58,7 +58,9 @@ export function serializeBc3(
   const lines: string[] = [];
 
   const version = /^FIEBDC-3\/\d{2,4}$/i.test(header.version) ? header.version : APP_FIEBDC_VERSION;
-  const title = work ? document.business.address || header.title : document.business.name || header.title;
+  const title = work
+    ? document.business.address || header.title
+    : document.business.name || header.title;
   lines.push(
     `~V|${f(header.owner)}|${version}\\${ddmmyyyy(options.now ?? new Date())}|${APP_PROGRAM}|${[
       title,
@@ -90,8 +92,10 @@ export function serializeBc3(
   });
   for (const concept of Object.values(document.concepts)) {
     const prices = [...concept.prices];
-    if (structuralPrice.has(concept.id)) prices[0] = formatFixed(structuralPrice.get(concept.id)!, decimals.amount);
-    else if (concept.decomposition.length) prices[0] = formatFixed(rate(concept.id), decimals.price);
+    if (structuralPrice.has(concept.id))
+      prices[0] = formatFixed(structuralPrice.get(concept.id)!, decimals.amount);
+    else if (concept.decomposition.length)
+      prices[0] = formatFixed(rate(concept.id), decimals.price);
     const codes = [codeOf(concept), ...(concept.synonyms ?? [])].map(f).join('\\');
     lines.push(
       `~C|${codes}|${f(concept.unit)}|${f(concept.id === root.id ? title || concept.summary : concept.summary)}|${prices.map(f).join('\\')}${prices.length ? '\\' : ''}|${concept.dates.map(f).join('\\')}${concept.dates.length ? '\\' : ''}|${f(concept.type)}|`,
@@ -106,10 +110,17 @@ export function serializeBc3(
     const quadruple = entries.some((entry) => entry.masks?.length);
     const body = entries
       .map((entry) =>
-        [f(entry.code), entry.factor, entry.yield, ...(quadruple ? [(entry.masks ?? []).map(f).join(';')] : [])].join('\\'),
+        [
+          f(entry.code),
+          entry.factor,
+          entry.yield,
+          ...(quadruple ? [(entry.masks ?? []).map(f).join(';')] : []),
+        ].join('\\'),
       )
       .join('\\');
-    lines.push(quadruple ? `~D|${f(codeOf(parent))}||${body}\\|` : `~D|${f(codeOf(parent))}|${body}\\|`);
+    lines.push(
+      quadruple ? `~D|${f(codeOf(parent))}||${body}\\|` : `~D|${f(codeOf(parent))}|${body}\\|`,
+    );
   };
   const structureLines = (nodes: FiebdcNode[]) =>
     nodes.map((node) => {
@@ -153,7 +164,8 @@ export function serializeBc3(
       );
 
   for (const concept of Object.values(document.concepts))
-    if (concept.text) lines.push(`~T|${f(codeOf(concept))}|${cleanField(concept.text, replaced, true)}|`);
+    if (concept.text)
+      lines.push(`~T|${f(codeOf(concept))}|${cleanField(concept.text, replaced, true)}|`);
 
   const measurementRecords = (nodes: FiebdcNode[], parent: FiebdcConcept, path: number[]) =>
     nodes.forEach((node, index) => {
@@ -169,7 +181,11 @@ export function serializeBc3(
         .map((line) =>
           [
             line.type,
-            f([line.comment, ...(line.bimIds ?? []).map((id) => `#${id}`)].filter(Boolean).join(' ')),
+            f(
+              [line.comment, ...(line.bimIds ?? []).map((id) => `#${id}`)]
+                .filter(Boolean)
+                .join(' '),
+            ),
             line.units ?? '',
             line.length ?? '',
             line.width ?? '',
@@ -184,7 +200,8 @@ export function serializeBc3(
     });
   measurementRecords(document.tree, root, []);
 
-  for (const record of document.extensions) lines.push(record.raw.replace(/\r?\n/g, '\r\n').replace(/\|?$/, '|'));
+  for (const record of document.extensions)
+    lines.push(record.raw.replace(/\r?\n/g, '\r\n').replace(/\|?$/, '|'));
 
   if (replaced.size)
     warnings.push(
@@ -194,7 +211,9 @@ export function serializeBc3(
     const excluded = [
       document.business.clientName && 'cliente',
       document.business.budgetNumber && 'número de presupuesto',
-      document.business.adjustment && document.business.adjustment.multiplier !== 1 && 'ajuste de precios',
+      document.business.adjustment &&
+        document.business.adjustment.multiplier !== 1 &&
+        'ajuste de precios',
     ].filter(Boolean);
     if (excluded.length)
       warnings.push(

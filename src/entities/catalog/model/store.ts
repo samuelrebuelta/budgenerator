@@ -168,7 +168,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => {
         if (normalizeText(chapter) !== normalizeText(scope.partName)) return false;
         if (scope.type === 'part' || !item) return true;
         return (
-          item.unit === scope.unit && normalizeText(item.summary) === normalizeText(scope.description)
+          item.unit === scope.unit &&
+          normalizeText(item.summary) === normalizeText(scope.description)
         );
       };
       let result: TradeImportResult = { addedParts: 0, addedConcepts: 0 };

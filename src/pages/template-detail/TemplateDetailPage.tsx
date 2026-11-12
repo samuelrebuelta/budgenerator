@@ -102,7 +102,8 @@ function TemplateEditor({
     setSaveError('');
     try {
       if (!activeRecord) return;
-      const name = templateName.trim() || (isNew ? t('templates.untitled') : template!.document.business.name);
+      const name =
+        templateName.trim() || (isNew ? t('templates.untitled') : template!.document.business.name);
       const document = {
         ...activeRecord.document,
         business: { ...activeRecord.document.business, name },
@@ -189,10 +190,10 @@ function TemplateEditor({
                       name={`plantilla-${templateName || 'budgenerator'}`}
                     />
                   )}
-                <Button onClick={handleSave} loading={saving}>
-                  <Save size={16} />
-                  {saving ? t('common.saving') : t('common.save')}
-                </Button>
+                  <Button onClick={handleSave} loading={saving}>
+                    <Save size={16} />
+                    {saving ? t('common.saving') : t('common.save')}
+                  </Button>
                 </div>
               </div>
             </div>

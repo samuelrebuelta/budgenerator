@@ -60,10 +60,11 @@ function mapNodes(
   const result: FiebdcNode[] = [];
   for (const node of nodes) {
     const children = mapNodes(node.children, update);
-    const withChildren = children.length === node.children.length &&
+    const withChildren =
+      children.length === node.children.length &&
       children.every((child, i) => child === node.children[i])
-      ? node
-      : { ...node, children };
+        ? node
+        : { ...node, children };
     const next = update(withChildren);
     if (next) result.push(next);
   }
@@ -534,9 +535,24 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
   if (looseItems.length) {
     const virtualConcept = '__loose__';
     visit(
-      { id: '__loose__', conceptId: virtualConcept, factor: '', quantity: '1', children: looseItems },
+      {
+        id: '__loose__',
+        conceptId: virtualConcept,
+        factor: '',
+        quantity: '1',
+        children: looseItems,
+      },
       ROOT_CHAPTER_ID,
-      { id: virtualConcept, code: 'SINCAP#', unit: '', summary: ROOT_CHAPTER_NAME, prices: [], dates: [], type: '0', decomposition: [] },
+      {
+        id: virtualConcept,
+        code: 'SINCAP#',
+        unit: '',
+        summary: ROOT_CHAPTER_NAME,
+        prices: [],
+        dates: [],
+        type: '0',
+        decomposition: [],
+      },
     );
   }
   return { document, addedParts, addedConcepts };

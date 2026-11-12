@@ -1,4 +1,7 @@
-import { projectWorkItems, type ConstructionDocument } from '@/entities/construction-document/model';
+import {
+  projectWorkItems,
+  type ConstructionDocument,
+} from '@/entities/construction-document/model';
 import { createSupplementWorkItem } from './supplements';
 import type { ProjectSupplement, ProjectSupplementVoid, ProjectWorkItem } from './types';
 
@@ -20,17 +23,15 @@ export function buildProjectWorkItems(
 ): ProjectWorkItem[] {
   const budgetItems = projectWorkItems(document)
     .filter((workItem) => workItem.tasks.length > 0)
-    .map(
-      (workItem, position): ProjectWorkItem => ({
-        id: workItem.id,
-        name: workItem.name,
-        position,
-        ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
-        tasks: workItem.tasks.map((task) =>
-          completed[task.id] ? { ...task, completedAt: completed[task.id] } : { ...task },
-        ),
-      }),
-    );
+    .map((workItem, position): ProjectWorkItem => ({
+      id: workItem.id,
+      name: workItem.name,
+      position,
+      ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
+      tasks: workItem.tasks.map((task) =>
+        completed[task.id] ? { ...task, completedAt: completed[task.id] } : { ...task },
+      ),
+    }));
   const voids = new Map(supplementVoids.map((item) => [item.supplementId, item.voidedAt]));
   const supplementItems = [...supplements]
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))

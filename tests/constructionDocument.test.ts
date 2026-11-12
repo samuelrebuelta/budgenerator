@@ -41,7 +41,11 @@ describe('decimal policy', () => {
       [1.5, 19.99],
       [7, 1.005],
     ] as const)
-      document = addItem(document, chapter.chapterId, { description: 'x', quantity, price }).document;
+      document = addItem(document, chapter.chapterId, {
+        description: 'x',
+        quantity,
+        price,
+      }).document;
     const totals = calculateConstructionTotals(document);
     // 3 × 0.34 = 1.02; 1.5 × 19.99 = 29.985 → 29.99; 7 × 1.01 = 7.07
     expect(totals.raw).toBe(38.08);

@@ -128,7 +128,9 @@ const BudgetTaskItem = memo(function BudgetTaskItem({
           </button>
         </>
       }
-      detail={showDetail ? <LineDetail taskId={task.id} onClose={() => setShowDetail(false)} /> : null}
+      detail={
+        showDetail ? <LineDetail taskId={task.id} onClose={() => setShowDetail(false)} /> : null
+      }
       mobileFooter={{
         label: t('editor.amount'),
         value: <span className="font-semibold text-gray-700">{formatCurrency(amount)}</span>,
@@ -214,7 +216,9 @@ export function BudgetEditor() {
               </div>
 
               {workItem.id === ROOT_CHAPTER_ID ? (
-                <span className="font-semibold text-gray-900 text-sm uppercase">{workItem.name}</span>
+                <span className="font-semibold text-gray-900 text-sm uppercase">
+                  {workItem.name}
+                </span>
               ) : (
                 <input
                   aria-label="Nombre del capítulo"

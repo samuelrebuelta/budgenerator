@@ -28,7 +28,7 @@ const validNumber = (value: string | undefined) =>
 export function LineDetail({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const record = useActiveBudgetRecord();
   const setTaskMeasurements = useBudgetStore((s) => s.setTaskMeasurements);
-  const useDirectTaskPrice = useBudgetStore((s) => s.useDirectTaskPrice);
+  const setDirectTaskPrice = useBudgetStore((s) => s.setDirectTaskPrice);
   const node = record ? findNode(record.document.tree, taskId)?.node : undefined;
   const [lines, setLines] = useState<LineDraft[]>(() =>
     structuredClone(node?.measurement?.lines ?? []),
@@ -155,7 +155,11 @@ export function LineDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               {
                 type: '',
                 comment: '',
-                units: lines.length ? '1' : node.quantity && node.quantity !== '0' ? node.quantity : '1',
+                units: lines.length
+                  ? '1'
+                  : node.quantity && node.quantity !== '0'
+                    ? node.quantity
+                    : '1',
               },
             ])
           }
@@ -182,8 +186,7 @@ export function LineDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               return (
                 <li key={index} className="flex flex-wrap justify-between gap-2 py-1">
                   <span>
-                    <code className="text-xs text-gray-500">{child?.code}</code>{' '}
-                    {child?.summary}
+                    <code className="text-xs text-gray-500">{child?.code}</code> {child?.summary}
                   </span>
                   <span className="tabular-nums text-gray-600">
                     {line.yield || '1'} {unitLabel(child?.unit ?? '')}
@@ -193,7 +196,11 @@ export function LineDetail({ taskId, onClose }: { taskId: string; onClose: () =>
               );
             })}
           </ul>
-          <Button variant="ghost" className="mt-1 text-xs" onClick={() => useDirectTaskPrice(taskId)}>
+          <Button
+            variant="ghost"
+            className="mt-1 text-xs"
+            onClick={() => setDirectTaskPrice(taskId)}
+          >
             Usar el precio como precio directo
           </Button>
         </div>

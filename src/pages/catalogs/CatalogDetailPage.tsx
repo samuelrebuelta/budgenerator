@@ -135,15 +135,12 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
   const submitConcept = (partId: string) => {
     const description = newDescription.trim();
     if (!description) return;
-    addConcept(
-      partId,
-      {
-        description,
-        unit: newUnit,
-        basePrice: decimal(newPrice),
-        cost: decimal(newCost),
-      },
-    );
+    addConcept(partId, {
+      description,
+      unit: newUnit,
+      basePrice: decimal(newPrice),
+      cost: decimal(newCost),
+    });
     setNewDescription('');
     setNewUnit('m2');
     setNewPrice('');
@@ -219,7 +216,9 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
           className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
           <p className="font-semibold">El catálogo se ha guardado desde otro dispositivo.</p>
-          <p className="mt-1">Tus últimos cambios no se han guardado. Elige qué versión conservar.</p>
+          <p className="mt-1">
+            Tus últimos cambios no se han guardado. Elige qué versión conservar.
+          </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => void reloadCatalog()}>
               Cargar la versión guardada
@@ -457,41 +456,29 @@ function CatalogEditor({ catalog }: { catalog: CatalogView }) {
                                       type: 'text',
                                       value: concept.description,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { description: value },
-                                        ),
+                                        updateConcept(part.id, concept.id, { description: value }),
                                     },
                                     unit: {
                                       type: 'unit-select',
                                       value: concept.unit,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { unit: value },
-                                        ),
+                                        updateConcept(part.id, concept.id, { unit: value }),
                                     },
                                     cost: {
                                       type: 'number',
                                       value: concept.cost,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { cost: decimal(value) },
-                                        ),
+                                        updateConcept(part.id, concept.id, {
+                                          cost: decimal(value),
+                                        }),
                                     },
                                     pvp: {
                                       type: 'number',
                                       value: concept.basePrice,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { basePrice: decimal(value) },
-                                        ),
+                                        updateConcept(part.id, concept.id, {
+                                          basePrice: decimal(value),
+                                        }),
                                     },
                                     margin: {
                                       type: 'display',

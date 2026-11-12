@@ -114,14 +114,14 @@ function asSettings(value: unknown): QuoteEstimatorSettings {
 }
 
 /** Reads the canonical FIEBDC catalog (root + content chunks) and derives its chapter view. */
-async function getCatalogValues(uid: string): Promise<{ parts: CatalogPart[]; legacyTariffs: Tariff[] }> {
-  const unavailable = () =>
-    new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
+async function getCatalogValues(
+  uid: string,
+): Promise<{ parts: CatalogPart[]; legacyTariffs: Tariff[] }> {
+  const unavailable = () => new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
   for (let attempt = 0; attempt < 3; attempt++) {
     const root = await catalogRef(uid).get();
     const data = root.data() as
-      | { revision?: number; contentRevision?: number; chunkCount?: number }
-      | undefined;
+      { revision?: number; contentRevision?: number; chunkCount?: number } | undefined;
     if (!data || !Number.isInteger(data.chunkCount) || !Number.isInteger(data.contentRevision))
       throw unavailable();
     const chunks = await Promise.all(

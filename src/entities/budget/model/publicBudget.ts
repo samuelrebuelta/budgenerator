@@ -71,13 +71,14 @@ export function buildSharedBudget(
       date: business.date,
       budgetNumber: business.budgetNumber,
       ivaRate: business.ivaRate,
-      ...(multiplier < 1 ? { adjustment: { multiplier, reason: business.adjustment!.reason } } : {}),
+      ...(multiplier < 1
+        ? { adjustment: { multiplier, reason: business.adjustment!.reason } }
+        : {}),
       createdAt: record.createdAt,
     },
     content,
   };
 }
-
 
 /** Derived view of a public snapshot. Prices in the snapshot already include the adjustment. */
 export function sharedBudgetView(shared: SharedBudget): PublicBudget {

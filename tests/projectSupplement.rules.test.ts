@@ -10,7 +10,11 @@ import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from '
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
 import type { Project } from '../src/entities/project/model/types';
 import { seedBudget, user } from './fixtures';
-import { addChapter, addItem, createEmptyDocument } from '../src/entities/construction-document/model';
+import {
+  addChapter,
+  addItem,
+  createEmptyDocument,
+} from '../src/entities/construction-document/model';
 
 function sourceDocument() {
   let document = createEmptyDocument('budget', {

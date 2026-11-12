@@ -1,4 +1,7 @@
-import { projectWorkItems, type ConstructionDocument } from '@/entities/construction-document/model';
+import {
+  projectWorkItems,
+  type ConstructionDocument,
+} from '@/entities/construction-document/model';
 import type { BudgetTemplate } from '@/shared/types';
 
 export interface TemplateRecord {

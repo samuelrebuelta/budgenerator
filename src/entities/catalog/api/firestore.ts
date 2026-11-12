@@ -31,7 +31,10 @@ export async function fetchCatalog(uid: string): Promise<CatalogRecord | null> {
 }
 
 /** Creates the catalog from a seed only if it does not exist yet (idempotent across tabs). */
-export async function ensureCatalog(uid: string, seed: ConstructionDocument): Promise<CatalogRecord> {
+export async function ensureCatalog(
+  uid: string,
+  seed: ConstructionDocument,
+): Promise<CatalogRecord> {
   const existing = await fetchCatalog(uid);
   if (existing) return existing;
   const now = new Date().toISOString();

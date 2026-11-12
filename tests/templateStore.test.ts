@@ -51,7 +51,9 @@ it('saves an edited template against its revision', async () => {
   ]);
   await useTemplateStore.getState().loadTemplates('alice');
   const node = document.tree[0]!.children[0]!;
-  await useTemplateStore.getState().updateTemplate('t', updateItem(document, node.id, { quantity: 4 }));
+  await useTemplateStore
+    .getState()
+    .updateTemplate('t', updateItem(document, node.id, { quantity: 4 }));
   expect(api.saveTemplate.mock.calls[0]![2]).toBe(3);
   const saved = useTemplateStore.getState().templates[0]!;
   expect(saved.revision).toBe(4);

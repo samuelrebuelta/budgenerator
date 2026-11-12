@@ -231,7 +231,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       clientName,
     );
     if (!isSessionCurrent(uid, revision)) return;
-    const sourceBudgetId = get().projects.find((project) => project.id === projectId)?.sourceBudgetId;
+    const sourceBudgetId = get().projects.find(
+      (project) => project.id === projectId,
+    )?.sourceBudgetId;
     if (sourceBudgetId)
       useBudgetStore
         .getState()

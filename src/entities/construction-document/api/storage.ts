@@ -102,7 +102,10 @@ export function businessFromRoot(root: StoredRoot): ConstructionBusiness {
   };
 }
 
-export function assembleDocument(root: StoredRoot, content: ConstructionContent): ConstructionDocument {
+export function assembleDocument(
+  root: StoredRoot,
+  content: ConstructionContent,
+): ConstructionDocument {
   if (content.kind !== root.kind) throw new Error('El contenido no corresponde a su documento.');
   return { ...content, business: businessFromRoot(root) };
 }

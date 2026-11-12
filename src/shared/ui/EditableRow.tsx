@@ -254,7 +254,12 @@ function mobileCell(cell: CellDef, label: string): ReactNode {
       );
     case 'unit-select':
       return (
-        <UnitField label={label} value={cell.value} onChange={cell.onChange} className="line-field" />
+        <UnitField
+          label={label}
+          value={cell.value}
+          onChange={cell.onChange}
+          className="line-field"
+        />
       );
     case 'display':
       return cell.content;

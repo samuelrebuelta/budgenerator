@@ -27,7 +27,9 @@ export function documentTotals(document: ConstructionDocument): ConstructionTota
 
 export function countConceptUsage(content: ConstructionContent): Map<string, number> {
   const usage = new Map<string, number>();
-  walkNodes(content.tree, (node) => usage.set(node.conceptId, (usage.get(node.conceptId) ?? 0) + 1));
+  walkNodes(content.tree, (node) =>
+    usage.set(node.conceptId, (usage.get(node.conceptId) ?? 0) + 1),
+  );
   return usage;
 }
 

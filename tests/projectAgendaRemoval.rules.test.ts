@@ -9,7 +9,11 @@ import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
 import type { Project } from '../src/entities/project/model/types';
 import { seedBudget, user } from './fixtures';
-import { addChapter, addItem, createEmptyDocument } from '../src/entities/construction-document/model';
+import {
+  addChapter,
+  addItem,
+  createEmptyDocument,
+} from '../src/entities/construction-document/model';
 
 let env: RulesTestEnvironment;
 const emulator = new URL(`http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`);
@@ -43,7 +47,10 @@ const project = (): Project => ({
 });
 
 function sourceDocument() {
-  let document = createEmptyDocument('budget', { clientName: 'Cliente de prueba', address: 'Madrid' });
+  let document = createEmptyDocument('budget', {
+    clientName: 'Cliente de prueba',
+    address: 'Madrid',
+  });
   const chapter = addChapter(document, 'Pintura');
   document = chapter.document;
   for (const description of ['Paredes', 'Techo'])

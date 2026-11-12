@@ -16,15 +16,13 @@ import {
   deleteDoc,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  budgetRecord,
-  sampleDocument,
-  seedBudget,
-  storedRoot,
-  user,
-} from './fixtures';
+import { budgetRecord, sampleDocument, seedBudget, storedRoot, user } from './fixtures';
 import { buildSharedBudget } from '../src/entities/budget/model/publicBudget';
-import { contentOf, encodeContent, updateBusiness } from '../src/entities/construction-document/model';
+import {
+  contentOf,
+  encodeContent,
+  updateBusiness,
+} from '../src/entities/construction-document/model';
 import { saveStoredDocument } from '../src/entities/construction-document/api/storage';
 import { createBudgetAcceptanceApi } from '../src/entities/budget/api/acceptance';
 let env: RulesTestEnvironment;
@@ -233,7 +231,9 @@ describe('accepted budgets and projects', () => {
     const db = alice();
     const ref = doc(db, 'users', 'alice', 'budgets', 'existing');
     const acceptance = createBudgetAcceptanceApi(db);
-    expect(await acceptance.acceptBudget('alice', 'existing', '2026-10-18T09:00:00.000Z', 1)).toBe(2);
+    expect(await acceptance.acceptBudget('alice', 'existing', '2026-10-18T09:00:00.000Z', 1)).toBe(
+      2,
+    );
     const changed = updateBusiness(sampleDocument(), { clientName: 'Cambio no permitido' });
     await assertFails(saveStoredDocument(db, ref, changed, 2));
     await assertFails(

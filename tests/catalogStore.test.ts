@@ -43,9 +43,9 @@ it('seeds the canonical catalog with the complete renovation base', async () => 
   expect(view().parts.map((part) => part.name)).toEqual(
     expect.arrayContaining(['Accesibilidad', 'Electricidad', 'Pintura', 'Vidrio']),
   );
-  expect(view().tariffs.every((tariff) => ['m2', 'm3', 'ml', 'ud', 'h'].includes(tariff.unit))).toBe(
-    true,
-  );
+  expect(
+    view().tariffs.every((tariff) => ['m2', 'm3', 'ml', 'ud', 'h'].includes(tariff.unit)),
+  ).toBe(true);
   await store.getState().loadCatalogs('alice');
   expect(api.ensureCatalog).toHaveBeenCalledTimes(1);
 });
@@ -120,14 +120,21 @@ it('imports a trade once and keeps concepts already customized in the catalog', 
 it('merges a BC3 price base once, keeping codes and decompositions', async () => {
   await store.getState().loadCatalogs('alice');
   store.setState({ record: record() });
-  const parsed = parseBc3(new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')), {
-    target: 'catalog',
-  });
+  const parsed = parseBc3(
+    new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')),
+    {
+      target: 'catalog',
+    },
+  );
   const first = await store.getState().importDocument(parsed.document!);
   expect(first).toEqual({ addedParts: 3, addedConcepts: 5 });
   expect(api.saveCatalog).toHaveBeenCalledTimes(1);
   const wall = view().tariffs.find((tariff) => tariff.code === 'E02ALI');
-  expect(wall).toMatchObject({ basePrice: 39.07, composed: true, category: 'Revestimientos y acabados' });
+  expect(wall).toMatchObject({
+    basePrice: 39.07,
+    composed: true,
+    category: 'Revestimientos y acabados',
+  });
   const second = await store.getState().importDocument(parsed.document!);
   expect(second).toEqual({ addedParts: 0, addedConcepts: 0 });
 });
@@ -137,9 +144,12 @@ it('rolls back a failed BC3 import and reports conflicts', async () => {
   const before = record();
   store.setState({ record: before });
   api.saveCatalog.mockRejectedValueOnce(new Error('offline'));
-  const parsed = parseBc3(new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')), {
-    target: 'catalog',
-  });
+  const parsed = parseBc3(
+    new Uint8Array(readFileSync('tests/fixtures/bc3/base-precios-ansi.bc3')),
+    {
+      target: 'catalog',
+    },
+  );
   await expect(store.getState().importDocument(parsed.document!)).rejects.toThrow('offline');
   expect(store.getState().record).toBe(before);
 

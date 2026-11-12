@@ -26,7 +26,11 @@ it('renders long concepts over multiple pages, with consistent public amounts', 
   expect(doc.getNumberOfPages()).toBeGreaterThan(3);
   const publicDoc = buildBudgetDocument(
     sharedBudgetView(
-      buildSharedBudget(budgetRecord(), { name: '', cif: '', address: '', phone: '', email: '' }, 'u'),
+      buildSharedBudget(
+        budgetRecord(),
+        { name: '', cif: '', address: '', phone: '', email: '' },
+        'u',
+      ),
     ),
   );
   expect(publicDoc.output('arraybuffer').byteLength).toBeGreaterThan(3000);

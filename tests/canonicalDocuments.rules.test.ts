@@ -45,7 +45,9 @@ beforeEach(async () => {
   });
 });
 const alice = () =>
-  env.authenticatedContext('alice', { email: 'alice@example.test', email_verified: true }).firestore();
+  env
+    .authenticatedContext('alice', { email: 'alice@example.test', email_verified: true })
+    .firestore();
 const bob = () => env.authenticatedContext('bob', { email: 'bob@example.test' }).firestore();
 
 /** A document large enough to need several 900 KB chunks. */
@@ -155,9 +157,9 @@ describe('optimistic revisions and chunk invariants', () => {
     expect(stored!.document.tree).toEqual(big.tree);
     await assertSucceeds(saveStoredDocument(db, ref, sampleDocument(), 2));
     expect((await getDoc(ref)).data()?.chunkCount).toBe(1);
-    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'b1', 'content', '1'))).exists()).toBe(
-      false,
-    );
+    expect(
+      (await getDoc(doc(db, 'users', 'alice', 'budgets', 'b1', 'content', '1'))).exists(),
+    ).toBe(false);
   });
 
   it('isolates documents per account and deletes root and chunks together', async () => {
@@ -175,9 +177,9 @@ describe('optimistic revisions and chunk invariants', () => {
     await assertFails(deleteDoc(doc(alice(), 'users', 'alice', 'budgets', 'b1', 'content', '0')));
     const db = alice();
     await assertSucceeds(deleteStoredDocument(db, doc(db, 'users', 'alice', 'budgets', 'b1')));
-    expect((await getDoc(doc(db, 'users', 'alice', 'budgets', 'b1', 'content', '0'))).exists()).toBe(
-      false,
-    );
+    expect(
+      (await getDoc(doc(db, 'users', 'alice', 'budgets', 'b1', 'content', '0'))).exists(),
+    ).toBe(false);
   });
 });
 
@@ -218,10 +220,16 @@ describe('templates and the single catalog', () => {
 
   it('keeps legacy flat collections closed', async () => {
     const db = alice();
-    await assertFails(setDoc(doc(db, 'users', 'alice', 'tariffCatalogs', 'main-v1'), { parts: [] }));
+    await assertFails(
+      setDoc(doc(db, 'users', 'alice', 'tariffCatalogs', 'main-v1'), { parts: [] }),
+    );
     await assertFails(setDoc(doc(db, 'users', 'alice', 'tariffs', 'x'), { description: 'x' }));
     await env.withSecurityRulesDisabled(async (ctx) =>
-      seedStoredDocument(ctx.firestore(), ['users', 'alice', 'templates', 't'], sampleDocument('template')),
+      seedStoredDocument(
+        ctx.firestore(),
+        ['users', 'alice', 'templates', 't'],
+        sampleDocument('template'),
+      ),
     );
     await assertSucceeds(getDoc(doc(db, 'users', 'alice', 'templates', 't', 'content', '0')));
   });

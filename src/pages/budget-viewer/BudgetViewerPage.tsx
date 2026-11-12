@@ -217,9 +217,7 @@ function PublicViewer({ token }: { token: string }) {
                       <div className="hidden sm:grid grid-cols-[1fr_10%_10%_12%_12%] gap-px px-4 py-2 text-sm border-b border-gray-50 last:border-b-0">
                         <span className="text-gray-800">{task.description}</span>
                         <span className="text-right text-gray-600">{task.quantity}</span>
-                        <span className="text-center text-gray-600">
-                          {unitLabel(task.unit)}
-                        </span>
+                        <span className="text-center text-gray-600">{unitLabel(task.unit)}</span>
                         <span className="text-right text-gray-600">
                           {formatCurrency(task.price)}
                         </span>
@@ -232,8 +230,7 @@ function PublicViewer({ token }: { token: string }) {
                         <p className="text-sm font-medium text-gray-800">{task.description}</p>
                         <div className="flex justify-between text-xs text-gray-500">
                           <span>
-                            {task.quantity} {unitLabel(task.unit)} ×{' '}
-                            {formatCurrency(task.price)}
+                            {task.quantity} {unitLabel(task.unit)} × {formatCurrency(task.price)}
                           </span>
                           <span className="font-semibold text-gray-700">
                             {formatCurrency(amount)}

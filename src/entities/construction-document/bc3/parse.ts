@@ -130,9 +130,15 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   }
   let text: string;
   try {
-    text = decodeBytes(charset === 'UTF-8' && input[0] === 0xef ? input.subarray(3) : input, charset);
+    text = decodeBytes(
+      charset === 'UTF-8' && input[0] === 0xef ? input.subarray(3) : input,
+      charset,
+    );
   } catch {
-    report('unsupported-character-set', 'El archivo contiene bytes no válidos para su codificación.');
+    report(
+      'unsupported-character-set',
+      'El archivo contiene bytes no válidos para su codificación.',
+    );
     return fail();
   }
   const eof = text.indexOf('\u001a');
@@ -154,7 +160,12 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     const raw = `~${type}${body}`;
     const record: RecordLine = { type, fields: [], raw, index };
     if (!/^[A-Za-z]$/.test(type) || !body.startsWith('|')) {
-      report('invalid-record', `El registro ${index} no tiene un formato FIEBDC válido.`, 'error', record);
+      report(
+        'invalid-record',
+        `El registro ${index} no tiene un formato FIEBDC válido.`,
+        'error',
+        record,
+      );
       return;
     }
     const complete = body.endsWith('|');
@@ -184,8 +195,18 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   if (records.slice(1).some((record) => record.type === 'V'))
     report('invalid-record', 'El archivo contiene más de una cabecera ~V.', 'error');
 
-  const [owner = '', versionField = '', program = '', titleField = '', , comment = '', typeField = '', , , baseUrl = ''] =
-    header.fields;
+  const [
+    owner = '',
+    versionField = '',
+    program = '',
+    titleField = '',
+    ,
+    comment = '',
+    typeField = '',
+    ,
+    ,
+    baseUrl = '',
+  ] = header.fields;
   const [version = '', versionDate = ''] = splitSubfields(versionField);
   const [title = '', ...priceLabels] = splitSubfields(titleField);
   summary.version = version;
@@ -233,7 +254,12 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       header,
     );
   } else {
-    report('unsupported-information-type', `Tipo de información FIEBDC desconocido: ${rawType}.`, 'error', header);
+    report(
+      'unsupported-information-type',
+      `Tipo de información FIEBDC desconocido: ${rawType}.`,
+      'error',
+      header,
+    );
     return fail();
   }
   summary.informationType = informationType;
@@ -256,7 +282,9 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     const third = (kRecord.fields[2] ?? '').split('\\');
     const int = (value: string | undefined, fallback: number) => {
       const parsed = Number((value ?? '').trim());
-      return value?.trim() && Number.isInteger(parsed) && parsed >= 0 && parsed <= 8 ? parsed : fallback;
+      return value?.trim() && Number.isInteger(parsed) && parsed >= 0 && parsed <= 8
+        ? parsed
+        : fallback;
     };
     settings.decimals = {
       quantity: int(third[10], int(first[2], 2)),
@@ -286,7 +314,9 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
         'global-percentages',
         `El archivo define ${applied
           .map(([label, value]) => `${label} ${value} %`)
-          .join(', ')}. Se conservan para exportar, pero el total de BudGenerator es la suma de partidas más IVA; usa el ajuste del presupuesto si quieres aplicarlos.`,
+          .join(
+            ', ',
+          )}. Se conservan para exportar, pero el total de BudGenerator es la suma de partidas más IVA; usa el ajuste del presupuesto si quieres aplicarlos.`,
         'warning',
         kRecord,
       );
@@ -298,14 +328,21 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   let conceptSequence = 0;
   let multiplePrices = false;
   for (const record of records.filter((candidate) => candidate.type === 'C')) {
-    const codes = splitSubfields(record.fields[0]).map((code) => code.trim()).filter(Boolean);
+    const codes = splitSubfields(record.fields[0])
+      .map((code) => code.trim())
+      .filter(Boolean);
     if (!codes.length) {
       report('invalid-record', 'Un registro ~C no tiene código.', 'error', record);
       continue;
     }
     const duplicate = codes.find((code) => byCode.has(bareCode(code)));
     if (duplicate) {
-      report('duplicate-concept', `El código ${duplicate} está definido más de una vez.`, 'error', record);
+      report(
+        'duplicate-concept',
+        `El código ${duplicate} está definido más de una vez.`,
+        'error',
+        record,
+      );
       continue;
     }
     const prices = splitSubfields(record.fields[3]).map((value) => value.trim());
@@ -335,7 +372,9 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
 
   // ~D / ~Y
   const decompositionCodes = new Map<string, { code: string; line: FiebdcDecompositionLine }[]>();
-  for (const record of records.filter((candidate) => candidate.type === 'D' || candidate.type === 'Y')) {
+  for (const record of records.filter(
+    (candidate) => candidate.type === 'D' || candidate.type === 'Y',
+  )) {
     const parent = lookup(record.fields[0] ?? '');
     if (!parent) {
       report(
@@ -357,25 +396,48 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       const factor = (parts[index + 1] ?? '').trim();
       const yieldValue = (parts[index + 2] ?? '').trim();
       const masks = quadruple
-        ? (parts[index + 3] ?? '').split(';').map((mask) => mask.trim()).filter(Boolean)
+        ? (parts[index + 3] ?? '')
+            .split(';')
+            .map((mask) => mask.trim())
+            .filter(Boolean)
         : [];
       if ((factor && !isDecimalText(factor)) || (yieldValue && !isDecimalText(yieldValue)))
-        report('invalid-number', `Factor o rendimiento no numérico en la descomposición de ${parent.code}.`, 'error', record);
+        report(
+          'invalid-number',
+          `Factor o rendimiento no numérico en la descomposición de ${parent.code}.`,
+          'error',
+          record,
+        );
       const child = lookup(code);
       if (!child) {
-        report('unknown-concept-reference', `La descomposición de ${parent.code} referencia ${code}, que no está definido.`, 'error', record);
+        report(
+          'unknown-concept-reference',
+          `La descomposición de ${parent.code} referencia ${code}, que no está definido.`,
+          'error',
+          record,
+        );
         continue;
       }
       lines.push({
         code,
-        line: { conceptId: child.id, factor, yield: yieldValue, ...(masks.length ? { percentageCodes: masks } : {}) },
+        line: {
+          conceptId: child.id,
+          factor,
+          yield: yieldValue,
+          ...(masks.length ? { percentageCodes: masks } : {}),
+        },
       });
     }
     const previous = decompositionCodes.get(parent.id);
     if (record.type === 'Y') decompositionCodes.set(parent.id, [...(previous ?? []), ...lines]);
     else {
       if (previous)
-        report('invalid-record', `La descomposición de ${parent.code} aparece varias veces; se usa la última.`, 'warning', record);
+        report(
+          'invalid-record',
+          `La descomposición de ${parent.code} aparece varias veces; se usa la última.`,
+          'warning',
+          record,
+        );
       decompositionCodes.set(parent.id, lines);
     }
   }
@@ -384,7 +446,12 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   for (const record of records.filter((candidate) => candidate.type === 'T')) {
     const concept = lookup(record.fields[0] ?? '');
     if (!concept) {
-      report('unknown-concept-reference', `~T referencia el concepto inexistente ${record.fields[0] ?? ''}.`, 'warning', record);
+      report(
+        'unknown-concept-reference',
+        `~T referencia el concepto inexistente ${record.fields[0] ?? ''}.`,
+        'warning',
+        record,
+      );
       continue;
     }
     const value = record.fields.slice(1).join('|');
@@ -401,16 +468,28 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   const measurements: PendingMeasurement[] = [];
   const measuredParents = new Set<string>();
   for (const record of records.filter((candidate) => candidate.type === 'M')) {
-    const relation = splitSubfields(record.fields[0]).map((code) => code.trim()).filter(Boolean);
+    const relation = splitSubfields(record.fields[0])
+      .map((code) => code.trim())
+      .filter(Boolean);
     const child = lookup(relation.at(-1) ?? '');
     const parent = relation.length > 1 ? lookup(relation.at(-2)!) : undefined;
     if (!child || (relation.length > 1 && !parent)) {
-      report('unknown-concept-reference', `La medición ${record.fields[0] ?? ''} referencia un concepto inexistente.`, 'error', record);
+      report(
+        'unknown-concept-reference',
+        `La medición ${record.fields[0] ?? ''} referencia un concepto inexistente.`,
+        'error',
+        record,
+      );
       continue;
     }
     const total = (record.fields[2] ?? '').trim();
     if (total && !isDecimalText(total))
-      report('invalid-number', `Medición total no numérica en ${child.code}: «${total}».`, 'error', record);
+      report(
+        'invalid-number',
+        `Medición total no numérica en ${child.code}: «${total}».`,
+        'error',
+        record,
+      );
     const values = (record.fields[3] ?? '').split('\\');
     if (values.at(-1) === '') values.pop();
     const lines: FiebdcMeasurementLine[] = [];
@@ -418,13 +497,26 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       const type = (values[index] ?? '').trim();
       const rawComment = values[index + 1] ?? '';
       const bimIds = [...rawComment.matchAll(/#(\S+)/g)].map((match) => match[1]!);
-      const factors = [values[index + 2], values[index + 3], values[index + 4], values[index + 5]].map(
-        (value) => (value ?? '').trim(),
-      );
+      const factors = [
+        values[index + 2],
+        values[index + 3],
+        values[index + 4],
+        values[index + 5],
+      ].map((value) => (value ?? '').trim());
       if (factors.some((value) => value && !isDecimalText(value)))
-        report('invalid-number', `Línea de medición no numérica en ${child.code}.`, 'error', record);
+        report(
+          'invalid-number',
+          `Línea de medición no numérica en ${child.code}.`,
+          'error',
+          record,
+        );
       if (!['', '1', '2', '3'].includes(type))
-        report('invalid-record', `Tipo de línea de medición desconocido (${type}) en ${child.code}.`, 'error', record);
+        report(
+          'invalid-record',
+          `Tipo de línea de medición desconocido (${type}) en ${child.code}.`,
+          'error',
+          record,
+        );
       const [units, length, width, height] = factors;
       lines.push({
         type: (['1', '2', '3'].includes(type) ? type : '') as FiebdcMeasurementLineType,
@@ -458,7 +550,8 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     [...decompositionCodes.values()].flatMap((lines) => lines.map((item) => item.line.conceptId)),
   );
   let root: FiebdcConcept | undefined;
-  if (roots.length > 1) report('invalid-structure', 'El archivo tiene más de un concepto raíz (##).', 'error');
+  if (roots.length > 1)
+    report('invalid-structure', 'El archivo tiene más de un concepto raíz (##).', 'error');
   else if (roots.length === 1) root = roots[0];
   else if (informationType === 2) {
     const candidates = Object.values(concepts).filter(
@@ -466,14 +559,32 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     );
     if (candidates.length === 1) {
       root = candidates[0];
-      report('invalid-structure', `La obra no marca su raíz con «##»; se usa ${root!.code}.`, 'warning');
-    } else report('invalid-structure', 'No se puede identificar el concepto raíz de la obra (##).', 'error');
+      report(
+        'invalid-structure',
+        `La obra no marca su raíz con «##»; se usa ${root!.code}.`,
+        'warning',
+      );
+    } else
+      report(
+        'invalid-structure',
+        'No se puede identificar el concepto raíz de la obra (##).',
+        'error',
+      );
   }
-  const kind: ConstructionDocumentKind = options.target === 'template' ? 'template' : informationType === 1 || options.target === 'catalog' ? 'catalog' : 'budget';
+  const kind: ConstructionDocumentKind =
+    options.target === 'template'
+      ? 'template'
+      : informationType === 1 || options.target === 'catalog'
+        ? 'catalog'
+        : 'budget';
   if (!root) {
-    root = createConcept(`c${++conceptSequence}`, kind === 'catalog' ? 'CATALOGO##' : 'PRESUPUESTO##', {
-      summary: title,
-    });
+    root = createConcept(
+      `c${++conceptSequence}`,
+      kind === 'catalog' ? 'CATALOGO##' : 'PRESUPUESTO##',
+      {
+        summary: title,
+      },
+    );
     concepts[root.id] = root;
   }
 
@@ -486,10 +597,7 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   let nodeSequence = 0;
   const structural = new Set<string>([root.id]);
   const treeConcepts = new Set<string>();
-  const build = (
-    parent: FiebdcConcept,
-    stack: Set<string>,
-  ): FiebdcNode[] =>
+  const build = (parent: FiebdcConcept, stack: Set<string>): FiebdcNode[] =>
     (decompositionCodes.get(parent.id) ?? []).flatMap(({ line }) => {
       const concept = concepts[line.conceptId]!;
       const node: FiebdcNode = {
@@ -503,7 +611,11 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       if (isChapter(concept, parent)) {
         structural.add(concept.id);
         if (stack.has(concept.id)) {
-          report('invalid-structure', `La estructura de capítulos de ${concept.code} es cíclica.`, 'error');
+          report(
+            'invalid-structure',
+            `La estructura de capítulos de ${concept.code} es cíclica.`,
+            'error',
+          );
           return [];
         }
         if (work && (parseDecimal(line.factor, 1) ?? 0) * (parseDecimal(line.yield, 1) ?? 0) !== 1)
@@ -521,11 +633,16 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
 
   // Item concepts keep their decomposition; chapters keep their structure in the tree.
   for (const [conceptId, lines] of decompositionCodes)
-    if (!structural.has(conceptId)) concepts[conceptId]!.decomposition = lines.map((item) => item.line);
+    if (!structural.has(conceptId))
+      concepts[conceptId]!.decomposition = lines.map((item) => item.line);
   for (const conceptId of structural)
     for (const concept of Object.values(concepts))
       if (concept.decomposition.some((line) => line.conceptId === conceptId))
-        report('invalid-structure', `El capítulo ${concepts[conceptId]!.code} aparece dentro de la descomposición de ${concept.code}.`, 'error');
+        report(
+          'invalid-structure',
+          `El capítulo ${concepts[conceptId]!.code} aparece dentro de la descomposición de ${concept.code}.`,
+          'error',
+        );
 
   // Orphans
   const used = new Set<string>([root.id, ...treeConcepts]);
@@ -542,7 +659,13 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     if (kind === 'catalog') {
       for (const concept of orphans) {
         if (isChapterCode(concept.code)) continue;
-        tree.push({ id: `n${++nodeSequence}`, conceptId: concept.id, factor: '', quantity: '1', children: [] });
+        tree.push({
+          id: `n${++nodeSequence}`,
+          conceptId: concept.id,
+          factor: '',
+          quantity: '1',
+          children: [],
+        });
         used.add(concept.id);
         markUsed(concept.id);
       }
@@ -558,10 +681,16 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   }
 
   // Measurements → nodes
-  const nodesByConcept = new Map<string, { node: FiebdcNode; parent: FiebdcNode | null; position: number }[]>();
+  const nodesByConcept = new Map<
+    string,
+    { node: FiebdcNode; parent: FiebdcNode | null; position: number }[]
+  >();
   const index = (nodes: FiebdcNode[], parent: FiebdcNode | null) =>
     nodes.forEach((node, position) => {
-      nodesByConcept.set(node.conceptId, [...(nodesByConcept.get(node.conceptId) ?? []), { node, parent, position }]);
+      nodesByConcept.set(node.conceptId, [
+        ...(nodesByConcept.get(node.conceptId) ?? []),
+        { node, parent, position },
+      ]);
       index(node.children, node);
     });
   index(tree, null);
@@ -592,16 +721,32 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     if (structural.has(pending.childId)) continue;
     const node = target.node;
     if (node.measurement)
-      report('invalid-record', `La partida ${childCode} tiene varias mediciones; se usa la última.`, 'warning', pending.record);
+      report(
+        'invalid-record',
+        `La partida ${childCode} tiene varias mediciones; se usa la última.`,
+        'warning',
+        pending.record,
+      );
     node.measurement = pending.measurement;
     const declared = parseDecimal(pending.measurement.total ?? '', null);
-    const computed = pending.measurement.lines.length ? measurementLinesTotal(pending.measurement) : null;
+    const computed = pending.measurement.lines.length
+      ? measurementLinesTotal(pending.measurement)
+      : null;
     if (pending.measurement.lines.length && computed === null) {
-      report('measurement-mismatch', `No se puede evaluar una línea de medición de ${childCode}.`, work ? 'error' : 'warning', pending.record);
+      report(
+        'measurement-mismatch',
+        `No se puede evaluar una línea de medición de ${childCode}.`,
+        work ? 'error' : 'warning',
+        pending.record,
+      );
       continue;
     }
     const decimals = settings.decimals.quantity;
-    if (computed !== null && declared !== null && Math.abs(roundTo(computed, decimals) - declared) > 0.5 * 10 ** -decimals)
+    if (
+      computed !== null &&
+      declared !== null &&
+      Math.abs(roundTo(computed, decimals) - declared) > 0.5 * 10 ** -decimals
+    )
       report(
         'measurement-mismatch',
         `La medición de ${childCode} declara ${declared} pero sus líneas suman ${roundTo(computed, decimals)}.`,
@@ -629,7 +774,12 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   for (const record of records) {
     if (INTERPRETED_RECORDS.has(record.type)) continue;
     if (BLOCKING_RECORDS.has(record.type) && work) {
-      report('unsupported-record', `El registro ~${record.type} cambia la estructura o el importe y no está soportado.`, 'error', record);
+      report(
+        'unsupported-record',
+        `El registro ~${record.type} cambia la estructura o el importe y no está soportado.`,
+        'error',
+        record,
+      );
       continue;
     }
     extensions.push({ type: `~${record.type}`, raw: record.raw });
@@ -647,7 +797,11 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   const vat = parseDecimal(settings.percentages.vat, 0) ?? 0;
   const ivaRate = vat > 0 && vat <= 100 ? roundTo(vat / 100, 6) : 0.1;
   if (work && !(vat > 0 && vat <= 100))
-    report('default-vat', 'El archivo no indica IVA; se aplica el 10 % y puedes cambiarlo en el presupuesto.', 'warning');
+    report(
+      'default-vat',
+      'El archivo no indica IVA; se aplica el 10 % y puedes cambiarlo en el presupuesto.',
+      'warning',
+    );
 
   const today = options.today ?? new Date().toLocaleDateString('en-CA');
   const document: ConstructionDocument = {
@@ -680,7 +834,9 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
 
   for (const issue of validateConstructionContent(document))
     report(
-      issue.code === 'unknown-concept-reference' ? 'unknown-concept-reference' : 'invalid-structure',
+      issue.code === 'unknown-concept-reference'
+        ? 'unknown-concept-reference'
+        : 'invalid-structure',
       issue.message,
     );
 
@@ -707,7 +863,10 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       'warning',
     );
 
-  const totals = calculateConstructionTotals({ ...document, business: { ...document.business, adjustment: undefined } });
+  const totals = calculateConstructionTotals({
+    ...document,
+    business: { ...document.business, adjustment: undefined },
+  });
   if (!totals.valid) for (const issue of totals.issues) report('invalid-number', issue.message);
   if (work) {
     summary.computedTotal = totals.raw;
@@ -737,7 +896,9 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   count(tree);
   summary.items = items;
   summary.measuredItems = measuredItems;
-  summary.composedConcepts = Object.values(document.concepts).filter((concept) => concept.decomposition.length).length;
+  summary.composedConcepts = Object.values(document.concepts).filter(
+    (concept) => concept.decomposition.length,
+  ).length;
 
   const blocked = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
   return { document: blocked ? null : document, diagnostics, summary };

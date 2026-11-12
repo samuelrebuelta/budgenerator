@@ -1,9 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, FileUp, Info, X } from 'lucide-react';
-import {
-  parseBc3,
-  type Bc3ParseResult,
-} from '@/entities/construction-document/bc3';
+import { parseBc3, type Bc3ParseResult } from '@/entities/construction-document/bc3';
 import {
   documentTotals,
   isChapterNode,
@@ -16,7 +13,10 @@ import { sessionRevision } from '@/shared/model/session';
 import { Button, Modal } from '@/shared/ui';
 import { readFileBytes } from '../model/download';
 
-const TARGET_COPY: Record<ConstructionDocumentKind, { title: string; confirm: string; hint: string }> = {
+const TARGET_COPY: Record<
+  ConstructionDocumentKind,
+  { title: string; confirm: string; hint: string }
+> = {
   catalog: {
     title: 'Importar base de precios BC3',
     confirm: 'Añadir al catálogo',
@@ -97,7 +97,9 @@ export function ImportBc3Dialog({ target, onConfirm, label = 'Importar BC3', dis
       count(node);
       return {
         id: node.id,
-        name: isChapterNode(node, concept) ? concept?.summary || concept?.code || '' : concept?.summary ?? '',
+        name: isChapterNode(node, concept)
+          ? concept?.summary || concept?.code || ''
+          : (concept?.summary ?? ''),
         chapter: isChapterNode(node, concept),
         items,
         amount: totals.nodes.get(node.id)?.rawAmount ?? 0,
@@ -315,7 +317,9 @@ export function ImportBc3Dialog({ target, onConfirm, label = 'Importar BC3', dis
           <Button
             onClick={() => void confirm()}
             loading={busy}
-            disabled={!document || errors.length > 0 || busy || (target === 'catalog' && !selectedCount)}
+            disabled={
+              !document || errors.length > 0 || busy || (target === 'catalog' && !selectedCount)
+            }
           >
             {copy.confirm}
           </Button>

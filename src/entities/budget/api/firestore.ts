@@ -79,7 +79,10 @@ export async function fetchBudgets(uid: string): Promise<BudgetRecord[]> {
       if (chunks.every((chunk) => chunk.exists() && chunk.data().revision === root.contentRevision))
         return recordFromStored(
           root,
-          assembleDocument(root, decodeContent(chunks.map((chunk) => chunk.data()!.data as string))),
+          assembleDocument(
+            root,
+            decodeContent(chunks.map((chunk) => chunk.data()!.data as string)),
+          ),
         );
       const fresh = await fetchBudget(uid, root.id);
       if (!fresh) throw new Error('Un presupuesto se ha borrado mientras se cargaba.');
@@ -125,7 +128,10 @@ export async function createBudget(
       const user = userSnap.data() as UserData;
       if (existing.exists()) {
         const root = existing.data() as BudgetRoot;
-        return { userData: user, record: { ...record, revision: root.revision, number: root.number } };
+        return {
+          userData: user,
+          record: { ...record, revision: root.revision, number: root.number },
+        };
       }
       if (leadRef && !leadSnap?.exists())
         throw new Error('No se ha encontrado la solicitud de origen.');

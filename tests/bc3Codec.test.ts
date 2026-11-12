@@ -48,9 +48,7 @@ describe('price base import (ANSI)', () => {
 
   it('reads header, prices, synonyms, texts and extensions', () => {
     expect(errors(result)).toEqual([]);
-    expect(codes(result)).toEqual(
-      expect.arrayContaining(['multiple-prices', 'extension-records']),
-    );
+    expect(codes(result)).toEqual(expect.arrayContaining(['multiple-prices', 'extension-records']));
     expect(document.kind).toBe('catalog');
     expect(document.header).toMatchObject({
       version: 'FIEBDC-3/2020',
@@ -301,8 +299,8 @@ describe('export of app documents', () => {
     expect(
       Object.values(again.document!.concepts).find((item) => item.code === 'E03GES')!.summary,
     ).toBe('Contenedor / 5 m³ - grande / ?');
-    expect(
-      Object.values(again.document!.concepts).some((item) => item.cost !== undefined),
-    ).toBe(false);
+    expect(Object.values(again.document!.concepts).some((item) => item.cost !== undefined)).toBe(
+      false,
+    );
   });
 });

@@ -38,7 +38,7 @@ export function splitUtf8(text: string, maxBytes = CONTENT_CHUNK_BYTES): string[
   const chunks: string[] = [];
   let start = 0;
   let bytes = 0;
-  for (let index = 0; index < text.length; ) {
+  for (let index = 0; index < text.length;) {
     const codePoint = text.codePointAt(index)!;
     const width = codePoint > 0xffff ? 2 : 1;
     const size = utf8Length(codePoint);
@@ -56,7 +56,7 @@ export function splitUtf8(text: string, maxBytes = CONTENT_CHUNK_BYTES): string[
 
 export function utf8ByteLength(text: string) {
   let bytes = 0;
-  for (let index = 0; index < text.length; ) {
+  for (let index = 0; index < text.length;) {
     const codePoint = text.codePointAt(index)!;
     bytes += utf8Length(codePoint);
     index += codePoint > 0xffff ? 2 : 1;

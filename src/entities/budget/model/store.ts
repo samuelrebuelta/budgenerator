@@ -34,7 +34,13 @@ import {
   RevisionConflictError,
   RevisionTracker,
 } from '@/entities/construction-document/api/storage';
-import { createBudget, deleteBudgetDoc, fetchBudget, fetchBudgets, saveBudget } from '../api/firestore';
+import {
+  createBudget,
+  deleteBudgetDoc,
+  fetchBudget,
+  fetchBudgets,
+  saveBudget,
+} from '../api/firestore';
 import { createBudgetAcceptanceApi } from '../api/acceptance';
 import { assertPublishable, budgetView, type BudgetRecord } from './record';
 
@@ -85,14 +91,18 @@ interface BudgetState {
   getTaskAmount: (taskId: string) => number;
   updateInfo: (info: Partial<BudgetInfo>) => void;
   addWorkItem: (name: string, catalogPartId?: string) => string | null;
-  appendStructure: (chapters: ChapterInput[], expected: Budget, catalog?: ConstructionContent) => void;
+  appendStructure: (
+    chapters: ChapterInput[],
+    expected: Budget,
+    catalog?: ConstructionContent,
+  ) => void;
   removeWorkItem: (id: string) => void;
   renameWorkItem: (id: string, name: string) => void;
   addTask: (workItemId: string, input?: ItemInput) => string | null;
   removeTask: (workItemId: string, id: string) => void;
   updateTask: (workItemId: string, id: string, patch: ItemInput) => void;
   setTaskMeasurements: (id: string, lines: FiebdcMeasurementLine[]) => void;
-  useDirectTaskPrice: (id: string) => void;
+  setDirectTaskPrice: (id: string) => void;
   applyCatalogConcept: (
     taskId: string,
     catalog: ConstructionContent,
@@ -146,7 +156,9 @@ const queue = new WriteQueue<BudgetRecord>('budget:', async (key, record) => {
     revisions.set(key, revision);
     if (isSessionCurrent(uid, sessionRevision()))
       useBudgetStore.setState((state) => ({
-        records: state.records.map((item) => (item.id === record.id ? { ...item, revision } : item)),
+        records: state.records.map((item) =>
+          item.id === record.id ? { ...item, revision } : item,
+        ),
         conflicts: state.conflicts.filter((id) => id !== record.id),
       }));
   } catch (error) {
@@ -195,7 +207,10 @@ export function resetBudgetStore() {
 
 const today = () => new Date().toLocaleDateString('en-CA');
 
-function draftRecord(document: ConstructionDocument, patch: Partial<BudgetRecord> = {}): BudgetRecord {
+function draftRecord(
+  document: ConstructionDocument,
+  patch: Partial<BudgetRecord> = {},
+): BudgetRecord {
   return { id: '', revision: 0, number: 0, createdAt: '', updatedAt: '', document, ...patch };
 }
 
@@ -270,7 +285,9 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
       if (get().draft && get().draftKey === key) return;
       openDraft(
         key,
-        draftRecord(newBudgetDocument({ clientName: lead.contact.name }), { sourceLeadId: lead.id }),
+        draftRecord(newBudgetDocument({ clientName: lead.contact.name }), {
+          sourceLeadId: lead.id,
+        }),
       );
     },
     startDraftFromTemplate: (template) => {
@@ -497,7 +514,11 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     addWorkItem: (name, catalogPartId) => {
       let chapterId: string | null = null;
       edit((document) => {
-        const added = addChapter(document, name, catalogPartId ? { catalogChapterId: catalogPartId } : {});
+        const added = addChapter(
+          document,
+          name,
+          catalogPartId ? { catalogChapterId: catalogPartId } : {},
+        );
         chapterId = added.chapterId;
         return addItem(added.document, added.chapterId).document;
       });
@@ -536,13 +557,12 @@ export const useBudgetStore = create<BudgetState>((set, get) => {
     updateTask: (_workItemId, id, patch) => edit((document) => updateItem(document, id, patch)),
     setTaskMeasurements: (id, lines) =>
       edit((document) => setMeasurementLines(document, id, lines)),
-    useDirectTaskPrice: (id) => edit((document) => flattenItemPrice(document, id)),
+    setDirectTaskPrice: (id) => edit((document) => flattenItemPrice(document, id)),
     applyCatalogConcept: (taskId, catalog, catalogConceptId, catalogPartId) =>
       edit((document) =>
         applyCatalogConcept(document, taskId, catalog, catalogConceptId, catalogPartId),
       ),
-    updateAdjustment: (adjustment) =>
-      edit((document) => updateBusiness(document, { adjustment })),
+    updateAdjustment: (adjustment) => edit((document) => updateBusiness(document, { adjustment })),
     updateIvaRate: (rate) => edit((document) => updateBusiness(document, { ivaRate: rate })),
     resetBudget: () =>
       edit((document) => {

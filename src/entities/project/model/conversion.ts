@@ -26,12 +26,12 @@ export function prepareProjectSnapshot(
   const workItems: ProjectWorkItem[] = budget.workItems
     .filter((workItem) => workItem.tasks.length > 0)
     .map((workItem, position) => ({
-    id: workItem.id,
-    name: workItem.name,
-    position,
-    ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
-    tasks: workItem.tasks.map((task) => ({ ...task })),
-  }));
+      id: workItem.id,
+      name: workItem.name,
+      position,
+      ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
+      tasks: workItem.tasks.map((task) => ({ ...task })),
+    }));
 
   const workItemIds = new Set<string>();
   for (const workItem of workItems) {

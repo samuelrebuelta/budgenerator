@@ -105,7 +105,9 @@ export function createRateResolver(content: ConstructionContent) {
         continue;
       }
       if (isPercentageCode(child.code)) {
-        const masks = (line.percentageCodes ?? []).map((mask) => bareCode(mask).replace(/[*%?]+$/, ''));
+        const masks = (line.percentageCodes ?? []).map((mask) =>
+          bareCode(mask).replace(/[*%?]+$/, ''),
+        );
         const base = lines
           .filter((item) => !item.percentage)
           .filter((item) => !masks.length || masks.some((mask) => item.code.startsWith(mask)))

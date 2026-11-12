@@ -9,12 +9,7 @@ import {
   type ConstructionDocument,
 } from '@/entities/construction-document/model';
 import { RevisionConflictError } from '@/entities/construction-document/api/storage';
-import {
-  createTemplate,
-  deleteTemplateDoc,
-  fetchTemplates,
-  saveTemplate,
-} from '../api/firestore';
+import { createTemplate, deleteTemplateDoc, fetchTemplates, saveTemplate } from '../api/firestore';
 import { templateView, type TemplateRecord } from './record';
 
 interface TemplateState {
@@ -22,7 +17,11 @@ interface TemplateState {
   loaded: boolean;
   loadTemplates: (uid: string) => Promise<void>;
   /** Creates a template from any document (budget, imported BC3 or draft). */
-  createTemplateFrom: (document: ConstructionDocument, name: string, id?: string) => Promise<string>;
+  createTemplateFrom: (
+    document: ConstructionDocument,
+    name: string,
+    id?: string,
+  ) => Promise<string>;
   /** Saves an edited template; rejects when another client saved a newer version. */
   updateTemplate: (id: string, document: ConstructionDocument) => Promise<void>;
   removeTemplate: (id: string) => Promise<void>;

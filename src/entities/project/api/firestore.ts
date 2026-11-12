@@ -416,7 +416,8 @@ export function createProjectFirestoreApi(database: Firestore) {
       getDocs(collection(projectRef, 'assignments')),
     ]);
     if (!structure) return null;
-    const completed = (progressSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
+    const completed =
+      (progressSnapshot.data() as ProjectProgressState | undefined)?.completed ?? {};
     const assignments = assignmentsSnapshot.docs
       .map((assignment) => ({ ...assignment.data(), id: assignment.id }) as ProjectAssignment)
       .sort((a, b) => a.assignedAt.localeCompare(b.assignedAt));
@@ -719,8 +720,12 @@ export function createProjectFirestoreApi(database: Firestore) {
 
       if (JSON.stringify(after.tasks) !== JSON.stringify(before.tasks)) {
         const nextCompleted = { ...completed };
-        for (const task of after.tasks) if (task.completedAt) nextCompleted[task.id] = task.completedAt;
-        transaction.set(stateRef, { completed: nextCompleted, updatedAt: new Date().toISOString() });
+        for (const task of after.tasks)
+          if (task.completedAt) nextCompleted[task.id] = task.completedAt;
+        transaction.set(stateRef, {
+          completed: nextCompleted,
+          updatedAt: new Date().toISOString(),
+        });
       }
       if (project.completedAt !== nextCompletedAt) {
         transaction.update(projectRef, { completedAt: nextCompletedAt ?? deleteField() });
@@ -938,13 +943,21 @@ export function createProjectFirestoreApi(database: Firestore) {
         lastSupplementAction: 'voided' as const,
         supplementsSubtotal,
         supplementsIva,
-        updatedTotal: money(Math.max(0, (project.updatedTotal ?? project.total) - supplement.total)),
+        updatedTotal: money(
+          Math.max(0, (project.updatedTotal ?? project.total) - supplement.total),
+        ),
         workItemCount: Math.max(0, project.workItemCount - 1),
         totalConcepts,
         completedConcepts,
         totalAmount,
         completedAmount,
-        percent: percentage(project, totalConcepts, completedConcepts, totalAmount, completedAmount),
+        percent: percentage(
+          project,
+          totalConcepts,
+          completedConcepts,
+          totalAmount,
+          completedAmount,
+        ),
         status,
       };
       const remainingTasks = activeWorkItems

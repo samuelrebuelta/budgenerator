@@ -2,7 +2,6 @@ import { money } from '@/shared/lib/budgetMath';
 import { normalizeUnit } from '@/shared/types';
 import type { NewProjectSupplement, Project, ProjectSupplement, ProjectWorkItem } from './types';
 
-
 export function buildProjectSupplement(
   project: Project,
   id: string,

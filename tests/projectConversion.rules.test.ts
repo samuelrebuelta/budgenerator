@@ -5,7 +5,11 @@ import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { createBudgetAcceptanceApi } from '../src/entities/budget/api/acceptance';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
 import { sampleDocument, seedBudget, user } from './fixtures';
-import { addChapter, addItem, createEmptyDocument } from '../src/entities/construction-document/model';
+import {
+  addChapter,
+  addItem,
+  createEmptyDocument,
+} from '../src/entities/construction-document/model';
 import { saveStoredDocument } from '../src/entities/construction-document/api/storage';
 
 let env: RulesTestEnvironment;
@@ -103,7 +107,11 @@ describe('accepted budget conversion', () => {
     const project = await api.fetchProject('alice', projectId);
     expect(project?.address).toBe('Proyecto de demostración');
     expect(project?.workItems[0]).toMatchObject({ id: WORK, name: 'Pintura' });
-    expect(project?.workItems[0]?.tasks[0]).toMatchObject({ id: TASK, price: 10.75, quantity: 2.5 });
+    expect(project?.workItems[0]?.tasks[0]).toMatchObject({
+      id: TASK,
+      price: 10.75,
+      quantity: 2.5,
+    });
   });
 
   it('updates item progress and the project summary atomically', async () => {
@@ -120,7 +128,9 @@ describe('accepted budget conversion', () => {
       status: 'completed',
     });
     expect(completed.workItem.tasks[0]?.completedAt).toBeTruthy();
-    const state = await getDoc(doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'));
+    const state = await getDoc(
+      doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'),
+    );
     expect(Object.keys(state.data()?.completed ?? {})).toEqual([TASK]);
 
     const reopened = await api.toggleTask('alice', projectId, WORK, TASK);
@@ -163,7 +173,13 @@ describe('accepted budget conversion', () => {
       api.setTaskCompletionDate('alice', projectId, work, first!, '2020-05-04'),
     ).rejects.toThrow();
     const completed = await api.completeWorkItem('alice', projectId, work);
-    const corrected = await api.setTaskCompletionDate('alice', projectId, work, first!, '2020-05-04');
+    const corrected = await api.setTaskCompletionDate(
+      'alice',
+      projectId,
+      work,
+      first!,
+      '2020-05-04',
+    );
     expect(corrected.workItem.tasks[0]?.completedAt).toBe('2020-05-04');
     expect(corrected.project.completedAt).toBe(
       localDateKey(new Date(completed.workItem.tasks[1]!.completedAt!)),

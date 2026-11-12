@@ -58,11 +58,13 @@ export function ExportBc3Button({
           </Button>
         </div>
         <p className="mt-2 text-sm text-gray-600">
-          El archivo <strong>{prepared?.fileName}</strong> se genera en este dispositivo con
-          formato FIEBDC-3 (ANSI). Revisa lo que no se incluye tal cual:
+          El archivo <strong>{prepared?.fileName}</strong> se genera en este dispositivo con formato
+          FIEBDC-3 (ANSI). Revisa lo que no se incluye tal cual:
         </p>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-amber-800">
-          {prepared?.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+          {prepared?.warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
         </ul>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button variant="secondary" onClick={() => setPrepared(null)}>

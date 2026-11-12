@@ -150,15 +150,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
     return () => {
       if (!isDraft) setActiveBudget(null);
     };
-  }, [
-    budgetId,
-    isDraft,
-    setActiveBudget,
-    startDraft,
-    startDraftFromLead,
-    leadId,
-    uid,
-  ]);
+  }, [budgetId, isDraft, setActiveBudget, startDraft, startDraftFromLead, leadId, uid]);
 
   useEffect(() => {
     if (dataRefreshVersion === 0 || !isDraft || !leadId || !uid) return;
@@ -343,8 +335,8 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           >
             <p className="font-semibold">Este presupuesto se ha guardado desde otro dispositivo.</p>
             <p className="mt-1">
-              Tus últimos cambios no se han guardado para no sobrescribir la otra versión. Elige
-              qué versión conservar.
+              Tus últimos cambios no se han guardado para no sobrescribir la otra versión. Elige qué
+              versión conservar.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button

@@ -87,11 +87,13 @@ describe('project and source budget metadata rules', () => {
         address: 'Reforma renovada',
       }),
     );
-    await assertFails(updateDoc(doc(db, ...budgetPath), {
+    await assertFails(
+      updateDoc(doc(db, ...budgetPath), {
         clientName: 'Cliente renovado',
         revision: 4,
         updatedAt: acceptedAt,
-      }));
+      }),
+    );
   });
 
   it('denies mismatched values, unrelated project fields, and other accounts', async () => {
