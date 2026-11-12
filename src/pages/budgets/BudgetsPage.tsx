@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Plus,
   ArrowUpRight,
@@ -13,6 +13,8 @@ import { useBudgetStore } from '@/entities/budget';
 import { useTemplateStore } from '@/entities/template';
 import { useUserStore } from '@/entities/user';
 import { useCatalogStore } from '@/entities/catalog';
+import { useAuthStore } from '@/entities/auth';
+import { listConstructionDocuments } from '@/entities/construction-document/api/firestore';
 import type { SwipeDirection } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 import { formatCurrency } from '@/shared/lib';
@@ -43,11 +45,43 @@ export function BudgetsPage() {
   const [revealed, setRevealed] = useState<{ id: string; direction: SwipeDirection } | null>(null);
   const total = useBudgetStore((s) => s.getBudgetTotal);
   const { navigate } = usePageNavigation();
+  const user = useAuthStore((s) => s.user);
+  const [nativeBudgetsEntry, setNativeBudgetsEntry] = useState<{
+    uid: string;
+    documents: Array<{ id: string; title?: string; nodeCount?: number; updatedAt?: string }>;
+  } | null>(null);
+  const nativeBudgets =
+    nativeBudgetsEntry && user && nativeBudgetsEntry.uid === user.uid
+      ? nativeBudgetsEntry.documents
+      : [];
   const [chooseTemplate, setChooseTemplate] = useState(false);
   const [limit, setLimit] = useState(false);
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('');
   const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    listConstructionDocuments(user.uid, 'budget')
+      .then((documents) => {
+        if (active)
+          setNativeBudgetsEntry({
+            uid: user.uid,
+            documents: documents.map((item) => ({
+              id: String(item.id),
+              title: typeof item.title === 'string' ? item.title : undefined,
+              nodeCount: typeof item.nodeCount === 'number' ? item.nodeCount : undefined,
+              updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : undefined,
+            })),
+          });
+      })
+      .catch(() => {
+        if (active) setNativeBudgetsEntry({ uid: user.uid, documents: [] });
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
   const years = [...new Set(budgets.map((budget) => budget.info.date.slice(0, 4)))]
     .filter((value) => /^\d{4}$/.test(value))
     .sort((a, b) => b.localeCompare(a));
@@ -276,6 +310,57 @@ export function BudgetsPage() {
             </div>
           )}
         </div>
+      </section>
+      <section
+        className="mt-6 rounded-xl border border-gray-200 bg-white p-5"
+        aria-labelledby="native-budget-heading"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="native-budget-heading" className="text-lg font-semibold">
+              Presupuestos importados en BC3
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Se conservan con su estructura, códigos y mediciones originales.
+            </p>
+          </div>
+          <PageLink className="text-sm font-semibold text-blue-700" to="/bc3">
+            Importar o exportar BC3
+          </PageLink>
+        </div>
+        {nativeBudgets.length ? (
+          <ul className="mt-3 divide-y divide-gray-100">
+            {nativeBudgets.map((budget) => (
+              <li
+                key={budget.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <div>
+                  <p className="font-medium">{budget.title || 'Presupuesto sin título'}</p>
+                  <p className="text-sm text-gray-500">
+                    Documento FIEBDC
+                    {budget.nodeCount !== undefined
+                      ? ` · ${budget.nodeCount} conceptos en la estructura`
+                      : ''}
+                    {budget.updatedAt
+                      ? ` · ${new Date(budget.updatedAt).toLocaleDateString('es-ES')}`
+                      : ''}
+                  </p>
+                </div>
+                <PageLink
+                  className="min-h-10 inline-flex items-center rounded-md px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                  to={`/bc3?document=${encodeURIComponent(budget.id)}`}
+                >
+                  Abrir y editar
+                </PageLink>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-gray-500">
+            Los presupuestos que importes aparecerán aquí.
+          </p>
+        )}
       </section>
       <div className="flex items-center justify-between gap-4 border-t border-gray-200 pt-5 mt-5">
         <p className="text-xs text-gray-500">Gestiona los precios desde tu catálogo.</p>

@@ -29,8 +29,15 @@ service cloud.firestore {
         && after.totalBudgetsCreated == before.totalBudgetsCreated + 1
         && (premium(before.accountData) || before.totalBudgetsCreated < 3)
         && id is string && id.size() > 0
-        && !exists(/databases/$(database)/documents/users/$(uid)/budgets/$(id))
-        && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.id == id;
+        && (
+          (!exists(/databases/$(database)/documents/users/$(uid)/budgets/$(id))
+            && getAfter(/databases/$(database)/documents/users/$(uid)/budgets/$(id)).data.id == id)
+          || (exists(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id))
+            && existsAfter(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id))
+            && get(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)).data.state == 'staging'
+            && getAfter(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)).data.state == 'ready'
+            && getAfter(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)).data.kind == 'budget')
+        );
     }
     function validProjectLink(uid, id) {
       let projectId = request.resource.data.get('projectId', '');
@@ -443,6 +450,66 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.lastCreatedBudgetId == id
           && getAfter(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated == get(/databases/$(database)/documents/users/$(uid)).data.totalBudgetsCreated + 1;
         allow update: if validBudgetUpdate(uid, id);
+      }
+      match /constructionDocuments/{id} {
+        allow get: if canUse(uid);
+        allow list: if canUse(uid) && resource.data.state == 'ready';
+        allow create: if owner(uid)
+          && request.resource.data.keys().hasOnly(['id', 'kind', 'state', 'createdAt'])
+          && request.resource.data.id == id
+          && request.resource.data.kind in ['catalog', 'budget', 'template']
+          && request.resource.data.state == 'staging'
+          && request.resource.data.createdAt is string;
+        allow update: if owner(uid)
+          && request.resource.data.id == id
+          && ((resource.data.state == 'staging'
+              && request.resource.data.state == 'ready'
+              && request.resource.data.kind == resource.data.kind)
+            || (resource.data.state == 'ready'
+              && request.resource.data.state == 'ready'
+              && request.resource.data.kind == resource.data.kind)
+            || (resource.data.state in ['staging', 'ready']
+              && request.resource.data.state == 'deleting'
+              && resource.data.get('acceptedAt', null) == null
+              && resource.data.get('projectId', null) == null));
+        allow delete: if owner(uid)
+          && resource.data.state in ['staging', 'deleting']
+          && resource.data.get('acceptedAt', null) == null
+          && resource.data.get('projectId', null) == null;
+        match /revisions/{revisionId} {
+          function parent() {
+            return get(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)).data;
+          }
+          allow read: if canUse(uid)
+            && (parent().get('activeRevisionId', '') == revisionId || resource.data.state == 'staging');
+          allow create: if owner(uid) && parent().state in ['staging', 'ready']
+            && request.resource.data.id == revisionId && request.resource.data.state == 'staging';
+          allow update: if owner(uid)
+            && request.resource.data.id == revisionId
+            && resource.data.state == 'staging'
+            && request.resource.data.state == 'ready';
+          allow delete: if owner(uid)
+            && (parent().state == 'deleting' || parent().get('activeRevisionId', '') != revisionId);
+          match /{collectionName}/{recordId} {
+            function parentDocument() {
+              return get(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)).data;
+            }
+            function revisionDocument() {
+              return get(/databases/$(database)/documents/users/$(uid)/constructionDocuments/$(id)/revisions/$(revisionId)).data;
+            }
+            allow read: if canUse(uid)
+              && collectionName in ['concepts', 'nodes', 'extensions']
+              && (parentDocument().get('activeRevisionId', '') == revisionId
+                || revisionDocument().state == 'staging');
+            allow create, update: if owner(uid)
+              && collectionName in ['concepts', 'nodes', 'extensions']
+              && parentDocument().state in ['staging', 'ready']
+              && revisionDocument().state == 'staging';
+            allow delete: if owner(uid)
+              && collectionName in ['concepts', 'nodes', 'extensions']
+              && (parentDocument().state == 'deleting' || revisionDocument().state == 'staging');
+          }
+        }
       }
       match /projects/{projectId} {
         allow read: if canUse(uid);

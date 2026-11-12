@@ -1,0 +1,9 @@
+~V|BudGenerator|3/2024\27102026|BudGenerator|Catálogo de reforma de baño\Venta|ANSI|Ejemplo ficticio para pruebas|1|
+~C|AZU001|m2|Azulejo cerámico blanco 30 × 60 cm|24.50|27102026|0|
+~C|ADH001|kg|Adhesivo cementoso flexible|0.82|27102026|0|
+~C|MO001|h|Oficial alicatador|22.00|27102026|0|
+~C|DEM001|m2|Demolición de alicatado existente|18.00|27102026|0|
+~C|ALI001|m2|Alicatado de paramentos interiores|52.00|27102026|0|
+~D|ALI001||AZU001\1.05\1\ADH001\4\1\MO001\0.45\1|
+~T|ALI001|Incluye preparación del soporte, colocación y rejuntado. Precio orientativo de ejemplo.|
+

@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   FileText,
+  FileArchive,
   BookOpen,
   LayoutTemplate,
   Building2,
@@ -290,6 +291,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <LayoutTemplate size={18} />
               Plantillas de presupuestos
+            </PageLink>
+            <PageLink
+              className="nav-item"
+              to="/bc3"
+              state={menuNavigationState}
+              onClick={() => setMenu(false)}
+            >
+              <FileArchive size={18} />
+              Intercambio BC3
             </PageLink>
             <PageLink
               className="nav-item"
