@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Modal } from './Modal';
+import { Alert } from './Alert';
 import { Button } from './Button';
 import { toUserMessage } from '@/shared/lib/errors';
 
@@ -55,9 +56,9 @@ export function ConfirmModal({
       <h3 className="text-lg font-semibold text-ink mb-2">{title}</h3>
       <p className="text-sm text-ink-muted mb-6">{message}</p>
       {error && (
-        <p className="field-error" role="alert">
+        <Alert tone="danger" className="my-4">
           {error}
-        </p>
+        </Alert>
       )}
       <div className="flex items-center justify-end gap-3">
         <Button variant="secondary" disabled={saving} onClick={onClose}>
