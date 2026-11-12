@@ -1,60 +1,108 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { consumeRateLimits } from '../abuse/rateLimit.js';
+import { runtimeConfig, scheduleOptions, triggerOptions } from '../core/config.js';
+import { logEvent, observe, pseudonym } from '../core/observability.js';
+import { cleanupInactivePushDevices } from '../retention/retention.js';
 import { sendPushNotification } from './fcm.js';
 import { enqueueLeadNotifications } from './jobs.js';
 import {
   cleanupExpiredNotificationJobs,
+  NOTIFICATION_JOB_HORIZON_MS,
   processNotificationJob,
   recoverNotificationJobs,
 } from './worker.js';
 
-const functionOptions = {
-  region: 'europe-west1',
-  maxInstances: 10,
-  minInstances: 0,
-} as const;
+const HOUR_MS = 3_600_000;
 
 const serverNotificationTransport = {
   sendPush: sendPushNotification,
 };
 
+/** Retried events older than the job horizon can no longer produce a useful push. */
+export function isStaleLeadEvent(eventTime: string | undefined, nowMs = Date.now()) {
+  const eventMs = eventTime ? Date.parse(eventTime) : Number.NaN;
+  return Number.isFinite(eventMs) && nowMs - eventMs > NOTIFICATION_JOB_HORIZON_MS;
+}
+
+/**
+ * At most `LIMIT_LEAD_PUSH_PER_OWNER_PER_HOUR` pushes per owner and hour, so a
+ * burst of junk leads does not flood the owner's devices. The leads are still
+ * stored and visible in the app; only the extra pushes are skipped.
+ */
+export async function allowLeadPush(uid: string, nowMs = Date.now()) {
+  const exceeded = await consumeRateLimits(
+    [
+      {
+        scope: 'lead_push_owner',
+        subject: uid,
+        limit: runtimeConfig.limits.leadPushPerOwnerPerHour,
+        windowMs: HOUR_MS,
+      },
+    ],
+    nowMs,
+  );
+  return exceeded === null;
+}
+
 export const processNewLeadNotifications = onDocumentCreated(
   {
-    ...functionOptions,
+    ...triggerOptions,
     document: 'users/{uid}/leads/{leadId}',
     retry: true,
   },
-  async (event) => {
-    const { uid, leadId } = event.params;
-    const eventTime = event.time ? Timestamp.fromDate(new Date(event.time)) : Timestamp.now();
-    const jobIds = await enqueueLeadNotifications({ uid, leadId, eventTime });
-    await Promise.all(
-      jobIds.map((jobId) => processNotificationJob(jobId, serverNotificationTransport)),
-    );
-  },
+  (event) =>
+    observe('processNewLeadNotifications', async () => {
+      const { uid, leadId } = event.params;
+      if (isStaleLeadEvent(event.time)) {
+        logEvent('warn', 'lead_event_discarded', { reason: 'stale', subject: pseudonym(uid) });
+        return;
+      }
+      if (!(await allowLeadPush(uid))) {
+        logEvent('warn', 'lead_push_throttled', { subject: pseudonym(uid) });
+        return;
+      }
+      const eventTime = event.time ? Timestamp.fromDate(new Date(event.time)) : Timestamp.now();
+      const jobIds = await enqueueLeadNotifications({ uid, leadId, eventTime });
+      await Promise.all(
+        jobIds.map((jobId) => processNotificationJob(jobId, serverNotificationTransport)),
+      );
+    }),
 );
 
 export const recoverLeadNotificationJobs = onSchedule(
   {
-    ...functionOptions,
+    ...scheduleOptions,
     schedule: 'every 5 minutes',
-    timeZone: 'UTC',
-    maxInstances: 1,
+    timeoutSeconds: 240,
   },
-  async () => {
-    await recoverNotificationJobs(serverNotificationTransport);
-  },
+  () =>
+    observe('recoverLeadNotificationJobs', async () => {
+      const processed = await recoverNotificationJobs(serverNotificationTransport);
+      if (processed > 0) logEvent('info', 'notification_jobs_recovered', { processed });
+    }),
 );
 
 export const cleanupLeadNotificationJobs = onSchedule(
   {
-    ...functionOptions,
+    ...scheduleOptions,
     schedule: 'every day 03:15',
-    timeZone: 'UTC',
-    maxInstances: 1,
   },
-  async () => {
-    await cleanupExpiredNotificationJobs();
+  () =>
+    observe('cleanupLeadNotificationJobs', async () => {
+      const deleted = await cleanupExpiredNotificationJobs();
+      logEvent('info', 'notification_jobs_cleaned', { deleted });
+    }),
+);
+
+export const cleanupPushDevices = onSchedule(
+  {
+    ...scheduleOptions,
+    schedule: 'every monday 04:00',
   },
+  () =>
+    observe('cleanupPushDevices', async () => {
+      await cleanupInactivePushDevices();
+    }),
 );

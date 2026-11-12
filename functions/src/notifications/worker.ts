@@ -247,7 +247,10 @@ async function deliverClaimedJob(
     }
     let result: { messageId: string };
     try {
-      result = await transport.sendPush({ jobId, leadId: job.leadId, ...pushTarget });
+      const storedPlatform = deviceSnapshot.get('platform');
+      const platform =
+        storedPlatform === 'ios' || storedPlatform === 'android' ? storedPlatform : 'web';
+      result = await transport.sendPush({ jobId, leadId: job.leadId, ...pushTarget, platform });
     } catch (error) {
       const invalidCode =
         'registrationToken' in pushTarget ? 'push_registration_token_invalid' : 'push_fid_invalid';

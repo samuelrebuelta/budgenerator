@@ -36,6 +36,10 @@ playwright-report/
 test-artifacts/
 *-debug.log
 !.env.example
+!functions/.env
+
+# Local emulator configs with alternative ports
+.firebase-local/
 
 # Intermediate PDF QA
 tmp/
