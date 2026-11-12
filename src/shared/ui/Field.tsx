@@ -15,6 +15,7 @@ export interface FieldProps {
   hint?: ReactNode;
   /** Validation message; marks the control as invalid. */
   error?: ReactNode;
+  /** Marks the control as required for assistive technology (the label is not changed). */
   required?: boolean;
   /** Use an existing id instead of a generated one. */
   id?: string;
@@ -55,12 +56,6 @@ export function Field({
         className={cn('text-sm font-medium text-ink-soft', hideLabel && 'sr-only')}
       >
         {label}
-        {required && (
-          <span className="text-danger-ink" aria-hidden="true">
-            {' '}
-            *
-          </span>
-        )}
       </label>
       {children({
         id: controlId,
