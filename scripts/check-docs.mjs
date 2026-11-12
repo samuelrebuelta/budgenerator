@@ -10,7 +10,7 @@ const walk = (path) => {
   if (!existsSync(path)) return;
   if (statSync(path).isDirectory()) {
     for (const entry of readdirSync(path)) walk(join(path, entry));
-  } else if (path.endsWith('.md')) files.push(path);
+  } else if (path.endsWith('.md') && !skip.test(path)) files.push(path);
 };
 roots.forEach(walk);
 
@@ -24,7 +24,7 @@ for (const file of files) {
     if (!clean) continue;
     if (!existsSync(resolve(dirname(file), clean))) errors.push(`${file}: enlace roto → ${target}`);
   }
-  if (/^docs\/specs\/(?!README|_template).+\.md$/.test(file) && !skip.test(file)) {
+  if (/^docs\/specs\/(?!README|_template|plans\/)[^/]+\.md$/.test(file)) {
     if (!/^(Estado|\*\*Estado)/m.test(text)) errors.push(`${file}: falta la línea «Estado:»`);
   }
 }

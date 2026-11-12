@@ -1,6 +1,6 @@
 # BG-008 — Catálogo único y creación guiada
 
-Estado: integrado en `main`, verificado y desplegado en Hosting. Versión PWA `b0f3ecf6be0ff903`; HTML y service worker remotos coinciden con `dist`. Fecha de actualización: 2026-10-18.
+Estado: implementado — integrado en `main`, verificado y desplegado en Hosting. Versión PWA `b0f3ecf6be0ff903`; HTML y service worker remotos coinciden con `dist`. Fecha de actualización: 2026-10-18.
 
 ## Terminología vigente (19-10-2026)
 
@@ -94,7 +94,7 @@ La revisión independiente no encontró bloqueantes. Se reprodujo y corrigió su
 
 La integración confirma rutas antiguas redirigidas, edición/recarga y separación entre cuentas, referencia histórica a un catálogo retirado, orden de resultados y búsqueda sin tildes, aplicación de tarifas sin cambiar medición, formulario de plantilla a 320 px, cancelación/retroceso del asistente, guardado con cantidades pendientes y bloqueo de PDF, recuperación del documento y sugerencias del historial. El evento de instalación se simula en las pruebas: falta comprobar la instalación real y los insets/teclado en Safari y PWA de dispositivos físicos.
 
-Ampliación Partidas/Conceptos (17-10-2026): esta revisión anida conceptos bajo la partida del catálogo, usa sus IDs en selección y ranking del asistente, y adapta snapshots históricos sin reescritura masiva. Ver `docs/superpowers/specs/2026-10-17-catalogo-partidas-conceptos-design.md`. Checks: 52 unitarias, 16 reglas y 21 E2E en `demo-cimbra`, lint, build y formato correctos. Revisión independiente sin hallazgos. Desplegada sólo a Hosting el 17-10-2026 en https://budgenerator.web.app, sin fusionar ni publicar reglas; HTML y service worker coinciden con el build. Prueba física PWA pendiente.
+Ampliación Partidas/Conceptos (17-10-2026): esta revisión anida conceptos bajo la partida del catálogo, usa sus IDs en selección y ranking del asistente, y adapta snapshots históricos sin reescritura masiva. Ver `docs/specs/2026-10-17-catalogo-partidas-conceptos-design.md`. Checks: 52 unitarias, 16 reglas y 21 E2E en `demo-cimbra`, lint, build y formato correctos. Revisión independiente sin hallazgos. Desplegada sólo a Hosting el 17-10-2026 en https://budgenerator.web.app, sin fusionar ni publicar reglas; HTML y service worker coinciden con el build. Prueba física PWA pendiente.
 
 Ajuste y publicación (17-10-2026): footer común eliminado; importador `/catalog` con búsqueda sin tildes y vista previa para los 19 oficios especializados disponibles. Importación categorizada, repetible sin duplicados, conserva conceptos y tarifas existentes y mantiene alta manual. Evidencia: `docs/testing-evidence/bg008-trade-import-desktop.png` y `bg008-trade-import-mobile.png`. Verificados previamente 56 unitarios, 16 reglas, 25 E2E, lint y formato; `pnpm firebase:deploy` volvió a generar el build normal (PWA `0b60a78045085d16`) y publicó sólo Hosting en https://budgenerator.web.app. HTML y service worker remotos coinciden byte a byte con `dist`; sin merge, cambios de reglas ni modificaciones de datos. Prueba física PWA pendiente.
 

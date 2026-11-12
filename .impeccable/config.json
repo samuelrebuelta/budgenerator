@@ -10,7 +10,7 @@
           "src/index.css"
         ],
         "createdAt": "2026-10-16T07:52:07.598Z",
-        "reason": "Agente: identidad existente de docs/design-proposal.md y docs/styles-and-responsive.md; BG-007 exige conservar fuentes y tokens actuales."
+        "reason": "Agente: identidad existente de docs/archive/design-proposal.md y docs/styles-and-responsive.md; BG-007 exige conservar fuentes y tokens actuales."
       }
     ]
   }

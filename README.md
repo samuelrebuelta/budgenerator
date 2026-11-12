@@ -20,7 +20,7 @@ Producción: [budgenerator.web.app](https://budgenerator.web.app/). El identific
 
 React 19, TypeScript 6, Vite 8, Tailwind CSS 4, Zustand 5, Firebase 12 —Auth, Firestore y Hosting—, React Router 7, i18next y jsPDF 4. Tipografías Manrope y Fraunces alojadas con el proyecto. Tests con Vitest, Firebase Emulator Suite y Playwright.
 
-Node >=22.12 y pnpm 10.33.0, fijado mediante `packageManager`.
+Node >=24 y pnpm 10.33.0, fijado mediante `packageManager`.
 
 ## Desarrollo
 
@@ -40,18 +40,26 @@ pnpm firebase:emulators
 
 Sin ese flag, la app accede al proyecto configurado en las variables locales. El worker de producción se desactiva durante desarrollo para no interferir con Vite.
 
-## Validación
+## Scripts
 
-```bash
-pnpm lint
-pnpm test
-pnpm exec playwright install chromium
-pnpm test:integration
-pnpm build
-pnpm preview
-```
+| Script                                                                     | Qué hace                                                                                                    |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                                                 | Servidor de desarrollo de Vite.                                                                             |
+| `pnpm build`                                                               | `tsc -b`, iconos, build de Vite, worker de notificaciones y service worker versionado.                      |
+| `pnpm preview`                                                             | Sirve el build generado.                                                                                    |
+| `pnpm lint` / `pnpm format:check`                                          | ESLint y comprobación de Prettier.                                                                          |
+| `pnpm docs:check`                                                          | Enlaces Markdown rotos y línea `Estado:` en cada spec de `docs/specs/`.                                     |
+| `pnpm test`                                                                | Pruebas unitarias con Vitest.                                                                               |
+| `pnpm test:rules`                                                          | Reglas de Firestore (necesita emulador; ver `test:rules:emulator`).                                         |
+| `pnpm test:rules:emulator`                                                 | Reglas dentro de un emulador de Firestore.                                                                  |
+| `pnpm test:notifications:integration` / `pnpm test:notifications:emulator` | Pruebas de notificaciones, con y sin emuladores.                                                            |
+| `pnpm test:e2e`                                                            | Recorridos de Playwright (`pnpm exec playwright install chromium` la primera vez).                          |
+| `pnpm test:integration`                                                    | Compila Functions e inicia emuladores `demo-cimbra`: reglas y E2E contra un build real con datos ficticios. |
+| `pnpm firebase:emulators`                                                  | Emuladores de Auth, Firestore y Functions.                                                                  |
+| `pnpm build:functions`                                                     | Compila `functions/`.                                                                                       |
+| `pnpm firebase:deploy` / `firebase:deploy:all` / `firebase:deploy:staging` | Despliegue de Hosting, de Hosting y reglas, o a staging.                                                    |
 
-`test:integration` inicia emuladores, prueba reglas y ejecuta el navegador contra un build real con configuración demo. Las cuentas y datos son ficticios. El build genera iconos, rutas separadas y un worker ligado al contenido de la versión. CI ejecuta las comprobaciones sin publicar.
+Antes de cerrar una tarea: `pnpm lint`, `pnpm build` y los tests que apliquen. CI ejecuta las comprobaciones sin publicar.
 
 ## Despliegue
 
@@ -66,7 +74,7 @@ pnpm firebase:deploy:all
 
 Los scripts comprueban variables y proyecto y rechazan configuraciones de emulador. La cuenta administradora de la app no es una credencial del CLI de Firebase.
 
-La entrega de seguridad cambia el acceso a enlaces legacy y la representación del vencimiento premium. Revisar [Estabilización y entrega](docs/stability-and-release.md) antes de publicarla. Los snapshots inseguros antiguos se deben volver a compartir; las fechas premium antiguas se pueden volver a guardar desde administración para añadir su valor numérico.
+La entrega de seguridad cambia el acceso a enlaces legacy y la representación del vencimiento premium. Revisar [Estabilización y entrega](docs/archive/stability-and-release.md) (archivo) antes de publicarla. Los snapshots inseguros antiguos se deben volver a compartir; las fechas premium antiguas se pueden volver a guardar desde administración para añadir su valor numérico.
 
 ## Estructura
 
@@ -74,23 +82,28 @@ La entrega de seguridad cambia el acceso a enlaces legacy y la representación d
 src/
 ├── app/          Sesión, guards, shell, router y PWA
 ├── pages/        Pantallas por ruta
-├── features/     Editor reutilizable de presupuestos y plantillas
-├── entities/     Auth, budget, catalog, template, profile y user
+├── features/     Editor de presupuestos, estructura, BC3, cuenta, notificaciones y tour
+├── entities/     Auth, budget, catalog, construction-document, project, quote-estimator, template, workforce y más
 └── shared/       Tipos, Firebase, cálculos, colas, UI e i18n
-scripts/          Build de iconos/worker, entorno de pruebas y comprobación de deploy
-tests/           Regresión de stores, cálculos, privacidad, worker, reglas y navegador
+functions/        Cloud Functions
+scripts/          Build, deploy, hooks de agentes y comprobación de docs
+tests/            Regresión de stores, cálculos, privacidad, worker, reglas y navegador
+docs/             Documentación (ver abajo)
 ```
 
 ## Documentación
 
-- [Plan vigente](docs/plan.md) — Estado del MVP, pendientes y acceso al historial.
-- [Plan SDD de interfaz](docs/sdd-plan.md) — Revisión histórica de interfaz.
-- [Propuesta visual aplicada](docs/design-proposal.md) — Marca, paleta, logo, decisiones y capturas.
-- [Estabilización y entrega](docs/stability-and-release.md) — Correcciones, PWA, validación y transición de datos.
-- [Despliegue y pruebas](docs/testing.md) — URL pública y acceso local para pruebas.
-- [Arquitectura](docs/architecture.md), [estado](docs/state-and-cache.md), [Firebase](docs/firebase.md), [PDF](docs/pdf-export.md), [rendimiento](docs/performance.md) y [estilos](docs/styles-and-responsive.md).
-- [Análisis inicial](docs/project-analysis.md) — Auditoría histórica del código anterior; sus hallazgos se contrastan con la entrega actual.
+Estado actual:
 
-Cuenta admin de pruebas de producción: `budgenerator@gmail.com`. La contraseña está en `docs/testing-access.local.md`, excluida de Git. Las pruebas automatizadas no utilizan esa contraseña ni acceden a producción.
+- [Plan vigente](docs/plan.md) — Estado y pendientes.
+- [Producto](docs/product.md), [arquitectura](docs/architecture.md), [estado y caché](docs/state-and-cache.md), [Firebase](docs/firebase.md), [PDF](docs/pdf-export.md), [rendimiento](docs/performance.md), [estilos](docs/styles-and-responsive.md) y [pruebas y despliegue](docs/testing.md).
+- [Especificaciones](docs/specs/README.md) — Índice con estado de cada spec; plantilla en `docs/specs/_template.md` y planes en `docs/specs/plans/`.
+
+Trazabilidad (no describe el estado actual):
+
+- [Archivo](docs/archive/README.md) — Plan histórico, análisis y propuestas cerradas.
+- `docs/analysis/` — Análisis puntuales por área. `docs/testing-evidence/` — capturas de verificación.
+
+La contraseña de la cuenta administradora de pruebas está en `docs/testing-access.local.md`, excluida de Git. Las pruebas automatizadas no la utilizan ni acceden a producción.
 
 Proyecto privado.

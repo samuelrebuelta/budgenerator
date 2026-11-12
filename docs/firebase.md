@@ -63,7 +63,7 @@ El propietario puede cambiar el nombre y el cliente de un proyecto ya convertido
 
 Los suplementos viven en `supplements/{id}` (unidad libre de hasta 20 caracteres) y se muestran como capítulo derivado. El cliente crea el registro una vez; no lo edita ni lo borra. Anularlo crea un documento `supplementVoids/{id}` con motivo en la misma transacción que actualiza el resumen; el historial queda preservado y las cifras/progreso activos se recalculan. La anulación no es una eliminación. Reglas de propietario/admin limitan el acceso a proyecto y subcolecciones; no se publican ni se borran proyectos desde el cliente. Completar partidas o editar fechas escribe `progress/state` y el resumen en una transacción. La conversión admite como máximo 200 capítulos.
 
-Los snapshots públicos (v3) permiten get individual, deniegan list y exigen propietario autenticado con email verificado al crear. Guardan el contenido FIEBDC público: sin costes, descomposiciones, enlaces de catálogo ni extensiones, con el precio unitario ya ajustado. Caducan, son inmutables y su propietario puede revocarlos. El DTO elimina costes internos y metadatos privados antes de escribirlo. Los enlaces legacy no seguros quedan bloqueados; revisar la transición en stability-and-release.md.
+Los snapshots públicos (v3) permiten get individual, deniegan list y exigen propietario autenticado con email verificado al crear. Guardan el contenido FIEBDC público: sin costes, descomposiciones, enlaces de catálogo ni extensiones, con el precio unitario ya ajustado. Caducan, son inmutables y su propietario puede revocarlos. El DTO elimina costes internos y metadatos privados antes de escribirlo. Los enlaces legacy no seguros quedan bloqueados; revisar la transición en archive/stability-and-release.md.
 
 El propietario lee y escribe `users/{uid}/quoteEstimator/settings`; la colección raíz `quoteEstimator` queda fuera de las reglas genéricas. El esquema 2 guarda tarifas manuales por estancia en céntimos por m²; el esquema 1 conserva combinaciones vinculadas al catálogo y sigue siendo compatible. Las selecciones nuevas llevan un `instanceId` UUID único para identificar cada estancia física, con su superficie y calidad. `quantity` (entero de 1 a 20) se mantiene para datos agrupados históricos; si falta, se interpreta como una estancia. El perfil conserva una URL HTTPS de privacidad. Las reglas permiten al titular leer/listar y borrar `users/{uid}/leads`, deniegan su creación desde cliente y restringen su única edición a `budgetId` hacia un presupuesto de la misma cuenta. La creación del lead solo ocurre en `submitPublicLead`, con Admin SDK. Las reglas deniegan clientes para el índice `publicQuoteTokens`, el enlace por UID y los contadores. `publishPublicEstimator`, `revokePublicEstimator` y `getOwnerEstimatorStatus` requieren Auth. `getPublicEstimator`, `calculatePublicEstimate` y `submitPublicLead` son públicos y reciben el token aleatorio de 24 bytes codificado base64url; el token localiza al usuario en Functions, nunca habilita una lectura Firestore del visitante. `getPublicEstimator` devuelve nombre de empresa, contactos optativos y combinaciones disponibles; el cálculo y el envío solo devuelven horquilla total, moneda, IVA y confirmación. No se devuelven UID, contacto del lead, catálogo, descripciones internas, precios unitarios ni `cost`.
 
@@ -176,14 +176,14 @@ La suite de navegador (`test:integration`) se ejecuta en CI, no en el script. CI
 
 **Límites.** Además de los límites por token existentes, `functions/src/abuse/` aplica, antes del handler:
 
-| Ámbito | Límite por defecto | Variable |
-|---|---|---|
-| Estimador por red | 60/min | `LIMIT_ESTIMATOR_PER_IP_PER_MINUTE` |
-| Estimador global | 20.000/día | `LIMIT_ESTIMATOR_GLOBAL_PER_DAY` |
-| Leads por red | 10/h | `LIMIT_LEADS_PER_IP_PER_HOUR` |
-| Leads por titular | 50/día | `LIMIT_LEADS_PER_OWNER_PER_DAY` |
-| Leads global | 500/día | `LIMIT_LEADS_GLOBAL_PER_DAY` |
-| Push de leads por titular | 5/h | `LIMIT_LEAD_PUSH_PER_OWNER_PER_HOUR` |
+| Ámbito                    | Límite por defecto | Variable                             |
+| ------------------------- | ------------------ | ------------------------------------ |
+| Estimador por red         | 60/min             | `LIMIT_ESTIMATOR_PER_IP_PER_MINUTE`  |
+| Estimador global          | 20.000/día         | `LIMIT_ESTIMATOR_GLOBAL_PER_DAY`     |
+| Leads por red             | 10/h               | `LIMIT_LEADS_PER_IP_PER_HOUR`        |
+| Leads por titular         | 50/día             | `LIMIT_LEADS_PER_OWNER_PER_DAY`      |
+| Leads global              | 500/día            | `LIMIT_LEADS_GLOBAL_PER_DAY`         |
+| Push de leads por titular | 5/h                | `LIMIT_LEAD_PUSH_PER_OWNER_PER_HOUR` |
 
 Los contadores son ventanas fijas en `abuseRateLimits`, con el sujeto hasheado y TTL en `expiresAt`. Son aproximados (lectura + `increment` sin transacción) para no bloquear los documentos globales; en una ráfaga concurrente pueden excederse en unas pocas unidades. Una petición inválida también consume cupo. Al superar el límite de push, el lead se guarda igual y aparece en Solicitudes, pero no genera aviso; el trigger también descarta eventos con más de 6 h.
 
