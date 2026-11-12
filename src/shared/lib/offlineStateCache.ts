@@ -183,16 +183,20 @@ export async function deleteOfflineUserData(uid: string): Promise<void> {
   ]);
 }
 
-/** Store snapshots are coalesced: one IndexedDB write per store and pause in editing. */
+/**
+ * Store snapshots are throttled per store: the first change is written at once (so data that
+ * just arrived from the network is persisted before a reload), and later changes within the
+ * window — typing in the editor — are coalesced into one trailing write.
+ */
 export const OFFLINE_SNAPSHOT_DELAY_MS = 600;
 
-interface ScheduledSnapshot {
-  uid: string;
-  write: () => void;
+interface SnapshotWindow {
   timer: ReturnType<typeof setTimeout>;
+  /** Trailing write for changes made during the window. */
+  pending: (() => void) | null;
 }
 
-const scheduledSnapshots = new Map<string, ScheduledSnapshot>();
+const snapshotWindows = new Map<string, SnapshotWindow>();
 
 function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown>) {
   if (!a) return false;
@@ -200,12 +204,36 @@ function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, 
   return keys.length === Object.keys(a).length && keys.every((key) => Object.is(a[key], b[key]));
 }
 
+function openSnapshotWindow(key: string) {
+  snapshotWindows.set(key, {
+    pending: null,
+    timer: setTimeout(() => {
+      const current = snapshotWindows.get(key);
+      snapshotWindows.delete(key);
+      if (current?.pending) {
+        current.pending();
+        openSnapshotWindow(key);
+      }
+    }, OFFLINE_SNAPSHOT_DELAY_MS),
+  });
+}
+
+function scheduleSnapshot(key: string, write: () => void) {
+  const current = snapshotWindows.get(key);
+  if (current) {
+    current.pending = write;
+    return;
+  }
+  write();
+  openSnapshotWindow(key);
+}
+
 /** Writes every pending store snapshot now (before unload, sign-out or tests). */
 export function flushOfflineSnapshots() {
-  for (const [key, scheduled] of scheduledSnapshots) {
-    clearTimeout(scheduled.timer);
-    scheduledSnapshots.delete(key);
-    scheduled.write();
+  for (const [key, current] of snapshotWindows) {
+    clearTimeout(current.timer);
+    snapshotWindows.delete(key);
+    current.pending?.();
   }
 }
 
@@ -238,19 +266,10 @@ export function registerOfflineStore<TState extends object>(
     // Unrelated store changes (loading flags, UI state) do not rewrite the snapshot.
     if (lastSelection?.uid === uid && shallowEqual(lastSelection.value, selection)) return;
     lastSelection = { uid, value: selection };
-    clearTimeout(scheduledSnapshots.get(key)?.timer);
-    const write = () => {
+    scheduleSnapshot(key, () => {
       // An account switch or sign-out in the meantime discards the previous account's write.
       if (getUid() !== uid) return;
       void writeOfflineValue(`session:${uid}:${key}`, select(store.getState()));
-    };
-    scheduledSnapshots.set(key, {
-      uid,
-      write,
-      timer: setTimeout(() => {
-        scheduledSnapshots.delete(key);
-        write();
-      }, OFFLINE_SNAPSHOT_DELAY_MS),
     });
   });
 }
