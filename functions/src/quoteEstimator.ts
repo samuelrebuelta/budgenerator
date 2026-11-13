@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
+import { runtimeConfig } from './core/config.js';
 import type { CatalogPart, CompanyProfile, Tariff } from '../../src/shared/types/index.js';
 import {
   decodeContent,
@@ -530,7 +531,7 @@ export async function submitPublicLead(value: unknown) {
     }
     const current = rateSnapshot.data() as StoredLeadRateLimit | undefined;
     const isNewWindow = !current || now - current.windowStartedAt >= 60 * 60 * 1000;
-    if (!isNewWindow && current.count >= 10)
+    if (!isNewWindow && current.count >= runtimeConfig.limits.leadsPerFormPerHour)
       throw new HttpsError(
         'resource-exhausted',
         'Este formulario ha recibido varias solicitudes recientemente. Prueba más tarde.',

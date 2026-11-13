@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readAppCheckMode } from '../functions/src/core/config';
+import { readAppCheckMode, runtimeConfig } from '../functions/src/core/config';
 import { checkAppCheck, leadRules } from '../functions/src/abuse/publicGuards';
 import { clientFingerprint, rateLimitDocId } from '../functions/src/abuse/rateLimit';
 import { requireRecentLogin, requireVerifiedEmail } from '../functions/src/core/auth';
@@ -30,6 +30,13 @@ describe('App Check modes', () => {
     expect(() =>
       checkAppCheck('fn', { app: { appId: 'a', token: {} as never } }, 'enforce'),
     ).not.toThrow();
+  });
+});
+
+describe('lead limits', () => {
+  it('lets a public form receive 60 leads per hour while each network keeps 10', () => {
+    expect(runtimeConfig.limits.leadsPerFormPerHour).toBe(60);
+    expect(runtimeConfig.limits.leadsPerIpPerHour).toBe(10);
   });
 });
 

@@ -35,6 +35,8 @@ export const runtimeConfig = {
     estimatorPerIpPerMinute: readInt('LIMIT_ESTIMATOR_PER_IP_PER_MINUTE', 60),
     estimatorGlobalPerDay: readInt('LIMIT_ESTIMATOR_GLOBAL_PER_DAY', 20_000),
     leadsPerIpPerHour: readInt('LIMIT_LEADS_PER_IP_PER_HOUR', 10),
+    /** All visitors of one public form together; per-IP and per-owner limits stop abuse. */
+    leadsPerFormPerHour: readInt('LIMIT_LEADS_PER_FORM_PER_HOUR', 60),
     leadsPerOwnerPerDay: readInt('LIMIT_LEADS_PER_OWNER_PER_DAY', 50),
     leadsGlobalPerDay: readInt('LIMIT_LEADS_GLOBAL_PER_DAY', 500),
     leadPushPerOwnerPerHour: readInt('LIMIT_LEAD_PUSH_PER_OWNER_PER_HOUR', 5),
