@@ -18,7 +18,6 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
 - **Pendiente de la integración.**
   - Tareas de consola del propietario antes de publicar: ver [Firebase](firebase.md#tareas-del-propietario-en-consola-o-gcloud).
   - Validar BC3 con un archivo real de TCQ. Presto y Arquímedes ya probados (13-11-2026): la base de precios de Extremadura 2026 (Presto 25.01, 17,8 MB, 60.943 conceptos) entra en el catálogo sin errores, y de Arquímedes se leen bien estructura, mediciones y registros partidos en varias líneas. Ver [Pruebas](testing.md#bc3-con-ficheros-reales).
-  - **El importador rechaza un presupuesto real de Arquímedes.** Recalcula cada precio desde su descomposición y bloquea la importación cuando no cuadra con el declarado. Tras leer el porcentaje del rendimiento, el total calculado pasó de un 4,3 % a un 1 % por debajo del declarado, pero ese resto es redondeo propio de cada programa y no se puede igualar. Decisión pendiente: que el importador se fíe del precio declarado del `~C` y deje la descomposición como detalle, en vez de recalcular y bloquear.
   - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
   - Decisión de producto abierta: prueba gratuita frente a BG-004.
@@ -27,6 +26,8 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - Los leads con más de 12 meses se anonimizan en lugar de borrarse: se quitan contacto, consentimiento y huella de la petición, y se conservan la reforma, la estimación y el mes de recepción. Implementado en `applyRetentionPolicies`.
   - Se aceptan los límites por IP actuales: 60 estimaciones por minuto y 10 solicitudes por hora.
   - El límite por formulario sube de 10 a 60 solicitudes por hora (`LIMIT_LEADS_PER_FORM_PER_HOUR`) para no rechazar clientes reales en campañas. Se mantienen 50 al día por propietario y 500 al día en total; habrá que subir el global antes de crecer.
+
+- **BG-016 — el importador BC3 se fía del precio declarado (13-11-2026, [spec](specs/2026-11-13-bg-016-precio-declarado-bc3-design.md)).** El precio del `~C` y la medición del `~M` mandan sobre sus descomposiciones, el desfase pasa de error a aviso y el factor del `~D` multiplica a la medición. Un presupuesto real de Arquímedes (CEIP Villimar, 4.947.480,30 €) se importa con su total exacto.
 
 - **Arreglos del 13-11-2026.** En móvil solo se muestra uno de los dos avisos de arranque y únicamente en Presupuestos y Proyectos; la descripción de la partida ocupa su propia línea en el editor. Los datos del titular de los textos legales viven en `LEGAL_HOLDER` y `pnpm firebase:deploy` bloquea producción mientras queden marcadores.
 

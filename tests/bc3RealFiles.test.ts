@@ -61,15 +61,13 @@ describe('BC3 de Arquímedes: proyecto del CEIP Villimar', () => {
     },
   );
 
-  it.skipIf(missing(ARQUIMEDES))('aplica los conceptos de porcentaje al recalcular', () => {
+  it.skipIf(missing(ARQUIMEDES))('se importa con los precios declarados en el archivo', () => {
     const result = parseBc3(bytes(ARQUIMEDES), { target: 'budget', today: '2026-11-13' });
-    const { declaredTotal, computedTotal } = result.summary;
-    // Antes de leer el porcentaje del rendimiento, el total calculado se quedaba un 4,3 %
-    // por debajo del declarado. Falta un 1 % que viene del redondeo de cada programa:
-    // mientras el importador recalcule en vez de fiarse del precio declarado, un presupuesto
-    // real de Arquímedes no se puede importar (ver docs/plan.md).
-    expect(computedTotal).not.toBeNull();
-    expect(computedTotal! / declaredTotal!).toBeGreaterThan(0.985);
-    expect(computedTotal! / declaredTotal!).toBeLessThan(1);
+    // BG-016: nada bloquea la importación y el importe es el del archivo.
+    expect(errors(result)).toEqual([]);
+    expect(result.document).not.toBeNull();
+    expect(result.summary.computedTotal).toBe(result.summary.declaredTotal);
+    // El archivo se contradice consigo mismo y eso se avisa, sin bloquear.
+    expect(result.diagnostics.map((item) => item.code)).toContain('price-mismatch');
   });
 });

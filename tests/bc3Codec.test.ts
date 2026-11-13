@@ -191,7 +191,7 @@ describe('rejections and diagnostics', () => {
     expect(errors(result)[0]!.code).toBe('kind-mismatch');
   });
 
-  it('blocks a work whose declared total does not match', () => {
+  it('avisa, sin bloquear, cuando el total declarado no cuadra con sus partidas', () => {
     const bytes = minimalWork([
       '~C|R##||Obra|100.00||0|',
       '~C|C1#||Cap|||0|',
@@ -200,9 +200,30 @@ describe('rejections and diagnostics', () => {
       '~D|C1#|P1\\1\\3\\|',
     ]);
     const result = parseBc3(bytes, { target: 'budget' });
-    expect(result.document).toBeNull();
-    expect(codes(result)).toContain('total-mismatch');
+    // BG-016: se importa con los precios del archivo y el desfase queda como aviso.
+    expect(result.document).not.toBeNull();
+    expect(result.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    expect(result.diagnostics.find((item) => item.code === 'total-mismatch')?.severity).toBe(
+      'warning',
+    );
     expect(result.summary).toMatchObject({ declaredTotal: 100, computedTotal: 30 });
+  });
+
+  it('usa el precio declarado de una partida en vez de recalcular su descomposición', () => {
+    const bytes = minimalWork([
+      '~C|R##||Obra|||0|',
+      '~C|C1#||Cap|||0|',
+      '~C|MO|h|Oficial|20.00||1|',
+      // El archivo declara 9.03 aunque su descomposición sume 10.00.
+      '~C|P1|m2|Partida|9.03||0|',
+      '~D|R##|C1#\\1\\1\\|',
+      '~D|C1#|P1\\1\\1\\|',
+      '~D|P1|MO\\1\\0.5\\|',
+    ]);
+    const result = parseBc3(bytes, { target: 'budget' });
+    expect(result.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    expect(result.summary.computedTotal).toBe(9.03);
+    expect(codes(result)).toContain('price-mismatch');
   });
 
   it('blocks unknown references, invalid numbers, duplicates and structural records', () => {
@@ -229,7 +250,28 @@ describe('rejections and diagnostics', () => {
     );
   });
 
-  it('blocks measurements whose lines do not add up to the declared total', () => {
+  it('multiplica la medición por el factor del ~D y lo conserva al exportar', () => {
+    // Caso real: 1,3 de esponjamiento sobre los m³ de tierras medidos.
+    const bytes = minimalWork([
+      '~C|R##||Obra|||0|',
+      '~C|C1#||Cap|||0|',
+      '~C|P1|m3|Transporte de tierras|10.00||0|',
+      '~D|R##|C1#\\1\\1\\|',
+      '~D|C1#|P1\\1.3\\100\\|',
+      '~M|C1#\\P1|1\\1\\|100|\\Desmonte\\1\\100\\\\\\|',
+    ]);
+    const result = parseBc3(bytes, { target: 'budget' });
+    expect(result.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    // 1,3 × 100 m³ × 10 €
+    expect(result.summary.computedTotal).toBe(1300);
+    const exported = serializeBc3(result.document!, { today: '2026-02-01' });
+    expect(new TextDecoder('windows-1252').decode(exported.bytes)).toContain('P1\\1.3\\100\\');
+    // Y al volver a importarlo sigue valiendo lo mismo.
+    const again = parseBc3(exported.bytes, { target: 'budget', today: '2026-02-01' });
+    expect(again.summary.computedTotal).toBe(1300);
+  });
+
+  it('avisa y usa la medición declarada cuando sus líneas no suman lo mismo', () => {
     const result = parseBc3(
       minimalWork([
         '~C|R##||Obra|||0|',
@@ -241,8 +283,11 @@ describe('rejections and diagnostics', () => {
       ]),
       { target: 'budget' },
     );
+    // BG-016: la medición declarada (6) manda sobre la suma de sus líneas (10).
     expect(codes(result)).toContain('measurement-mismatch');
-    expect(result.document).toBeNull();
+    expect(result.diagnostics.filter((item) => item.severity === 'error')).toEqual([]);
+    expect(result.document).not.toBeNull();
+    expect(result.summary.computedTotal).toBe(60);
   });
 
   it('blocks chapters multiplied by a yield', () => {

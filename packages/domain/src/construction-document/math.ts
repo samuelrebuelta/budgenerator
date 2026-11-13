@@ -46,7 +46,19 @@ export interface ConstructionTotals {
 }
 
 /** Unit price of every concept, computed from its decomposition when it has one. */
-export function createRateResolver(content: ConstructionContent) {
+export interface RateResolverOptions {
+  /**
+   * Con `true` (lo normal) el precio declarado de un concepto manda sobre su
+   * descomposición. La importación lo pone en `false` para poder avisar de que el
+   * archivo se contradice (BG-016).
+   */
+  preferDeclared?: boolean;
+}
+
+export function createRateResolver(
+  content: ConstructionContent,
+  { preferDeclared = true }: RateResolverOptions = {},
+) {
   const issues: ConstructionMathIssue[] = [];
   const rates = new Map<string, number>();
   const stack = new Set<string>();
@@ -81,6 +93,15 @@ export function createRateResolver(content: ConstructionContent) {
       const value = directPrice(concept);
       rates.set(conceptId, value);
       return value;
+    }
+    // BG-016: el precio del `~C` es el que el programa de origen imprimió y el cliente
+    // firmó; la descomposición es el detalle, y nunca cuadra al céntimo porque cada
+    // programa redondea a su manera. Se calcula solo cuando no hay precio declarado,
+    // que es el caso de los conceptos de porcentaje (`%`, `%CI`), con el precio a cero.
+    const declared = preferDeclared ? directPrice(concept) : 0;
+    if (declared > 0) {
+      rates.set(conceptId, declared);
+      return declared;
     }
     if (stack.has(conceptId)) {
       issues.push({
@@ -140,15 +161,26 @@ export function createRateResolver(content: ConstructionContent) {
   return { rate, issues };
 }
 
-/** Quantity of an item occurrence: measurement lines when present, otherwise factor × yield. */
+/**
+ * Quantity of an item occurrence. The measurement replaces the `~D` yield when there is one,
+ * but the `~D` factor still multiplies it: that is where a swell coefficient lives (1,3 sobre
+ * los m³ medidos de tierras, por ejemplo), and dropping it loses that part of the budget.
+ */
 export function nodeQuantity(node: FiebdcNode, quantityDecimals = 2): number | null {
-  if (node.measurement?.lines.length) {
-    const total = measurementLinesTotal(node.measurement);
-    return total === null ? null : roundTo(total, quantityDecimals);
-  }
   const factor = parseDecimal(node.factor, 1);
+  if (factor === null) return null;
+  if (node.measurement?.lines.length) {
+    // BG-016: `total` solo está cuando lo declaró el archivo importado; al editar las
+    // líneas se borra (`setMeasurementLines`), y entonces manda su suma.
+    const declared = parseDecimal(node.measurement.total ?? '', null);
+    const measured = declared ?? measurementLinesTotal(node.measurement);
+    if (measured === null) return null;
+    return factor === 1
+      ? roundTo(measured, quantityDecimals)
+      : roundTo(factor * measured, quantityDecimals);
+  }
   const quantity = parseDecimal(node.quantity, 0);
-  if (factor === null || quantity === null) return null;
+  if (quantity === null) return null;
   return factor === 1 ? quantity : roundTo(factor * quantity, quantityDecimals);
 }
 

@@ -8,7 +8,9 @@ import {
   formatFixed,
   isChapterNode,
   isRootCode,
-  nodeQuantity,
+  measurementLinesTotal,
+  parseDecimal,
+  roundTo,
   walkNodes,
   type ConstructionDocument,
   type FiebdcConcept,
@@ -127,12 +129,9 @@ export function serializeBc3(
       const concept = document.concepts[node.conceptId]!;
       const chapter = isChapterNode(node, concept);
       if (chapter) return { code: codeOf(concept), factor: '1', yield: '1' };
-      if (node.measurement?.lines.length)
-        return {
-          code: codeOf(concept),
-          factor: '1',
-          yield: formatDecimal(nodeQuantity(node, decimals.quantity) ?? 0, 6),
-        };
+      // También las partidas medidas: su rendimiento es la medición y el factor la
+      // multiplica. Aplanarlo aquí dejaba el ~D y el ~M contradiciéndose y perdía el
+      // factor al volver a importar.
       return { code: codeOf(concept), factor: node.factor || '1', yield: node.quantity || '0' };
     });
   decompositionRecord(root, structureLines(document.tree));
@@ -193,7 +192,11 @@ export function serializeBc3(
           ].join('\\'),
         )
         .join('\\');
-      const total = formatDecimal(nodeQuantity(node, decimals.quantity) ?? 0, 6);
+      // El total del ~M es la medición en bruto; el factor del ~D la multiplica aparte,
+      // así que aquí no se incluye o se aplicaría dos veces al reimportar.
+      const measured =
+        parseDecimal(measurement.total ?? '', null) ?? measurementLinesTotal(measurement) ?? 0;
+      const total = formatDecimal(roundTo(measured, decimals.quantity), 6);
       lines.push(
         `~M|${f(codeOf(parent))}\\${f(codeOf(concept))}|${position.join('\\')}\\|${total}|${values}\\|${f(measurement.label)}|`,
       );

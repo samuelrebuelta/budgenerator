@@ -733,13 +733,14 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       ? measurementLinesTotal(pending.measurement)
       : null;
     if (pending.measurement.lines.length && computed === null) {
+      // Con el total declarado se puede seguir; sin él no hay cantidad que importar.
       report(
         'measurement-mismatch',
         `No se puede evaluar una línea de medición de ${childCode}.`,
-        work ? 'error' : 'warning',
+        work && declared === null ? 'error' : 'warning',
         pending.record,
       );
-      continue;
+      if (declared === null) continue;
     }
     const decimals = settings.decimals.quantity;
     if (
@@ -747,15 +748,17 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       declared !== null &&
       Math.abs(roundTo(computed, decimals) - declared) > 0.5 * 10 ** -decimals
     )
+      // BG-016: el total declarado es el que imprimió el programa de origen; esto informa.
       report(
         'measurement-mismatch',
-        `La medición de ${childCode} declara ${declared} pero sus líneas suman ${roundTo(computed, decimals)}.`,
-        work ? 'error' : 'warning',
+        `La medición de ${childCode} declara ${declared} pero sus líneas suman ${roundTo(computed, decimals)}; se usa la declarada.`,
+        'warning',
         pending.record,
       );
-    const measured = computed !== null ? roundTo(computed, decimals) : declared;
+    const measured = declared ?? (computed !== null ? roundTo(computed, decimals) : null);
     if (measured === null) continue;
-    const yieldValue = (parseDecimal(node.factor, 1) ?? 1) * (parseDecimal(node.quantity, 1) ?? 1);
+    // El factor del ~D multiplica a la medición, así que aquí se compara solo el rendimiento.
+    const yieldValue = parseDecimal(node.quantity, 1) ?? 1;
     if (Math.abs(yieldValue - measured) > 0.5 * 10 ** -decimals)
       report(
         'measurement-mismatch',
@@ -763,7 +766,8 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
         'warning',
         pending.record,
       );
-    node.factor = '';
+    // Se conserva el factor del ~D: multiplica a la medición (esponjamiento y similares)
+    // y hay que devolverlo tal cual al exportar.
     node.quantity = formatDecimal(measured, 6);
     if (!pending.measurement.lines.length) delete node.measurement;
   }
@@ -841,25 +845,20 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
     );
 
   // Economic checks
-  const { rate } = createRateResolver(document);
+  // Sin `preferDeclared` para comparar el precio del archivo con su descomposición.
+  const { rate: decomposedRate } = createRateResolver(document, { preferDeclared: false });
   let mismatched = 0;
   for (const concept of Object.values(document.concepts)) {
     if (!concept.decomposition.length || structural.has(concept.id)) continue;
     const declaredPrice = parseDecimal(concept.prices[0], null);
     if (declaredPrice === null) continue;
-    if (Math.abs(rate(concept.id) - declaredPrice) > 0.005) {
-      mismatched++;
-      if (work)
-        report(
-          'price-mismatch',
-          `El precio de ${concept.code} (${declaredPrice}) no coincide con su descomposición (${rate(concept.id)}).`,
-        );
-    }
+    if (Math.abs(decomposedRate(concept.id) - declaredPrice) > 0.005) mismatched++;
   }
-  if (mismatched && !work)
+  // BG-016: el precio declarado manda, así que esto informa, no bloquea.
+  if (mismatched)
     report(
       'price-mismatch',
-      `${mismatched} precios descompuestos no coinciden con la suma de su descomposición; BudGenerator usará el precio calculado.`,
+      `${mismatched} precios del archivo no coinciden con la suma de su descomposición; se importa el precio declarado en el archivo.`,
       'warning',
     );
 
@@ -876,7 +875,8 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       if (Math.abs(declaredTotal - totals.raw) > 0.01)
         report(
           'total-mismatch',
-          `El total declarado en el archivo (${declaredTotal}) no coincide con el calculado (${totals.raw}). No se importa para no cambiar el importe.`,
+          `El total declarado en el archivo (${declaredTotal}) no coincide con la suma de sus partidas (${totals.raw}). Se importan los precios del archivo.`,
+          'warning',
         );
     }
   }
