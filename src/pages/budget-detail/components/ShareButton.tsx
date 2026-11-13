@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Share, Link as LinkIcon, X } from 'lucide-react';
+import { useAuthStore } from '@/entities/auth';
 import { revokeSharedBudget, shareBudget, useActiveBudgetRecord } from '@/entities/budget';
 import { useProfileStore } from '@/entities/profile';
+import { EmailVerificationNotice } from '@/features/account';
+import { toUserMessage } from '@/shared/lib';
 import { Button, ConfirmModal } from '@/shared/ui';
 import { withTimeout } from '@/shared/model/session';
 export function ShareButton() {
@@ -11,11 +14,19 @@ export function ShareButton() {
   const [error, setError] = useState('');
   const [link, setLink] = useState<{ token: string; url: string } | null>(null);
   const [revoke, setRevoke] = useState(false);
+  const refreshVerification = useAuthStore((s) => s.refreshVerification);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const publish = async () => {
     if (busy || !budget) return;
     setBusy(true);
     setError('');
     try {
+      // Rules read `email_verified` from the ID token, which can lag behind `user.emailVerified`
+      // after verifying in another tab. Sharing is rare and online-only, so always refresh.
+      if (!(await refreshVerification())) {
+        setNeedsVerification(true);
+        return;
+      }
       const token = await withTimeout(shareBudget(budget, company));
       const url = `${location.origin}/shared/${token}`;
       setLink({ token, url });
@@ -24,13 +35,22 @@ export function ShareButton() {
       else await navigator.clipboard.writeText(url);
     } catch (e) {
       if (!(e instanceof Error && e.name === 'AbortError'))
-        setError(e instanceof Error ? e.message : 'No se ha podido compartir el presupuesto.');
+        setError(
+          toUserMessage(e, {
+            fallback: 'No se ha podido compartir el presupuesto.',
+            permissionDenied:
+              'No se ha podido crear el enlace. Comprueba que tu email está verificado y vuelve a intentarlo.',
+          }),
+        );
     } finally {
       setBusy(false);
     }
   };
   return (
     <div>
+      {needsVerification && (
+        <EmailVerificationNotice reason="Hasta entonces no podrás crear enlaces públicos." />
+      )}
       <Button variant="secondary" onClick={() => void publish()} loading={busy}>
         <Share size={16} />
         {busy ? 'Preparando…' : 'Crear enlace público'}
