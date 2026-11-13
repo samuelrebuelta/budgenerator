@@ -116,16 +116,18 @@ export function EditableRow({
 
       {/* Mobile */}
       <div className="sm:hidden print:hidden border border-gray-200 rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          {descCell && descCell.type === 'text' && (
-            <input
-              value={descCell.value}
-              onChange={(e) => descCell.onChange(e.target.value)}
-              aria-label="Descripción de la partida"
-              placeholder={descCell.placeholder}
-              className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
-            />
-          )}
+        {/* La descripción ocupa su propia línea: compartiéndola con los botones se
+            quedaba en un tercio del ancho y el texto salía cortado. */}
+        {descCell && descCell.type === 'text' && (
+          <input
+            value={descCell.value}
+            onChange={(e) => descCell.onChange(e.target.value)}
+            aria-label="Descripción de la partida"
+            placeholder={descCell.placeholder}
+            className="w-full bg-transparent outline-none text-sm font-medium"
+          />
+        )}
+        <div className="flex items-center justify-end gap-1">
           {headerExtra}
           <button
             aria-label="Eliminar partida"

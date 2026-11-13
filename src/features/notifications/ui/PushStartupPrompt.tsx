@@ -34,7 +34,12 @@ function saveDismissed(uid: string) {
   }
 }
 
-export function PushStartupPrompt() {
+export function PushStartupPrompt({
+  onVisibilityChange,
+}: {
+  /** Avisa al contenedor de si este aviso ocupa sitio, para no apilar dos. */
+  onVisibilityChange?: (visible: boolean) => void;
+} = {}) {
   const uid = useAuthStore((state) => state.user?.uid);
   const [loadedUid, setLoadedUid] = useState<string | null>(null);
   const [availability, setAvailability] = useState<PushAvailability | 'checking'>('checking');
@@ -113,7 +118,11 @@ export function PushStartupPrompt() {
     isLoaded && currentDeviceEnabled,
     !isLoaded || dismissed,
   );
-  if (!uid || prompt === 'none') return null;
+  const visible = Boolean(uid) && prompt !== 'none';
+  useEffect(() => {
+    onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
+  if (!uid || !visible) return null;
 
   const dismiss = () => {
     saveDismissed(uid);

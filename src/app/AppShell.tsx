@@ -12,10 +12,10 @@ import {
 import { useAuthStore } from '@/entities/auth';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
-import { PwaInstallBanner } from './PwaInstallBanner';
+import { StartupPrompts } from './StartupPrompts';
 import { SyncStatus } from './SyncStatus';
 import { AppTourProvider } from '@/features/app-tour/AppTour';
-import { ForegroundNotificationHost, PushStartupPrompt } from '@/features/notifications';
+import { ForegroundNotificationHost } from '@/features/notifications';
 import { getPageReturnTab } from '@/shared/ui/page-view-transition';
 import {
   completeCurrentDeviceSignOut,
@@ -195,8 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="workspace-header-action-slot" ref={setWorkspaceHeaderActionTarget} />
             </div>
           </header>
-          <PwaInstallBanner />
-          <PushStartupPrompt />
+          <StartupPrompts />
           <main id="workspace-content">
             <PageHeaderAccessoryProvider
               mobileBackTarget={isSecondaryPage ? mobileBackTarget : null}

@@ -719,11 +719,9 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
   await login(page);
   await page.goto('/projects/project-navigation');
   await expect(page.getByRole('heading', { name: 'Equipo asignado' })).toBeVisible();
-  await page.getByRole('button', { name: 'Ocultar aviso de instalación' }).click();
-  await page
-    .getByRole('region', { name: 'Activar notificaciones push' })
-    .getByRole('button', { name: 'Ahora no' })
-    .click();
+  // Los avisos de arranque solo salen en Presupuestos y Proyectos, no en un detalle.
+  await expect(page.getByRole('button', { name: 'Ocultar aviso de instalación' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Activar notificaciones push' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Asignar equipo' }).click();
   const firstDialog = page.getByRole('dialog', { name: 'Asignar equipo al proyecto' });
@@ -2071,6 +2069,9 @@ test('PWA install banner consumes prompts, stays hidden after dismissal and in s
 }) => {
   await login(page);
   const banner = page.getByRole('complementary', { name: 'Instalar BudGenerator', exact: true });
+  // Solo se muestra un aviso de arranque a la vez y el de push va primero.
+  const pushNotice = page.getByRole('button', { name: 'Ahora no' });
+  if (await pushNotice.isVisible()) await pushNotice.click();
   await expect(banner).toBeVisible();
   await banner.getByRole('button', { name: 'Cómo instalar', exact: true }).click();
   await expect(banner.getByText(/Abre el menú/)).toBeVisible();
