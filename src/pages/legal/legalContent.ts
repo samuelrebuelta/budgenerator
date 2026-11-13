@@ -79,7 +79,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
         heading: 'Plazos de conservación',
         paragraphs: [
           'Cuenta y contenido: mientras la cuenta exista. Al borrarla se eliminan todos los datos de forma inmediata e irreversible.',
-          'Solicitudes de presupuesto (leads): 12 meses desde su recepción; después se borran automáticamente.',
+          'Solicitudes de presupuesto (leads): los datos de contacto se conservan 12 meses desde su recepción; después se anonimizan automáticamente y solo se guarda la reforma solicitada, la estimación y el mes de recepción.',
           'Enlaces públicos de presupuestos: hasta su caducidad (máximo 31 días); después se borran automáticamente.',
           'Dispositivos push: se eliminan tras 270 días sin actividad o al cerrar sesión.',
           'Copias de seguridad: [COMPLETAR: plazo de retención de backups, por ejemplo 30 días].',

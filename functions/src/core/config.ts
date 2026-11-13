@@ -25,7 +25,7 @@ export function readAppCheckMode(value = process.env.APP_CHECK_MODE): AppCheckMo
 
 export const runtimeConfig = {
   appCheckMode: readAppCheckMode(),
-  /** Leads older than this are deleted by the daily retention job. */
+  /** Leads older than this are anonymized by the daily retention job. */
   leadRetentionMonths: readInt('LEAD_RETENTION_MONTHS', 12, 1, 120),
   /** Push devices without activity for this long are deleted. */
   pushDeviceInactiveDays: readInt('PUSH_DEVICE_INACTIVE_DAYS', 270, 30, 3650),

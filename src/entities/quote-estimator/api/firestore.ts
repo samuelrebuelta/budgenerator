@@ -94,16 +94,24 @@ function leadsCollection(uid: string) {
   return collection(db, 'users', uid, 'leads');
 }
 
+/** Leads older than the retention period keep no contact data and are not shown in the app. */
+function isAnonymized(value: Record<string, unknown>) {
+  return 'anonymizedAt' in value || !value.contact;
+}
+
 export async function fetchLeads(uid: string): Promise<QuoteLead[]> {
   const snapshot = await getDocs(leadsCollection(uid));
   return snapshot.docs
+    .filter((item) => !isAnonymized(item.data()))
     .map((item) => mapLead(item.id, item.data()))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function fetchLead(uid: string, leadId: string): Promise<QuoteLead | null> {
   const snapshot = await getDoc(doc(leadsCollection(uid), leadId));
-  return snapshot.exists() ? mapLead(snapshot.id, snapshot.data()) : null;
+  return snapshot.exists() && !isAnonymized(snapshot.data())
+    ? mapLead(snapshot.id, snapshot.data())
+    : null;
 }
 
 export async function deleteLead(uid: string, leadId: string) {

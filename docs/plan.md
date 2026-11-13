@@ -20,7 +20,11 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
   - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; avisos de instalar y push demasiado altos en móvil; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; descripción truncada en el editor móvil; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
-  - Decisiones de producto abiertas: retención de leads (borrar o anonimizar), límites por IP, decisiones D1–D10 de la [app nativa](analysis/native-app-plan.md).
+  - Decisiones de producto abiertas: D1–D10 de la [app nativa](analysis/native-app-plan.md) y prueba gratuita frente a BG-004.
+
+- **Decisiones del 13-11-2026.**
+  - Los leads con más de 12 meses se anonimizan en lugar de borrarse: se quitan contacto, consentimiento y huella de la petición, y se conservan la reforma, la estimación y el mes de recepción. Implementado en `applyRetentionPolicies`.
+  - Se aceptan los límites por IP actuales: 60 estimaciones por minuto y 10 solicitudes por hora.
 
 ## Trabajo futuro y decisiones
 

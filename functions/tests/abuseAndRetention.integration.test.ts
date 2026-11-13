@@ -74,7 +74,7 @@ describe('rate limits', () => {
 });
 
 describe('retention', () => {
-  it('deletes old leads, expired public snapshots and expired counters only', async () => {
+  it('anonymizes old leads and deletes expired public snapshots and counters only', async () => {
     const uid = `retention-${randomUUID()}`;
     const now = Date.now();
     const old = firestore.doc(`users/${uid}/leads/old`);
@@ -84,8 +84,19 @@ describe('retention', () => {
     const staleCounter = firestore.doc(`${RATE_LIMIT_COLLECTION}/stale-${uid}`);
     const legacyCounter = firestore.doc(`quoteLeadRateLimits/legacy-${uid}`);
     await Promise.all([
-      old.set({ createdAt: Timestamp.fromMillis(now - 400 * DAY) }),
-      recent.set({ createdAt: Timestamp.fromMillis(now - 30 * DAY) }),
+      old.set({
+        createdAt: Timestamp.fromMillis(Date.UTC(2025, 8, 15)),
+        consentAt: Timestamp.fromMillis(Date.UTC(2025, 8, 15)),
+        contact: { name: 'Ana', email: 'ana@example.test', phone: '600000000' },
+        requestHash: 'hash',
+        selections: [{ room: 'bathroom', scope: 'partial', quality: 'medium', area: 6 }],
+        estimate: { min: 2400, max: 4200, currency: 'EUR', includesVat: false },
+        budgetId: 'budget-1',
+      }),
+      recent.set({
+        createdAt: Timestamp.fromMillis(now - 30 * DAY),
+        contact: { name: 'Luis', email: 'luis@example.test', phone: '611111111' },
+      }),
       expired.set({ ownerUid: uid, expiresAt: now - 1000 }),
       active.set({ ownerUid: uid, expiresAt: now + DAY }),
       staleCounter.set({ count: 3, expiresAt: Timestamp.fromMillis(now - 1000) }),
@@ -93,9 +104,21 @@ describe('retention', () => {
     ]);
 
     const result = await applyDataRetention(now);
-    expect(result.leads).toBeGreaterThanOrEqual(1);
-    expect((await old.get()).exists).toBe(false);
-    expect((await recent.get()).exists).toBe(true);
+    expect(result.leadsAnonymized).toBeGreaterThanOrEqual(1);
+    const anonymized = (await old.get()).data()!;
+    expect(anonymized.contact).toBeUndefined();
+    expect(anonymized.consentAt).toBeUndefined();
+    expect(anonymized.requestHash).toBeUndefined();
+    expect(anonymized.createdAt).toBeUndefined();
+    expect(anonymized.receivedMonth).toBe('2025-09');
+    expect(anonymized.anonymizedAt).toBeInstanceOf(Timestamp);
+    expect(anonymized.selections).toHaveLength(1);
+    expect(anonymized.estimate).toMatchObject({ min: 2400, max: 4200 });
+    expect(anonymized.budgetId).toBe('budget-1');
+    expect((await recent.get()).data()!.contact).toMatchObject({ name: 'Luis' });
+    // A second run does not touch the lead again (it no longer has `createdAt`).
+    await applyDataRetention(now);
+    expect((await old.get()).get('anonymizedAt')).toEqual(anonymized.anonymizedAt);
     expect((await expired.get()).exists).toBe(false);
     expect((await active.get()).exists).toBe(true);
     expect((await staleCounter.get()).exists).toBe(false);
