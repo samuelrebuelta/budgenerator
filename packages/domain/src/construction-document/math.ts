@@ -112,10 +112,13 @@ export function createRateResolver(content: ConstructionContent) {
           .filter((item) => !item.percentage)
           .filter((item) => !masks.length || masks.some((mask) => item.code.startsWith(mask)))
           .reduce((sum, item) => sum + item.amount, 0);
-        // FIEBDC percentage concepts express their price as a fraction (0.03 = 3 %).
+        // Two conventions in the wild for the rate of a percentage concept: Presto writes
+        // it as the concept price (0.03 = 3 %) with yield 1; Arquímedes leaves that price
+        // at zero and puts the rate in the decomposition yield. Falling back to 1 covers
+        // the second without changing the first.
         lines.push({
           code: bareCode(child.code),
-          amount: factor * yieldValue * directPrice(child) * base,
+          amount: factor * yieldValue * (directPrice(child) || 1) * base,
           percentage: true,
         });
         continue;

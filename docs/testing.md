@@ -75,6 +75,16 @@ pnpm firebase:deploy
 
 Los scripts usan el CLI local fijado por el lockfile y comprueban que el entorno no sea de emuladores. Para publicar cambios de reglas, utilizar el despliegue conjunto y revisar las consideraciones de transición en [`archive/stability-and-release.md`](archive/stability-and-release.md).
 
+## BC3 con ficheros reales
+
+Los fixtures de `tests/fixtures/bc3/` los escribimos nosotros, así que no prueban las manías de los programas de verdad. `tests/bc3RealFiles.test.ts` lee ficheros reales de una carpeta externa y se salta si no está:
+
+```bash
+BC3_REAL_DIR=/ruta/con/los/bc3 pnpm exec vitest run tests/bc3RealFiles.test.ts
+```
+
+No se versionan: pesan decenas de MB y se publican sin licencia de redistribución. Los usados el 13-11-2026 son la base de precios de la Junta de Extremadura 2026 (Presto 25.01) y el proyecto del CEIP Villimar de la Junta de Castilla y León (Arquímedes de CYPE). Lo que aportan sobre los fixtures: registros `~D` y `~M` partidos en varias líneas, conceptos de porcentaje con el precio a cero y el porcentaje en el rendimiento, extensiones `~X`, `~E` y `~A`, y descompuestos de cientos de hijos.
+
 ## Pruebas con escritura
 
 Las pruebas automatizadas y las comprobaciones con escritura se hacen en emuladores con un `projectId` `demo-` y datos ficticios. No se modifican datos reales ni se verifica producción con la cuenta administradora. Los fallos de aislamiento o permisos se reproducen con el emulador.
