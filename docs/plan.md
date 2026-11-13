@@ -20,6 +20,8 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
   - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; avisos de instalar y push demasiado altos en móvil; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; descripción truncada en el editor móvil; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
+  - Estimador y solicitudes (prueba del 13-11-2026): requisitos al inicio y completables sin salir, borrador automático, aviso de privacidad alojado para quien no tiene web, precios orientativos, errores concretos, confirmar al revocar y opción de pausar, kit para compartir (QR, WhatsApp, URL corta), integral con precio propio, presupuesto con capítulos desde la solicitud y estado de cada solicitud.
+  - Decidir el límite por formulario: hoy son 10 solicitudes por hora para todos los clientes juntos (además de 10/h por IP, 50/día por propietario y 500/día global).
   - Decisiones de producto abiertas: D1–D10 de la [app nativa](analysis/native-app-plan.md) y prueba gratuita frente a BG-004.
 
 - **Decisiones del 13-11-2026.**
