@@ -13,10 +13,12 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - **BC3.** El modelo FIEBDC es la única fuente de verdad de presupuestos, catálogo, plantillas, enlaces públicos y proyectos, con importación y exportación `.bc3` en Catálogo, Presupuestos y Plantillas. Ver [spec](specs/2026-10-19-bc3-intercambio-design.md) y [plan](specs/plans/2026-10-19-bc3-intercambio.md).
   - **Frontend.** Tokens semánticos y CSS por capas, primitivas de `shared/ui`, Equipo dividido en tres rutas, carga diferida de la sesión, i18next retirado, splash de iOS y fronteras FSD en ESLint, según el [análisis del frontend](analysis/frontend-pwa.md).
   - **Documentación.** Históricos en `archive/`, specs y planes unificados en `specs/` con [índice](specs/README.md) y `pnpm docs:check` en CI.
-  - **Verificación local.** `pnpm lint`, `format:check`, `test` (295), `build`, reglas con emulador (93) y E2E con emuladores (49/49 tras los arreglos de esta integración).
+  - **Verificación local.** `pnpm lint`, `format:check`, `test` (297), `docs:check`, `build`, reglas con emulador (93) y E2E con emuladores (49/49) tras la batida funcional.
+  - **Batida funcional del 13-11-2026.** Usuario nuevo contra emuladores: alta, BC3 de ida y vuelta, PDF, enlace público, proyecto, equipo, estimador, solicitudes, móvil, exportación y borrado de cuenta. Corregidos: redondeo de céntimos y subtotal de capítulos padre en PDF y vista pública, token desfasado al compartir tras verificar el email y formato de cantidades.
 - **Pendiente de la integración.**
   - Tareas de consola del propietario antes de publicar: ver [Firebase](firebase.md#tareas-del-propietario-en-consola-o-gcloud).
   - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
+  - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; avisos de instalar y push demasiado altos en móvil; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; descripción truncada en el editor móvil; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
   - Decisiones de producto abiertas: retención de leads (borrar o anonimizar), límites por IP, decisiones D1–D10 de la [app nativa](analysis/native-app-plan.md).
 
