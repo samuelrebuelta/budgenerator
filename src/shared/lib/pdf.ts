@@ -1,7 +1,13 @@
 import { jsPDF } from 'jspdf';
 import type { Budget, PublicBudget, CompanyProfile } from '@/shared/types';
 import { unitLabel } from '@/shared/types';
-import { assertBudget, budgetTotals, taskAmount, unitPrice, workItemAmount } from './budgetMath';
+import {
+  assertBudget,
+  budgetTotals,
+  taskAmount,
+  unitPrice,
+  workItemSubtreeAmount,
+} from './budgetMath';
 interface PdfData {
   budget: Budget | PublicBudget;
   company?: CompanyProfile;
@@ -156,7 +162,9 @@ export function buildBudgetDocument(
       ink();
       doc.text(heading, left + 4, y + 2);
       doc.setFontSize(9);
-      doc.text(fmt(workItemAmount(item, multiplier)), right - 4, y + 2, { align: 'right' });
+      doc.text(fmt(workItemSubtreeAmount(budget.workItems, index, multiplier)), right - 4, y + 2, {
+        align: 'right',
+      });
       y += height + 4;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);

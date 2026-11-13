@@ -6,7 +6,7 @@ import { formatCurrency } from '@/shared/lib';
 import { Card, ExportPdfButton, OfflineUnavailable, Skeleton } from '@/shared/ui';
 import {
   taskAmount as getTaskAmount,
-  workItemAmount as getWorkItemSubtotal,
+  workItemSubtreeAmount,
   budgetTotals,
 } from '@/shared/lib/budgetMath';
 import { withTimeout } from '@/shared/model/session';
@@ -188,13 +188,13 @@ function PublicViewer({ token }: { token: string }) {
 
           {/* Work Items */}
           <div className="space-y-6">
-            {budget.workItems.map((wi) => (
+            {budget.workItems.map((wi, index) => (
               <div key={wi.id} className="border border-gray-200 rounded-lg overflow-hidden">
                 {/* WorkItem Header */}
                 <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200">
                   <span className="font-semibold text-gray-900 text-sm uppercase">{wi.name}</span>
                   <span className="text-sm font-medium text-gray-500">
-                    {formatCurrency(getWorkItemSubtotal(wi, multiplier))}
+                    {formatCurrency(workItemSubtreeAmount(budget.workItems, index, multiplier))}
                   </span>
                 </div>
 
