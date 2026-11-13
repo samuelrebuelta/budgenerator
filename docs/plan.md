@@ -20,7 +20,7 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
   - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; avisos de instalar y push demasiado altos en móvil; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; descripción truncada en el editor móvil; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
-  - Decisiones de producto abiertas: D1–D10 de la [app nativa](analysis/native-app-plan.md) y prueba gratuita frente a BG-004.
+  - Decisión de producto abierta: prueba gratuita frente a BG-004.
 
 - **Decisiones del 13-11-2026.**
   - Los leads con más de 12 meses se anonimizan en lugar de borrarse: se quitan contacto, consentimiento y huella de la petición, y se conservan la reforma, la estimación y el mes de recepción. Implementado en `applyRetentionPolicies`.
@@ -31,7 +31,7 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
 
 ## Trabajo futuro y decisiones
 
-- **App nativa.** Plan con React Native + Expo en el [análisis](analysis/native-app-plan.md) (BG-N01, propuesto).
+- **App nativa (BG-014).** [Spec](specs/BG-014-app-nativa.md) aprobada el 14-11-2026, con el [análisis](analysis/native-app-plan.md) como detalle. Decisiones D1–D10 resueltas el 14-11-2026 (D6, titular de las cuentas de tienda, aplazada hasta antes de publicar). Estimación: 18–23 semanas.
 - **Lanzamiento.** Viabilidad y campaña en Meta en el [análisis de mercado](analysis/market-viability-meta-ads.md).
 - **BG-004.** Monetización y Stripe aplazados hasta validar el MVP. Se mantienen los planes y la administración actuales.
 - **BG-006.** Generación con IA retirada del roadmap. El asistente es el flujo vigente de creación guiada.
