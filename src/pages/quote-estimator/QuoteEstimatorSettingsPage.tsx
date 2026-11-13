@@ -423,6 +423,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             companyName={profile?.name ?? ''}
             busy={saving}
             onPausedChange={(next) => {
+              // The share kit shows its own confirmation.
+              setNotice('');
               setPaused(next);
               cacheCurrentSnapshot({ paused: next });
             }}

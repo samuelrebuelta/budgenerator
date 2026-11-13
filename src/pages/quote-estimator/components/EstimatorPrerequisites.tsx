@@ -71,6 +71,7 @@ export function EstimatorPrerequisites() {
       if (!name.trim()) throw new Error('Escribe el nombre de tu empresa.');
       updateProfile({ name: name.trim() });
       await saveProfile();
+      return 'Nombre guardado.';
     });
 
   const saveOwnPrivacyUrl = () =>
@@ -79,6 +80,7 @@ export function EstimatorPrerequisites() {
         throw new Error('Usa una dirección completa que empiece por https://');
       updateProfile({ privacyPolicyUrl: privacyUrl.trim() });
       await saveProfile();
+      return 'Aviso de privacidad guardado.';
     });
 
   const adoptHostedNotice = () =>
@@ -96,6 +98,7 @@ export function EstimatorPrerequisites() {
     run('email', async () => {
       if (!(await refreshVerification()))
         throw new Error('Todavía no consta como verificado. Abre el enlace del email.');
+      return 'Email verificado.';
     });
 
   const resend = () =>
@@ -105,7 +108,13 @@ export function EstimatorPrerequisites() {
     });
 
   const pending = missingRequirements(requirements).length;
-  if (pending === 0) return null;
+  // Completed here: confirm it instead of making the block vanish.
+  if (pending === 0)
+    return message ? (
+      <Alert tone="success" className="mb-6">
+        {message} Ya puedes publicar tu formulario en el paso «Enlace».
+      </Alert>
+    ) : null;
   return (
     <section aria-labelledby="estimator-requirements-heading" className="mb-6">
       <Card className="p-5 sm:p-6">

@@ -8,6 +8,11 @@ import { LoadingScreen } from '@/shared/ui/LoadingScreen';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 
+/** Ends a sentence without doubling the stop of names such as «Reformas García, S.L.». */
+function sentence(text: string) {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
 /**
  * Privacy notice that BudGenerator hosts for companies without a website. It only covers the
  * requests sent through the public form. Template text: review it with a legal advisor before
@@ -63,13 +68,15 @@ export function HostedPrivacyNoticePage() {
           </p>
           <h1 className="mt-2 font-serif text-3xl text-gray-900">Aviso de privacidad</h1>
           <p className="mt-1 text-xs text-gray-500">
-            Solicitudes de presupuesto enviadas desde el formulario de {notice.companyName}.
+            {sentence(
+              `Solicitudes de presupuesto enviadas desde el formulario de ${notice.companyName}`,
+            )}
             {notice.updatedAt && ` Actualizado el ${formatDate(notice.updatedAt)}.`}
           </p>
         </header>
         <section>
           <h2 className="text-base font-semibold text-gray-900">Responsable del tratamiento</h2>
-          <p>{holder.join(' · ')}.</p>
+          <p>{sentence(holder.join(' · '))}</p>
           {(notice.email || notice.phone) && (
             <p>Contacto: {[notice.email, notice.phone].filter(Boolean).join(' · ')}.</p>
           )}
