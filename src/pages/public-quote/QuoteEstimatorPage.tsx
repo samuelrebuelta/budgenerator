@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Mail, Phone } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import {
   ESTIMATOR_QUALITIES,
@@ -32,6 +32,7 @@ import {
   Skeleton,
 } from '@/shared/ui';
 import { Brand } from '@/shared/ui/Brand';
+import { EstimatorUnavailable } from './EstimatorUnavailable';
 import { getMemoryResource, loadMemoryResource } from '@/shared/lib/memoryResourceCache';
 import { reportNetworkUnavailable, useNetworkStore } from '@/shared/model/network';
 
@@ -48,7 +49,7 @@ export function QuoteEstimatorPage() {
   return <PublicEstimator key={token} token={token} />;
 }
 
-function PublicEstimator({ token }: { token: string }) {
+export function PublicEstimator({ token }: { token: string }) {
   const online = useNetworkStore((state) => state.online);
   const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
   const cacheKey = `public:estimator:${token}`;
@@ -360,28 +361,8 @@ function PublicEstimator({ token }: { token: string }) {
     );
   }
 
-  if (unavailable || !company) {
-    return (
-      <main className="min-h-screen bg-canvas px-4 py-12 sm:py-20">
-        <div className="mx-auto max-w-xl">
-          <Brand />
-          <Card className="mt-12 p-7 text-center sm:p-10">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-500">
-              <ShieldCheck size={22} />
-            </div>
-            <h1 className="mt-5 text-2xl font-semibold tracking-tight text-gray-900">
-              Este enlace no está disponible
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              Puede que haya caducado o que la empresa lo haya retirado. Ponte en contacto con la
-              empresa desde su página web.
-            </p>
-          </Card>
-          <p className="mt-6 text-center text-xs text-gray-400">Estimador de BudGenerator</p>
-        </div>
-      </main>
-    );
-  }
+  if (unavailable || !company) return <EstimatorUnavailable />;
+  if (company.paused) return <EstimatorUnavailable contact={company} paused />;
 
   return (
     <main className="min-h-screen bg-canvas px-4 py-6 sm:py-10">

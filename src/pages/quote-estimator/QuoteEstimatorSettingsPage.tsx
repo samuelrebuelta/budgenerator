@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Copy, ExternalLink, Minus, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Minus, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { EmailVerificationNotice } from '@/features/account';
 import { useProfileStore } from '@/entities/profile';
 import {
   CONFIGURABLE_ESTIMATOR_ROOMS,
@@ -10,9 +9,9 @@ import {
   fetchEstimatorLinkStatus,
   fetchQuoteEstimatorSettings,
   isSimpleQuoteEstimatorSettings,
-  isValidPrivacyPolicyUrl,
   publishEstimatorLink,
-  revokeEstimatorLink,
+  ROOM_REFERENCE_RATES,
+  roomRateProblem,
   saveQuoteEstimatorSettings,
   validateEstimatorSettings,
   type ConfigurableEstimateRoom,
@@ -22,7 +21,6 @@ import {
 import {
   Alert,
   Button,
-  buttonClassName,
   Card,
   ConfirmModal,
   Input,
@@ -33,7 +31,16 @@ import {
   Skeleton,
   Switch,
 } from '@/shared/ui';
-import { usePageNavigation } from '@/shared/ui/page-view-transition';
+import { toUserMessage } from '@/shared/lib';
+import { EstimatorShareKit } from './components/EstimatorShareKit';
+import { EstimatorPrerequisites } from './components/EstimatorPrerequisites';
+import { missingRequirements } from './model/estimatorSharing';
+import { useEstimatorRequirements } from './model/useEstimatorRequirements';
+import {
+  clearEstimatorDraft,
+  readEstimatorDraft,
+  writeEstimatorDraft,
+} from './model/estimatorDraft';
 import {
   getMemoryResource,
   loadMemoryResource,
@@ -55,6 +62,8 @@ type SettingsSnapshot = {
   legacySetup: boolean;
   hasSavedSettings: boolean;
   token: string;
+  paused: boolean;
+  slug: string;
 };
 
 function euros(cents: number) {
@@ -64,6 +73,14 @@ function euros(cents: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(cents / 100);
+}
+
+/** Field of a room's prices that a validation problem refers to. */
+function problemField(problem: string | null): 'min' | 'max' | 'step' | null {
+  if (!problem) return null;
+  if (/incremento|Lujo/.test(problem)) return 'step';
+  if (problem.includes('precio hasta') || problem.includes('«desde» no puede')) return 'max';
+  return 'min';
 }
 
 function readEuroInput(value: string) {
@@ -83,19 +100,23 @@ export function QuoteEstimatorSettingsPage() {
 }
 
 function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
-  const { navigate } = usePageNavigation();
   const profile = useProfileStore((state) => state.profile);
+  const requirements = useEstimatorRequirements();
+  const [initialDraft] = useState(() => (uid ? readEstimatorDraft(uid) : null));
   const online = useNetworkStore((state) => state.online);
   const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
   const cacheKey = `private:${uid ?? ''}:quote-estimator-settings`;
   const cachedSnapshot = uid ? getMemoryResource<SettingsSnapshot>(cacheKey) : undefined;
   const [settings, setSettings] = useState<SimpleQuoteEstimatorSettings>(
-    () => cachedSnapshot?.settings ?? emptySettings,
+    () => initialDraft?.settings ?? cachedSnapshot?.settings ?? emptySettings,
   );
   const savedSettings = useRef(JSON.stringify(cachedSnapshot?.settings ?? emptySettings));
-  const settingsDirty = useRef(false);
-  const [step, setStep] = useState(0);
+  const settingsDirty = useRef(Boolean(initialDraft));
+  const [step, setStep] = useState(() => initialDraft?.step ?? 0);
+  const [showPriceErrors, setShowPriceErrors] = useState(false);
   const [token, setToken] = useState(() => cachedSnapshot?.token ?? '');
+  const [paused, setPaused] = useState(() => cachedSnapshot?.paused ?? false);
+  const [slug, setSlug] = useState(() => cachedSnapshot?.slug ?? '');
   const [legacySetup, setLegacySetup] = useState(() => cachedSnapshot?.legacySetup ?? false);
   const [hasSavedSettings, setHasSavedSettings] = useState(
     () => cachedSnapshot?.hasSavedSettings ?? false,
@@ -103,18 +124,21 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(() => cachedSnapshot === undefined && online);
   const [saving, setSaving] = useState(false);
-  const [copyingLink, setCopyingLink] = useState(false);
   const [operation, setOperation] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() =>
+    initialDraft ? 'Hemos recuperado la configuración que aún no habías guardado.' : '',
+  );
 
   const roomLabels = useMemo(
     () => new Map(CONFIGURABLE_ESTIMATOR_ROOMS.map(({ id, label }) => [id, label])),
     [],
   );
-  const publicUrl = token ? `${window.location.origin}/solicitar-presupuesto/${token}` : '';
-  const missingProfileName = !profile?.name?.trim();
-  const missingPrivacyUrl = !isValidPrivacyPolicyUrl(profile?.privacyPolicyUrl);
+
+  // Keep unsaved changes across reloads and visits to Mi empresa.
+  useEffect(() => {
+    if (uid && settingsDirty.current) writeEstimatorDraft(uid, { settings, step });
+  }, [uid, settings, step]);
 
   useEffect(() => {
     let active = true;
@@ -132,6 +156,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
         legacySetup: Boolean(saved && !isSimpleQuoteEstimatorSettings(saved)),
         hasSavedSettings: Boolean(saved),
         token: status.published ? (status.token ?? '') : '',
+        paused: Boolean(status.published && status.paused),
+        slug: status.slug ?? '',
       };
       return snapshot;
     })
@@ -146,6 +172,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
         setLegacySetup(snapshot.legacySetup);
         setHasSavedSettings(snapshot.hasSavedSettings);
         setToken(snapshot.token);
+        setPaused(snapshot.paused);
+        setSlug(snapshot.slug);
       })
       .catch((cause) => {
         if (active && online)
@@ -165,6 +193,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       legacySetup,
       hasSavedSettings,
       token,
+      paused,
+      slug,
       ...patch,
     });
   };
@@ -206,13 +236,35 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     setNotice('');
   };
 
+  const roomProblems = settings.rooms
+    .map((rate) => ({ rate, problem: roomRateProblem(rate) }))
+    .filter((item): item is { rate: RoomEstimateRate; problem: string } => Boolean(item.problem));
+
   const validateDraft = () => {
+    if (roomProblems.length) {
+      setShowPriceErrors(true);
+      throw new Error(
+        roomProblems.length === 1
+          ? `${roomLabels.get(roomProblems[0]!.rate.room)}: ${roomProblems[0]!.problem}`
+          : `Revisa los precios de ${roomProblems.length} estancias: ${roomProblems
+              .map(({ rate }) => roomLabels.get(rate.room))
+              .join(', ')}.`,
+      );
+    }
     validateEstimatorSettings(settings);
   };
 
   const validateForPublishing = () => {
     validateDraft();
-    if (missingProfileName) throw new Error('Completa primero el nombre de empresa en Mi empresa.');
+    const missing = missingRequirements(requirements);
+    if (missing.length)
+      throw new Error(`Antes de publicar, ${missing.join(', ')} en «Antes de publicar».`);
+  };
+
+  const settingsSaved = () => {
+    savedSettings.current = JSON.stringify(settings);
+    settingsDirty.current = false;
+    if (uid) clearEstimatorDraft(uid);
   };
 
   const goNext = () => {
@@ -237,15 +289,12 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     try {
       validateForPublishing();
       await saveQuoteEstimatorSettings(uid, settings);
-      savedSettings.current = JSON.stringify(settings);
-      settingsDirty.current = false;
+      settingsSaved();
       setHasSavedSettings(true);
       cacheCurrentSnapshot({ hasSavedSettings: true });
       setNotice('Configuración guardada. Los cambios ya se aplican al enlace publicado.');
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'No se ha podido guardar la configuración.',
-      );
+      setError(toUserMessage(cause, 'No se ha podido guardar la configuración.'));
     } finally {
       setSaving(false);
       setOperation('');
@@ -260,58 +309,30 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
     setNotice('');
     try {
       validateForPublishing();
-      if (missingPrivacyUrl)
-        throw new Error(
-          'Añade una URL HTTPS al aviso de privacidad en Mi empresa antes de publicar.',
-        );
       await saveQuoteEstimatorSettings(uid, settings);
-      savedSettings.current = JSON.stringify(settings);
-      settingsDirty.current = false;
+      settingsSaved();
       setHasSavedSettings(true);
       setLegacySetup(false);
       cacheCurrentSnapshot({ hasSavedSettings: true, legacySetup: false });
       setOperation('Generando enlace público…');
       const result = await publishEstimatorLink();
       setToken(result.token);
-      cacheCurrentSnapshot({ hasSavedSettings: true, legacySetup: false, token: result.token });
-      setNotice('Enlace generado. Ya puedes copiarlo y añadirlo a la landing de tu empresa.');
+      setSlug(result.slug);
+      setPaused(false);
+      cacheCurrentSnapshot({
+        hasSavedSettings: true,
+        legacySetup: false,
+        token: result.token,
+        slug: result.slug,
+        paused: false,
+      });
+      setNotice('Formulario publicado. Compártelo con los botones de arriba.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se ha podido generar el enlace.');
+      setError(toUserMessage(cause, 'No se ha podido publicar el formulario.'));
     } finally {
       setSaving(false);
       setOperation('');
-    }
-  };
-
-  const handleRevoke = async () => {
-    setSaving(true);
-    setOperation('Revocando enlace…');
-    setError('');
-    setNotice('');
-    try {
-      await revokeEstimatorLink();
-      setToken('');
-      cacheCurrentSnapshot({ token: '' });
-      setNotice('Enlace revocado. Dejará de mostrar el estimador.');
-    } catch {
-      setError('No se ha podido revocar el enlace. Vuelve a intentarlo.');
-    } finally {
-      setSaving(false);
-      setOperation('');
-    }
-  };
-
-  const copyLink = async () => {
-    if (saving || copyingLink) return;
-    setCopyingLink(true);
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      setNotice('Enlace copiado.');
-      setError('');
-    } catch {
-      setError('No se ha podido copiar. Selecciona la URL y cópiala manualmente.');
-    } finally {
-      setCopyingLink(false);
     }
   };
 
@@ -323,16 +344,19 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
       await deleteQuoteEstimatorSettings(uid);
       savedSettings.current = JSON.stringify(emptySettings);
       settingsDirty.current = false;
+      if (uid) clearEstimatorDraft(uid);
       setSettings(emptySettings);
       setHasSavedSettings(false);
       setLegacySetup(false);
       setToken('');
+      setPaused(false);
       setStep(0);
       cacheCurrentSnapshot({
         settings: emptySettings,
         hasSavedSettings: false,
         legacySetup: false,
         token: '',
+        paused: false,
       });
       setNotice('Configuración borrada y enlace revocado. Los leads recibidos se conservan.');
       setError('');
@@ -390,69 +414,54 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
         backLabel="Volver a mi empresa"
       />
 
-      <EmailVerificationNotice reason="Hasta entonces no podrás guardar ni publicar el estimador." />
-
-      {(hasSavedSettings || token) && (
+      {token ? (
         <Card className="mb-6 border-line bg-surface-muted p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="font-semibold text-gray-900">Resumen del estimador</h2>
-              {!token && (
-                <p className="mt-1 text-sm text-gray-600">
-                  Configuración guardada. Aún no hay un enlace público activo.
-                </p>
-              )}
-            </div>
-            {token && (
-              <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                Enlace activo
-              </span>
-            )}
-          </div>
-          {token && (
-            <Input
-              id="estimator-summary-url"
-              label="Enlace público"
-              value={publicUrl}
-              readOnly
-              className="mt-4 bg-white font-mono text-xs"
-            />
-          )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {token && (
-              <>
-                <a href={publicUrl} target="_blank" rel="noreferrer" className={buttonClassName()}>
-                  <ExternalLink size={15} /> Abrir formulario
-                </a>
-                <Button
-                  variant="secondary"
-                  onClick={copyLink}
-                  disabled={saving}
-                  loading={copyingLink}
-                >
-                  <Copy size={15} /> {copyingLink ? 'Copiando enlace…' : 'Copiar enlace'}
-                </Button>
-                <Button variant="danger" onClick={handleRevoke} loading={saving}>
-                  {saving ? operation || 'Revocando…' : 'Revocar enlace'}
-                </Button>
-              </>
-            )}
-            <Button variant="ghost" onClick={() => setShowDeleteConfirm(true)} disabled={saving}>
-              <Trash2 size={15} /> Borrar configuración
-            </Button>
-          </div>
-          <div className="mt-3 min-h-6" aria-live="polite">
-            {notice && (
-              <p
-                role="status"
-                className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-              >
-                {notice}
-              </p>
-            )}
-          </div>
+          <EstimatorShareKit
+            token={token}
+            slug={slug}
+            paused={paused}
+            companyName={profile?.name ?? ''}
+            busy={saving}
+            onPausedChange={(next) => {
+              setPaused(next);
+              cacheCurrentSnapshot({ paused: next });
+            }}
+            onRevoked={() => {
+              setToken('');
+              setPaused(false);
+              cacheCurrentSnapshot({ token: '', paused: false });
+              setNotice('Enlace revocado. El formulario ya no acepta solicitudes.');
+            }}
+            onDeleteRequest={() => setShowDeleteConfirm(true)}
+          />
         </Card>
+      ) : (
+        hasSavedSettings && (
+          <Card className="mb-6 border-line bg-surface-muted p-5 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Formulario sin publicar</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  La configuración está guardada. Publícalo en el paso «Enlace».
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => setShowDeleteConfirm(true)} disabled={saving}>
+                <Trash2 size={15} /> Borrar configuración
+              </Button>
+            </div>
+          </Card>
+        )
       )}
+      {notice && (
+        <p
+          role="status"
+          className="mb-6 rounded-lg bg-success-surface px-3 py-2 text-sm text-success-ink"
+        >
+          {notice}
+        </p>
+      )}
+
+      {!token && <EstimatorPrerequisites />}
 
       <Card className="mb-6 border-0 bg-brand-50 p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -534,6 +543,15 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
           <div className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white px-4 sm:px-5">
             {settings.rooms.map((roomRate) => {
               const roomLabel = roomLabels.get(roomRate.room) ?? roomRate.room;
+              const reference = ROOM_REFERENCE_RATES[roomRate.room];
+              const problem = roomRateProblem(roomRate);
+              const visibleProblem = showPriceErrors ? problem : null;
+              const field = problemField(visibleProblem);
+              const fieldError = (name: 'min' | 'max' | 'step') =>
+                field === name && visibleProblem
+                  ? visibleProblem.charAt(0).toUpperCase() + visibleProblem.slice(1)
+                  : undefined;
+              const exampleArea = reference.typicalAreaM2;
               const qualityRanges = ESTIMATOR_QUALITIES.map((quality, index) => {
                 const increment = roomRate.qualityStepCentsPerM2 * index;
                 return {
@@ -546,14 +564,34 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                 <section key={roomRate.room} className="py-5">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-semibold text-gray-900">{roomLabel}</h3>
-                    <Button
-                      variant="ghost"
-                      aria-label={`Quitar ${roomLabel}`}
-                      onClick={() => updateRoom(roomRate.room, false)}
-                    >
-                      <Trash2 size={16} /> Quitar
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        aria-label={`Usar precios orientativos en ${roomLabel}`}
+                        onClick={() =>
+                          updateRoomRate(roomRate.room, {
+                            minimumCentsPerM2: reference.minimumCentsPerM2,
+                            maximumCentsPerM2: reference.maximumCentsPerM2,
+                            qualityStepCentsPerM2: reference.qualityStepCentsPerM2,
+                          })
+                        }
+                      >
+                        <Sparkles size={16} /> Precios orientativos
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        aria-label={`Quitar ${roomLabel}`}
+                        onClick={() => updateRoom(roomRate.room, false)}
+                      >
+                        <Trash2 size={16} /> Quitar
+                      </Button>
+                    </div>
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Orientativo en España: {euros(reference.minimumCentsPerM2)} –{' '}
+                    {euros(reference.maximumCentsPerM2)}/m² en calidad media. Ajústalo a tus
+                    precios.
+                  </p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <Input
                       id={`rate-min-${roomRate.room}`}
@@ -562,6 +600,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                       max="100000"
                       step="0.01"
                       label="Media · desde €/m²"
+                      placeholder={String(reference.minimumCentsPerM2 / 100)}
+                      error={fieldError('min')}
                       value={roomRate.minimumCentsPerM2 ? roomRate.minimumCentsPerM2 / 100 : ''}
                       onChange={(event) =>
                         updateRoomRate(roomRate.room, {
@@ -576,6 +616,8 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                       max="100000"
                       step="0.01"
                       label="Media · hasta €/m²"
+                      placeholder={String(reference.maximumCentsPerM2 / 100)}
+                      error={fieldError('max')}
                       value={roomRate.maximumCentsPerM2 ? roomRate.maximumCentsPerM2 / 100 : ''}
                       onChange={(event) =>
                         updateRoomRate(roomRate.room, {
@@ -597,6 +639,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                         max="100000"
                         step="0.01"
                         label="Incremento €/m²"
+                        error={fieldError('step')}
                         value={roomRate.qualityStepCentsPerM2 / 100}
                         onChange={(event) =>
                           updateRoomRate(roomRate.room, {
@@ -642,6 +685,16 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
                       </li>
                     ))}
                   </ul>
+                  {!problem && (
+                    <p className="mt-3 text-sm text-gray-700">
+                      Ejemplo: {roomLabel.toLowerCase()} de {exampleArea} m² en calidad media,{' '}
+                      <strong className="tabular-nums">
+                        {euros(roomRate.minimumCentsPerM2 * exampleArea)} –{' '}
+                        {euros(roomRate.maximumCentsPerM2 * exampleArea)}
+                      </strong>{' '}
+                      sin IVA.
+                    </p>
+                  )}
                 </section>
               );
             })}
@@ -685,22 +738,13 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
             <h3 className="font-semibold text-gray-900">Publicación</h3>
             <p className="mt-1 text-sm leading-6 text-gray-600">
               {token
-                ? 'Guarda aquí los cambios de precios o estancias. El enlace se gestiona desde el resumen superior.'
-                : 'Al guardar se generará el enlace que podrás añadir a la landing de tu empresa.'}
+                ? 'Guarda aquí los cambios de precios o estancias; se aplican al momento con el mismo enlace.'
+                : 'Al publicar tendrás un enlace corto, un código QR y botones para compartirlo por WhatsApp o en tu web.'}
             </p>
-            {(missingProfileName || missingPrivacyUrl) && (
-              <Alert
-                tone="warning"
-                role="none"
-                className="mt-3"
-                action={
-                  <Button variant="link" onClick={() => navigate('/profile')}>
-                    Completar Mi empresa
-                  </Button>
-                }
-              >
-                {missingProfileName && 'Falta el nombre de empresa. '}
-                {missingPrivacyUrl && 'Falta la URL HTTPS del aviso de privacidad. '}
+            {missingRequirements(requirements).length > 0 && (
+              <Alert tone="warning" role="none" className="mt-3">
+                Para publicar, {missingRequirements(requirements).join(', ')}. Hazlo en «Antes de
+                publicar», arriba.
               </Alert>
             )}
             {token && !legacySetup ? (
@@ -711,7 +755,7 @@ function QuoteEstimatorSettingsContent({ uid }: { uid: string | null }) {
               </div>
             ) : (
               <Button className="mt-4" onClick={handlePublish} loading={saving}>
-                {saving ? operation || 'Guardando…' : 'Guardar y generar enlace'}
+                {saving ? operation || 'Guardando…' : 'Guardar y publicar formulario'}
               </Button>
             )}
             <div className="mt-3 min-h-6" aria-live="polite">

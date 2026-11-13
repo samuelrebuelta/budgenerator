@@ -132,14 +132,19 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.getByLabel('Media · desde €/m²', { exact: true }).nth(1).fill('10');
   await page.getByLabel('Media · hasta €/m²', { exact: true }).nth(1).fill('14');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('button', { name: 'Guardar y generar enlace', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar y publicar formulario', exact: true }).click();
 
-  const publicUrl = page.getByLabel('Enlace público', { exact: true });
+  const publicUrl = page.getByLabel('Enlace para compartir', { exact: true });
   await expect(publicUrl).toBeVisible();
   const href = await publicUrl.inputValue();
-  expect(href).toMatch(
-    new RegExp(`^http://127\\.0\\.0\\.1:${previewPort}/solicitar-presupuesto/[A-Za-z0-9_-]{32}$`),
-  );
+  // Stable short link derived from the company name.
+  expect(href).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${previewPort}/p/estudio-roble`));
+  await expect(page.getByRole('button', { name: 'Código QR', exact: true })).toBeVisible();
+  const whatsapp = await page
+    .getByRole('link', { name: 'WhatsApp', exact: true })
+    .getAttribute('href');
+  expect(whatsapp).toMatch(/^https:\/\/wa\.me\/\?text=/);
+  expect(decodeURIComponent(whatsapp!)).toContain(href);
   expect(href).not.toContain('estimator-owner');
 
   let publicResponse: unknown;
@@ -256,11 +261,30 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await expect(page.getByText('Lucía Martín', { exact: true })).toHaveCount(0);
 
   await page.goto('/profile/estimador-publico');
-  await page.getByRole('button', { name: 'Revocar enlace', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Enlace revocado');
+  await page.getByRole('button', { name: 'Pausar formulario', exact: true }).click();
+  await expect(page.getByText('En pausa', { exact: true })).toBeVisible();
+  const ownerPage = page.url();
   await page.goto(href);
   await expect(
-    page.getByRole('heading', { name: 'Este enlace no está disponible', exact: true }),
+    page.getByRole('heading', { name: 'El formulario está en pausa', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('Estudio Roble', { exact: true })).toHaveCount(0);
+  await page.goto(ownerPage);
+  await page.getByRole('button', { name: 'Reanudar formulario', exact: true }).click();
+  await expect(page.getByText('Activo', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Revocar enlace', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '¿Revocar el enlace del formulario?' })
+    .getByRole('button', { name: 'Revocar enlace', exact: true })
+    .click();
+  await expect(page.getByRole('status').filter({ hasText: 'Enlace revocado' })).toBeVisible();
+  // The short link stays and shows the company instead of the form.
+  await page.goto(href);
+  await expect(
+    page.getByRole('heading', { name: 'El formulario no está disponible ahora', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Estudio Roble', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Enviar solicitud y ver mi estimación' }),
+  ).toHaveCount(0);
 });

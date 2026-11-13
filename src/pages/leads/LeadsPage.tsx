@@ -262,10 +262,10 @@ export function LeadsPage() {
         <EmptyState
           icon={FileText}
           title="Aún no has recibido solicitudes"
-          description="Cuando alguien envíe el formulario de tu enlace público, aquí aparecerán sus datos de contacto y lo que quiere reformar."
+          description="Publica tu formulario de solicitudes y compártelo por WhatsApp, con un código QR o en tu web. Tus clientes verán una estimación orientativa y aquí te llegarán sus datos y lo que quieren reformar."
           action={
             <Button variant="secondary" onClick={() => navigate('/estimator')}>
-              Revisar enlace público <ArrowRight size={16} aria-hidden="true" />
+              Configurar formulario de solicitudes <ArrowRight size={16} aria-hidden="true" />
             </Button>
           }
         />

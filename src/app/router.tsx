@@ -28,6 +28,20 @@ export const router = createBrowserRouter([
     hydrateFallbackElement,
     lazy: async () => ({ Component: (await import('@/pages/public-quote')).QuoteEstimatorPage }),
   },
+  {
+    path: '/p/:slug',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/public-quote')).ShortLinkPage }),
+  },
+  {
+    path: '/aviso-privacidad/:noticeId',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({
+      Component: (await import('@/pages/public-quote')).HostedPrivacyNoticePage,
+    }),
+  },
   { path: '/', element: <Navigate to="/projects" replace /> },
   {
     lazy: async () => ({ Component: (await import('./ProtectedLayout')).ProtectedLayout }),
