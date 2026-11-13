@@ -2468,6 +2468,26 @@ test('keeps cached views visible offline and toasts when a roster edit cannot be
   await expect(page.getByText('Cliente de navegación', { exact: true })).toBeVisible();
   await expect(page.getByRole('status', { name: /Cargando proyectos/ })).toHaveCount(0);
   await expect(page.getByText('Ana Demo sin conexión', { exact: true })).toHaveCount(0);
+
+  // The seed runs once per worker: restore the member name that later tests look up.
+  const restore = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  await restore.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users', primaryUid, 'teamMembers', 'member-demo-ana'), {
+      id: 'member-demo-ana',
+      name: 'Ana Demo',
+      status: 'active',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
+    });
+  });
+  await restore.cleanup();
 });
 
 test('plans project teams by week and saves person changes only for the selected day', async ({
