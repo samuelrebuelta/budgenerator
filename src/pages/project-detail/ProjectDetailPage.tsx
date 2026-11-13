@@ -11,7 +11,7 @@ import {
   type ProjectDetail,
   type ProjectWorkItem,
 } from '@/entities/project';
-import { formatCurrency, generateId } from '@/shared/lib';
+import { formatCurrency, formatQuantity, generateId } from '@/shared/lib';
 import { money, taskAmount } from '@/shared/lib/budgetMath';
 import {
   Button,
@@ -477,7 +477,7 @@ export function ProjectDetailPage() {
                             </p>
                             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                               <p className="text-xs text-ink-subtle">
-                                {task.quantity} {unitLabel(task.unit)} ·{' '}
+                                {formatQuantity(task.quantity)} {unitLabel(task.unit)} ·{' '}
                                 {formatCurrency(taskAmount(task))}
                               </p>
                               {completed && task.completedAt && (
@@ -652,7 +652,7 @@ export function ProjectDetailPage() {
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-semibold text-ink">{supplement.description}</h3>
                         <p className="mt-1 text-xs leading-5 text-ink-muted">
-                          {supplement.quantity} {supplement.unit} ×{' '}
+                          {formatQuantity(supplement.quantity)} {supplement.unit} ×{' '}
                           {formatCurrency(supplement.unitPrice)} · Añadido el{' '}
                           {dateLabel(supplement.createdAt)}
                         </p>
