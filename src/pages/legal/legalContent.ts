@@ -1,7 +1,12 @@
 /**
- * Legal texts (templates). Every `[COMPLETAR: …]` must be filled in by the owner,
- * ideally reviewed by a legal adviser, before opening registration to the public.
- * Bump `LEGAL_TERMS_VERSION` (shared/lib/legal.ts) whenever these texts change.
+ * Textos legales. Los datos del titular viven en `LEGAL_HOLDER`: al rellenar ese objeto
+ * desaparecen de los cuatro documentos a la vez. Las frases que sigan con `[COMPLETAR: …]`
+ * son decisiones que debe redactar un asesor, no datos que se puedan teclear.
+ *
+ * `pendingLegalData()` devuelve lo que falta y `scripts/check-deploy.mjs` bloquea el
+ * despliegue de Hosting mientras quede algo.
+ *
+ * Sube `LEGAL_TERMS_VERSION` (shared/lib/legal.ts) cuando cambien en lo sustancial.
  */
 
 export type LegalDocumentId = 'privacidad' | 'condiciones' | 'aviso-legal' | 'cookies';
@@ -11,8 +16,26 @@ export interface LegalDocument {
   sections: { heading: string; paragraphs: string[] }[];
 }
 
-const owner = '[COMPLETAR: nombre o razón social del titular]';
-const contact = '[COMPLETAR: email de contacto para privacidad]';
+/** Datos del titular: artículo 10 de la LSSI-CE y artículo 13 del RGPD. */
+export const LEGAL_HOLDER = {
+  /** Nombre o razón social, tal y como figura en el NIF. */
+  name: '[COMPLETAR: nombre o razón social del titular]',
+  /** NIF o CIF del titular. */
+  taxId: '[COMPLETAR: NIF o CIF]',
+  /** Domicilio postal completo. */
+  address: '[COMPLETAR: domicilio postal]',
+  /** Email para privacidad y ejercicio de derechos. */
+  privacyEmail: '[COMPLETAR: email de contacto para privacidad]',
+  /** Registro Mercantil, tomo, folio y hoja. Cadena vacía si el titular es autónomo. */
+  companyRegistry: '[COMPLETAR: datos registrales, o cadena vacía si eres autónomo]',
+  /** Juzgados competentes, respetando el fuero del consumidor. */
+  jurisdiction: '[COMPLETAR: juzgados competentes, respetando el fuero del consumidor]',
+  /** Cuánto se guardan las copias de seguridad. */
+  backupRetention: '[COMPLETAR: retención de copias de seguridad, por ejemplo 30 días]',
+};
+
+const owner = LEGAL_HOLDER.name;
+const contact = LEGAL_HOLDER.privacyEmail;
 
 export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
   'aviso-legal': {
@@ -21,8 +44,12 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: 'Titular del sitio',
         paragraphs: [
-          `En cumplimiento del artículo 10 de la Ley 34/2002 (LSSI-CE), el titular de BudGenerator es ${owner}, con NIF [COMPLETAR: NIF/CIF] y domicilio en [COMPLETAR: dirección postal].`,
-          `Contacto: ${contact}. [COMPLETAR: datos registrales si se trata de una sociedad: Registro Mercantil, tomo, folio y hoja].`,
+          `En cumplimiento del artículo 10 de la Ley 34/2002 (LSSI-CE), el titular de BudGenerator es ${owner}, con NIF ${LEGAL_HOLDER.taxId} y domicilio en ${LEGAL_HOLDER.address}.`,
+          `Contacto: ${contact}.${
+            LEGAL_HOLDER.companyRegistry
+              ? ` Datos registrales: ${LEGAL_HOLDER.companyRegistry}.`
+              : ''
+          }`,
         ],
       },
       {
@@ -46,7 +73,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: 'Legislación aplicable',
         paragraphs: [
-          'Se aplica la legislación española. [COMPLETAR: juzgados competentes, respetando el fuero del consumidor cuando corresponda].',
+          `Se aplica la legislación española. Juzgados competentes: ${LEGAL_HOLDER.jurisdiction}.`,
         ],
       },
     ],
@@ -57,7 +84,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: 'Responsable del tratamiento',
         paragraphs: [
-          `${owner}, NIF [COMPLETAR: NIF/CIF], domicilio en [COMPLETAR: dirección]. Contacto: ${contact}.`,
+          `${owner}, NIF ${LEGAL_HOLDER.taxId}, domicilio en ${LEGAL_HOLDER.address}. Contacto: ${contact}.`,
         ],
       },
       {
@@ -82,7 +109,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
           'Solicitudes de presupuesto (leads): los datos de contacto se conservan 12 meses desde su recepción; después se anonimizan automáticamente y solo se guarda la reforma solicitada, la estimación y el mes de recepción.',
           'Enlaces públicos de presupuestos: hasta su caducidad (máximo 31 días); después se borran automáticamente.',
           'Dispositivos push: se eliminan tras 270 días sin actividad o al cerrar sesión.',
-          'Copias de seguridad: [COMPLETAR: plazo de retención de backups, por ejemplo 30 días].',
+          `Copias de seguridad: ${LEGAL_HOLDER.backupRetention}.`,
         ],
       },
       {
@@ -146,7 +173,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       {
         heading: 'Cambios y ley aplicable',
         paragraphs: [
-          'Avisaremos de los cambios relevantes con antelación razonable. Se aplica la legislación española. [COMPLETAR: jurisdicción].',
+          `Avisaremos de los cambios relevantes con antelación razonable. Se aplica la legislación española. Juzgados competentes: ${LEGAL_HOLDER.jurisdiction}.`,
         ],
       },
     ],
@@ -171,6 +198,24 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
     ],
   },
 };
+
+/** Sin espacio tras los dos puntos: así el patrón no se encuentra a sí mismo. */
+const PLACEHOLDER = /\[COMPLETAR:[^\]]*\]/g;
+
+/**
+ * Datos del titular y decisiones del asesor que siguen sin rellenar. Mientras devuelva
+ * algo, los textos legales no están listos para publicarse.
+ */
+export function pendingLegalData(): string[] {
+  const pending = new Set<string>();
+  const scan = (text: string) => {
+    for (const [match] of text.matchAll(PLACEHOLDER)) pending.add(match);
+  };
+  Object.values(LEGAL_HOLDER).forEach(scan);
+  for (const document of Object.values(LEGAL_DOCUMENTS))
+    for (const section of document.sections) section.paragraphs.forEach(scan);
+  return [...pending].sort();
+}
 
 export function isLegalDocumentId(value: string | undefined): value is LegalDocumentId {
   return value !== undefined && value in LEGAL_DOCUMENTS;

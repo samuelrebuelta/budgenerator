@@ -12,7 +12,13 @@
 // from an up-to-date `main`, lint/format/unit/rules tests green, functions build,
 // web build with the target project's env, and a bundle check of the projectId.
 import { spawnSync } from 'node:child_process';
-import { loadBuildEnv, resolveProject, validateBuildEnv, verifyBundle } from './check-deploy.mjs';
+import {
+  loadBuildEnv,
+  pendingLegalData,
+  resolveProject,
+  validateBuildEnv,
+  verifyBundle,
+} from './check-deploy.mjs';
 
 const TARGETS = {
   hosting: 'hosting',
@@ -78,11 +84,22 @@ if (production) {
   }
 }
 
-// 2. Web env for the target project, validated before spending time on tests.
+// 2. Legal texts: producción los publica tal cual, así que no pueden quedar marcadores.
+if (production && targets.includes('hosting')) {
+  const pending = await pendingLegalData();
+  if (pending.length)
+    fail(
+      `Los textos legales tienen ${pending.length} datos sin rellenar:\n` +
+        pending.map((item) => `  - ${item}`).join('\n') +
+        '\nRellena LEGAL_HOLDER en src/pages/legal/legalContent.ts y pide a un asesor las frases que queden.',
+    );
+}
+
+// 3. Web env for the target project, validated before spending time on tests.
 const env = loadBuildEnv(mode);
 if (targets.includes('hosting')) validateBuildEnv(env, projectId);
 
-// 3. Tests and builds. Rules tests use the alternative emulator ports.
+// 4. Tests and builds. Rules tests use the alternative emulator ports.
 run('pnpm', ['lint']);
 run('pnpm', ['format:check']);
 run('pnpm', ['test']);
@@ -98,7 +115,7 @@ if (targets.includes('hosting')) {
   console.log(`Bundle verificado: ${bundle.files} ficheros JS apuntan a ${projectId}.`);
 }
 
-// 4. Deploy.
+// 5. Deploy.
 const only = targets.map((target) => TARGETS[target]).join(',');
 run('pnpm', ['exec', 'firebase', 'deploy', '--project', projectId, '--only', only]);
 console.log(`\n✔ Desplegado ${only} en ${projectId}.`);

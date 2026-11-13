@@ -97,3 +97,22 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (args.includes('--bundle')) await verifyBundle(projectId, env);
   console.log(`Configuración de despliegue validada: ${projectId}.`);
 }
+
+const LEGAL_SOURCE = 'src/pages/legal/legalContent.ts';
+
+/**
+ * Los textos legales se publican tal cual: desplegar producción con marcadores sin
+ * rellenar dejaría al titular sin aviso legal ni política de privacidad válidos.
+ * Se buscan fuera de los comentarios; el patrón de `pendingLegalData()` no lleva
+ * espacio tras los dos puntos y por eso no se encuentra a sí mismo.
+ */
+export async function pendingLegalData(source = LEGAL_SOURCE) {
+  const lines = (await readFile(source, 'utf8')).split('\n');
+  const pending = lines
+    .filter((line) => {
+      const code = line.trimStart();
+      return !code.startsWith('*') && !code.startsWith('//') && !code.startsWith('/*');
+    })
+    .flatMap((line) => line.match(/\[COMPLETAR: [^\]]*\]/g) ?? []);
+  return [...new Set(pending)].sort();
+}
