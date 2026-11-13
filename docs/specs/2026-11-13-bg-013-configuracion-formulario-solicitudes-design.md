@@ -1,6 +1,6 @@
 # BG-013 — Configuración más fácil del formulario de solicitudes
 
-Estado: aprobado
+Estado: implementado
 
 Fecha: 2026-11-13. Origen: prueba de uso del estimador público del 13-11-2026.
 

@@ -20,13 +20,14 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
   - Validar BC3 con archivos reales de Presto, Arquímedes y TCQ.
   - Mejoras de la batida: el estimador pierde la configuración al ir a completar la empresa; avisos de instalar y push demasiado altos en móvil; placeholder de contraseña con 6 caracteres; el export BC3 del catálogo no conserva `~X`; la base de precios no rellena el coste; descripción truncada en el editor móvil; presupuesto convertido que parece editable; total de pasos de la guía que cambia; fecha ISO en el PDF.
   - Comprobar teclado, área segura y gestos en una PWA física.
-  - Estimador y solicitudes (prueba del 13-11-2026): requisitos al inicio y completables sin salir, borrador automático, aviso de privacidad alojado para quien no tiene web, precios orientativos, errores concretos, confirmar al revocar y opción de pausar, kit para compartir (QR, WhatsApp, URL corta), integral con precio propio, presupuesto con capítulos desde la solicitud y estado de cada solicitud.
   - Decisiones de producto abiertas: D1–D10 de la [app nativa](analysis/native-app-plan.md) y prueba gratuita frente a BG-004.
 
 - **Decisiones del 13-11-2026.**
   - Los leads con más de 12 meses se anonimizan en lugar de borrarse: se quitan contacto, consentimiento y huella de la petición, y se conservan la reforma, la estimación y el mes de recepción. Implementado en `applyRetentionPolicies`.
   - Se aceptan los límites por IP actuales: 60 estimaciones por minuto y 10 solicitudes por hora.
   - El límite por formulario sube de 10 a 60 solicitudes por hora (`LIMIT_LEADS_PER_FORM_PER_HOUR`) para no rechazar clientes reales en campañas. Se mantienen 50 al día por propietario y 500 al día en total; habrá que subir el global antes de crecer.
+
+- **BG-013 — configuración del formulario de solicitudes (13-11-2026, [spec](specs/2026-11-13-bg-013-configuracion-formulario-solicitudes-design.md)).** Requisitos al inicio y completables sin salir, borrador en la pestaña, errores por estancia, precios orientativos con ejemplo, pausar y reanudar, confirmación al revocar, enlace corto estable `/p/{slug}`, QR, WhatsApp, botón para la web y aviso de privacidad alojado. Pendiente: revisión legal del texto del aviso alojado. Siguientes mejoras propuestas: precio propio para reforma integral, presupuesto con capítulos desde la solicitud y estado de cada solicitud.
 
 ## Trabajo futuro y decisiones
 
