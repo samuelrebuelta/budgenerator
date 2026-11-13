@@ -155,6 +155,25 @@ export interface PublicEstimatorInfo {
   leadCaptureEnabled: boolean;
   privacyPolicyUrl?: string;
   services: EstimateServiceOption[];
+  /** The owner paused the form: show the contact, accept no estimates or requests. */
+  paused?: boolean;
+}
+
+/** Public contact shown when a form is paused or no longer published. */
+export interface PublicCompanyContact {
+  companyName: string;
+  phone?: string;
+  email?: string;
+}
+
+/** `/p/{slug}` resolves to the active form token, or to the company contact when there is none. */
+export type ShortLinkResolution = { token: string } | { company: PublicCompanyContact | null };
+
+export interface EstimatorLinkStatus {
+  published: boolean;
+  token?: string;
+  paused?: boolean;
+  slug?: string;
 }
 
 export interface QuoteEstimate {

@@ -6,6 +6,12 @@ import {
 } from 'firebase-admin/firestore';
 import { adminAuth, firestore } from '../core/firebase.js';
 import { logEvent, pseudonym } from '../core/observability.js';
+import { SHORT_LINK_COLLECTION } from '../quoteEstimator.js';
+import {
+  PRIVACY_NOTICE_COLLECTION,
+  PRIVACY_NOTICE_OWNER_COLLECTION,
+  findOwnerPrivacyNotice,
+} from '../privacyNotice.js';
 
 const BATCH_LIMIT = 400;
 
@@ -47,6 +53,17 @@ async function deleteEstimatorTokens(uid: string) {
   return tokenIds.size;
 }
 
+/** Short link and hosted privacy notice: public documents created for the estimator. */
+async function deleteEstimatorSharing(uid: string) {
+  const slugs = await deleteQuery(
+    firestore.collection(SHORT_LINK_COLLECTION).where('ownerUid', '==', uid),
+  );
+  const noticeId = await findOwnerPrivacyNotice(uid);
+  if (noticeId) await firestore.doc(`${PRIVACY_NOTICE_COLLECTION}/${noticeId}`).delete();
+  await firestore.doc(`${PRIVACY_NOTICE_OWNER_COLLECTION}/${uid}`).delete();
+  return { slugs, privacyNotice: Boolean(noticeId) };
+}
+
 export interface DeleteAccountResult {
   deleted: true;
   authUserDeleted: boolean;
@@ -60,6 +77,7 @@ export interface DeleteAccountResult {
 export async function deleteAccountData(uid: string): Promise<DeleteAccountResult> {
   const subject = pseudonym(uid);
   const tokens = await deleteEstimatorTokens(uid);
+  const sharing = await deleteEstimatorSharing(uid);
   const sharedBudgets = await deleteQuery(
     firestore.collection('sharedBudgets').where('ownerUid', '==', uid),
   );
@@ -82,6 +100,7 @@ export async function deleteAccountData(uid: string): Promise<DeleteAccountResul
   logEvent('info', 'account_deleted', {
     subject,
     tokens,
+    ...sharing,
     sharedBudgets,
     pushIndexes,
     jobs,
@@ -136,6 +155,16 @@ export async function exportAccountData(uid: string) {
   for (const snapshot of shared.docs) documents.push(exportedDocument(snapshot));
   const link = await firestore.doc(`quoteEstimatorLinks/${uid}`).get();
   if (link.exists) documents.push(exportedDocument(link));
+  const slugs = await firestore
+    .collection(SHORT_LINK_COLLECTION)
+    .where('ownerUid', '==', uid)
+    .get();
+  for (const snapshot of slugs.docs) documents.push(exportedDocument(snapshot));
+  const noticeId = await findOwnerPrivacyNotice(uid);
+  if (noticeId) {
+    const notice = await firestore.doc(`${PRIVACY_NOTICE_COLLECTION}/${noticeId}`).get();
+    if (notice.exists) documents.push(exportedDocument(notice));
+  }
 
   let authRecord: Json = null;
   try {

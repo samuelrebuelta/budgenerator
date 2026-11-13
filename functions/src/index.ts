@@ -17,9 +17,12 @@ import {
   getOwnerEstimatorStatus as getOwnerEstimatorStatusHandler,
   getPublicEstimator as getPublicEstimatorHandler,
   publishPublicEstimator as publishPublicEstimatorHandler,
+  resolvePublicEstimatorSlug as resolvePublicEstimatorSlugHandler,
   revokePublicEstimator as revokePublicEstimatorHandler,
+  setPublicEstimatorPaused as setPublicEstimatorPausedHandler,
   submitPublicLead as submitPublicLeadHandler,
 } from './quoteEstimator.js';
+import { publishPrivacyNotice as publishPrivacyNoticeHandler } from './privacyNotice.js';
 import { guardPublicEstimatorCall, guardPublicLeadCall } from './abuse/publicGuards.js';
 import { deleteAccountData, exportAccountData } from './account/account.js';
 import { requireRecentLogin, requireUid, requireVerifiedEmail } from './core/auth.js';
@@ -48,6 +51,17 @@ export const revokePublicEstimator = onCall(authCallableOptions, (request) =>
   ),
 );
 
+export const setPublicEstimatorPaused = onCall(authCallableOptions, (request) =>
+  observe('setPublicEstimatorPaused', () =>
+    setPublicEstimatorPausedHandler(requireUid(request, estimatorLogin), request.data),
+  ),
+);
+
+// Hosted privacy notice for companies without a website. It is public, so it needs a verified email.
+export const publishPrivacyNotice = onCall(authCallableOptions, (request) =>
+  observe('publishPrivacyNotice', () => publishPrivacyNoticeHandler(requireVerifiedEmail(request))),
+);
+
 export const getOwnerEstimatorStatus = onCall(authCallableOptions, (request) =>
   observe('getOwnerEstimatorStatus', () =>
     getOwnerEstimatorStatusHandler(requireUid(request, estimatorLogin)),
@@ -59,6 +73,13 @@ export const getPublicEstimator = onCall(publicCallableOptions, (request) =>
   observe('getPublicEstimator', async () => {
     await guardPublicEstimatorCall('getPublicEstimator', request);
     return getPublicEstimatorHandler(request.data);
+  }),
+);
+
+export const resolvePublicEstimatorSlug = onCall(publicCallableOptions, (request) =>
+  observe('resolvePublicEstimatorSlug', async () => {
+    await guardPublicEstimatorCall('resolvePublicEstimatorSlug', request);
+    return resolvePublicEstimatorSlugHandler(request.data);
   }),
 );
 

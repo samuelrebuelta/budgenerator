@@ -58,6 +58,13 @@ beforeEach(async () => {
     await setDoc(doc(db, 'publicQuoteTokens', 'a'.repeat(32)), { ownerUid: 'alice', active: true });
     await setDoc(doc(db, 'quoteEstimatorLinks', 'alice'), { token: 'a'.repeat(32) });
     await setDoc(doc(db, 'quoteEstimateRateLimits', 'a'.repeat(32)), { count: 1 });
+    await setDoc(doc(db, 'publicQuoteSlugs', 'reformas-alice'), { ownerUid: 'alice' });
+    await setDoc(doc(db, 'privacyNoticeOwners', 'alice'), { id: 'n'.repeat(22) });
+    await setDoc(doc(db, 'publicPrivacyNotices', 'n'.repeat(22)), {
+      schemaVersion: 1,
+      companyName: 'Reformas Alice',
+      email: 'alice@example.test',
+    });
     await setDoc(doc(db, 'users', 'alice', 'leads', 'lead-1'), {
       schemaVersion: 1,
       contact: { name: 'Lucía', email: 'lucia@example.test', phone: '+34 600 123 456' },
@@ -101,6 +108,29 @@ describe('public estimator Firestore boundary', () => {
       await assertFails(setDoc(doc(db, 'quoteEstimatorLinks', 'alice'), { token: 'forged' }));
       await assertFails(getDoc(doc(db, 'quoteEstimateRateLimits', 'a'.repeat(32))));
       await assertFails(getDocs(collection(db, 'publicQuoteTokens')));
+    }
+  });
+
+  it('keeps short links and the notice owner map server-only', async () => {
+    for (const db of [anonymous(), alice(), bob()]) {
+      await assertFails(getDoc(doc(db, 'publicQuoteSlugs', 'reformas-alice')));
+      await assertFails(getDocs(collection(db, 'publicQuoteSlugs')));
+      await assertFails(setDoc(doc(db, 'publicQuoteSlugs', 'robado'), { ownerUid: 'alice' }));
+      await assertFails(getDoc(doc(db, 'privacyNoticeOwners', 'alice')));
+      await assertFails(setDoc(doc(db, 'privacyNoticeOwners', 'alice'), { id: 'x'.repeat(22) }));
+    }
+  });
+
+  it('lets anyone read one hosted privacy notice but never list or write them', async () => {
+    const notice = 'n'.repeat(22);
+    for (const db of [anonymous(), alice(), bob()]) {
+      await assertSucceeds(getDoc(doc(db, 'publicPrivacyNotices', notice)));
+      await assertFails(getDocs(collection(db, 'publicPrivacyNotices')));
+      await assertFails(updateDoc(doc(db, 'publicPrivacyNotices', notice), { companyName: 'X' }));
+      await assertFails(
+        setDoc(doc(db, 'publicPrivacyNotices', 'm'.repeat(22)), { companyName: 'X' }),
+      );
+      await assertFails(deleteDoc(doc(db, 'publicPrivacyNotices', notice)));
     }
   });
 

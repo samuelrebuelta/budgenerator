@@ -703,6 +703,14 @@ service cloud.firestore {
     // Token ownership and per-token rate limits are server-only documents.
     match /publicQuoteTokens/{token} { allow read, write: if false; }
     match /quoteEstimatorLinks/{uid} { allow read, write: if false; }
+    // Short links `/p/{slug}` and the owner → notice map are server-only (Functions).
+    match /publicQuoteSlugs/{slug} { allow read, write: if false; }
+    match /privacyNoticeOwners/{uid} { allow read, write: if false; }
+    // Hosted privacy notices: public, one document at a time; written only by Functions.
+    match /publicPrivacyNotices/{noticeId} {
+      allow get: if true;
+      allow list, write: if false;
+    }
     match /quoteEstimateRateLimits/{token} { allow read, write: if false; }
     match /quoteLeadRateLimits/{token} { allow read, write: if false; }
     // Anti-abuse counters (per network, owner and global); written only by Functions.
