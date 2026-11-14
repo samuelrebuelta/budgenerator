@@ -50,6 +50,7 @@ La app usa el lenguaje de cada sistema y no imita la web: Liquid Glass en iOS 26
 | Superficie flotante | Vidrio (`GlassView`), p. ej. el toast                                                                           | Superficie sólida con borde                                                                                 | `GlassSurface`                                                         |
 | Contenido           | Nunca en vidrio: bloques opacos tipo inset grouped (24 pt, esquinas continuas)                                  | Tarjeta elevada M3 (12 dp, elevación 1) y listas de 56 dp con ripple                                        | `Card`, `ListGroup` + `ListRow`                                        |
 | Campo de texto      | Campo redondeado (12 pt), etiqueta encima                                                                       | Campo outlined M3 (56 dp, 4 dp, contorno de 2 dp `primary` con foco), etiqueta encima                       | `TextField`                                                            |
+| Fecha               | Botón compacto del sistema que abre el calendario en un popover; sin fecha, calendario en línea desplegable     | Chip que abre el selector de fecha M3 (diálogo)                                                             | `DateField` (`@react-native-community/datetimepicker`)                 |
 | Iconos              | SF Symbols                                                                                                      | Material Symbols                                                                                            | `Icon` con nombres Feather y la tabla `SYSTEM_ICONS` de `expo-symbols` |
 | Área táctil         | ≥ 44 pt                                                                                                         | ≥ 48 dp                                                                                                     | `touchTarget`, `controlHeight`                                         |
 
@@ -65,15 +66,20 @@ Reglas:
 
 Lista (`FlashList` con búsqueda nativa en la cabecera, deslizar para borrar y tirar para recargar), detalle y editor sobre el documento BC3 canónico (`src/features/budgets`, rutas `app/(app)/(tabs)/budgets`). Partida, capítulo y «Crear paso a paso» se abren como hojas nativas. Todos los importes salen de `budgetTotals` y sus funciones de `@bg/domain` (`src/features/budgets/model.ts`); `tests/budgetParity.test.ts` comprueba que coinciden con el editor web, el visor público y la lista. Sin conexión, editar un presupuesto guardado se bloquea con el aviso de BG-012; el borrador es local hasta «Guardar». El PDF se genera con `buildBudgetDocument` y se comparte con la hoja del sistema; el enlace público exige el email verificado y apunta al visor web (`/shared/:token`).
 
+## Proyectos
+
+Lista (`FlashList` con búsqueda nativa, filtro por estado y tirar para recargar) y detalle (`src/features/projects`, rutas `app/(app)/(tabs)/projects`): avance con `workItemProgress` de `@bg/domain`, marcar y desmarcar partidas (fila tipo casilla con háptica de `expo-haptics` tras la transacción), completar capítulo, fecha estimada de fin y fechas de finalización con el selector de fecha nativo, ampliaciones y su anulación, y la evolución (`[projectId]/history`) como hojas nativas. Los importes de la ampliación se previsualizan con `buildProjectSupplement`, la misma función de la transacción. «Convertir en proyecto» está en el detalle de un presupuesto aceptado. Todas las mutaciones se bloquean sin conexión con el aviso de BG-012 (D4: marcar sin red es fase 3). Las asignaciones de equipo siguen en la web hasta la tab Equipo.
+
 ## Flujo Maestro
 
-`.maestro/budget-pdf.yaml` recorre login → nuevo presupuesto → capítulo y partida → guardar → PDF en la hoja de compartir. Maestro no forma parte del repositorio:
+`.maestro/budget-pdf.yaml` recorre login → nuevo presupuesto → capítulo y partida → guardar → PDF en la hoja de compartir; `.maestro/project-mark.yaml`, login → presupuesto → aceptar → convertir en proyecto → marcar partida. Maestro no forma parte del repositorio:
 
 ```bash
 curl -fsSL "https://get.maestro.mobile.dev" | bash   # instala la CLI (necesita Java 17+)
 pnpm exec firebase emulators:start --project demo-budgenerator --only auth,firestore
 # crea la cuenta en el emulador (registro en la app o REST de Auth) y arranca Metro + el dev client
 maestro test apps/mobile/.maestro/budget-pdf.yaml -e EMAIL=<cuenta demo> -e PASSWORD=<contraseña demo>
+maestro test apps/mobile/.maestro/project-mark.yaml -e EMAIL=<cuenta demo> -e PASSWORD=<contraseña demo>
 ```
 
 ## Comprobaciones

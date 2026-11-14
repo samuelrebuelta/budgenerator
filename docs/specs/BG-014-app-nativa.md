@@ -99,9 +99,9 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 
 - [x] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes) (14-11-2026: todos los repositorios y los ocho stores con el coordinador de sesión; la app aún no monta los stores, ver el registro, paso 5).
 - [x] Registro, verificación de email, login y recuperación; tabs (D8) (14-11-2026: con el coordinador de `@bg/app-core` montado y `resetSession` en el cierre de sesión y el cambio de cuenta; ver el registro, paso 6).
-- [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público (14-11-2026: Presupuestos, PDF y enlace hechos, ver el registro, paso 8; faltan Proyectos y Solicitudes).
+- [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público (14-11-2026: Presupuestos, PDF y enlace hechos, ver el registro, paso 8; Proyectos, paso 9; falta Solicitudes).
 - [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).
-- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF (14-11-2026: paridad hecha; el flujo Maestro está escrito pero sin ejecutar, Maestro no está instalado).
+- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF (14-11-2026: paridad hecha; los flujos Maestro `budget-pdf` y `project-mark` están escritos pero sin ejecutar, Maestro no está instalado).
 
 ### Fase 2 — Paridad (4–5 semanas)
 
