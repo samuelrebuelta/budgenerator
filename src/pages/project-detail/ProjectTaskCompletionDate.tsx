@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import { getProjectLocalDateKey } from '@/entities/project/model/history';
+import { getProjectLocalDateKey } from '@/entities/project';
 import { LoadingSpinner } from '@/shared/ui';
 
 interface ProjectTaskCompletionDateProps {
@@ -37,7 +37,7 @@ export function ProjectTaskCompletionDate({
 
   return (
     <span
-      className="relative inline-flex min-h-8 items-center gap-1.5 rounded-full border border-[#b8c9be] bg-white px-2.5 text-xs font-medium text-[#315c4c] focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#b7694d]"
+      className="relative inline-flex min-h-8 items-center gap-1.5 rounded-full border border-brand-200 bg-white px-2.5 text-xs font-medium text-primary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus"
       aria-busy={loading || undefined}
     >
       {loading ? <LoadingSpinner size={14} /> : <CalendarDays size={14} aria-hidden="true" />}

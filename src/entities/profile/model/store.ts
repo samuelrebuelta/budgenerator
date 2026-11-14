@@ -4,6 +4,7 @@ import { WriteQueue } from '@/shared/lib/writeQueue';
 import { registerOfflineStore } from '@/shared/lib/offlineStateCache';
 import { withTimeout, isSessionCurrent, sessionRevision, sessionUid } from '@/shared/model/session';
 import type { CompanyProfile } from '@/shared/types';
+import { canvasLogoEncoder, encodeLogo, fitWithin } from '@/shared/lib/logoImage';
 
 const writes = new WriteQueue<CompanyProfile>('profile:', (uid, profile) =>
   saveProfile(uid, profile),
@@ -32,14 +33,14 @@ async function fileToBase64(file: File): Promise<string> {
     const image = new Image();
     image.src = url;
     await withTimeout(image.decode(), 5000);
-    const ratio = Math.min(1, 1024 / Math.max(image.width, image.height));
+    const size = fitWithin(image.width, image.height);
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(image.width * ratio));
-    canvas.height = Math.max(1, Math.round(image.height * ratio));
-    const context = canvas.getContext('2d');
+    canvas.width = size.width;
+    canvas.height = size.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) throw new Error('Imagen no compatible.');
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/png');
+    return encodeLogo(canvasLogoEncoder(canvas, context));
   } finally {
     URL.revokeObjectURL(url);
   }

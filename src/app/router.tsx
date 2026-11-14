@@ -1,6 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import { AuthGuard } from './AuthGuard';
-import { AdminGuard } from './AdminGuard';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { LoadingScreen } from '@/shared/ui/LoadingScreen';
 import { ErrorPage } from './ErrorPage';
 const errorElement = <ErrorPage />;
@@ -11,6 +9,12 @@ export const router = createBrowserRouter([
     errorElement,
     hydrateFallbackElement,
     lazy: async () => ({ Component: (await import('@/pages/login')).LoginPage }),
+  },
+  {
+    path: '/legal/:document',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/legal')).LegalPage }),
   },
   {
     path: '/shared/:token',
@@ -24,13 +28,23 @@ export const router = createBrowserRouter([
     hydrateFallbackElement,
     lazy: async () => ({ Component: (await import('@/pages/public-quote')).QuoteEstimatorPage }),
   },
+  {
+    path: '/p/:slug',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({ Component: (await import('@/pages/public-quote')).ShortLinkPage }),
+  },
+  {
+    path: '/aviso-privacidad/:noticeId',
+    errorElement,
+    hydrateFallbackElement,
+    lazy: async () => ({
+      Component: (await import('@/pages/public-quote')).HostedPrivacyNoticePage,
+    }),
+  },
   { path: '/', element: <Navigate to="/projects" replace /> },
   {
-    element: (
-      <AuthGuard>
-        <Outlet />
-      </AuthGuard>
-    ),
+    lazy: async () => ({ Component: (await import('./ProtectedLayout')).ProtectedLayout }),
     errorElement,
     hydrateFallbackElement,
     children: [
@@ -53,12 +67,28 @@ export const router = createBrowserRouter([
         }),
       },
       {
-        path: '/team/jobs/new',
-        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
-      },
-      {
-        path: '/team/:view?',
-        lazy: async () => ({ Component: (await import('@/pages/workforce')).WorkforcePage }),
+        // Layout shared by the team routes: roster loading and the calendar view state.
+        path: '/team',
+        lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamLayout }),
+        children: [
+          {
+            index: true,
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamSchedulePage }),
+          },
+          {
+            path: 'manage',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).TeamManagePage }),
+          },
+          {
+            path: 'jobs/new',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).NewTeamJobPage }),
+          },
+          {
+            path: 'new-work',
+            lazy: async () => ({ Component: (await import('@/pages/workforce')).NewTeamJobPage }),
+          },
+          { path: '*', element: <Navigate to="/team" replace /> },
+        ],
       },
       {
         path: '/catalog',
@@ -110,11 +140,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: (
-      <AdminGuard>
-        <Outlet />
-      </AdminGuard>
-    ),
+    lazy: async () => ({ Component: (await import('./ProtectedLayout')).AdminLayout }),
     errorElement,
     hydrateFallbackElement,
     children: [

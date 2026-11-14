@@ -2,12 +2,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import type {
-  CatalogPart,
-  CompanyProfile,
-  Tariff,
-  TariffCatalog,
-} from '../../src/shared/types/index.js';
+import { runtimeConfig } from './core/config.js';
+import type { CatalogPart, CompanyProfile, Tariff } from '../../src/shared/types/index.js';
+import {
+  decodeContent,
+  projectCatalogParts,
+} from '../../src/entities/construction-document/model/index.js';
 import {
   calculateQuoteRange,
   getAvailableEstimatorServices,
@@ -31,17 +31,22 @@ import {
   validateLeadStartTiming,
 } from '../../src/entities/quote-estimator/model/leads.js';
 import type { PublicLeadSubmission } from '../../src/entities/quote-estimator/model/types.js';
+import {
+  SHORT_LINK_SLUG_PATTERN,
+  slugifyCompanyName,
+} from '../../src/entities/quote-estimator/model/sharing.js';
 import type {
   EstimateSelection,
   LegacyQuoteEstimatorSettings,
+  EstimatorLinkStatus,
   PublicEstimatorInfo,
   QuoteEstimate,
   QuoteEstimatorSettings,
+  ShortLinkResolution,
 } from '../../src/entities/quote-estimator/model/types.js';
 
 if (getApps().length === 0) initializeApp();
 const firestore = getFirestore();
-const functionRegion = 'europe-west1';
 const tokenPattern = /^[A-Za-z0-9_-]{32}$/;
 const perTokenLimit = 20;
 const rateWindowMs = 60_000;
@@ -49,7 +54,12 @@ const rateWindowMs = 60_000;
 interface StoredPublicEstimatorToken {
   ownerUid: string;
   active: boolean;
+  /** Paused forms keep their URL and show the company contact instead of the form. */
+  paused?: boolean;
 }
+
+const PAUSED_MESSAGE = 'Este formulario está en pausa. Ponte en contacto con la empresa.';
+export const SHORT_LINK_COLLECTION = 'publicQuoteSlugs';
 
 interface StoredRateLimit {
   windowStartedAt: number;
@@ -86,7 +96,7 @@ function profileRef(uid: string) {
 }
 
 function catalogRef(uid: string) {
-  return firestore.doc(`users/${uid}/tariffCatalogs/main-v1`);
+  return firestore.doc(`users/${uid}/catalog/main`);
 }
 
 function tokenRef(token: string) {
@@ -95,6 +105,10 @@ function tokenRef(token: string) {
 
 function ownerLinkRef(uid: string) {
   return firestore.doc(`quoteEstimatorLinks/${uid}`);
+}
+
+function slugRef(slug: string) {
+  return firestore.doc(`${SHORT_LINK_COLLECTION}/${slug}`);
 }
 
 function rateLimitRef(token: string) {
@@ -115,12 +129,31 @@ function asSettings(value: unknown): QuoteEstimatorSettings {
   return settings;
 }
 
-function getCatalogValues(value: unknown) {
-  const catalog = value as TariffCatalog | undefined;
-  if (!catalog) throw new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
-  const parts: CatalogPart[] = Array.isArray(catalog.parts) ? catalog.parts : [];
-  const legacyTariffs: Tariff[] = Array.isArray(catalog.tariffs) ? catalog.tariffs : [];
-  return { parts, legacyTariffs };
+/** Reads the canonical FIEBDC catalog (root + content chunks) and derives its chapter view. */
+async function getCatalogValues(
+  uid: string,
+): Promise<{ parts: CatalogPart[]; legacyTariffs: Tariff[] }> {
+  const unavailable = () => new HttpsError('failed-precondition', 'No hay un catálogo disponible.');
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const root = await catalogRef(uid).get();
+    const data = root.data() as
+      { revision?: number; contentRevision?: number; chunkCount?: number } | undefined;
+    if (!data || !Number.isInteger(data.chunkCount) || !Number.isInteger(data.contentRevision))
+      throw unavailable();
+    const chunks = await Promise.all(
+      Array.from({ length: data.chunkCount! }, (_, index) =>
+        catalogRef(uid).collection('content').doc(String(index)).get(),
+      ),
+    );
+    if (chunks.some((chunk) => chunk.data()?.revision !== data.contentRevision)) continue;
+    try {
+      const content = decodeContent(chunks.map((chunk) => String(chunk.data()?.data ?? '')));
+      return { parts: projectCatalogParts(content), legacyTariffs: [] };
+    } catch {
+      throw unavailable();
+    }
+  }
+  throw unavailable();
 }
 
 function validateMappedPrices(
@@ -229,11 +262,55 @@ function validateSelections(value: unknown): EstimateSelection[] {
   return selections;
 }
 
-async function getActiveOwner(token: string) {
+async function getTokenOwner(token: string) {
   const snapshot = await tokenRef(token).get();
   const tokenData = snapshot.data() as StoredPublicEstimatorToken | undefined;
   if (!snapshot.exists || !tokenData?.active || !tokenData.ownerUid) invalidToken();
-  return tokenData.ownerUid;
+  return { ownerUid: tokenData.ownerUid, paused: tokenData.paused === true };
+}
+
+/** Owner of a token that accepts estimates and requests (published and not paused). */
+async function getActiveOwner(token: string) {
+  const { ownerUid, paused } = await getTokenOwner(token);
+  if (paused) throw new HttpsError('failed-precondition', PAUSED_MESSAGE);
+  return ownerUid;
+}
+
+/** Existing short link of an owner, if any. Slug documents are server-only. */
+export async function findOwnerSlug(uid: string) {
+  const snapshot = await firestore
+    .collection(SHORT_LINK_COLLECTION)
+    .where('ownerUid', '==', uid)
+    .limit(1)
+    .get();
+  return snapshot.empty ? null : snapshot.docs[0]!.id;
+}
+
+/** Candidate slugs for a company: its name, then numbered and random variants. */
+export function slugCandidates(companyName: string) {
+  const base = slugifyCompanyName(companyName) || 'empresa';
+  const stem = base.slice(0, 40).replace(/-+$/g, '');
+  return [
+    base,
+    ...[2, 3, 4, 5, 6, 7, 8, 9].map((n) => `${stem}-${n}`),
+    ...Array.from({ length: 5 }, () => `${stem}-${randomBytes(3).toString('hex')}`),
+  ].filter((slug) => SHORT_LINK_SLUG_PATTERN.test(slug));
+}
+
+/** Reserves a stable short link for the owner the first time they publish. */
+export async function ensureOwnerSlug(uid: string, companyName: string) {
+  const existing = await findOwnerSlug(uid);
+  if (existing) return existing;
+  for (const slug of slugCandidates(companyName)) {
+    const reserved = await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(slugRef(slug));
+      if (snapshot.exists) return false;
+      transaction.set(slugRef(slug), { ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
+      return true;
+    });
+    if (reserved) return slug;
+  }
+  throw new HttpsError('aborted', 'No se ha podido crear el enlace corto. Vuelve a intentarlo.');
 }
 
 export async function publishPublicEstimator(uid: string) {
@@ -251,11 +328,11 @@ export async function publishPublicEstimator(uid: string) {
       'Añade una URL HTTPS al aviso de privacidad en Mi empresa antes de publicar.',
     );
   if (!isSimpleQuoteEstimatorSettings(settings)) {
-    const catalogSnapshot = await catalogRef(uid).get();
-    const { parts, legacyTariffs } = getCatalogValues(catalogSnapshot.data());
+    const { parts, legacyTariffs } = await getCatalogValues(uid);
     validateMappedPrices(settings, parts, legacyTariffs);
   }
-  publicProfile(profileData, settings);
+  const { companyName } = publicProfile(profileData, settings);
+  const slug = await ensureOwnerSlug(uid, companyName);
 
   const link = ownerLinkRef(uid);
   const linkSnapshot = await link.get();
@@ -265,7 +342,7 @@ export async function publishPublicEstimator(uid: string) {
     const currentTokenSnapshot = await currentTokenRef.get();
     const storedToken = currentTokenSnapshot.data() as StoredPublicEstimatorToken | undefined;
     if (currentTokenSnapshot.exists && storedToken?.active && storedToken.ownerUid === uid)
-      return { token: current.token };
+      return { token: current.token, slug };
   }
 
   const token = randomBytes(24).toString('base64url');
@@ -286,7 +363,52 @@ export async function publishPublicEstimator(uid: string) {
     transaction.set(link, { token, updatedAt: FieldValue.serverTimestamp() });
     if (previous && previous !== token) transaction.delete(tokenRef(previous));
   });
-  return { token };
+  return { token, slug };
+}
+
+/** Pauses or resumes the published form without changing its URL. */
+export async function setPublicEstimatorPaused(uid: string, value: unknown) {
+  const paused = (value as { paused?: unknown } | null)?.paused;
+  if (typeof paused !== 'boolean')
+    throw new HttpsError('invalid-argument', 'Indica si quieres pausar el formulario.');
+  const token = ((await ownerLinkRef(uid).get()).data() as { token?: string } | undefined)?.token;
+  if (!token || !tokenPattern.test(token))
+    throw new HttpsError('failed-precondition', 'No hay un formulario publicado.');
+  await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(tokenRef(token));
+    const data = snapshot.data() as StoredPublicEstimatorToken | undefined;
+    if (!snapshot.exists || !data?.active || data.ownerUid !== uid)
+      throw new HttpsError('failed-precondition', 'No hay un formulario publicado.');
+    transaction.update(tokenRef(token), { paused, updatedAt: FieldValue.serverTimestamp() });
+  });
+  return { paused };
+}
+
+async function companyContact(uid: string) {
+  const [settingsSnapshot, profileSnapshot] = await Promise.all([
+    settingsRef(uid).get(),
+    profileRef(uid).get(),
+  ]);
+  const profile = profileSnapshot.data() as Partial<CompanyProfile> | undefined;
+  if (!profile?.name?.trim()) return null;
+  try {
+    const settings = asSettings(settingsSnapshot.data());
+    return publicProfile(profile, settings);
+  } catch {
+    return { companyName: profile.name.trim().slice(0, 100) };
+  }
+}
+
+/** `/p/{slug}`: the active token, or the company contact when the form is not published. */
+export async function resolvePublicEstimatorSlug(value: unknown): Promise<ShortLinkResolution> {
+  const slug = (value as { slug?: unknown } | null)?.slug;
+  if (typeof slug !== 'string' || !SHORT_LINK_SLUG_PATTERN.test(slug)) invalidToken();
+  const slugSnapshot = await slugRef(slug).get();
+  const ownerUid = (slugSnapshot.data() as { ownerUid?: string } | undefined)?.ownerUid;
+  if (!slugSnapshot.exists || !ownerUid) invalidToken();
+  const status = await getOwnerEstimatorStatus(ownerUid, { ensureSlug: false });
+  if (status.published && status.token) return { token: status.token };
+  return { company: await companyContact(ownerUid) };
 }
 
 export async function revokePublicEstimator(uid: string) {
@@ -303,20 +425,32 @@ export async function revokePublicEstimator(uid: string) {
   return { revoked: true };
 }
 
-export async function getOwnerEstimatorStatus(uid: string) {
+export async function getOwnerEstimatorStatus(
+  uid: string,
+  { ensureSlug = true }: { ensureSlug?: boolean } = {},
+): Promise<EstimatorLinkStatus> {
   const linkSnapshot = await ownerLinkRef(uid).get();
   const token = (linkSnapshot.data() as { token?: string } | undefined)?.token;
-  if (!linkSnapshot.exists || !token || !tokenPattern.test(token)) return { published: false };
+  let slug = await findOwnerSlug(uid);
+  if (!linkSnapshot.exists || !token || !tokenPattern.test(token))
+    return { published: false, ...(slug ? { slug } : {}) };
   const tokenSnapshot = await tokenRef(token).get();
   const data = tokenSnapshot.data() as StoredPublicEstimatorToken | undefined;
-  return data?.active && data.ownerUid === uid ? { published: true, token } : { published: false };
+  if (!data?.active || data.ownerUid !== uid)
+    return { published: false, ...(slug ? { slug } : {}) };
+  // Forms published before short links existed get one the first time the owner opens them.
+  if (!slug && ensureSlug) {
+    const contact = await companyContact(uid);
+    if (contact) slug = await ensureOwnerSlug(uid, contact.companyName);
+  }
+  return { published: true, token, paused: data.paused === true, ...(slug ? { slug } : {}) };
 }
 
 export async function getPublicEstimator(
   data: PublicEstimatorRequest,
 ): Promise<PublicEstimatorInfo> {
   validateToken(data?.token);
-  const ownerUid = await getActiveOwner(data.token);
+  const { ownerUid, paused } = await getTokenOwner(data.token);
   await enforceRateLimit(data.token);
   const [settingsSnapshot, profileSnapshot] = await Promise.all([
     settingsRef(ownerUid).get(),
@@ -324,12 +458,19 @@ export async function getPublicEstimator(
   ]);
   if (!settingsSnapshot.exists) invalidToken();
   const settings = asSettings(settingsSnapshot.data());
+  if (paused)
+    return {
+      ...publicProfile(profileSnapshot.data() as Partial<CompanyProfile> | undefined, settings),
+      schemaVersion: isSimpleQuoteEstimatorSettings(settings) ? 2 : 1,
+      leadCaptureEnabled: false,
+      services: [],
+      paused: true,
+    };
   let availableServices: PublicEstimatorInfo['services'];
   if (isSimpleQuoteEstimatorSettings(settings)) {
     availableServices = getSimpleEstimatorServices(settings);
   } else {
-    const catalogSnapshot = await catalogRef(ownerUid).get();
-    const { parts, legacyTariffs } = getCatalogValues(catalogSnapshot.data());
+    const { parts, legacyTariffs } = await getCatalogValues(ownerUid);
     availableServices = getAvailableEstimatorServices(settings, parts, legacyTariffs).map(
       ({ room, scope, quality }) => ({ room, scope, quality }),
     );
@@ -387,7 +528,7 @@ export async function calculatePublicEstimate(
   const settings = asSettings(settingsSnapshot.data());
   const { parts, legacyTariffs } = isSimpleQuoteEstimatorSettings(settings)
     ? { parts: [], legacyTariffs: [] }
-    : getCatalogValues((await catalogRef(ownerUid).get()).data());
+    : await getCatalogValues(ownerUid);
   try {
     return calculateQuoteRange(settings, parts, selections, legacyTariffs);
   } catch {
@@ -476,7 +617,7 @@ export async function submitPublicLead(value: unknown) {
   const settings = asSettings(settingsSnapshot.data());
   const { parts, legacyTariffs } = isSimpleQuoteEstimatorSettings(settings)
     ? { parts: [], legacyTariffs: [] }
-    : getCatalogValues((await catalogRef(ownerUid).get()).data());
+    : await getCatalogValues(ownerUid);
   let estimate: QuoteEstimate;
   try {
     estimate = calculateQuoteRange(settings, parts, data.selections, legacyTariffs);
@@ -515,7 +656,7 @@ export async function submitPublicLead(value: unknown) {
     }
     const current = rateSnapshot.data() as StoredLeadRateLimit | undefined;
     const isNewWindow = !current || now - current.windowStartedAt >= 60 * 60 * 1000;
-    if (!isNewWindow && current.count >= 10)
+    if (!isNewWindow && current.count >= runtimeConfig.limits.leadsPerFormPerHour)
       throw new HttpsError(
         'resource-exhausted',
         'Este formulario ha recibido varias solicitudes recientemente. Prueba más tarde.',
@@ -542,13 +683,6 @@ export async function submitPublicLead(value: unknown) {
   });
   return { received: true as const, estimate: storedEstimate };
 }
-
-export const quoteEstimatorFunctionOptions = {
-  region: functionRegion,
-  invoker: 'public',
-  maxInstances: 10,
-  minInstances: 0,
-} as const;
 
 export function requireOwnerUid(uid: string | undefined) {
   if (!uid) throw new HttpsError('unauthenticated', 'Inicia sesión para gestionar el enlace.');

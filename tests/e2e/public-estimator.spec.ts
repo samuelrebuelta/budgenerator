@@ -6,6 +6,10 @@ const project = 'demo-cimbra';
 const email = 'estimator-owner@example.test';
 const password = 'Local-emulator-Only-2026';
 let ownerUid = '';
+const authEmulatorUrl = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199'}`;
+const firestoreEmulator = new URL(
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+);
 const previewPort = process.env.E2E_PREVIEW_PORT ?? '4173';
 
 test.beforeAll(async () => {
@@ -16,11 +20,11 @@ test.beforeAll(async () => {
   )
     throw new Error('Only local Firebase emulators are allowed.');
 
-  await fetch(`http://127.0.0.1:9199/emulator/v1/projects/${project}/accounts`, {
+  await fetch(`${authEmulatorUrl}/emulator/v1/projects/${project}/accounts`, {
     method: 'DELETE',
   });
   const response = await fetch(
-    'http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key',
+    `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,10 +34,20 @@ test.beforeAll(async () => {
   const account = (await response.json()) as { localId?: string };
   if (!account.localId) throw new Error('Unable to seed estimator account in Auth emulator.');
   ownerUid = account.localId;
+  // Publishing the estimator requires a verified email.
+  const verified = await fetch(
+    `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/projects/${project}/accounts:update`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ localId: ownerUid, emailVerified: true }),
+    },
+  );
+  if (!verified.ok) throw new Error('Unable to verify the estimator account in Auth emulator.');
 
   const env = await initializeTestEnvironment({
     projectId: project,
-    firestore: { host: '127.0.0.1', port: 8180 },
+    firestore: { host: firestoreEmulator.hostname, port: Number(firestoreEmulator.port || 8180) },
   });
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (context) => {
@@ -118,14 +132,19 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.getByLabel('Media · desde €/m²', { exact: true }).nth(1).fill('10');
   await page.getByLabel('Media · hasta €/m²', { exact: true }).nth(1).fill('14');
   await page.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await page.getByRole('button', { name: 'Guardar y generar enlace', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar y publicar formulario', exact: true }).click();
 
-  const publicUrl = page.getByLabel('Enlace público', { exact: true });
+  const publicUrl = page.getByLabel('Enlace para compartir', { exact: true });
   await expect(publicUrl).toBeVisible();
   const href = await publicUrl.inputValue();
-  expect(href).toMatch(
-    new RegExp(`^http://127\\.0\\.0\\.1:${previewPort}/solicitar-presupuesto/[A-Za-z0-9_-]{32}$`),
-  );
+  // Stable short link derived from the company name.
+  expect(href).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${previewPort}/p/estudio-roble`));
+  await expect(page.getByRole('button', { name: 'Código QR', exact: true })).toBeVisible();
+  const whatsapp = await page
+    .getByRole('link', { name: 'WhatsApp', exact: true })
+    .getAttribute('href');
+  expect(whatsapp).toMatch(/^https:\/\/wa\.me\/\?text=/);
+  expect(decodeURIComponent(whatsapp!)).toContain(href);
   expect(href).not.toContain('estimator-owner');
 
   let publicResponse: unknown;
@@ -133,9 +152,9 @@ test('owner publishes a simplified public estimate and can revoke its token link
   page.on('response', (response) => {
     const url = response.url();
     if (
-      !url.includes('/europe-west1/getPublicEstimator') &&
-      !url.includes('/europe-west1/calculatePublicEstimate') &&
-      !url.includes('/europe-west1/submitPublicLead')
+      !url.includes('/europe-southwest1/getPublicEstimator') &&
+      !url.includes('/europe-southwest1/calculatePublicEstimate') &&
+      !url.includes('/europe-southwest1/submitPublicLead')
     )
       return;
     void response
@@ -217,7 +236,7 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     page.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('link'),
-  ).toHaveText(['Presupuestos', 'Proyectos', 'Solicitudes']);
+  ).toHaveText(['Presupuestos', 'Proyectos', 'Equipo', 'Solicitudes']);
   await page.setViewportSize({ width: 1280, height: 900 });
 
   await page.getByRole('button', { name: 'Crear presupuesto', exact: true }).click();
@@ -242,11 +261,30 @@ test('owner publishes a simplified public estimate and can revoke its token link
   await expect(page.getByText('Lucía Martín', { exact: true })).toHaveCount(0);
 
   await page.goto('/profile/estimador-publico');
-  await page.getByRole('button', { name: 'Revocar enlace', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Enlace revocado');
+  await page.getByRole('button', { name: 'Pausar formulario', exact: true }).click();
+  await expect(page.getByText('En pausa', { exact: true })).toBeVisible();
+  const ownerPage = page.url();
   await page.goto(href);
   await expect(
-    page.getByRole('heading', { name: 'Este enlace no está disponible', exact: true }),
+    page.getByRole('heading', { name: 'El formulario está en pausa', exact: true }),
   ).toBeVisible();
-  await expect(page.getByText('Estudio Roble', { exact: true })).toHaveCount(0);
+  await page.goto(ownerPage);
+  await page.getByRole('button', { name: 'Reanudar formulario', exact: true }).click();
+  await expect(page.getByText('Activo', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Revocar enlace', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '¿Revocar el enlace del formulario?' })
+    .getByRole('button', { name: 'Revocar enlace', exact: true })
+    .click();
+  await expect(page.getByRole('status').filter({ hasText: 'Enlace revocado' })).toBeVisible();
+  // The short link stays and shows the company instead of the form.
+  await page.goto(href);
+  await expect(
+    page.getByRole('heading', { name: 'El formulario no está disponible ahora', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Estudio Roble', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Enviar solicitud y ver mi estimación' }),
+  ).toHaveCount(0);
 });

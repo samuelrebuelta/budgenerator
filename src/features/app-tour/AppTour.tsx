@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
-import { Button } from '@/shared/ui';
+import { Button, IconButton } from '@/shared/ui';
 import { AppTourContext } from './context';
 import { isWelcomeTourPending, markWelcomeTourComplete } from './model';
 
@@ -243,14 +243,13 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
                 </p>
                 <h2 className="app-tour-title">{currentStep.title}</h2>
               </div>
-              <button
-                type="button"
-                className="app-tour-close"
-                aria-label="Cerrar guía"
+              <IconButton
+                label="Cerrar guía"
+                icon={<X size={18} aria-hidden="true" />}
+                size="sm"
+                className="text-ink-muted"
                 onClick={closeTour}
-              >
-                <X size={18} />
-              </button>
+              />
             </div>
             <p className="app-tour-description" aria-live="polite">
               {currentStep.description}
@@ -260,14 +259,13 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
                 Omitir guía
               </Button>
               <div className="flex items-center gap-2">
-                <Button
+                <IconButton
                   variant="secondary"
-                  aria-label="Paso anterior"
+                  label="Paso anterior"
+                  icon={<ArrowLeft size={16} aria-hidden="true" />}
                   disabled={!previousStep}
                   onClick={() => previousStep && goToStep(stepIndex - 1)}
-                >
-                  <ArrowLeft size={16} />
-                </Button>
+                />
                 <Button
                   onClick={() => {
                     if (nextStep) goToStep(stepIndex + 1);
@@ -278,7 +276,7 @@ export function AppTourProvider({ userId, children }: { userId?: string; childre
                   }}
                 >
                   {nextStep ? 'Siguiente' : 'Volver a presupuestos'}
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} aria-hidden="true" />
                 </Button>
               </div>
             </div>

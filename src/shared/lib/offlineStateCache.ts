@@ -14,6 +14,11 @@ const databaseName = 'budgenerator-offline-state';
 const objectStoreName = 'entries';
 const fallbackEntries = new Map<string, OfflineEntry>();
 const registrations = new Map<string, (snapshot: Record<string, unknown>) => void>();
+/**
+ * Restored snapshots of stores whose module was not loaded yet (route chunks load lazily). They
+ * are applied when the store registers, as long as the same account is still signed in.
+ */
+const pendingSnapshots = new Map<string, { uid: string; value: Record<string, unknown> }>();
 const pendingWrites = new Set<Promise<void>>();
 let database: Promise<IDBDatabase | null> | null = null;
 let persistenceSuspended = 0;
@@ -177,10 +182,78 @@ export async function deleteOfflineValue(key: string): Promise<void> {
 }
 
 export async function deleteOfflineUserData(uid: string): Promise<void> {
+  for (const [key, pending] of pendingSnapshots)
+    if (pending.uid === uid) pendingSnapshots.delete(key);
   await Promise.all([
     deleteOfflineValues(`session:${uid}:`),
     deleteOfflineValues(`resource:private:${uid}:`),
   ]);
+}
+
+/**
+ * Store snapshots are throttled per store: the first change is written at once (so data that
+ * just arrived from the network is persisted before a reload), and later changes within the
+ * window — typing in the editor — are coalesced into one trailing write.
+ */
+export const OFFLINE_SNAPSHOT_DELAY_MS = 600;
+
+interface SnapshotWindow {
+  timer: ReturnType<typeof setTimeout>;
+  /** Trailing write for changes made during the window. */
+  pending: (() => void) | null;
+}
+
+const snapshotWindows = new Map<string, SnapshotWindow>();
+
+function shallowEqual(a: Record<string, unknown> | undefined, b: Record<string, unknown>) {
+  if (!a) return false;
+  const keys = Object.keys(b);
+  return keys.length === Object.keys(a).length && keys.every((key) => Object.is(a[key], b[key]));
+}
+
+function openSnapshotWindow(key: string) {
+  snapshotWindows.set(key, {
+    pending: null,
+    timer: setTimeout(() => {
+      const current = snapshotWindows.get(key);
+      snapshotWindows.delete(key);
+      if (current?.pending) {
+        current.pending();
+        openSnapshotWindow(key);
+      }
+    }, OFFLINE_SNAPSHOT_DELAY_MS),
+  });
+}
+
+function scheduleSnapshot(key: string, write: () => void) {
+  const current = snapshotWindows.get(key);
+  if (current) {
+    current.pending = write;
+    return;
+  }
+  write();
+  openSnapshotWindow(key);
+}
+
+/** Writes every pending store snapshot now (before unload, sign-out or tests). */
+export function flushOfflineSnapshots() {
+  for (const [key, current] of snapshotWindows) {
+    clearTimeout(current.timer);
+    snapshotWindows.delete(key);
+    current.pending?.();
+  }
+}
+
+let flushListenersInstalled = false;
+
+/** Flushes pending snapshots when the page is hidden or unloaded (installed on first use). */
+function installFlushListeners() {
+  if (flushListenersInstalled || typeof window === 'undefined') return;
+  flushListenersInstalled = true;
+  window.addEventListener('pagehide', flushOfflineSnapshots);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushOfflineSnapshots();
+  });
 }
 
 export function registerOfflineStore<TState extends object>(
@@ -190,22 +263,46 @@ export function registerOfflineStore<TState extends object>(
   select: (state: TState) => Partial<TState>,
 ) {
   if (registrations.has(key)) return;
+  installFlushListeners();
   registrations.set(key, (snapshot) => store.setState(snapshot as Partial<TState>));
+  let lastSelection: { uid: string; value: Record<string, unknown> } | undefined;
+  const pending = pendingSnapshots.get(key);
+  pendingSnapshots.delete(key);
+  if (pending && pending.uid === getUid()) {
+    persistenceSuspended += 1;
+    try {
+      store.setState(pending.value as Partial<TState>);
+    } finally {
+      persistenceSuspended -= 1;
+    }
+  }
   store.subscribe((state) => {
     const uid = getUid();
     if (!uid || persistenceSuspended) return;
-    void writeOfflineValue(`session:${uid}:${key}`, select(state));
+    const selection = select(state) as Record<string, unknown>;
+    // Unrelated store changes (loading flags, UI state) do not rewrite the snapshot.
+    if (lastSelection?.uid === uid && shallowEqual(lastSelection.value, selection)) return;
+    lastSelection = { uid, value: selection };
+    scheduleSnapshot(key, () => {
+      // An account switch or sign-out in the meantime discards the previous account's write.
+      if (getUid() !== uid) return;
+      void writeOfflineValue(`session:${uid}:${key}`, select(store.getState()));
+    });
   });
 }
 
 export async function restoreOfflineStores(uid: string): Promise<boolean> {
   const snapshots = await readOfflineValues(`session:${uid}:`);
+  pendingSnapshots.clear();
   if (!snapshots.length) return false;
   persistenceSuspended += 1;
   try {
     for (const entry of snapshots) {
       const key = entry.key.slice(`session:${uid}:`.length);
-      registrations.get(key)?.(entry.value as Record<string, unknown>);
+      const value = entry.value as Record<string, unknown>;
+      const apply = registrations.get(key);
+      if (apply) apply(value);
+      else pendingSnapshots.set(key, { uid, value });
     }
   } finally {
     persistenceSuspended -= 1;
@@ -223,5 +320,6 @@ export function withOfflinePersistenceSuspended<T>(operation: () => T): T {
 }
 
 export async function waitForOfflinePersistence(): Promise<void> {
+  flushOfflineSnapshots();
   await Promise.all([...pendingWrites]);
 }

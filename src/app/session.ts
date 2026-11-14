@@ -8,13 +8,14 @@ import {
   withTimeout,
 } from '@/shared/model/session';
 import { useSyncStore, flushWrites, hasPendingWrites } from '@/shared/model/sync';
-import { useBudgetStore, resetBudgetStore } from '@/entities/budget/model/store';
-import { useCatalogStore, resetCatalogStore } from '@/entities/catalog/model/store';
-import { useProfileStore, resetProfileStore } from '@/entities/profile/model/store';
+import { toUserMessage } from '@/shared/lib/errors';
+import { useBudgetStore, resetBudgetStore } from '@/entities/budget';
+import { useCatalogStore, resetCatalogStore } from '@/entities/catalog';
+import { useProfileStore, resetProfileStore } from '@/entities/profile';
 import { useProjectStore, resetProjectStore } from '@/entities/project';
 import { resetWorkforceStore } from '@/entities/workforce';
-import { useTemplateStore, resetTemplateStore } from '@/entities/template/model/store';
-import { useUserStore, resetUserStore } from '@/entities/user/model/store';
+import { useTemplateStore, resetTemplateStore } from '@/entities/template';
+import { useUserStore, resetUserStore } from '@/entities/user';
 import {
   clearMemoryResources,
   restorePersistedMemoryResources,
@@ -110,9 +111,7 @@ export function loadSession(
           error:
             offline || sessionWasReady
               ? null
-              : error instanceof Error
-                ? error.message
-                : 'No hemos podido abrir tu espacio de trabajo.',
+              : toUserMessage(error, 'No hemos podido abrir tu espacio de trabajo.'),
         });
       }
     } finally {
@@ -134,11 +133,15 @@ export async function probeSessionConnection(user: User): Promise<boolean> {
   }
 }
 
-export function retryUnauthenticatedRouteConnection(): boolean {
-  if (isBrowserDisconnected()) return false;
-  // The active public route is the Firebase probe; this starts its cached, non-blocking reload.
-  markNetworkAvailable('request');
-  return true;
+export { retryUnauthenticatedRouteConnection } from './sessionModule';
+
+/** True while the budget editor holds an unsaved new budget. */
+export function hasBudgetDraft(): boolean {
+  return Boolean(useBudgetStore.getState().draft);
+}
+
+export function hasDirtyBudgetDraft(): boolean {
+  return useBudgetStore.getState().draftDirty;
 }
 
 export async function prepareSignOut() {

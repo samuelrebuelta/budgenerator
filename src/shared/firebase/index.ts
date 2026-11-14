@@ -1,1 +1,2 @@
-export { auth, db } from './config';
+export { auth } from './auth';
+export { db } from './firestore';

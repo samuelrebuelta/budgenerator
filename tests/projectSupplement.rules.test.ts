@@ -8,8 +8,31 @@ import {
 } from '@firebase/rules-unit-testing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { createProjectFirestoreApi } from '../src/entities/project/api/firestore';
-import type { Project, ProjectWorkItem } from '../src/entities/project/model/types';
-import { budget, user } from './fixtures';
+import type { Project } from '../src/entities/project/model/types';
+import { seedBudget, user } from './fixtures';
+import {
+  addChapter,
+  addItem,
+  createEmptyDocument,
+} from '../src/entities/construction-document/model';
+
+function sourceDocument() {
+  let document = createEmptyDocument('budget', {
+    clientName: 'Cliente',
+    address: 'Madrid',
+    ivaRate: 0.21,
+    adjustment: { multiplier: 1.2, reason: 'Ajuste original' },
+  });
+  const chapter = addChapter(document, 'Albañilería');
+  document = addItem(chapter.document, chapter.chapterId, {
+    description: 'Reparar pared',
+    quantity: 1,
+    unit: 'ud',
+    price: 100,
+    cost: 30,
+  }).document;
+  return document;
+}
 
 let env: RulesTestEnvironment;
 const firestoreEmulator = new URL(
@@ -44,23 +67,6 @@ const project = (): Project => ({
   supplementsIva: 0,
   updatedTotal: 121,
 });
-const workItem = (): ProjectWorkItem => ({
-  id: 'original-work',
-  name: 'Albañilería',
-  position: 0,
-  tasks: [
-    {
-      id: 'original-task',
-      description: 'Reparar pared',
-      quantity: 1,
-      unit: 'unit',
-      price: 100,
-      cost: 30,
-      completedAt: '2026-10-17T12:00:00.000Z',
-    },
-  ],
-});
-
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-cimbra-project-supplements',
@@ -78,17 +84,18 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'users', 'alice'), { ...user('alice'), totalBudgetsCreated: 1 });
     await setDoc(doc(db, 'users', 'bob'), user('bob'));
-    await setDoc(doc(db, 'users', 'alice', 'budgets', 'source'), {
-      ...budget('source'),
-      acceptedAt: '2026-10-11T10:00:00.000Z',
-      ivaRate: 0.21,
-      adjustment: { multiplier: 1.2, reason: 'Ajuste original' },
-    });
-    await setDoc(doc(db, 'users', 'alice', 'projects', projectId), project());
-    await setDoc(
-      doc(db, 'users', 'alice', 'projects', projectId, 'workItems', 'original-work'),
-      workItem(),
+    await seedBudget(
+      db,
+      'alice',
+      'source',
+      { acceptedAt: '2026-10-11T10:00:00.000Z', projectId },
+      sourceDocument(),
     );
+    await setDoc(doc(db, 'users', 'alice', 'projects', projectId), project());
+    await setDoc(doc(db, 'users', 'alice', 'projects', projectId, 'progress', 'state'), {
+      completed: { n2: '2026-10-17T12:00:00.000Z' },
+      updatedAt: '2026-10-17T12:00:00.000Z',
+    });
   });
 });
 const alice = () => env.authenticatedContext('alice', { email: 'alice@example.test' }).firestore();
@@ -96,7 +103,7 @@ const bob = () => env.authenticatedContext('bob', { email: 'bob@example.test' })
 const supplementInput = {
   description: 'Punto de luz adicional',
   quantity: 2,
-  unit: 'unit',
+  unit: 'ud',
   unitPrice: 20,
 };
 
@@ -123,8 +130,14 @@ describe('project supplement transactions', () => {
     });
     expect(result.workItem.tasks[0]?.completedAt).toBeUndefined();
     const originalBudget = (await getDoc(doc(db, 'users', 'alice', 'budgets', 'source'))).data();
-    expect(originalBudget?.workItems[0]?.tasks[0]?.price).toBe(10.75);
+    expect(originalBudget?.revision).toBe(1);
     expect(originalBudget?.adjustment).toEqual({ multiplier: 1.2, reason: 'Ajuste original' });
+    const detail = await api.fetchProject('alice', projectId);
+    expect(detail?.workItems.map((item) => item.name)).toEqual([
+      'Albañilería',
+      'Punto de luz adicional',
+    ]);
+    expect(detail?.workItems[0]?.tasks[0]?.completedAt).toBe('2026-10-17T12:00:00.000Z');
     expect(
       (
         await getDoc(doc(db, 'users', 'alice', 'projects', projectId, 'supplements', 'extra-light'))
@@ -142,9 +155,7 @@ describe('project supplement transactions', () => {
     expect(
       (await getDocs(collection(db, 'users', 'alice', 'projects', projectId, 'supplements'))).size,
     ).toBe(1);
-    expect(
-      (await getDocs(collection(db, 'users', 'alice', 'projects', projectId, 'workItems'))).size,
-    ).toBe(2);
+    expect((await api.fetchProject('alice', projectId))?.workItems).toHaveLength(2);
   });
 
   it('voids a supplement with a reason and removes its amount and work from progress', async () => {

@@ -2,10 +2,12 @@ import { useRef, useState } from 'react';
 import { Upload, Trash2, Info } from 'lucide-react';
 import { useProfileStore } from '@/entities/profile';
 import { useAuthStore } from '@/entities/auth';
-import { isValidPrivacyPolicyUrl } from '@/entities/quote-estimator';
+import { isValidPrivacyPolicyUrl, publishHostedPrivacyNotice } from '@/entities/quote-estimator';
+import { useSearchParams } from 'react-router-dom';
 import { MAX_LOGO_SIZE } from '@/shared/lib';
 import {
   Button,
+  buttonClassName,
   ConfirmModal,
   Input,
   PageLayout,
@@ -28,6 +30,11 @@ export function ProfilePage() {
   const removeLogo = useProfileStore((s) => s.removeLogo);
   const authEmail = useAuthStore((s) => s.user?.email ?? '');
   const { navigate } = usePageNavigation();
+  const [searchParams] = useSearchParams();
+  // Only in-app paths, so the parameter cannot send the user to another site.
+  const returnTo = /^\/[a-z]/.test(searchParams.get('volver') ?? '')
+    ? searchParams.get('volver')!
+    : '/budgets';
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -44,7 +51,10 @@ export function ProfilePage() {
         return;
       }
       await saveProfile();
-      navigate('/budgets');
+      // A notice hosted by BudGenerator shows these data: keep it in sync.
+      if (/\/aviso-privacidad\/[A-Za-z0-9_-]{22}$/.test(privacyUrl))
+        await publishHostedPrivacyNotice().catch(() => undefined);
+      navigate(returnTo);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se han podido guardar los datos.');
     } finally {
@@ -205,7 +215,8 @@ export function ProfilePage() {
         </div>
         <p className="mt-2 text-sm text-gray-500">
           Es necesario para recibir solicitudes desde el formulario público. Solo se aceptan enlaces
-          seguros HTTPS.
+          seguros HTTPS. ¿No tienes web? Desde el estimador público puedes usar un aviso de
+          privacidad que BudGenerator publica con los datos de tu empresa.
         </p>
 
         <div className="mt-8 flex justify-end">
@@ -222,7 +233,10 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/estimator"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+            className={buttonClassName({
+              variant: 'outline',
+              className: 'self-start px-4 sm:self-auto',
+            })}
           >
             Ver
           </PageLink>
@@ -236,7 +250,10 @@ export function ProfilePage() {
           </div>
           <PageLink
             to="/profile/solicitudes"
-            className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg px-3 text-sm font-semibold text-[#426457] underline underline-offset-4 hover:text-[#234c40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] sm:self-auto"
+            className={buttonClassName({
+              variant: 'outline',
+              className: 'self-start px-4 sm:self-auto',
+            })}
           >
             Ver
           </PageLink>

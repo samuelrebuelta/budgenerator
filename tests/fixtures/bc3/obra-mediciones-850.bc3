@@ -1,0 +1,25 @@
+~V|Empresa Ejemplo|FIEBDC-3/2016\01022026|Presto 2016|Reforma de vivienda\PRECIO|850|Obra ficticia para pruebas|2|
+~K|\2\2\3\2\2\2\2\EUR\|0\13\6\0\21\|
+~C|OBRA##||Reforma de vivienda|651.36||0|
+~C|01#||Demoliciones|83.22||0|
+~C|01.01#||Ba¤o principal|83.22||0|
+~C|02#||Revestimientos|500.14||0|
+~C|MO001|h|Oficial 1¦|22.00||1|
+~C|MO002|h|Pe¢n ordinario|18.50||1|
+~C|MT001|mý|Azulejo cer mico|24.50||3|
+~C|MT002|kg|Adhesivo cementoso|0.82||3|
+~C|%MA|%|Medios auxiliares|0.02||0|
+~C|E01DEM|m2|Demolici¢n de alicatado|9.79||0|
+~C|E02ALI|m2|Alicatado de paramentos|39.07||0|
+~C|E03GES|ud|Gesti¢n de residuos (contenedor 5 mü)|68.00||0|
+~D|OBRA##|01#\1\1\02#\1\1\E03GES\1\1\|
+~D|01#|01.01#\1\1\|
+~D|01.01#|E01DEM\1\8.5\|
+~D|02#|E02ALI\1\12.3\E01DEM\1\2\|
+~D|E01DEM||MO002\1\0.40\\MO001\1\0.10\\%MA\1\1\MO\|
+~D|E02ALI|MT001\1\1.05\MT002\1\4.2\MO001\1\0.45\|
+~T|E01DEM|Demolici¢n de alicatado con medios manuales, incluso retirada de escombros.|
+~M|01.01#\E01DEM|1\1\1\|8.5|\Pared norte\1\2.00\\2.50\\Pared sur\1\1.40\\2.50\1\Subtotal paredes\\\\\|Medici¢n ba¤o|
+~M|02#\E02ALI|2\1\|12.3|3\a*b*d\2\2.5\\2.46\|
+~L|E02ALI|Pliego de condiciones del alicatado.|
+

@@ -1,20 +1,22 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuthStore } from '@/entities/auth';
 import { Brand } from '@/shared/ui/Brand';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/shared/ui';
-import { Input } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Alert, Button, Input, Modal } from '@/shared/ui';
 import { LogIn, UserPlus, Check, X, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { t } from '@/shared/i18n';
-import { sendPasswordReset } from '@/entities/auth/api/firebase';
+import { sendPasswordReset } from '@/entities/auth';
 import { markWelcomeTourPending } from '@/features/app-tour/model';
 import { safeNotificationLoginReturnPath } from '@/features/notifications/model/navigation';
+import { LegalLinks } from '@/shared/ui/LegalLinks';
+import { markLegalAcceptance } from '@/shared/lib/legal';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 function usePasswordStrength(password: string) {
   return useMemo(() => {
     const checks = [
-      { label: t('login.passwordMinLength'), met: password.length >= 6 },
+      { label: t('login.passwordMinLength'), met: password.length >= MIN_PASSWORD_LENGTH },
       { label: t('login.passwordUppercase'), met: /[A-Z]/.test(password) },
       { label: t('login.passwordLowercase'), met: /[a-z]/.test(password) },
       { label: t('login.passwordNumber'), met: /\d/.test(password) },
@@ -53,6 +55,7 @@ export function LoginPage() {
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (user) navigate(returnPath, { replace: true });
@@ -60,8 +63,9 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isRegister && !allChecksMet) return;
+    if (isRegister && (!allChecksMet || !acceptedTerms)) return;
     if (isRegister) {
+      markLegalAcceptance();
       const uid = await signUp(email, password);
       if (uid) markWelcomeTourPending(uid);
     } else {
@@ -146,7 +150,7 @@ export function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={isRegister ? t('login.passwordPlaceholder') : undefined}
                     required
-                    minLength={6}
+                    minLength={isRegister ? MIN_PASSWORD_LENGTH : undefined}
                     autoComplete={isRegister ? 'new-password' : 'current-password'}
                   />
                   <button
@@ -195,14 +199,39 @@ export function LoginPage() {
                 )}
               </div>
 
+              {isRegister && (
+                <label className="flex items-start gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-1"
+                    required
+                  />
+                  <span>
+                    He leído y acepto las{' '}
+                    <Link to="/legal/condiciones" target="_blank" className="underline">
+                      condiciones de uso
+                    </Link>{' '}
+                    y la{' '}
+                    <Link to="/legal/privacidad" target="_blank" className="underline">
+                      política de privacidad
+                    </Link>
+                    .
+                  </span>
+                </label>
+              )}
+
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+                <Alert tone="danger" plain role="none">
+                  {error}
+                </Alert>
               )}
 
               <Button
                 type="submit"
                 className="w-full justify-center"
-                disabled={loading || (isRegister && !allChecksMet)}
+                disabled={loading || (isRegister && (!allChecksMet || !acceptedTerms))}
                 loading={loading}
               >
                 {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
@@ -212,26 +241,24 @@ export function LoginPage() {
 
             {!isRegister && (
               <div className="mt-3 text-center">
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={openResetModal}
-                  className="text-sm text-gray-500 hover:text-blue-600 cursor-pointer"
+                  className="font-medium text-ink-muted"
                 >
                   {t('login.forgotPassword')}
-                </button>
+                </Button>
               </div>
             )}
 
             <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={toggleMode}
-                className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
-              >
+              <Button type="button" variant="link" onClick={toggleMode} className="font-medium">
                 {isRegister ? t('login.hasAccount') : t('login.noAccount')}
-              </button>
+              </Button>
             </div>
           </div>
+          <LegalLinks className="mt-6 justify-center" />
         </div>
       </main>
       <Modal open={showReset} onClose={() => setShowReset(false)}>
@@ -241,12 +268,12 @@ export function LoginPage() {
         </h3>
         {resetSent ? (
           <div>
-            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-2">
+            <Alert tone="success" plain role="none" className="mb-2">
               {t('login.resetPasswordSent')}
-            </p>
-            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+            </Alert>
+            <Alert tone="warning" plain role="none" className="mb-4">
               {t('login.resetPasswordSpamHint')}
-            </p>
+            </Alert>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={() => setShowReset(false)}>
                 {t('common.cancel')}
@@ -265,9 +292,9 @@ export function LoginPage() {
               required
             />
             {resetError && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mt-2">
+              <Alert tone="danger" plain role="none" className="mt-2">
                 {resetError}
-              </p>
+              </Alert>
             )}
             <div className="flex items-center justify-end gap-3 mt-4">
               <Button variant="secondary" onClick={() => setShowReset(false)}>

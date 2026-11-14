@@ -1,0 +1,155 @@
+/*
+ * Design tokens. Every value here generates a Tailwind utility (`bg-surface`, `text-ink-muted`,
+ * `rounded-card`, `shadow-popover`, `shell:` …) and a CSS variable for component styles.
+ * Use the semantic tokens in new code; the raw scales exist to build them.
+ */
+@theme {
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+
+  /* Brand scale: petróleo (docs/archive/design-proposal.md). */
+  --color-brand-50: #edf5f1;
+  --color-brand-100: #dcece4;
+  --color-brand-200: #bad7ca;
+  --color-brand-300: #8cb7a5;
+  --color-brand-400: #639783;
+  --color-brand-500: #367760;
+  --color-brand-600: #24564c;
+  --color-brand-700: #183e3b;
+  --color-brand-800: #12322f;
+  --color-brand-900: #102d2b;
+
+  /*
+   * Deprecated: `blue-*` used to be remapped to the brand green. It stays as an alias so
+   * pages not yet migrated keep their look; new code must use `brand-*` or semantic tokens.
+   */
+  --color-blue-50: var(--color-brand-50);
+  --color-blue-100: var(--color-brand-100);
+  --color-blue-200: var(--color-brand-200);
+  --color-blue-300: var(--color-brand-300);
+  --color-blue-400: var(--color-brand-400);
+  --color-blue-500: var(--color-brand-500);
+  --color-blue-600: var(--color-brand-600);
+  --color-blue-700: var(--color-brand-700);
+  --color-blue-800: var(--color-brand-800);
+  --color-blue-900: var(--color-brand-900);
+
+  /* Warm neutral scale (cal, papel). 400 and 500 meet 4.5:1 on cal and papel. */
+  --color-white: #fffdf8;
+  --color-gray-50: #faf9f6;
+  --color-gray-100: #f5f2eb;
+  --color-gray-200: #e5e1d8;
+  --color-gray-300: #d0cbc0;
+  --color-gray-400: #646f69;
+  --color-gray-500: #5d6962;
+  --color-gray-600: #52625a;
+  --color-gray-700: #354b42;
+  --color-gray-800: #253c34;
+  --color-gray-900: #1c3029;
+
+  /* Surfaces and text. */
+  --color-canvas: #f5f2eb;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #faf9f6;
+  --color-sidebar: #ece9df;
+  --color-tint: #edf1e6;
+  --color-tint-strong: #e8ede2;
+  --color-ink: #1c3029;
+  --color-ink-strong: #183e3b;
+  --color-ink-soft: #354b42;
+  --color-ink-muted: #52625a;
+  --color-ink-subtle: #5d6962;
+  --color-line: #e5e1d8;
+  --color-line-strong: #d0cbc0;
+  --color-scrim: #102d2b88;
+
+  /* Actions. Terracota is decorative (brand dot, focus ring); use accent-strong for text. */
+  --color-primary: #24564c;
+  --color-primary-hover: #183e3b;
+  --color-on-primary: #fffdf8;
+  --color-accent: #c65d3b;
+  --color-accent-strong: #a94c2f;
+  --color-focus: #c65d3b;
+  --color-highlight: #d6e9b9;
+  /* Granate of the selected day in the team calendar. */
+  --color-calendar-selected: #561321;
+
+  /* Accent tint for in-progress states (terracota family). */
+  --color-accent-surface: #f8eae4;
+  --color-accent-line: #dfb39f;
+
+  /* Crew palette (team calendar, project assignments): dot, `-surface` fill, `-ink` text. */
+  --color-crew-blue: #367760;
+  --color-crew-blue-surface: #dcece4;
+  --color-crew-blue-ink: #183e3b;
+  --color-crew-green: #648b43;
+  --color-crew-green-surface: #e3edd7;
+  --color-crew-green-ink: #354b27;
+  --color-crew-amber: #b4771e;
+  --color-crew-amber-surface: #f5e7cd;
+  --color-crew-amber-ink: #68420d;
+  --color-crew-rose: #b45e67;
+  --color-crew-rose-surface: #f4e0df;
+  --color-crew-rose-ink: #733a3e;
+  --color-crew-violet: #8062a6;
+  --color-crew-violet-surface: #ebe4f2;
+  --color-crew-violet-ink: #514069;
+  --color-crew-cyan: #3b8e94;
+  --color-crew-cyan-surface: #d9eceb;
+  --color-crew-cyan-ink: #28575a;
+  --color-crew-slate: #68756e;
+  --color-crew-slate-surface: #e5e7e4;
+  --color-crew-slate-ink: #3f4844;
+
+  /* States: `*-surface` background, `*-line` border, `*-ink` text (AA on its surface). */
+  --color-success-surface: #edf5f1;
+  --color-success-line: #bad7ca;
+  --color-success-ink: #1d6b4f;
+  --color-warning-surface: #fdf6e3;
+  --color-warning-line: #ecd9a6;
+  --color-warning-ink: #7a4f00;
+  --color-danger-surface: #fff0e9;
+  --color-danger-line: #edc4b3;
+  --color-danger-ink: #9a3926;
+  --color-danger-solid: #a63d2a;
+  --color-info-surface: #eef4f8;
+  --color-info-line: #c5d9e6;
+  --color-info-ink: #2f6690;
+
+  /* Radii: controls, cards, sheets and pills. */
+  --radius-control: 0.5rem;
+  --radius-card: 0.875rem;
+  --radius-sheet: 1rem;
+  --radius-pill: 9999px;
+
+  /* Elevation. */
+  --shadow-card: 0 1px 2px rgb(16 45 43 / 0.06);
+  --shadow-popover: 0 12px 36px rgb(20 45 35 / 0.18);
+  --shadow-toast: 0 8px 35px rgb(16 45 43 / 0.15);
+  --shadow-modal: 0 30px 100px rgb(16 45 43 / 0.13);
+
+  /* Shell breakpoint: side navigation from 801 px (`shell:` / `max-shell:`). */
+  --breakpoint-shell: 50.0625rem;
+
+  /* Page titles. Body text uses Tailwind's xs–4xl scale; do not go below 12 px. */
+  --text-display: clamp(1.75rem, 3.1vw, 2.5rem);
+  --text-display--line-height: 1.18;
+}
+
+:root {
+  color-scheme: light;
+  /* Stacking scale: `z-(--z-toast)` in TSX, `var(--z-toast)` in CSS. */
+  --z-dropdown: 30;
+  --z-sticky: 40;
+  --z-nav: 45;
+  --z-header: 50;
+  --z-popover: 60;
+  --z-tour: 80;
+  --z-toast: 90;
+  --z-skip-link: 200;
+  --control-height: 44px;
+  --state-hover: var(--color-tint);
+  --state-pressed: #e0e8d6;
+  --state-selected: var(--color-brand-100);
+  --motion-ui: 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}

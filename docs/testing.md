@@ -2,9 +2,9 @@
 
 URL de producción: [https://budgenerator.web.app/](https://budgenerator.web.app/).
 
-Cuenta de administración para pruebas: `budgenerator@gmail.com`.
+Cuenta de administración para pruebas: `budgenerator@gmail.com`. Desde el endurecimiento del 12-11-2026 el panel de administración exige el custom claim `admin` (ver [Firebase](firebase.md#administración)); asígnalo con `scripts/set-admin-claim.mjs` antes de desplegar las reglas nuevas.
 
-La contraseña está en la [nota local de acceso](testing-access.local.md), excluida expresamente de Git. Esa nota es específica de esta máquina y no se distribuye al clonar el repositorio. Mantener las contraseñas fuera de los documentos versionados.
+La contraseña está en `docs/testing-access.local.md`, excluida expresamente de Git. Esa nota es específica de esta máquina y no se distribuye al clonar el repositorio. Mantener las contraseñas fuera de los documentos versionados.
 
 ## Entorno local
 
@@ -21,24 +21,43 @@ La aplicación se abre en [http://localhost:3000/](http://localhost:3000/). Requ
 
 ```bash
 pnpm lint
+pnpm format:check
 pnpm test
-pnpm test:integration
+pnpm test:rules:emulator          # reglas en emulador, puertos alternativos 48xxx
+pnpm test:notifications:emulator  # integración de Functions (avisos, cuenta, abuso, retención)
+pnpm test:integration             # reglas + navegador con Auth, Firestore y Functions
 pnpm build
 ```
 
-Comprobar los resultados de las cuatro validaciones. El script de despliegue incluye el build, pero no ejecuta lint ni las pruebas.
+`scripts/deploy.mjs` ejecuta por sí mismo lint, formato, unitarias, reglas y, si se despliegan Functions, su build e integración, y comprueba el bundle; la suite de navegador se confía a CI.
+
+### Emuladores en puertos alternativos
+
+`test:integration` y `firebase:emulators` usan los puertos por defecto de `firebase.json` (9199, 8180, 5001). Si están ocupados, copia `firebase.json` a `firebase.local-test.json` (ignorado por Git) con otros puertos y ejecuta, por ejemplo:
+
+```bash
+pnpm build:functions
+pnpm exec firebase emulators:exec --config firebase.local-test.json --project demo-cimbra \
+  --only auth,firestore,functions \
+  "FUNCTIONS_EMULATOR_HOST=127.0.0.1:47301 E2E_PREVIEW_PORT=47173 pnpm test:rules && \
+   FUNCTIONS_EMULATOR_HOST=127.0.0.1:47301 E2E_PREVIEW_PORT=47173 pnpm test:e2e"
+```
+
+`scripts/test-preview.mjs` propaga los puertos de Auth, Firestore y Functions al build de prueba y desactiva App Check. Los E2E marcan las cuentas sembradas como verificadas y dan el claim `admin` a la principal mediante la API del emulador.
 
 ## Desplegar en producción
 
 El proyecto de Firebase Hosting configurado en `.firebaserc` es `budgenerator`.
 
-Con el CLI de Firebase autenticado y permisos en ese proyecto:
+Con el CLI de Firebase autenticado y permisos en ese proyecto, desde `main` limpio y con CI en verde:
 
 ```bash
-pnpm firebase:deploy:all
+pnpm firebase:deploy:all     # hosting, rules, indexes y functions
+node scripts/deploy.mjs functions,rules   # objetivos concretos
+pnpm firebase:deploy:staging # cuando exista el proyecto de staging
 ```
 
-Este comando ejecuta `pnpm build` y despliega Hosting y reglas de Firestore. Después se puede probar el resultado en [Budgenerator](https://budgenerator.web.app/).
+El script valida y construye antes de desplegar; ver [Operación y despliegue](firebase.md#operación-y-despliegue). Después se puede probar el resultado en [Budgenerator](https://budgenerator.web.app/).
 
 La cuenta de administración de la aplicación no autentica al CLI de Firebase. El despliegue requiere la sesión de Google/Firebase del desarrollador con permisos sobre el proyecto.
 
@@ -48,42 +67,19 @@ Para cambios que afecten exclusivamente a Hosting se puede usar:
 pnpm firebase:deploy
 ```
 
-Los scripts usan el CLI local fijado por el lockfile y comprueban que el entorno no sea de emuladores. Para publicar cambios de reglas, utilizar el despliegue conjunto y revisar las consideraciones de transición en `stability-and-release.md`.
+Los scripts usan el CLI local fijado por el lockfile y comprueban que el entorno no sea de emuladores. Para publicar cambios de reglas, utilizar el despliegue conjunto y revisar las consideraciones de transición en [`archive/stability-and-release.md`](archive/stability-and-release.md).
 
-## Comprobación de producción desde el navegador
+## Pruebas con escritura
 
-Abrir la URL pública e iniciar sesión con la cuenta de pruebas permite verificar la aplicación desde Codex. Las rutas de referencia son:
-
-| Ruta | Comprobación |
-|---|---|
-| `/login` | Formulario e inicio de sesión |
-| `/budgets` | Lista, menú y acceso a presupuestos |
-| `/catalogs` | Catálogos, selector, búsqueda y tarifas |
-| `/templates` | Plantillas y acceso al editor |
-| `/profile` | Datos de empresa y logo |
-| `/account` | Plan y vencimiento |
-| `/admin` | Acceso administrativo y lista de usuarios |
-| `/shared/:token` | Lectura de un enlace público existente |
-
-Para una comprobación de acceso y navegación basta con leer estas pantallas y consultar la consola del navegador. La cuenta es administradora del entorno de producción: editar planes, publicar enlaces o borrar datos modifica información real.
-
-Para pruebas con escritura, usar un presupuesto, catálogo o plantilla con nombre identificable de prueba y definir los datos que se pueden crear, modificar y eliminar. Verificar guardado después de recargar, PDF, totales y publicación. Los fallos de aislamiento o permisos se reproducen preferiblemente con el emulador y datos ficticios.
-
-## Estado de la última comprobación
-
-Comprobación del 4 de octubre de 2026: acceso admin y pantallas principales confirmados; recargar `/templates/new` queda en skeleton y abrir `/budget/new` directamente queda en blanco. Se cerró la sesión al finalizar. No se realizaron acciones de guardar datos de prueba ni cambios de plan.
-
-Consultar el [informe de análisis del proyecto](project-analysis.md) para las comprobaciones locales y de producción realizadas, sus resultados y los límites de la revisión. La fecha y el alcance de cada prueba deben quedar registrados; el código local y lo desplegado pueden corresponder a revisiones distintas.
+Las pruebas automatizadas y las comprobaciones con escritura se hacen en emuladores con un `projectId` `demo-` y datos ficticios. No se modifican datos reales ni se verifica producción con la cuenta administradora. Los fallos de aislamiento o permisos se reproducen con el emulador.
 
 ## Comprobaciones de la entrega (15 de octubre de 2026)
 
 La revisión posterior y sus correcciones se validan con tests unitarios, reglas en emulador y navegador automatizado: `pnpm test` y `pnpm test:integration`. Las pruebas no utilizan la cuenta de producción; crean cuentas y datos ficticios en `demo-cimbra`.
 
-
 ## BG-007 (16 de octubre de 2026)
 
 24 unitarias y 12 reglas correctas; 15 recorridos de navegador correctos en emuladores `demo-cimbra`, incluidos gestos con Input.dispatchTouchEvent de Chromium (scroll vertical, reveal y bloqueo de navegación accidental), teclado/modal, rutas/drafts, logo fallido/apaisado, ayuda y matriz responsive. Lint, build/TypeScript y formato correctos. Capturas `bg007-*.png` inspeccionadas en desktop y móvil. Revisión independiente sin bloqueantes. Ninguna prueba usó datos de producción. Pendiente QA táctil de iOS Safari/PWA y Android físico; no se presume a partir de Chromium.
-
 
 ## BG-008 (16 de octubre de 2026)
 

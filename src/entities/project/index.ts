@@ -1,4 +1,5 @@
 export { resetProjectStore, useProjectStore } from './model/store';
+export { ProjectProgressBar } from './ui/ProjectProgressBar';
 export { ProjectStatusTag } from './ui/ProjectStatusTag';
 export {
   calculateProjectProgressHistory,

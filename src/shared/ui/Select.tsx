@@ -1,44 +1,57 @@
-import type { SelectHTMLAttributes } from 'react';
-import { cn } from '@/shared/lib';
+import type { Ref, SelectHTMLAttributes } from 'react';
+import { cn } from '@/shared/lib/utils';
+import { Field } from './Field';
 
 interface SelectOption {
   value: string;
   label: string;
 }
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  hint?: string;
+  error?: string;
   options: SelectOption[];
   placeholder?: string;
+  ref?: Ref<HTMLSelectElement>;
 }
 
-export function Select({ label, options, placeholder, className, id, ...props }: SelectProps) {
-  return (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={id} className="text-sm font-medium text-gray-700">
-          {label}
-        </label>
+export function Select({
+  label,
+  hint,
+  error,
+  options,
+  placeholder,
+  className,
+  id,
+  required,
+  ...props
+}: SelectProps) {
+  const control = (fieldProps: object) => (
+    <select
+      id={id}
+      required={required}
+      aria-invalid={error ? true : undefined}
+      {...fieldProps}
+      className={cn('ui-control ui-select', className)}
+      {...props}
+    >
+      {placeholder && (
+        <option value="" disabled>
+          {placeholder}
+        </option>
       )}
-      <select
-        id={id}
-        className={cn(
-          "min-h-14 appearance-none rounded-md border border-gray-300 bg-white bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_12px_center] bg-no-repeat px-4 py-3 pr-10 text-base outline-none transition-colors focus:border-[#426457] focus:ring-2 focus:ring-[#426457]/20",
-          className,
-        )}
-        {...props}
-      >
-        {placeholder && (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        )}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+  if (!label) return <div className="flex flex-col gap-1">{control({})}</div>;
+  return (
+    <Field label={label} hint={hint} error={error} id={id} required={required}>
+      {(fieldProps) => control(fieldProps)}
+    </Field>
   );
 }

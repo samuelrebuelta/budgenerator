@@ -17,6 +17,9 @@ export {
   type EstimateScope,
   type EstimateSelection,
   type EstimateServiceOption,
+  type EstimatorLinkStatus,
+  type PublicCompanyContact,
+  type ShortLinkResolution,
   type EstimateService,
   type LegacyEstimateQuality,
   type LegacyQuoteEstimatorSettings,
@@ -34,6 +37,12 @@ export {
   validateEstimatorSettings,
 } from './model/estimate';
 export {
+  MAX_RATE_CENTS_PER_M2,
+  ROOM_REFERENCE_RATES,
+  SHORT_LINK_SLUG_PATTERN,
+  roomRateProblem,
+} from './model/sharing';
+export {
   isValidPrivacyPolicyUrl,
   LEAD_START_TIMINGS,
   validateLeadContact,
@@ -42,6 +51,11 @@ export {
 export type { LeadContact, LeadStartTiming } from './model/leads';
 export {
   fetchEstimatorLinkStatus,
+  fetchHostedPrivacyNotice,
+  publishHostedPrivacyNotice,
+  resolveEstimatorShortLink,
+  setEstimatorPaused,
+  type HostedPrivacyNotice,
   fetchPublicEstimator,
   fetchLead,
   fetchLeads,

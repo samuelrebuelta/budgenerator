@@ -31,19 +31,57 @@ function classifyProviderCode(providerCode: string): FcmFailureDetails {
   };
 }
 
-export async function sendPushNotification(input: PushNotificationInput) {
+const LEAD_NOTIFICATION_TITLE = 'Nueva solicitud de presupuesto';
+const LEAD_NOTIFICATION_BODY = 'Abre BudGenerator para ver los detalles.';
+
+/**
+ * Builds the FCM message for the registered platform.
+ *
+ * - Web keeps the data-only payload: the service worker shows fixed copy, and a
+ *   `notification` block would make the FCM SDK display a duplicate.
+ * - iOS and Android need a `notification` block to be shown while the app is
+ *   closed, plus APNs/Android options. No personal data goes in the payload.
+ */
+export function buildPushMessage(input: PushNotificationInput): FidMessage | TokenMessage {
   const target =
     'registrationToken' in input ? { token: input.registrationToken } : { fid: input.fid };
-  const message: FidMessage | TokenMessage = {
+  const data = { jobId: input.jobId, leadId: input.leadId, type: 'lead_created' };
+  const platform = input.platform ?? 'web';
+  if (platform === 'web') {
+    return { ...target, data, webpush: { headers: { TTL: '3600' } } };
+  }
+  return {
     ...target,
-    data: { jobId: input.jobId, leadId: input.leadId },
-    webpush: { headers: { TTL: '3600' } },
+    data,
+    notification: { title: LEAD_NOTIFICATION_TITLE, body: LEAD_NOTIFICATION_BODY },
+    android: {
+      priority: 'high',
+      ttl: 3_600_000,
+      collapseKey: 'lead_created',
+      notification: { channelId: 'leads', tag: 'lead_created' },
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+        'apns-expiration': String(Math.floor(Date.now() / 1000) + 3600),
+      },
+      payload: { aps: { sound: 'default', threadId: 'leads' } },
+    },
   };
+}
+
+export async function sendPushNotification(input: PushNotificationInput) {
+  const message = buildPushMessage(input);
   try {
     return { messageId: await getMessaging().send(message) };
   } catch (error) {
     const failure = classifyFcmFailure(error);
-    logger.warn('FCM push delivery failed', { providerCode: failure.providerCode });
+    logger.warn('FCM push delivery failed', {
+      event: 'push_delivery_failed',
+      providerCode: failure.providerCode,
+      platform: input.platform ?? 'web',
+      retryable: failure.retryable,
+    });
     throw new NotificationDeliveryError(failure.deliveryCode, failure.retryable);
   }
 }

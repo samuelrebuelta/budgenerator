@@ -256,7 +256,7 @@ export function AdminPage() {
                       onChange={(e) => handleExpiryChange(selectedUser, e.target.value)}
                       disabled={saving}
                       aria-busy={savingAction === 'expiry' || undefined}
-                      className="block w-full flex-1 text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="ui-control flex-1"
                     />
                     {savingAction === 'expiry' && <LoadingSpinner size={15} />}
                   </div>

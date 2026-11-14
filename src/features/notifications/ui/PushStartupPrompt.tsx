@@ -159,12 +159,12 @@ export function PushStartupPrompt() {
 
   return (
     <section
-      className="mx-4 mt-4 flex flex-col gap-4 rounded-xl border border-[#cddbd1] bg-[#f4f8f4] p-4 shadow-sm sm:mx-6 sm:flex-row sm:items-center sm:justify-between lg:mx-8"
+      className="mx-4 mt-4 flex flex-col gap-4 rounded-xl border border-line-strong bg-brand-50 p-4 shadow-sm sm:mx-6 sm:flex-row sm:items-center sm:justify-between lg:mx-8"
       aria-label="Activar notificaciones push"
       role="region"
     >
       <div className="flex min-w-0 items-start gap-3">
-        <Bell size={20} className="mt-0.5 shrink-0 text-[#315d4c]" aria-hidden="true" />
+        <Bell size={20} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
         <div>
           <h2 className="font-semibold text-gray-900">
             {prompt === 'blocked'
@@ -198,7 +198,7 @@ export function PushStartupPrompt() {
           <PageLink
             to="/account"
             onClick={dismiss}
-            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-[#234c40] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Abrir Mi cuenta
           </PageLink>

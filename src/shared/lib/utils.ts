@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { formatEuros } from './format';
 
 export const CONTACT_EMAIL = 'budgenerator@gmail.com';
 export const FREE_BUDGET_LIMIT = 3;
@@ -13,12 +14,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** @deprecated Use `formatEuros` from shared/lib/format. */
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(value);
+  return formatEuros(value);
 }
 
 export function generateId(): string {

@@ -1,5 +1,7 @@
 # BG-012 — Último estado y avisos sin conexión
 
+Estado: implementado (integrado y desplegado según `docs/plan.md`).
+
 ## Intención
 
 Cuando se pierda la conexión durante una sesión de BudGenerator, la persona debe poder seguir consultando el último estado que ya había cargado. El modo offline no debe sustituir ese contenido por skeletons, pantallas de carga ni spinners de lectura. Si se intenta guardar algo sin conexión, la app debe avisar mediante un toast.

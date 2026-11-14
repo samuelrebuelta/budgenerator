@@ -23,13 +23,15 @@ export function prepareProjectSnapshot(
     throw new Error(`El presupuesto supera el límite de ${MAX_PROJECT_WORK_ITEMS} capítulos.`);
   assertBudget(budget, true);
 
-  const workItems: ProjectWorkItem[] = budget.workItems.map((workItem, position) => ({
-    id: workItem.id,
-    name: workItem.name,
-    position,
-    ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
-    tasks: workItem.tasks.map((task) => ({ ...task })),
-  }));
+  const workItems: ProjectWorkItem[] = budget.workItems
+    .filter((workItem) => workItem.tasks.length > 0)
+    .map((workItem, position) => ({
+      id: workItem.id,
+      name: workItem.name,
+      position,
+      ...(workItem.catalogPartId ? { catalogPartId: workItem.catalogPartId } : {}),
+      tasks: workItem.tasks.map((task) => ({ ...task })),
+    }));
 
   const workItemIds = new Set<string>();
   for (const workItem of workItems) {

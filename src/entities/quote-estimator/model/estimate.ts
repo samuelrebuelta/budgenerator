@@ -21,11 +21,12 @@ import type {
   SimpleQuoteEstimatorSettings,
 } from './types.js';
 import { isMeasuredUnit, serviceKey } from './types.js';
+import { roomRateProblem } from './sharing.js';
 
 const measuredUnits = new Set(['m2', 'm3', 'ml']);
-const fixedUnits = new Set(['unit', 'hour']);
+// Free FIEBDC units (kg, pa…) have no safe surface semantics and are never estimated.
+const fixedUnits = new Set(['ud', 'h', 'unit', 'hour']);
 const MAX_AREA_M2 = 1000;
-const MAX_RATE_CENTS_PER_M2 = 10_000_000;
 
 export function flattenEstimatorCatalog(parts: CatalogPart[], legacyTariffs: Tariff[] = []) {
   const catalog = parts.flatMap((part) => part.concepts);
@@ -130,16 +131,11 @@ function validateSimpleSettings(settings: SimpleQuoteEstimatorSettings) {
       throw new Error('Hay una estancia configurada no válida.');
     if (rooms.has(room.room)) throw new Error('No repitas una estancia.');
     rooms.add(room.room);
-    if (
-      !Number.isSafeInteger(room.minimumCentsPerM2) ||
-      !Number.isSafeInteger(room.maximumCentsPerM2) ||
-      !Number.isSafeInteger(room.qualityStepCentsPerM2) ||
-      room.minimumCentsPerM2 <= 0 ||
-      room.maximumCentsPerM2 < room.minimumCentsPerM2 ||
-      room.qualityStepCentsPerM2 < 0 ||
-      room.maximumCentsPerM2 + room.qualityStepCentsPerM2 * 2 > MAX_RATE_CENTS_PER_M2
-    )
-      throw new Error('Revisa el precio por m² y el incremento entre calidades.');
+    const problem = roomRateProblem(room);
+    if (problem) {
+      const label = CONFIGURABLE_ESTIMATOR_ROOMS.find((option) => option.id === room.room)?.label;
+      throw new Error(`${label ?? 'Estancia'}: ${problem}`);
+    }
   }
 }
 
@@ -313,6 +309,6 @@ export function calculateQuoteRange(
     : calculateLegacyQuoteRange(settings, catalogParts, selections, legacyTariffs);
 }
 
-function isKnownUnit(value: unknown): value is 'm2' | 'm3' | 'ml' | 'unit' | 'hour' {
+function isKnownUnit(value: unknown): value is string {
   return typeof value === 'string' && (measuredUnits.has(value) || fixedUnits.has(value));
 }

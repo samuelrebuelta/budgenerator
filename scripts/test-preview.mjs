@@ -12,6 +12,7 @@ if (!/^\d{4,5}$/.test(previewPort)) throw new Error('E2E_PREVIEW_PORT must be a 
 const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const firestoreAddress = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180';
 const authEmulatorUrl = `http://${authAddress}`;
+const functionsEmulatorUrl = new URL(`http://${process.env.FUNCTIONS_EMULATOR_HOST}`);
 const firestoreEmulatorUrl = new URL(`http://${firestoreAddress}`);
 const env = {
   ...process.env,
@@ -25,6 +26,11 @@ const env = {
   VITE_FIREBASE_AUTH_EMULATOR_URL: authEmulatorUrl,
   VITE_FIREBASE_FIRESTORE_EMULATOR_HOST: firestoreEmulatorUrl.hostname,
   VITE_FIREBASE_FIRESTORE_EMULATOR_PORT: firestoreEmulatorUrl.port || '8180',
+  VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT: functionsEmulatorUrl.port || '5001',
+  // App Check stays off against emulators.
+  VITE_FIREBASE_APPCHECK_SITE_KEY: '',
+  // Placeholder so the push flow is reachable; E2E stubs the browser permission and never subscribes.
+  VITE_FIREBASE_VAPID_KEY: process.env.VITE_FIREBASE_VAPID_KEY ?? 'demo-e2e-vapid-key',
 };
 const result = spawnSync('pnpm', ['build'], { env, stdio: 'inherit' });
 if (result.status !== 0) process.exit(result.status ?? 1);

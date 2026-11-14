@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, FileText, Mail, Phone, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/entities/auth';
-import { useBudgetStore } from '@/entities/budget';
+import { useBudgets } from '@/entities/budget';
 import {
   deleteLead,
   ESTIMATOR_QUALITIES,
@@ -14,9 +14,12 @@ import {
   type QuoteLead,
 } from '@/entities/quote-estimator';
 import {
+  Alert,
   Button,
+  buttonClassName,
   Card,
   ConfirmModal,
+  EmptyState,
   OfflineUnavailable,
   PageHeader,
   PageLayout,
@@ -24,19 +27,12 @@ import {
 } from '@/shared/ui';
 import { notificationPathFromLeadId } from '@/features/notifications/model/navigation';
 import { usePageNavigation } from '@/shared/ui/page-view-transition';
-import {
-  deleteMemoryResource,
-  getMemoryResource,
-  loadMemoryResource,
-  setMemoryResource,
-} from '@/shared/lib/memoryResourceCache';
+import { deleteMemoryResource, setMemoryResource } from '@/shared/lib/memoryResourceCache';
+import { formatCents, formatDateTime } from '@/shared/lib';
+import { useMemoryResource } from '@/shared/lib/useMemoryResource';
 import { useNetworkStore } from '@/shared/model/network';
 
 const EMPTY_LEADS: QuoteLead[] = [];
-
-function euro(cents: number) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100);
-}
 
 function optionLabel(options: readonly { id: string; label: string }[], value: string) {
   return options.find((option) => option.id === value)?.label ?? value;
@@ -67,23 +63,10 @@ function selectionSummary(lead: QuoteLead) {
   });
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? 'Fecha no disponible'
-    : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
-
 export function LeadsPage() {
   const uid = useAuthStore((state) => state.user?.uid);
   const online = useNetworkStore((state) => state.online);
-  const dataRefreshVersion = useNetworkStore((state) => state.dataRefreshVersion);
-  const budgets = useBudgetStore((state) => state.budgets);
-  const [leadState, setLeadState] = useState<{
-    uid: string;
-    leads: QuoteLead[];
-    error?: string;
-  } | null>(null);
+  const budgets = useBudgets();
   const [pendingDelete, setPendingDelete] = useState<QuoteLead | null>(null);
   const { navigate } = usePageNavigation();
   const [searchParams] = useSearchParams();
@@ -94,37 +77,17 @@ export function LeadsPage() {
     requestedLeadValues.length === 1 && notificationPathFromLeadId(requestedLeadValues[0])
       ? requestedLeadValues[0]
       : null;
-  const leadsCacheKey = `private:${uid ?? ''}:leads`;
-  const cachedLeads = uid ? getMemoryResource<QuoteLead[]>(leadsCacheKey) : undefined;
-
-  useEffect(() => {
-    if (!uid) return;
-    let active = true;
-    loadMemoryResource(leadsCacheKey, () => fetchLeads(uid))
-      .then((result) => {
-        if (active) {
-          for (const lead of result) setMemoryResource(`private:${uid}:lead:${lead.id}`, lead);
-          setLeadState({ uid, leads: result });
-        }
-      })
-      .catch(() => {
-        if (active)
-          setLeadState({
-            uid,
-            leads: [],
-            error: 'No se han podido cargar las solicitudes. Vuelve a intentarlo.',
-          });
-      });
-    return () => {
-      active = false;
-    };
-  }, [uid, leadsCacheKey, dataRefreshVersion]);
-
-  const currentState = leadState?.uid === uid ? leadState : null;
-  const leads = currentState?.leads ?? cachedLeads ?? EMPTY_LEADS;
-  const loading = Boolean(uid) && currentState === null && cachedLeads === undefined && online;
-  const error = currentState?.error ?? '';
-  const offlineWithoutLeads = !online && currentState === null && cachedLeads === undefined;
+  const resource = useMemoryResource(uid ? `private:${uid}:leads` : null, () => fetchLeads(uid!), {
+    errorMessage: 'No se han podido cargar las solicitudes. Vuelve a intentarlo.',
+    onLoaded: (result) => {
+      for (const lead of result) setMemoryResource(`private:${uid}:lead:${lead.id}`, lead);
+    },
+  });
+  const leads = resource.data ?? EMPTY_LEADS;
+  const loading = resource.status === 'loading';
+  const error = online ? resource.error : '';
+  const offlineWithoutLeads =
+    resource.status === 'offline' || (!online && resource.status === 'error');
   const sortedLeads = useMemo(
     () => [...leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [leads],
@@ -149,8 +112,7 @@ export function LeadsPage() {
     await deleteLead(uid, pendingDelete.id);
     const nextLeads = leads.filter((lead) => lead.id !== pendingDelete.id);
     deleteMemoryResource(`private:${uid}:lead:${pendingDelete.id}`);
-    setMemoryResource(leadsCacheKey, nextLeads);
-    setLeadState({ uid, leads: nextLeads });
+    resource.setData(nextLeads);
     setPendingDelete(null);
   };
 
@@ -167,21 +129,29 @@ export function LeadsPage() {
         </p>
       )}
       {hasRequestedLead && !loading && !error && !selectedLeadExists && (
-        <p className="field-error" role="status">
+        <Alert tone="info" className="my-4">
           La solicitud solicitada no está disponible en esta cuenta.
-        </p>
+        </Alert>
       )}
 
-      {error && online && (
-        <p className="field-error" role="alert">
+      {error && (
+        <Alert
+          tone="danger"
+          className="my-4"
+          action={
+            <Button variant="secondary" onClick={resource.retry}>
+              Reintentar
+            </Button>
+          }
+        >
           {error}
-        </p>
+        </Alert>
       )}
 
-      {offlineWithoutLeads || (!online && currentState?.error) ? (
+      {offlineWithoutLeads ? (
         <OfflineUnavailable />
       ) : loading ? (
-        <p className="py-12 text-center text-sm text-gray-500">Cargando solicitudes…</p>
+        <p className="py-12 text-center text-sm text-ink-subtle">Cargando solicitudes…</p>
       ) : sortedLeads.length ? (
         <div className="space-y-4">
           {sortedLeads.map((lead) => {
@@ -192,7 +162,7 @@ export function LeadsPage() {
             return (
               <Card
                 key={lead.id}
-                className={`p-4 sm:p-6 ${lead.id === requestedLeadId ? 'ring-2 ring-[#668175] ring-offset-2' : ''}`}
+                className={`p-4 sm:p-6 ${lead.id === requestedLeadId ? 'ring-2 ring-ink-subtle ring-offset-2' : ''}`}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
@@ -200,15 +170,15 @@ export function LeadsPage() {
                       <h2
                         ref={lead.id === requestedLeadId ? selectedLeadHeading : undefined}
                         tabIndex={lead.id === requestedLeadId ? -1 : undefined}
-                        className="text-lg font-semibold text-gray-900 focus:outline-none"
+                        className="text-lg font-semibold text-ink focus:outline-none"
                       >
                         {lead.contact.name}
                       </h2>
-                      <time className="text-sm text-gray-500" dateTime={lead.createdAt}>
-                        {formatDate(lead.createdAt)}
+                      <time className="text-sm text-ink-subtle" dateTime={lead.createdAt}>
+                        {formatDateTime(lead.createdAt)}
                       </time>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-600">
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink-muted">
                       <a
                         href={`mailto:${lead.contact.email}`}
                         className="inline-flex items-center gap-2 underline-offset-2 hover:underline"
@@ -223,26 +193,27 @@ export function LeadsPage() {
                       </a>
                     </div>
 
-                    <div className="mt-4 rounded-lg bg-[#f3f5f1] p-3 sm:p-4">
-                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#668175]">
+                    <div className="mt-4 rounded-lg bg-surface-muted p-3 sm:p-4">
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-subtle">
                         Reforma solicitada
                       </h3>
-                      <ul className="mt-2 space-y-1 text-sm text-gray-700">
+                      <ul className="mt-2 space-y-1 text-sm text-ink-soft">
                         {lines.map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
                       {lead.startTiming && (
-                        <p className="mt-3 text-sm text-gray-700">
+                        <p className="mt-3 text-sm text-ink-soft">
                           Inicio previsto:{' '}
                           {LEAD_START_TIMINGS.find((option) => option.id === lead.startTiming)
                             ?.label ?? lead.startTiming}
                         </p>
                       )}
-                      <p className="mt-3 text-sm text-gray-600">Horquilla orientativa</p>
-                      <p className="font-serif text-xl font-medium text-[#234c40]">
-                        {euro(lead.estimate.minimumCents)} – {euro(lead.estimate.maximumCents)}
-                        <span className="ml-2 font-sans text-xs font-normal text-gray-500">
+                      <p className="mt-3 text-sm text-ink-muted">Horquilla orientativa</p>
+                      <p className="font-serif text-xl font-medium text-primary">
+                        {formatCents(lead.estimate.minimumCents)} –{' '}
+                        {formatCents(lead.estimate.maximumCents)}
+                        <span className="ml-2 font-sans text-xs font-normal text-ink-subtle">
                           sin IVA
                         </span>
                       </p>
@@ -254,7 +225,7 @@ export function LeadsPage() {
                       <PageLink
                         to={`/budget/${linkedBudget.id}`}
                         aria-label="Abrir presupuesto"
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[#cddbd1] px-3 text-sm font-medium text-[#234c40] hover:bg-[#f3f5f1]"
+                        className={buttonClassName({ variant: 'outline' })}
                       >
                         <FileText size={16} /> Abrir presupuesto
                       </PageLink>
@@ -269,14 +240,14 @@ export function LeadsPage() {
                       </Button>
                     )}
                     {lead.budgetId && !linkedBudget && (
-                      <p className="w-full text-right text-xs text-gray-500">
+                      <p className="w-full text-right text-xs text-ink-subtle">
                         El presupuesto enlazado ya no está disponible.
                       </p>
                     )}
                     <Button
                       variant="ghost"
                       aria-label="Borrar solicitud"
-                      className="text-red-700 hover:bg-red-50"
+                      className="text-danger-ink hover:bg-danger-surface"
                       onClick={() => setPendingDelete(lead)}
                     >
                       <Trash2 size={16} /> Borrar
@@ -288,23 +259,16 @@ export function LeadsPage() {
           })}
         </div>
       ) : (
-        <Card className="py-14 text-center">
-          <FileText className="mx-auto text-gray-400" size={34} />
-          <h2 className="mt-4 text-lg font-semibold text-gray-900">
-            Aún no has recibido solicitudes
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-600">
-            Cuando alguien envíe el formulario de tu enlace público, aquí aparecerán sus datos de
-            contacto y lo que quiere reformar.
-          </p>
-          <Button
-            className="mx-auto mt-5"
-            variant="secondary"
-            onClick={() => navigate('/estimator')}
-          >
-            Revisar enlace público <ArrowRight size={16} />
-          </Button>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="Aún no has recibido solicitudes"
+          description="Publica tu formulario de solicitudes y compártelo por WhatsApp, con un código QR o en tu web. Tus clientes verán una estimación orientativa y aquí te llegarán sus datos y lo que quieren reformar."
+          action={
+            <Button variant="secondary" onClick={() => navigate('/estimator')}>
+              Configurar formulario de solicitudes <ArrowRight size={16} aria-hidden="true" />
+            </Button>
+          }
+        />
       )}
 
       <ConfirmModal

@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchSharedBudget } from '@/entities/budget/api/firestore';
-import type { SharedBudget } from '@/shared/types';
-import { UNIT_LABELS } from '@/shared/types';
-import { formatCurrency } from '@/shared/lib';
+import { fetchSharedBudget, sharedBudgetView, type SharedBudget } from '@/entities/budget';
+import { unitLabel } from '@/shared/types';
+import { formatCurrency, formatQuantity } from '@/shared/lib';
 import { Card, ExportPdfButton, OfflineUnavailable, Skeleton } from '@/shared/ui';
 import {
   taskAmount as getTaskAmount,
-  workItemAmount as getWorkItemSubtotal,
+  workItemSubtreeAmount,
   budgetTotals,
 } from '@/shared/lib/budgetMath';
 import { withTimeout } from '@/shared/model/session';
@@ -28,6 +27,13 @@ function PublicViewer({ token }: { token: string }) {
   const [data, setData] = useState<SharedBudget | null>(cached ?? null);
   const [loading, setLoading] = useState(cached === undefined && online);
   const [error, setError] = useState(false);
+  const view = useMemo(() => {
+    try {
+      return data ? sharedBudgetView(data) : null;
+    } catch {
+      return null;
+    }
+  }, [data]);
 
   useEffect(() => {
     if (!token) return;
@@ -81,7 +87,7 @@ function PublicViewer({ token }: { token: string }) {
 
   if (!online && cached === undefined && !data) return <OfflineUnavailable />;
 
-  if (error || !data) {
+  if (error || !data || !view) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
@@ -92,8 +98,9 @@ function PublicViewer({ token }: { token: string }) {
     );
   }
 
-  const { budget, company } = data;
-  const ivaRate = data.ivaRate ?? 0.1;
+  const { company } = data;
+  const budget = view!;
+  const ivaRate = budget.ivaRate ?? 0.1;
   const multiplier = budget.adjustment?.multiplier ?? 1;
   const { raw: rawSubtotal, subtotal, iva, total } = budgetTotals({ ...budget, ivaRate });
   const isDiscount = multiplier < 1;
@@ -181,13 +188,13 @@ function PublicViewer({ token }: { token: string }) {
 
           {/* Work Items */}
           <div className="space-y-6">
-            {budget.workItems.map((wi) => (
+            {budget.workItems.map((wi, index) => (
               <div key={wi.id} className="border border-gray-200 rounded-lg overflow-hidden">
                 {/* WorkItem Header */}
                 <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b border-gray-200">
                   <span className="font-semibold text-gray-900 text-sm uppercase">{wi.name}</span>
                   <span className="text-sm font-medium text-gray-500">
-                    {formatCurrency(getWorkItemSubtotal(wi, multiplier))}
+                    {formatCurrency(workItemSubtreeAmount(budget.workItems, index, multiplier))}
                   </span>
                 </div>
 
@@ -208,10 +215,10 @@ function PublicViewer({ token }: { token: string }) {
                       {/* Desktop */}
                       <div className="hidden sm:grid grid-cols-[1fr_10%_10%_12%_12%] gap-px px-4 py-2 text-sm border-b border-gray-50 last:border-b-0">
                         <span className="text-gray-800">{task.description}</span>
-                        <span className="text-right text-gray-600">{task.quantity}</span>
-                        <span className="text-center text-gray-600">
-                          {UNIT_LABELS[task.unit] ?? task.unit}
+                        <span className="text-right text-gray-600">
+                          {formatQuantity(task.quantity)}
                         </span>
+                        <span className="text-center text-gray-600">{unitLabel(task.unit)}</span>
                         <span className="text-right text-gray-600">
                           {formatCurrency(task.price)}
                         </span>
@@ -224,7 +231,7 @@ function PublicViewer({ token }: { token: string }) {
                         <p className="text-sm font-medium text-gray-800">{task.description}</p>
                         <div className="flex justify-between text-xs text-gray-500">
                           <span>
-                            {task.quantity} {UNIT_LABELS[task.unit] ?? task.unit} ×{' '}
+                            {formatQuantity(task.quantity)} {unitLabel(task.unit)} ×{' '}
                             {formatCurrency(task.price)}
                           </span>
                           <span className="font-semibold text-gray-700">
@@ -284,10 +291,7 @@ function PublicViewer({ token }: { token: string }) {
 
           {/* Export PDF button */}
           <div className="mt-6 flex justify-end">
-            <ExportPdfButton
-              budget={{ ...data.budget, ivaRate: data.ivaRate ?? data.budget.ivaRate }}
-              company={data.company}
-            />
+            <ExportPdfButton budget={budget} company={company} />
           </div>
         </Card>
 

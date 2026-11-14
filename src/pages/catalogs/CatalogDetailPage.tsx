@@ -17,14 +17,18 @@ import {
   searchCatalogParts,
   TRADE_CATALOGS,
   useCatalogStore,
+  useCatalogView,
 } from '@/entities/catalog';
-import { UNIT_LABELS } from '@/shared/types';
-import type { CatalogPart, Unit, TariffCatalog } from '@/shared/types';
-import type { BaseCatalog } from '@/entities/catalog';
+import { normalizeUnit, unitLabel } from '@/shared/types';
+import type { CatalogPart, Unit } from '@/shared/types';
+import type { BaseCatalog, CatalogView } from '@/entities/catalog';
+import { ExportBc3Button, ImportBc3Dialog } from '@/features/bc3-exchange';
 import type { TradeImportScope } from '@/entities/catalog';
 import {
+  Alert,
   Button,
   ConfirmModal,
+  Field,
   EditableRow,
   EditableRowHeader,
   PageLayout,
@@ -32,6 +36,7 @@ import {
   PageHeaderSkeleton,
   Modal,
   OfflineUnavailable,
+  UnitField,
 } from '@/shared/ui';
 import type { ColumnDef } from '@/shared/ui';
 import { CatalogSkeleton } from './components/CatalogSkeleton';
@@ -62,9 +67,14 @@ function getCatalogColumns(): ColumnDef[] {
   ];
 }
 
-function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
+function CatalogEditor({ catalog }: { catalog: CatalogView }) {
   const addPart = useCatalogStore((s) => s.addPart);
   const importTrade = useCatalogStore((s) => s.importTrade);
+  const importDocument = useCatalogStore((s) => s.importDocument);
+  const catalogDocument = useCatalogStore((s) => s.record?.document);
+  const conflict = useCatalogStore((s) => s.conflict);
+  const reloadCatalog = useCatalogStore((s) => s.reloadCatalog);
+  const overwriteCatalog = useCatalogStore((s) => s.overwriteCatalog);
   const renamePart = useCatalogStore((s) => s.renamePart);
   const removePart = useCatalogStore((s) => s.removePart);
   const addConcept = useCatalogStore((s) => s.addConcept);
@@ -119,7 +129,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
   const submitPart = () => {
     const name = newPartName.trim();
     if (!name) return;
-    addPart(name, catalog.id);
+    addPart(name);
     setNewPartName('');
     setShowAddPart(false);
   };
@@ -127,16 +137,12 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
   const submitConcept = (partId: string) => {
     const description = newDescription.trim();
     if (!description) return;
-    addConcept(
-      partId,
-      {
-        description,
-        unit: newUnit,
-        basePrice: decimal(newPrice),
-        cost: decimal(newCost),
-      },
-      catalog.id,
-    );
+    addConcept(partId, {
+      description,
+      unit: newUnit,
+      basePrice: decimal(newPrice),
+      cost: decimal(newCost),
+    });
     setNewDescription('');
     setNewUnit('m2');
     setNewPrice('');
@@ -164,7 +170,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
   };
 
   const submitCategoryImport = (category: BaseCatalog, scope: TradeImportScope) => {
-    const result = importTrade(category.id, catalog.id, scope);
+    const result = importTrade(category.id, scope);
     const selectedName =
       scope.type === 'category'
         ? category.name
@@ -206,6 +212,24 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
           </Button>
         }
       />
+      {conflict && (
+        <Alert
+          tone="warning"
+          plain
+          className="mb-4"
+          title="El catálogo se ha guardado desde otro dispositivo."
+          action={
+            <>
+              <Button variant="secondary" onClick={() => void reloadCatalog()}>
+                Cargar la versión guardada
+              </Button>
+              <Button onClick={() => void overwriteCatalog()}>Guardar mis cambios</Button>
+            </>
+          }
+        >
+          Tus últimos cambios no se han guardado. Elige qué versión conservar.
+        </Alert>
+      )}
       <div className="mb-6 flex items-start gap-2 text-xs text-gray-500">
         <Info size={16} className="shrink-0" />
         <span>{t('catalog.disclaimer')}</span>
@@ -215,6 +239,18 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         <Button variant="secondary" data-tour="category-import" onClick={openTradeImporter}>
           <Download size={16} /> Importar por categoría
         </Button>
+        <ImportBc3Dialog
+          target="catalog"
+          onConfirm={async (document) => {
+            const result = await importDocument(document);
+            setImportMessage(
+              result.addedConcepts
+                ? `Se añadieron ${result.addedConcepts} partidas y ${result.addedParts} capítulos desde el archivo BC3.`
+                : 'Todas las partidas del archivo ya estaban en el catálogo.',
+            );
+          }}
+        />
+        <ExportBc3Button document={catalogDocument} name="catalogo-budgenerator" />
         {catalog.parts.length > 0 && (
           <Button variant="secondary" onClick={toggleAllParts}>
             {allPartsCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
@@ -235,16 +271,18 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
             submitPart();
           }}
         >
-          <label className="min-w-48 flex-1 text-xs font-medium text-gray-600">
-            Nombre del capítulo
-            <input
-              autoFocus
-              value={newPartName}
-              onChange={(event) => setNewPartName(event.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              placeholder="Ej. Fontanería"
-            />
-          </label>
+          <Field label="Nombre del capítulo" className="min-w-48 flex-1">
+            {(control) => (
+              <input
+                {...control}
+                autoFocus
+                value={newPartName}
+                onChange={(event) => setNewPartName(event.target.value)}
+                className="ui-control"
+                placeholder="Ej. Fontanería"
+              />
+            )}
+          </Field>
           <Button type="submit" disabled={!newPartName.trim()}>
             <Plus size={16} /> Añadir
           </Button>
@@ -262,7 +300,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Buscar capítulos y partidas"
             placeholder="Buscar capítulo o partida…"
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+            className="ui-control pl-9"
           />
         </label>
         {catalog.parts.length > 0 && (
@@ -270,7 +308,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
             aria-label="Filtrar por capítulo"
             value={activePartId ?? ''}
             onChange={(event) => setActivePartId(event.target.value || null)}
-            className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm sm:w-auto"
+            className="ui-control max-w-md sm:w-auto"
           >
             <option value="">Todos los capítulos ({catalog.parts.length})</option>
             {[...catalog.parts]
@@ -309,7 +347,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                     defaultValue={part.name}
                     onBlur={(event) => {
                       const value = event.currentTarget.value.trim();
-                      if (value && value !== part.name) renamePart(part.id, value, catalog.id);
+                      if (value && value !== part.name) renamePart(part.id, value);
                       else event.currentTarget.value = part.name;
                     }}
                     onKeyDown={(event) => {
@@ -361,17 +399,12 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                         </label>
                         <label className="text-xs text-gray-600">
                           Unidad
-                          <select
+                          <UnitField
+                            label="Unidad"
                             value={newUnit}
-                            onChange={(event) => setNewUnit(event.target.value as Unit)}
+                            onChange={(value) => setNewUnit(value)}
                             className="mt-1 block rounded-md border border-gray-300 bg-white px-2 py-2 text-sm"
-                          >
-                            {Object.entries(UNIT_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
                         <label className="text-xs text-gray-600">
                           Coste
@@ -428,45 +461,29 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                                       type: 'text',
                                       value: concept.description,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { description: value },
-                                          catalog.id,
-                                        ),
+                                        updateConcept(part.id, concept.id, { description: value }),
                                     },
                                     unit: {
                                       type: 'unit-select',
                                       value: concept.unit,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { unit: value as Unit },
-                                          catalog.id,
-                                        ),
+                                        updateConcept(part.id, concept.id, { unit: value }),
                                     },
                                     cost: {
                                       type: 'number',
                                       value: concept.cost,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { cost: decimal(value) },
-                                          catalog.id,
-                                        ),
+                                        updateConcept(part.id, concept.id, {
+                                          cost: decimal(value),
+                                        }),
                                     },
                                     pvp: {
                                       type: 'number',
                                       value: concept.basePrice,
                                       onChange: (value) =>
-                                        updateConcept(
-                                          part.id,
-                                          concept.id,
-                                          { basePrice: decimal(value) },
-                                          catalog.id,
-                                        ),
+                                        updateConcept(part.id, concept.id, {
+                                          basePrice: decimal(value),
+                                        }),
                                     },
                                     margin: {
                                       type: 'display',
@@ -479,7 +496,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                                       ),
                                     },
                                   }}
-                                  onDelete={() => removeConcept(part.id, concept.id, catalog.id)}
+                                  onDelete={() => removeConcept(part.id, concept.id)}
                                   mobileFooter={{
                                     label: t('common.margin'),
                                     value: (
@@ -524,7 +541,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
         message={`Se eliminará «${partToDelete?.name ?? ''}» y sus ${partToDelete?.concepts.length ?? 0} partidas del catálogo. Los presupuestos ya creados conservarán sus datos.`}
         confirmLabel="Eliminar capítulo"
         onConfirm={() => {
-          if (partToDelete) removePart(partToDelete.id, catalog.id);
+          if (partToDelete) removePart(partToDelete.id);
           setPartToDelete(null);
         }}
       />
@@ -579,7 +596,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                 value={categoryQuery}
                 onChange={(event) => setCategoryQuery(event.target.value)}
                 placeholder="Albañilería, fontanería, electricidad…"
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
+                className="ui-control pl-9"
               />
             </span>
           </label>
@@ -632,7 +649,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                   const importedConcepts = part.concepts.filter((concept) =>
                     existingPart?.concepts.some(
                       (item) =>
-                        item.unit === concept.unit &&
+                        item.unit === normalizeUnit(concept.unit) &&
                         normalizeCatalogText(item.description) ===
                           normalizeCatalogText(concept.description),
                     ),
@@ -685,7 +702,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                           {part.concepts.map((concept) => {
                             const isImported = existingPart?.concepts.some(
                               (item) =>
-                                item.unit === concept.unit &&
+                                item.unit === normalizeUnit(concept.unit) &&
                                 normalizeCatalogText(item.description) ===
                                   normalizeCatalogText(concept.description),
                             );
@@ -697,7 +714,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                                 <span className="min-w-0 flex-1 text-sm text-gray-700">
                                   {concept.description}
                                   <span className="ml-2 text-xs text-gray-500">
-                                    {UNIT_LABELS[concept.unit]}
+                                    {unitLabel(normalizeUnit(concept.unit))}
                                   </span>
                                 </span>
                                 <Button
@@ -709,7 +726,7 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
                                       type: 'concept',
                                       partName: part.name,
                                       description: concept.description,
-                                      unit: concept.unit,
+                                      unit: normalizeUnit(concept.unit),
                                     })
                                   }
                                 >
@@ -782,9 +799,9 @@ function CatalogEditor({ catalog }: { catalog: TariffCatalog }) {
 
 export function CatalogDetailPage() {
   const loaded = useCatalogStore((state) => state.loaded);
-  const catalog = useCatalogStore((state) => state.catalogs[0]);
+  const catalog = useCatalogView();
   const online = useNetworkStore((state) => state.online);
-  if (!loaded || !catalog)
+  if (!loaded || !catalog.id)
     return (
       <PageLayout>
         {online ? (

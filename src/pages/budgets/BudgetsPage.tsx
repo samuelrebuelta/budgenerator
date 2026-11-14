@@ -9,8 +9,9 @@ import {
   ChevronRight,
   ArrowRight,
 } from 'lucide-react';
-import { useBudgetStore } from '@/entities/budget';
-import { useTemplateStore } from '@/entities/template';
+import { useBudgetStore, useBudgets } from '@/entities/budget';
+import { ImportBc3Dialog } from '@/features/bc3-exchange';
+import { useTemplateStore, useTemplateViews } from '@/entities/template';
 import { useUserStore } from '@/entities/user';
 import { useCatalogStore } from '@/entities/catalog';
 import type { SwipeDirection } from '@/shared/ui';
@@ -30,10 +31,12 @@ import {
   OfflineUnavailable,
 } from '@/shared/ui';
 export function BudgetsPage() {
-  const budgets = useBudgetStore((s) => s.budgets);
+  const budgets = useBudgets();
   const startFromTemplate = useBudgetStore((s) => s.startDraftFromTemplate);
-  const templates = useTemplateStore((s) => s.templates);
-  const catalogs = useCatalogStore((s) => s.catalogs);
+  const startFromDocument = useBudgetStore((s) => s.startDraftFromDocument);
+  const templateRecords = useTemplateStore((s) => s.templates);
+  const templates = useTemplateViews();
+  const catalogCount = useCatalogStore((s) => (s.record ? 1 : 0));
   const account = useUserStore((s) => s.userData);
   const canCreate = useUserStore((s) => s.canCreateBudget);
   const loaded = useBudgetStore((s) => s.loaded);
@@ -107,6 +110,17 @@ export function BudgetsPage() {
           </Button>
         }
       />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <ImportBc3Dialog
+          target="budget"
+          disabled={!loaded}
+          onConfirm={(document) => {
+            if (!canCreate()) throw new Error('Has alcanzado el límite de tu plan.');
+            startFromDocument(document);
+            navigate('/budget/new');
+          }}
+        />
+      </div>
       <section className="overview-grid" aria-label="Resumen de actividad">
         <div className="overview-card featured">
           <p>Valor presupuestado</p>
@@ -127,9 +141,9 @@ export function BudgetsPage() {
         <div className="overview-card">
           <p>Tu biblioteca</p>
           <Layers3 />
-          <strong>{String(catalogs.length + templates.length).padStart(2, '0')}</strong>
+          <strong>{String(catalogCount + templates.length).padStart(2, '0')}</strong>
           <small>
-            {catalogs.length} catálogo · {templates.length} plantillas
+            {catalogCount} catálogo · {templates.length} plantillas
           </small>
         </div>
       </section>
@@ -211,9 +225,11 @@ export function BudgetsPage() {
                         <h3>{b.info.clientName || 'Proyecto sin nombre'}</h3>
                         <p>{b.info.address || `${b.workItems.length} capítulos`}</p>
                         {b.projectId ? (
-                          <p className="mt-1 font-medium text-[#183e3b]">Proyecto en seguimiento</p>
+                          <p className="mt-1 font-medium text-ink-strong">
+                            Proyecto en seguimiento
+                          </p>
                         ) : b.acceptedAt ? (
-                          <p className="mt-1 font-medium text-[#52625a]">Presupuesto aceptado</p>
+                          <p className="mt-1 font-medium text-ink-muted">Presupuesto aceptado</p>
                         ) : null}
                       </div>
                     </div>
@@ -310,7 +326,8 @@ export function BudgetsPage() {
               className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50"
               key={t.id}
               onClick={() => {
-                startFromTemplate(t);
+                const record = templateRecords.find((item) => item.id === t.id);
+                if (record) startFromTemplate(record);
                 navigate('/budget/new');
               }}
             >

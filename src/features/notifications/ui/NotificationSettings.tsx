@@ -209,7 +209,7 @@ export function NotificationSettings() {
         <Switch
           label="Avisos push"
           description={availabilityMessage(visibleAvailability)}
-          leading={<Bell size={19} className="text-[#668175]" aria-hidden="true" />}
+          leading={<Bell size={19} className="text-ink-subtle" aria-hidden="true" />}
           checked={currentSettings.preferences.pushEnabled}
           disabled={isLoading || saving}
           loading={saving && savingDeviceId === null}
@@ -284,7 +284,7 @@ export function NotificationSettings() {
 
       {isLoading && <p className="mt-3 text-sm text-gray-500">Cargando preferencias…</p>}
       {status && (
-        <p className="mt-3 text-sm text-[#315d4c]" role="status">
+        <p className="mt-3 text-sm text-primary" role="status">
           {status}
         </p>
       )}

@@ -1,6 +1,17 @@
 import type { Budget, BudgetTask, PublicBudget, WorkItem } from '@/shared/types';
 export const DEFAULT_IVA_RATE = 0.1;
-export const money = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+/**
+ * Rounds to cents, half away from zero, after dropping binary noise: 8.5 × 9.79 is
+ * 83.21499999999999 in floating point and must give 83.22. Adding Number.EPSILON is not enough
+ * above 1. Same algorithm as `roundTo` in entities/construction-document/model/decimal.ts, which
+ * cannot import from here because Functions compile it without the `@/` alias.
+ */
+export const money = (value: number) => {
+  if (!Number.isFinite(value)) return value;
+  const sign = value < 0 ? -1 : 1;
+  const clean = Number(Math.abs(value).toPrecision(15));
+  return sign * Number(`${Math.round(Number(`${clean}e2`))}e-2`) || 0;
+};
 export const decimal = (value: string) => {
   const n = Number(value.replace(',', '.'));
   return Number.isFinite(n) ? Math.max(0, n) : 0;
@@ -17,6 +28,23 @@ export function taskAmount(task: PricedTask, multiplier = 1) {
 }
 export function workItemAmount(item: { tasks: PricedTask[] }, multiplier = 1) {
   return money(item.tasks.reduce((sum, task) => sum + taskAmount(task, multiplier), 0));
+}
+/**
+ * Amount of a chapter including its subchapters: the following items with a greater depth.
+ * Matches the editor, where a parent chapter shows the sum of its whole subtree.
+ */
+export function workItemSubtreeAmount(
+  items: readonly { depth?: number; tasks: PricedTask[] }[],
+  index: number,
+  multiplier = 1,
+) {
+  const depth = items[index]?.depth ?? 0;
+  let sum = 0;
+  for (let i = index; i < items.length; i++) {
+    if (i > index && (items[i]!.depth ?? 0) <= depth) break;
+    sum += workItemAmount(items[i]!, multiplier);
+  }
+  return money(sum);
 }
 export function budgetTotals(budget: PricedBudget) {
   const multiplier = budget.adjustment?.multiplier ?? 1;

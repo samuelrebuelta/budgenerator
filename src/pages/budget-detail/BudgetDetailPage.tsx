@@ -5,11 +5,11 @@ import { BudgetHeader } from './components/BudgetHeader';
 import { BudgetEditor } from '@/features/budget-editor/ui/BudgetEditor';
 import { BudgetSummary } from '@/features/budget-editor/ui/BudgetSummary';
 import { AddWorkItemButton } from '@/features/budget-editor/ui/AddWorkItemButton';
-import { ExportPdfButton, PageLink } from '@/shared/ui';
+import { Alert, buttonClassName, ExportPdfButton, PageLink } from '@/shared/ui';
 import { ShareButton } from './components/ShareButton';
 import { SaveTemplateButton } from './components/SaveTemplateButton';
-import { useBudgetStore, useActiveBudget } from '@/entities/budget';
-import { useCatalogStore } from '@/entities/catalog';
+import { useBudgetStore, useActiveBudget, useActiveBudgetRecord } from '@/entities/budget';
+import { ExportBc3Button } from '@/features/bc3-exchange';
 import { useProfileStore } from '@/entities/profile';
 import { useUserStore } from '@/entities/user';
 import { useAuthStore } from '@/entities/auth';
@@ -86,7 +86,11 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   const withdrawBudgetAcceptance = useBudgetStore((s) => s.withdrawBudgetAcceptance);
   const linkProject = useBudgetStore((s) => s.linkProject);
   const convertBudgetToProject = useProjectStore((s) => s.convertBudgetToProject);
-  const draftBudget = useBudgetStore((s) => s.draftBudget);
+  const draftBudget = useBudgetStore((s) => s.draft);
+  const conflict = useBudgetStore((s) => s.conflicts.includes(budgetId));
+  const reloadBudget = useBudgetStore((s) => s.reloadBudget);
+  const overwriteBudget = useBudgetStore((s) => s.overwriteBudget);
+  const [conflictError, setConflictError] = useState('');
   const canCreateBudget = useUserStore((s) => s.canCreateBudget);
   const userData = useUserStore((s) => s.userData);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -108,9 +112,9 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       return !prev;
     });
   const activeBudget = useActiveBudget();
-  const activeCatalogId = useCatalogStore((s) => s.activeCatalogId);
+  const activeRecord = useActiveBudgetRecord();
   const profile = useProfileStore((s) => s.profile);
-  const budgetExists = useBudgetStore((s) => s.budgets.some((b) => b.id === budgetId));
+  const budgetExists = useBudgetStore((s) => s.records.some((b) => b.id === budgetId));
   const budgetsLoaded = useBudgetStore((s) => s.loaded);
   const dataRefreshVersion = useNetworkStore((s) => s.dataRefreshVersion);
   const readOnlySource = !!activeBudget?.acceptedAt || !!activeBudget?.projectId;
@@ -125,7 +129,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           .then((lead) => {
             if (!active) return;
             setLeadContext(lead);
-            if (lead) startDraftFromLead(lead, activeCatalogId ?? undefined);
+            if (lead) startDraftFromLead(lead);
           })
           .catch((error) => {
             if (
@@ -139,23 +143,14 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
           active = false;
         };
       }
-      startDraft(activeCatalogId ?? undefined);
+      startDraft();
     } else if (budgetId) {
       setActiveBudget(budgetId);
     }
     return () => {
       if (!isDraft) setActiveBudget(null);
     };
-  }, [
-    budgetId,
-    isDraft,
-    setActiveBudget,
-    startDraft,
-    startDraftFromLead,
-    activeCatalogId,
-    leadId,
-    uid,
-  ]);
+  }, [budgetId, isDraft, setActiveBudget, startDraft, startDraftFromLead, leadId, uid]);
 
   useEffect(() => {
     if (dataRefreshVersion === 0 || !isDraft || !leadId || !uid) return;
@@ -177,9 +172,10 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
       allowDraftNavigation.current = false;
       return false;
     }
-    const draft = useBudgetStore.getState().draftBudget;
+    const draft = useBudgetStore.getState().draft;
     if (!draft) return false;
-    return draft.info.clientName !== '' || draft.info.address !== '' || draft.workItems.length > 0;
+    const { business, tree } = draft.document;
+    return business.clientName !== '' || business.address !== '' || tree.length > 0;
   });
 
   useEffect(() => {
@@ -198,10 +194,13 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
   useEffect(() => {
     if (!isDraft) return;
     const handler = (e: BeforeUnloadEvent) => {
-      const draft = useBudgetStore.getState().draftBudget;
+      const draft = useBudgetStore.getState().draft;
+      const content = draft?.document;
       if (
-        draft &&
-        (draft.info.clientName !== '' || draft.info.address !== '' || draft.workItems.length > 0)
+        content &&
+        (content.business.clientName !== '' ||
+          content.business.address !== '' ||
+          content.tree.length > 0)
       ) {
         e.preventDefault();
       }
@@ -318,9 +317,9 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
         />
 
         {isDraft && (
-          <div className="draft-banner mb-4 w-full rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 no-print">
+          <Alert tone="warning" plain role="none" className="draft-banner no-print mb-4 w-full">
             {t('budget.draftBanner')} <strong>{t('budget.draftBannerBold')}</strong>.
-          </div>
+          </Alert>
         )}
 
         {/* Page Card */}
@@ -329,29 +328,66 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
             {saveError}
           </p>
         )}
-        {activeBudget?.projectId && (
-          <div
-            className="mb-4 rounded-xl bg-[#e8eee3] px-4 py-4 text-sm text-[#183e3b]"
-            role="status"
+        {conflict && (
+          <Alert
+            tone="warning"
+            plain
+            className="mb-4"
+            title="Este presupuesto se ha guardado desde otro dispositivo."
+            action={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setConflictError('');
+                    void reloadBudget(budgetId).catch((e: unknown) =>
+                      setConflictError(
+                        e instanceof Error ? e.message : 'No se ha podido recargar.',
+                      ),
+                    );
+                  }}
+                >
+                  Cargar la versión guardada
+                </Button>
+                <Button
+                  onClick={() => {
+                    setConflictError('');
+                    void overwriteBudget(budgetId).catch((e: unknown) =>
+                      setConflictError(e instanceof Error ? e.message : 'No se ha podido guardar.'),
+                    );
+                  }}
+                >
+                  Guardar mis cambios
+                </Button>
+                {conflictError && <p className="w-full text-danger-ink">{conflictError}</p>}
+              </>
+            }
           >
-            <p className="font-semibold">Presupuesto convertido en proyecto</p>
-            <p className="mt-1">La oferta aceptada permanece aquí como documento de referencia.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            Tus últimos cambios no se han guardado para no sobrescribir la otra versión. Elige qué
+            versión conservar.
+          </Alert>
+        )}
+        {activeBudget?.projectId && (
+          <Alert
+            tone="success"
+            plain
+            className="mb-4"
+            title="Presupuesto convertido en proyecto"
+            action={
               <PageLink
-                className="inline-flex min-h-11 items-center gap-2 font-semibold text-[#183e3b] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7694d]"
+                className={buttonClassName({ variant: 'outline' })}
                 to={`/projects/${activeBudget.projectId}`}
               >
                 <FolderKanban size={16} />
                 Abrir proyecto
               </PageLink>
-            </div>
-          </div>
+            }
+          >
+            La oferta aceptada permanece aquí como documento de referencia.
+          </Alert>
         )}
         {activeBudget?.acceptedAt && !activeBudget.projectId && (
-          <div
-            className="mb-4 rounded-xl bg-[#f2f2e9] px-4 py-4 text-sm text-[#36473e]"
-            role="status"
-          >
+          <div className="mb-4 rounded-xl bg-canvas px-4 py-4 text-sm text-ink-soft" role="status">
             <p className="font-semibold">
               Presupuesto aceptado el{' '}
               {new Date(activeBudget.acceptedAt).toLocaleDateString('es-ES')}.
@@ -370,7 +406,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
 
             {isDraft && leadContext && draftBudget?.sourceLeadId === leadContext.id && (
               <section aria-label="Contexto de la solicitud" className="mt-5">
-                <Card className="border-[#cddbd1] bg-[#f8faf7] p-4 sm:p-5">
+                <Card className="border-line-strong bg-surface-muted p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h2 className="font-semibold text-gray-900">
@@ -392,7 +428,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                     <PageLink
                       back
                       to="/profile/solicitudes"
-                      className="text-sm font-medium text-[#426457] underline underline-offset-2"
+                      className="text-sm font-medium text-primary underline underline-offset-2"
                     >
                       Volver a solicitudes
                     </PageLink>
@@ -438,7 +474,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                         ?.label ?? leadContext.startTiming}
                     </p>
                   )}
-                  <p className="mt-3 text-sm font-medium text-[#426457]">
+                  <p className="mt-3 text-sm font-medium text-primary">
                     Horquilla orientativa:{' '}
                     {(leadContext.estimate.minimumCents / 100).toLocaleString('es-ES', {
                       style: 'currency',
@@ -467,7 +503,7 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                   togglePartidas();
                 }
               }}
-              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#426457] cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
+              className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus cursor-pointer mt-4 mb-3 no-print px-2 py-1.5 -ml-2 rounded hover:bg-gray-50 uppercase"
               aria-expanded={showPartidas}
             >
               {showPartidas ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -509,6 +545,10 @@ function BudgetDetailContent({ budgetId }: { budgetId: string }) {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <ShareButton />
                   {activeBudget && <ExportPdfButton budget={activeBudget} company={profile} />}
+                  <ExportBc3Button
+                    document={activeRecord?.document}
+                    name={`presupuesto-${activeBudget?.info.budgetNumber || activeBudget?.info.address || 'budgenerator'}`}
+                  />
                 </div>
                 <div className="flex justify-end">
                   <SaveTemplateButton />

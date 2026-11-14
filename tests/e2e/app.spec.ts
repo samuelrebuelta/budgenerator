@@ -4,6 +4,7 @@ import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { seedDocument, writeStoredDocument } from './seed';
 const email = 'budgenerator@gmail.com';
 const password = 'Local-emulator-Only-2026';
 const project = process.env.E2E_FIREBASE_PROJECT_ID ?? 'demo-cimbra';
@@ -14,34 +15,67 @@ const firestoreEmulator = new URL(
 );
 const notificationLeadId = 'a'.repeat(64);
 let primaryUid = '';
-const fakeBudget = (id: string, name: string, address: string, price: number, number: string) => ({
-  id,
-  info: {
-    clientName: name,
-    address,
-    date: number === '01' ? '2025-10-14' : '2026-10-14',
-    budgetNumber: number,
+const paintChapter = (price: number) => [
+  {
+    name: 'Pintura',
+    items: [
+      {
+        description: 'Preparación y acabado de paredes',
+        quantity: 10.5,
+        unit: 'm2',
+        price,
+        cost: 4.25,
+      },
+    ],
   },
-  workItems: [
+];
+const seededPrimaryCatalog = () =>
+  seedDocument('catalog', { name: 'Reformas · Mi selección' }, [
     {
-      id: 'item',
       name: 'Pintura',
-      tasks: [
-        {
-          id: 'task',
-          description: 'Preparación y acabado de paredes',
-          quantity: 10.5,
-          unit: 'm2',
-          price,
-          cost: 4.25,
-        },
+      items: [
+        { description: 'Pintura interior (dos manos)', unit: 'm2', price: 12.75, cost: 5.25 },
       ],
     },
-  ],
-  catalogId: 'catalog-paint',
-  ivaRate: 0.21,
-  createdAt: `2026-10-${number === '03' ? '14' : '12'}T10:00:00Z`,
-});
+  ]);
+/**
+ * Restores the seeded catalog of the primary account. Earlier tests import whole categories;
+ * whether those writes land before the page closes depends on timing, so a test that imports
+ * from a known catalog must reset it instead of relying on the previous state.
+ */
+async function restorePrimaryCatalog() {
+  const env = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  try {
+    await env.withSecurityRulesDisabled((ctx) =>
+      writeStoredDocument(
+        ctx.firestore(),
+        `users/${primaryUid}/catalog/main`,
+        seededPrimaryCatalog(),
+      ),
+    );
+  } finally {
+    await env.cleanup();
+  }
+}
+const fakeBudget = (name: string, address: string, price: number, number: string) =>
+  seedDocument(
+    'budget',
+    {
+      clientName: name,
+      address,
+      date: number === '01' ? '2025-10-14' : '2026-10-14',
+      budgetNumber: number,
+      ivaRate: 0.21,
+    },
+    paintChapter(price),
+  );
 test.beforeAll(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST)
     throw new Error('Only local emulators are allowed.');
@@ -61,10 +95,29 @@ test.beforeAll(async () => {
     if (!data.localId) throw Error('Unable to seed auth emulator');
     return data.localId;
   };
+  // Seeded accounts are verified; the primary one is admin through the custom claim.
+  const markAccount = async (localId: string, claims?: Record<string, unknown>) => {
+    const response = await fetch(
+      `${authEmulatorUrl}/identitytoolkit.googleapis.com/v1/projects/${project}/accounts:update`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+        body: JSON.stringify({
+          localId,
+          emailVerified: true,
+          ...(claims ? { customAttributes: JSON.stringify(claims) } : {}),
+        }),
+      },
+    );
+    if (!response.ok) throw Error('Unable to update auth emulator account');
+  };
   const uid = await account(email);
+  await markAccount(uid, { admin: true });
   primaryUid = uid;
   const otherUid = await account('other@example.test');
   const quotaUid = await account('quota@example.test');
+  await markAccount(otherUid);
+  await markAccount(quotaUid);
   const env = await initializeTestEnvironment({
     projectId: project,
     firestore: {
@@ -97,22 +150,53 @@ test.beforeAll(async () => {
       totalBudgetsCreated: 100,
       createdAt: '2026-10-01T10:00:00Z',
     });
-    for (const b of [
-      fakeBudget('demo-cocina', 'Reforma de cocina', 'Vivienda en Chamberí · Madrid', 420, '03'),
-      fakeBudget('demo-estudio', 'Un nuevo estudio', 'Local en Gràcia · Barcelona', 280, '02'),
-      fakeBudget(
-        'demo-pintura',
-        'Una casa con otra luz',
-        'Pintura y acabados · Valencia',
-        170,
-        '01',
+    for (const [id, name, address, price, number] of [
+      ['demo-cocina', 'Reforma de cocina', 'Vivienda en Chamberí · Madrid', 420, '03'],
+      ['demo-estudio', 'Un nuevo estudio', 'Local en Gràcia · Barcelona', 280, '02'],
+      ['demo-pintura', 'Una casa con otra luz', 'Pintura y acabados · Valencia', 170, '01'],
+    ] as const)
+      await writeStoredDocument(
+        db,
+        `users/${uid}/budgets/${id}`,
+        fakeBudget(name, address, price, number),
+        { number: Number(number) },
+        `2026-10-${number === '03' ? '14' : '12'}T10:00:00Z`,
+      );
+    // Accepted, converted source of the seeded project (read-only reference).
+    await writeStoredDocument(
+      db,
+      `users/${uid}/budgets/demo-navegacion`,
+      seedDocument(
+        'budget',
+        {
+          clientName: 'Cliente de navegación',
+          address: 'Proyecto de navegación',
+          date: '2026-10-12',
+          budgetNumber: '00',
+          ivaRate: 0.21,
+        },
+        [
+          {
+            name: 'Cocina',
+            items: [
+              {
+                description: 'Instalar la encimera',
+                quantity: 1,
+                unit: 'ud',
+                price: 420,
+                cost: 270,
+              },
+            ],
+          },
+        ],
       ),
-    ])
-      await setDoc(doc(db, 'users', uid, 'budgets', b.id), b);
+      { number: 4, acceptedAt: '2026-10-14T10:00:00Z', projectId: 'project-navigation' },
+      '2026-09-01T10:00:00Z',
+    );
     await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation'), {
       id: 'project-navigation',
-      sourceBudgetId: 'demo-cocina',
-      sourceBudgetNumber: '03',
+      sourceBudgetId: 'demo-navegacion',
+      sourceBudgetNumber: '00',
       title: 'Proyecto de navegación',
       clientName: 'Cliente de navegación',
       address: 'Dirección de demostración',
@@ -135,24 +219,10 @@ test.beforeAll(async () => {
       supplementsIva: 0,
       updatedTotal: 508.2,
     });
-    await setDoc(
-      doc(db, 'users', uid, 'projects', 'project-navigation', 'workItems', 'work-kitchen'),
-      {
-        id: 'work-kitchen',
-        name: 'Cocina',
-        position: 0,
-        tasks: [
-          {
-            id: 'task-countertop',
-            description: 'Instalar la encimera',
-            quantity: 1,
-            unit: 'unit',
-            price: 420,
-            cost: 270,
-          },
-        ],
-      },
-    );
+    await setDoc(doc(db, 'users', uid, 'projects', 'project-navigation', 'progress', 'state'), {
+      completed: {},
+      updatedAt: '2026-10-14T10:00:00Z',
+    });
     await setDoc(doc(db, 'users', uid, 'teamMembers', 'member-demo-ana'), {
       id: 'member-demo-ana',
       name: 'Ana Demo',
@@ -178,46 +248,23 @@ test.beforeAll(async () => {
     });
     await setDoc(doc(db, 'users', uid, 'profile', 'data'), {
       name: 'Estudio Roble',
-      logo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="40"%3E%3Crect width="120" height="40" fill="%2324564c"/%3E%3C/svg%3E',
+      // 120×40 WebP, the format produced by the logo compressor and accepted by Rules.
+      logo: 'data:image/webp;base64,UklGRkgAAABXRUJQVlA4IDwAAADwAwCdASp4ACgAPm02mUmkIqKhIWgAgA2JaQAAEOc2bNmzZs2bNmx4AP7xlXxHb/6Fesvvp+4AAAAAAAA=',
       cif: 'B00000000',
       address: 'Dirección de demostración',
       phone: '',
       email,
     });
-    for (const [id, name] of [
-      ['catalog-main', 'Reformas · Mi selección'],
-      ['catalog-paint', 'Pintura y acabados'],
-    ])
-      await setDoc(doc(db, 'users', uid, 'tariffCatalogs', id!), {
-        id,
-        name,
-        tariffs: [
-          {
-            id: 'tariff',
-            description: 'Pintura interior (dos manos)',
-            unit: 'm2',
-            basePrice: 12.75,
-            cost: 5.25,
-            category: 'Pintura',
-          },
-        ],
-        createdAt: '2026-10-01',
-        updatedAt: '2026-10-01',
-      });
-    await setDoc(doc(db, 'users', uid, 'settings', 'tariffCatalog'), {
-      activeCatalogId: 'catalog-main',
-    });
+    await writeStoredDocument(db, `users/${uid}/catalog/main`, seededPrimaryCatalog());
     for (const [id, name] of [
       ['tpl-main', 'Reforma de baño'],
       ['tpl-paint', 'Puesta a punto'],
-    ])
-      await setDoc(doc(db, 'users', uid, 'templates', id!), {
-        id,
-        name,
-        workItems: fakeBudget('sample', 'Sample', '', 12, '01').workItems,
-        ivaRate: 0.21,
-        createdAt: '2026-10-01',
-      });
+    ] as const)
+      await writeStoredDocument(
+        db,
+        `users/${uid}/templates/${id}`,
+        seedDocument('template', { name, ivaRate: 0.21 }, paintChapter(12)),
+      );
     await setDoc(doc(db, 'users', uid, 'leads', notificationLeadId), {
       schemaVersion: 2,
       contact: { name: 'Lead aviso demo', email: 'lead@example.test', phone: '+34 600 111 222' },
@@ -246,6 +293,11 @@ async function login(page: Page, mail = email) {
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Presupuestos', exact: true })).toBeVisible();
+}
+/** Waits for the debounced write queue to start and finish (the indicator has no text). */
+async function waitSaved(page: Page) {
+  await page.waitForTimeout(900);
+  await expect(page.locator('.sync-saving, .sync-error')).toHaveCount(0);
 }
 async function editor(page: Page) {
   await page.goto('/budget/new');
@@ -371,7 +423,7 @@ test('primary routes keep tabs and secondary routes use the common return on mob
     await expect(page.locator('.workspace-footer')).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.locator('.eyebrow')).toHaveCount(0);
-    await expect(page.locator('.back-button')).toHaveCount(0);
+    await expect(page.locator('.back-button:visible')).toHaveCount(0);
     await expect(page.locator('.workspace-header')).toBeVisible();
   }
   await page.goto('/budgets');
@@ -714,7 +766,7 @@ test('assigns people and crews to a project as immutable snapshots', async ({ pa
     .getByRole('list', { name: 'Asignaciones del proyecto' })
     .getByRole('listitem')
     .filter({ hasText: 'Cuadrilla Norte' });
-  await expect(crewAssignment).toHaveClass(/bg-\[#eaf1ed\]/);
+  await expect(crewAssignment).toHaveAttribute('style', /--color-crew-blue-surface/);
   await expect(crewAssignment.locator('span.h-3.w-3')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Asignar equipo' }).click();
@@ -775,7 +827,11 @@ test('keeps team management available without agenda links', async ({ page }) =>
   await login(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/projects');
-  await expect(page.getByRole('link', { name: 'Equipo', exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Navegación principal' })
+      .getByRole('link', { name: 'Equipo', exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Agenda', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: /Cliente de navegación/ }).click();
   await expect(page.getByRole('link', { name: 'Gestionar equipo', exact: true })).toBeVisible();
@@ -802,8 +858,8 @@ test('returns from an account-menu page to the tab it was opened from', async ({
     .click();
 
   await expect(page).toHaveURL(/\/profile$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
 
@@ -813,15 +869,15 @@ test('returns from an account-menu page to the tab it was opened from', async ({
     .getByRole('link', { name: 'Mi cuenta', exact: true })
     .click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 
   await page.getByRole('button', { name: /Cambiar contraseña/ }).click();
   await expect(page).toHaveURL(/\/account\/password$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/account');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/account');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(budgetsTab).toHaveAttribute('aria-current', 'page');
 });
@@ -875,7 +931,7 @@ test('keeps browser back native while animating the explicit project back button
     (window as typeof window & { pageTransitionDirections?: string[] }).pageTransitionDirections =
       [];
   });
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/projects$/);
   await expect
     .poll(() =>
@@ -897,6 +953,7 @@ test('places budgets first in desktop and mobile navigation', async ({ page }) =
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' }).locator('a')).toHaveText([
     'Presupuestos',
     'Proyectos',
+    'Equipo',
     'Solicitudes',
   ]);
 });
@@ -906,7 +963,10 @@ test('new registrations include the budget-core tour and allow replay', async ({
   await page.getByRole('button', { name: '¿No tienes cuenta? Regístrate' }).click();
   await page.getByLabel('Email', { exact: true }).fill('new-account-tour@example.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Tour-Prueba-2026');
-  await page.getByRole('button', { name: 'Registrarse', exact: true }).click();
+  const register = page.getByRole('button', { name: 'Registrarse', exact: true });
+  await expect(register).toBeDisabled();
+  await page.getByRole('checkbox', { name: /acepto las condiciones de uso/ }).check();
+  await register.click();
 
   const tour = page.locator('[data-app-tour]');
   await expect(page).toHaveURL(/\/budgets$/);
@@ -1040,6 +1100,9 @@ test('existing catalog can import the complete renovation base', async ({ page }
     'Ventanas',
     'Vidrio',
   ]);
+  // Later tests expect the seeded catalog: let the import land, then put it back.
+  await waitSaved(page);
+  await restorePrimaryCatalog();
 });
 
 test('an account without a catalog starts with the complete renovation catalog', async ({
@@ -1088,6 +1151,7 @@ test('an account without a catalog starts with the complete renovation catalog',
 test('catalog imports a category, a part, or one concept from category details', async ({
   page,
 }) => {
+  await restorePrimaryCatalog();
   await login(page);
   await page.goto('/catalog');
   await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
@@ -1144,6 +1208,9 @@ test('catalog imports a category, a part, or one concept from category details',
           fields.filter((field) => (field as HTMLInputElement).value === 'Punto de luz').length,
       ),
   ).toBe(1);
+  // Later tests expect the seeded catalog: let the import land, then put it back.
+  await waitSaved(page);
+  await restorePrimaryCatalog();
 });
 
 test('collapsed catalog parts hide add on mobile, desktop expands, and focused selects show outline', async ({
@@ -1177,13 +1244,13 @@ test('UX quota and missing catalog screens keep the common header and safe retur
   await expect(
     page.getByRole('heading', { level: 1, name: 'Nuevo presupuesto', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
   await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCount(0);
   await page.goto('/catalogs/missing');
   await expect(page.locator('[data-page-header]')).toBeVisible();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Catálogo');
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 });
 
 test('budget list filters by year and centers its search icon', async ({ page }) => {
@@ -1251,7 +1318,7 @@ test('UX editor controls have equal heights and dialogs preserve accessible focu
   await page.goto('/templates');
   await expect(page.getByRole('button', { name: 'Crear plantilla', exact: true })).toBeVisible();
   await expect(page.locator('.workspace-header')).toBeVisible();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
   await page.goto('/budgets');
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
   const dialog = page.getByRole('dialog', { name: 'Menú de cuenta', exact: true });
@@ -1314,8 +1381,8 @@ test('UX help has real links and contextual information supports keyboard and Es
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole('navigation', { name: 'Navegación móvil' })).toHaveCount(0);
-  await expect(page.locator('.workspace-header')).toBeHidden();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toBeVisible();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
 });
 
 test('UX company avatar contains a wide logo and falls back when the image fails', async ({
@@ -1536,9 +1603,9 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
     .click();
   await expect(page).toHaveURL(/\/catalog$/);
   await expect(tabs).toHaveCount(0);
-  await expect(page.locator('.workspace-header')).toBeHidden();
-  await expect(page.locator('.back-button')).toHaveAttribute('href', '/budgets');
-  await page.locator('.back-button').click();
+  await expect(page.locator('.mobile-header-back-slot .back-button')).toBeVisible();
+  await expect(page.locator('.back-button:visible')).toHaveAttribute('href', '/budgets');
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(tabs).toBeVisible();
   await page.getByRole('button', { name: 'Abrir menú de cuenta' }).click();
@@ -1551,7 +1618,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
   await expect(tabs).toHaveCount(0);
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await expect(page).toHaveURL(/\/budgets$/);
   await expect(tabs).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
@@ -1559,7 +1626,7 @@ test('brand, desktop and mobile navigation with real seeded data', async ({ page
   await page.getByRole('button', { name: 'Empezar en blanco', exact: true }).click();
   await expect(page).toHaveURL(/\/budget\/new$/);
   await expect(tabs).toHaveCount(0);
-  await page.locator('.back-button').click();
+  await page.locator('.back-button:visible').click();
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -1672,7 +1739,7 @@ test('single catalog redirects old routes, saves edits and isolates accounts', a
   }
   await page.getByLabel('Descripción', { exact: true }).fill('Tarifa revisada');
   await page.getByRole('spinbutton', { name: 'Coste', exact: true }).fill('6.75');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue('Tarifa revisada');
   await page.screenshot({
@@ -1684,7 +1751,7 @@ test('single catalog redirects old routes, saves edits and isolates accounts', a
   await page.screenshot({ path: 'docs/testing-evidence/bg008-catalog-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByLabel('Descripción', { exact: true }).fill('Pintura interior (dos manos)');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveValue(
     'Pintura interior (dos manos)',
@@ -1735,7 +1802,7 @@ test('single catalog initializes automatically and search is accent insensitive 
   await expect(page.getByLabel('Descripción de la partida', { exact: true })).toHaveValue(
     'Partida de prueba',
   );
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await search.fill('Partida de prueba');
   await expect(page.getByLabel('Descripción', { exact: true })).toHaveCount(1);
@@ -1847,7 +1914,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await page.getByRole('button', { name: 'Exportar PDF', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Completa o elimina');
   await page.getByRole('spinbutton', { name: 'Cant.', exact: true }).fill('8');
-  await expect(page.getByText('Guardando…', { exact: true })).toHaveCount(0);
+  await waitSaved(page);
   await page.reload();
   await expect(page.getByRole('spinbutton', { name: 'Cant.', exact: true })).toHaveValue('8');
   await expect(page.getByRole('spinbutton', { name: 'Precio', exact: true })).toHaveValue('');
@@ -2038,7 +2105,7 @@ test('PWA install banner consumes prompts, stays hidden after dismissal and in s
   await expect(banner).toHaveCount(0);
 });
 
-test('PWA opens offline, offers a bounded retry and applies an update on demand', async ({
+test('PWA reopens offline with the last state and applies an update on demand', async ({
   page,
   context,
 }) => {
@@ -2049,17 +2116,16 @@ test('PWA opens offline, offers a bounded retry and applies an update on demand'
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
   await page.reload();
+  // BG-012: a reload without network restores the last local copy instead of an error screen.
   await expect(page.getByText(/Sin conexión\./)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'No se ha podido cargar la página' })).toBeVisible(
-    {
-      timeout: 22000,
-    },
-  );
-  await context.setOffline(false);
-  await page.getByRole('button', { name: 'Volver a intentarlo', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Presupuestos', exact: true })).toBeVisible({
     timeout: 22000,
   });
+  await expect(page.getByRole('heading', { name: 'No se ha podido cargar la página' })).toHaveCount(
+    0,
+  );
+  await context.setOffline(false);
+  await expect(page.getByText(/Sin conexión\./)).toHaveCount(0, { timeout: 22000 });
   const index = await readFile('dist/index.html', 'utf8');
   await writeFile('dist/index.html', index + '<!-- local update regression -->');
   execFileSync('node', ['scripts/build-sw.mjs']);
@@ -2433,6 +2499,26 @@ test('keeps cached views visible offline and toasts when a roster edit cannot be
   await expect(page.getByText('Cliente de navegación', { exact: true })).toBeVisible();
   await expect(page.getByRole('status', { name: /Cargando proyectos/ })).toHaveCount(0);
   await expect(page.getByText('Ana Demo sin conexión', { exact: true })).toHaveCount(0);
+
+  // The seed runs once per worker: restore the member name that later tests look up.
+  const restore = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  await restore.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users', primaryUid, 'teamMembers', 'member-demo-ana'), {
+      id: 'member-demo-ana',
+      name: 'Ana Demo',
+      status: 'active',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      updatedAt: '2026-10-01T10:00:00.000Z',
+    });
+  });
+  await restore.cleanup();
 });
 
 test('plans project teams by week and saves person changes only for the selected day', async ({
@@ -2478,8 +2564,15 @@ test('plans project teams by week and saves person changes only for the selected
       ].join('-');
     });
   });
-  const estimatedEndDateKey = currentWeekDateKeys[3]!;
-  const afterEstimatedEndDateKey = currentWeekDateKeys[4]!;
+  // The test edits today's and tomorrow's assignments, so the end-date pair must not overlap them
+  // (a fixed weekday made the test fail on the days when it did).
+  const endDateIndex = [3, 1, 4, 0, 5, 2].find(
+    (index) =>
+      ![todayKey, tomorrowKey].includes(currentWeekDateKeys[index]!) &&
+      ![todayKey, tomorrowKey].includes(currentWeekDateKeys[index + 1]!),
+  )!;
+  const estimatedEndDateKey = currentWeekDateKeys[endDateIndex]!;
+  const afterEstimatedEndDateKey = currentWeekDateKeys[endDateIndex + 1]!;
   const nextYearEstimatedEndDateKey = `2027${estimatedEndDateKey.slice(4)}`;
 
   await env.withSecurityRulesDisabled(async (context) => {
@@ -2681,12 +2774,19 @@ test('plans project teams by week and saves person changes only for the selected
     const swipeSurface = page.getByTestId('weekly-swipe-surface');
     const currentSlide = swipeSurface.locator('[data-week-slide="current"]');
     const activeWeekRange = currentSlide.getByTestId('week-range');
+    // Start the drag on the selected day's heading, a draggable spot that is always visible:
+    // install and push banners can push the middle of the surface below the floating tab bar
+    // on a 390×844 viewport, and the week range sits under the (ignored) date picker.
+    const dayHeading = currentSlide.locator('h3').first();
+    await dayHeading.scrollIntoViewIfNeeded();
     const surfaceBounds = await swipeSurface.boundingBox();
     const initialSlideBounds = await currentSlide.boundingBox();
+    const dayHeadingBounds = await dayHeading.boundingBox();
     expect(surfaceBounds).not.toBeNull();
     expect(initialSlideBounds).not.toBeNull();
+    expect(dayHeadingBounds).not.toBeNull();
     const dragStartX = surfaceBounds!.x + surfaceBounds!.width / 2;
-    const dragStartY = surfaceBounds!.y + surfaceBounds!.height / 2;
+    const dragStartY = dayHeadingBounds!.y + dayHeadingBounds!.height / 2;
     await page.mouse.move(dragStartX, dragStartY);
     await page.mouse.down();
     await page.mouse.move(dragStartX - 90, dragStartY, { steps: 6 });
@@ -2987,19 +3087,22 @@ test('edits a project name and client and synchronizes both fields to its source
 
   await env.withSecurityRulesDisabled(async (context) => {
     const seedDb = context.firestore();
-    await setDoc(doc(seedDb, 'users', primaryUid, 'budgets', budgetId), {
-      id: budgetId,
-      info: {
-        clientName: 'Cliente inicial',
-        address: 'Obra inicial',
-        date: '2026-11-01',
-        budgetNumber: '91',
-      },
-      workItems: [],
+    await writeStoredDocument(
+      seedDb,
+      `users/${primaryUid}/budgets/${budgetId}`,
+      seedDocument(
+        'budget',
+        {
+          clientName: 'Cliente inicial',
+          address: 'Obra inicial',
+          date: '2026-11-01',
+          budgetNumber: '91',
+        },
+        [],
+      ),
+      { number: 91, acceptedAt, projectId },
       acceptedAt,
-      projectId,
-      createdAt: acceptedAt,
-    });
+    );
     await setDoc(doc(seedDb, 'users', primaryUid, 'projects', projectId), {
       id: projectId,
       sourceBudgetId: budgetId,
@@ -3089,7 +3192,7 @@ test('edits a project name and client and synchronizes both fields to its source
       clientName: 'Cliente renovado',
     });
     const savedBudget = await getDoc(doc(db, 'users', primaryUid, 'budgets', budgetId));
-    expect(savedBudget.data()?.info).toMatchObject({
+    expect(savedBudget.data()).toMatchObject({
       address: 'Reforma renovada',
       clientName: 'Cliente renovado',
     });
@@ -3115,12 +3218,10 @@ test('creates standalone and completed-project work entries from a day in Equipo
   });
   const db = env.authenticatedContext(primaryUid).firestore();
   const completedProjectId = 'project-team-job-completed-old';
-  const today = new Date();
-  const dateKey = [
-    String(today.getFullYear()).padStart(4, '0'),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-');
+  // Same day as the browser (Playwright runs it in Europe/Madrid), not the runner's UTC day.
+  const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(
+    new Date(),
+  );
   const completedProject = {
     id: completedProjectId,
     sourceBudgetId: 'budget-team-job-completed-old',
@@ -3250,4 +3351,109 @@ test('creates standalone and completed-project work entries from a day in Equipo
   } finally {
     await env.cleanup();
   }
+});
+
+test('imports and exports BC3 in catalog, budgets and templates without a separate page', async ({
+  page,
+}) => {
+  const exportFile = async (button: ReturnType<Page['getByRole']>) => {
+    const downloadPromise = page.waitForEvent('download');
+    await button.click();
+    const warnings = page.getByRole('dialog', { name: 'Antes de exportar' });
+    if (await warnings.isVisible().catch(() => false))
+      await warnings.getByRole('button', { name: 'Descargar', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.bc3$/);
+    return readFile((await download.path())!, 'latin1');
+  };
+  const chooseFile = async (dialogName: string, file: string) => {
+    const dialog = page.getByRole('dialog', { name: dialogName });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Archivo FIEBDC-3 (.bc3)').setInputFiles(file);
+    return dialog;
+  };
+
+  await login(page);
+  await expect(page).not.toHaveURL(/\/bc3/);
+
+  // Cancel writes nothing; certifications are rejected with a clear diagnosis.
+  await page.goto('/budgets');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  let dialog = await chooseFile('Importar presupuesto BC3', 'tests/fixtures/bc3/certificacion.bc3');
+  await expect(dialog.getByRole('alert')).toContainText('certificación');
+  await expect(dialog.getByRole('button', { name: 'Crear presupuesto' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budgets$/);
+
+  // Budget: preview, confirm as draft, save once and export.
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar presupuesto BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await expect(dialog).toContainText('Presupuesto u obra');
+  await expect(dialog).toContainText('651,36');
+  await expect(dialog).toContainText('gastos generales 13 %');
+  await dialog.getByRole('button', { name: 'Crear presupuesto' }).dblclick();
+  await expect(page).toHaveURL(/\/budget\/new$/);
+  await expect(page.locator('input[value="Baño principal"]')).toBeVisible();
+  await expect(page.locator('#address')).toHaveValue('Reforma de vivienda');
+  await page.locator('#clientName').fill('Cliente BC3');
+  const detailButton = page.getByRole('button', {
+    name: 'Mediciones y descomposición de Alicatado de paramentos',
+  });
+  await detailButton.first().click();
+  await expect(page.getByLabel('Comentario de la línea 1').first()).toHaveValue('a*b*d');
+  await expect(page.getByText('Descomposición del precio')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page).toHaveURL(/\/budget\/(?!new)[^/]+$/);
+  const budgetText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(budgetText.startsWith('~V|')).toBe(true);
+  expect(budgetText).toContain('~C|OBRA##||Reforma de vivienda|651.36\\||0|');
+  expect(budgetText).toContain('~M|02#\\E02ALI|2\\1\\|12.3|3\\a*b*d\\2\\2.5\\\\2.46\\||');
+  expect(budgetText.endsWith('\r\n\u001a')).toBe(true);
+
+  // Catalog: merge a price base and export the account catalog.
+  await page.goto('/catalog');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar base de precios BC3',
+    'examples/bc3/base-precios-reformas.bc3',
+  );
+  await expect(dialog).toContainText('Base de precios');
+  await dialog.getByRole('button', { name: 'Añadir al catálogo' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'desde el archivo BC3' })).toContainText(
+    'Se añadieron 5 partidas',
+  );
+  await expect(
+    page.locator('input[aria-label="Descripción"][value="Alicatado de paramentos"]'),
+  ).toBeVisible();
+  const catalogText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(catalogText).toContain('|1|');
+  expect(catalogText).toContain('~D|E01DEM||MO002\\1\\0.40\\\\MO001\\1\\0.10\\\\%MA\\1\\1\\MO\\|');
+
+  // Template: import a work as template and export it again.
+  await page.goto('/templates');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar plantilla BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await dialog.getByRole('button', { name: 'Crear plantilla' }).click();
+  await expect(page).toHaveURL(/\/templates\/(?!new)[^/]+$/);
+  const templateText = await exportFile(page.getByRole('button', { name: 'Exportar BC3' }));
+  expect(templateText).toContain('|Reforma de vivienda\\PRECIO|ANSI|');
+  expect(templateText).toContain('E02ALI');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/budgets');
+  await page.getByRole('button', { name: 'Importar BC3', exact: true }).click();
+  dialog = await chooseFile(
+    'Importar presupuesto BC3',
+    'examples/bc3/presupuesto-reforma-vivienda.bc3',
+  );
+  await page.screenshot({ path: 'docs/testing-evidence/bc3-import-mobile.png' });
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(width).toBeLessThanOrEqual(390);
+  await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
 });
