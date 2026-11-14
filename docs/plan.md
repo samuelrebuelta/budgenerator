@@ -31,7 +31,7 @@ Actualizado el 13-11-2026. Para trabajar en una tarea, consulta el área corresp
 
 ## Trabajo futuro y decisiones
 
-- **App nativa (BG-014).** [Spec](specs/BG-014-app-nativa.md) aprobada el 14-11-2026, con el [análisis](analysis/native-app-plan.md) como detalle. Decisiones D1–D10 resueltas el 14-11-2026 (D6, titular de las cuentas de tienda, aplazada hasta antes de publicar). Estimación: 18–23 semanas.
+- **App nativa (BG-014).** [Spec](specs/BG-014-app-nativa.md) aprobada el 14-11-2026, con el [análisis](analysis/native-app-plan.md) como detalle. Decisiones D1–D10 resueltas el 14-11-2026 (D6, titular de las cuentas de tienda, aplazada hasta antes de publicar). Estimación: 18–23 semanas. Fase 0 en curso: workspace pnpm y `@bg/domain` extraído (pasos 0.1 y 0.2; [registro de ejecución](specs/plans/2026-11-14-bg-014-ejecucion.md)).
 - **Lanzamiento.** Viabilidad y campaña en Meta en el [análisis de mercado](analysis/market-viability-meta-ads.md).
 - **BG-004.** Monetización y Stripe aplazados hasta validar el MVP. Se mantienen los planes y la administración actuales.
 - **BG-006.** Generación con IA retirada del roadmap. El asistente es el flujo vigente de creación guiada.

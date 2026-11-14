@@ -1,24 +1,8 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { formatEuros } from './format';
 
-export const CONTACT_EMAIL = 'budgenerator@gmail.com';
-export const FREE_BUDGET_LIMIT = 3;
-export const MAX_LOGO_SIZE = 500 * 1024;
-
-export function getBudgetSlotsUsed(totalBudgetsCreated: number) {
-  return Math.max(0, totalBudgetsCreated);
-}
+export * from '@bg/domain/lib/utils';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-/** @deprecated Use `formatEuros` from shared/lib/format. */
-export function formatCurrency(value: number): string {
-  return formatEuros(value);
-}
-
-export function generateId(): string {
-  return crypto.randomUUID();
 }

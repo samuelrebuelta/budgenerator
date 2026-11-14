@@ -18,12 +18,13 @@
     "firebase:emulators": "firebase emulators:start --project demo-cimbra --only auth,firestore,functions",
     "build:functions": "pnpm --dir functions build",
     "firebase:deploy:all": "node scripts/deploy.mjs all",
-    "format:check": "prettier --check src scripts tests functions/src functions/package.json functions/tsconfig.json *.config.ts firebase.json package.json",
+    "format:check": "prettier --check src scripts tests packages functions/src functions/package.json functions/tsconfig.json *.config.ts firebase.json package.json pnpm-workspace.yaml",
     "firebase:deploy:staging": "node scripts/deploy.mjs all --project staging",
     "test:rules:emulator": "firebase emulators:exec --config firebase.notifications-test.json --project demo-cimbra-rules --only firestore \"pnpm test:rules\"",
     "docs:check": "node scripts/check-docs.mjs"
   },
   "dependencies": {
+    "@bg/domain": "workspace:*",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
     "@tailwindcss/vite": "^4.2.2",

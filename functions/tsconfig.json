@@ -11,10 +11,5 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "src/**/*.ts",
-    "../src/entities/quote-estimator/model/**/*.ts",
-    "../src/shared/types/**/*.ts",
-    "../src/entities/construction-document/model/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

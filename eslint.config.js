@@ -79,7 +79,30 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': ['error', arbitraryColor] },
   },
   {
-    files: ['tests/**/*.ts', 'scripts/**/*.{js,mjs}', '*.config.{js,ts}'],
+    // @bg/domain stays portable (web, React Native and Functions): no web alias, UI or SDKs.
+    files: ['packages/domain/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/*', 'react', 'react-*', 'firebase', 'firebase/*', 'zustand', 'zustand/*'],
+              message: '@bg/domain es TypeScript puro: sin alias de la web, UI, Firebase ni stores.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'tests/**/*.ts',
+      'packages/*/tests/**/*.ts',
+      'packages/*/*.config.ts',
+      'scripts/**/*.{js,mjs}',
+      '*.config.{js,ts}',
+    ],
     languageOptions: { globals: { ...globals.node } },
   },
 ])

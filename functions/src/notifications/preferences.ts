@@ -5,7 +5,7 @@ import type {
   NotificationPreferences,
   NotificationSettingsResponse,
   SafePushDevice,
-} from '../../../src/shared/types/notifications.js';
+} from '../domain.js';
 import {
   canRegisterPushDevice,
   parseNotificationPreferences,

@@ -63,7 +63,7 @@ ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y lo
 - `src/shared/lib/dateKey.ts`: días locales `YYYY-MM-DD` (`toDateKey`, `dateFromKey`, `isDateKey`, `startOfWeek`, `shiftWeeks`, `weekDateKeys`), siempre a las 12:00 para evitar saltos de horario.
 - `src/shared/lib/errors.ts`: `toUserMessage(error, contexto)` clasifica por `code` de Firebase y nunca muestra mensajes técnicos; lanza `UserFacingError` para textos pensados para el usuario.
 - `src/shared/lib/useMemoryResource.ts`: carga de ruta con caché en memoria e IndexedDB, revalidación al volver la red, `retry()` y `setData()`.
-- Textos: la app es solo en español. El código nuevo escribe los textos directamente y agrupa los repetidos en un `copy.ts` de la página (por ejemplo, `pages/workforce/model/copy.ts`). `t()` de `src/shared/i18n` es una búsqueda síncrona transitoria para las claves que aún existen.
+- Textos: la app es solo en español. El código nuevo escribe los textos directamente y agrupa los repetidos en un `copy.ts` de la página (por ejemplo, `pages/workforce/model/copy.ts`). `t()` de `src/shared/i18n` (re-exporta `@bg/domain/i18n`, con `translation.json` dentro del paquete) es una búsqueda síncrona transitoria para las claves que aún existen.
 
 ## Base visual y responsive
 

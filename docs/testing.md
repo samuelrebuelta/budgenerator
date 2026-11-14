@@ -15,6 +15,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
+`pnpm install` en la raíz instala también los paquetes del workspace (`packages/*`, por ahora `@bg/domain`). Functions tiene su propia instalación: `pnpm --dir functions install --frozen-lockfile`.
+
 La aplicación se abre en [http://localhost:3000/](http://localhost:3000/). Requiere las variables `VITE_FIREBASE_*` descritas en el README. La configuración actual no conecta emuladores; comprobar a qué proyecto apunta `.env` antes de crear o modificar datos durante pruebas locales.
 
 ## Validación previa al despliegue
@@ -22,7 +24,7 @@ La aplicación se abre en [http://localhost:3000/](http://localhost:3000/). Requ
 ```bash
 pnpm lint
 pnpm format:check
-pnpm test
+pnpm test                         # tests/ y packages/*/tests (dominio puro)
 pnpm test:rules:emulator          # reglas en emulador, puertos alternativos 48xxx
 pnpm test:notifications:emulator  # integración de Functions (avisos, cuenta, abuso, retención)
 pnpm test:integration             # reglas + navegador con Auth, Firestore y Functions

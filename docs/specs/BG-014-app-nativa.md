@@ -53,7 +53,7 @@ Comprobado sobre `57129b7`; no hay que construirlo de nuevo para la app.
 ## Criterios de aceptación
 
 - [ ] La web pasa `pnpm lint`, `pnpm build`, `pnpm test`, `pnpm test:rules`, `pnpm build:functions` y `pnpm test:e2e` sin cambios de comportamiento tras extraer los paquetes, y el PDF de referencia de `tests/pdf.test.ts` no cambia.
-- [ ] Functions importa de `@bg/domain` y no queda ningún `../../src` en `functions/src`.
+- [x] Functions importa de `@bg/domain` y no queda ningún `../../src` en `functions/src` (14-11-2026: a través de `functions/src/domain.ts`, que re-exporta las fuentes del paquete por ruta relativa).
 - [ ] Mismos importes en web y móvil para el conjunto de presupuestos de prueba (test de paridad sobre `budgetTotals` y el modelo BC3).
 - [ ] El PDF móvil es equivalente página a página al web para el documento largo de los tests y se comparte con el menú nativo.
 - [ ] En modo avión, las vistas visitadas se muestran sin skeleton tras reiniciar la app y una mutación muestra el toast de BG-012.
@@ -89,8 +89,8 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 ### Fase 0 — Preparación y monorepo (3–4 semanas)
 
 - [x] Aprobación de esta spec por el propietario (14-11-2026).
-- [ ] `pnpm-workspace.yaml` con la web en la raíz.
-- [ ] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él.
+- [x] `pnpm-workspace.yaml` con la web en la raíz (14-11-2026).
+- [x] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él (14-11-2026; Functions vía el shim `functions/src/domain.ts`).
 - [ ] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
 - [ ] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production`.
 - [ ] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes, push en dispositivo físico y borrado de persistencia al cambiar de cuenta.

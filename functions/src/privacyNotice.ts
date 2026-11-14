@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
-import type { CompanyProfile } from '../../src/shared/types/index.js';
+import type { CompanyProfile } from './domain.js';
 
 if (getApps().length === 0) initializeApp();
 const firestore = getFirestore();

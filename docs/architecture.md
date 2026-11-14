@@ -1,10 +1,27 @@
 # Arquitectura actual
 
-Actualizado el 18 de octubre de 2026 para budgenerator.
+Actualizado el 14 de noviembre de 2026 para budgenerator.
 
 ## Capas
 
 `app → pages → features → entities → shared`. Las páginas son entradas por ruta; `features/budget-editor` contiene el editor compartido por presupuesto y plantilla. Los adaptadores de Firebase viven dentro de su entidad. `shared` no importa entidades.
+
+## Workspace y paquetes (BG-014)
+
+El repositorio es un monorepo pnpm incremental (`pnpm-workspace.yaml` con `packages/*` y `apps/*`). La web sigue en la raíz; `functions/` conserva su propio `pnpm-workspace.yaml` y lockfile porque se despliega sola y no forma parte del workspace raíz.
+
+`packages/domain` (`@bg/domain`) es TypeScript fuente sin build: `exports` apunta a `src/index.ts` (tipos, importes, fechas, formato, texto, utilidades y `t()`) y a subrutas (`@bg/domain/construction-document`, `@bg/domain/project/progress`, `@bg/domain/pdf/budgetDocument`…). Contiene el código puro que comparten web, móvil y Functions:
+
+- `types/`: contratos de datos (antes `src/shared/types`).
+- `construction-document/`: modelo canónico FIEBDC (antes `entities/construction-document/model`).
+- `lib/`: `budgetMath`, `format`, `dateKey`, `charset`, `text`, la parte pura de `logoImage` y `utils` sin `cn`; `generateId` usa `globalThis.crypto.randomUUID` o el generador inyectado con `setIdGenerator`.
+- `budget/`, `catalog/`, `project/`, `quote-estimator/`, `workforce/`: los modelos puros de cada entidad (los stores siguen en la web). `project/progress` incluye `workItemProgress`.
+- `budget-structure/model`, `notifications/navigation`, `help/helpContent` e `i18n/` (lookup `t()` con `translation.json`).
+- `pdf/budgetDocument`: `buildBudgetDocument` con jsPDF; la carga del logo con `Image`/canvas y la apertura en ventana siguen en `src/shared/lib/pdf.ts`.
+
+Reglas del paquete: sin DOM, Firebase, Zustand, React ni alias `@/` (ESLint lo impide y `tsc -b` lo comprueba con `lib: ES2023`; `src/runtime-globals.d.ts` declara las APIs web estándar que usa: `structuredClone`, `URL`, `TextEncoder`/`TextDecoder` y `crypto.randomUUID`). Los imports relativos llevan `.js` donde Functions los compila con NodeNext. Sus tests puros viven en `packages/domain/tests` y `pnpm test` los ejecuta junto a `tests/`.
+
+Las rutas antiguas de `src/` (`shared/types`, `shared/lib/budgetMath`, `entities/*/model/*`…) son re-exportaciones de una línea desde `@bg/domain`, para que la web no cambie sus imports ni las reglas de capas. Functions no puede resolver un paquete del workspace en Cloud Build: importa el dominio sólo a través de `functions/src/domain.ts`, que re-exporta por ruta relativa; `tsc` compila esos fuentes en `functions/lib/packages/domain/src` y `main` sigue en `lib/functions/src/index.js`.
 
 ## Arranque y sesión
 
@@ -24,13 +41,13 @@ Las páginas se cargan con `lazy`. Un fallback visible evita pantallas vacías d
 
 ## Presupuestos, catálogo y plantillas (modelo FIEBDC)
 
-`entities/construction-document` es la única fuente de verdad. `model/` (puro y compartido con Functions: imports relativos `.js`) define `ConstructionDocument`, invariantes, decimales con redondeo al céntimo, mediciones (incluidas expresiones `a*b*c`), cálculo de totales, operaciones de edición y troceado para Firestore. `bc3/` lee y escribe FIEBDC-3 (ANSI/850/437/UTF-8, CRLF, EOF 0x1A) directamente sobre ese modelo. `api/storage.ts` guarda raíz + trozos con revisión. `projectWorkItems` y `projectCatalogParts` derivan las vistas `WorkItem`/`BudgetTask`/`CatalogPart` que usan los componentes, el PDF y los proyectos; nunca se persisten.
+`entities/construction-document` es la única fuente de verdad. `model/` (re-exporta `@bg/domain/construction-document`, puro y compartido con Functions) define `ConstructionDocument`, invariantes, decimales con redondeo al céntimo, mediciones (incluidas expresiones `a*b*c`), cálculo de totales, operaciones de edición y troceado para Firestore. `bc3/` lee y escribe FIEBDC-3 (ANSI/850/437/UTF-8, CRLF, EOF 0x1A) directamente sobre ese modelo. `api/storage.ts` guarda raíz + trozos con revisión. `projectWorkItems` y `projectCatalogParts` derivan las vistas `WorkItem`/`BudgetTask`/`CatalogPart` que usan los componentes, el PDF y los proyectos; nunca se persisten.
 
 Los stores de budget, template y catalog guardan registros con `document`, aplican las acciones de la UI como operaciones puras (`addItem`, `updateItem`, `setMeasurementLines`, `applyCatalogConcept`, `mergeIntoCatalog`…) y escriben con `WriteQueue` y un `RevisionTracker`. Si una partida comparte concepto con otra ocurrencia, editarla crea su propia copia del concepto. La plantilla se edita con el mismo editor (draft `template:<id>` del store de budget). El alta simple conserva descripción, cantidad, unidad y precio; las mediciones y la descomposición se abren con el botón de regla de cada línea.
 
 `features/bc3-exchange` aporta `ImportBc3Dialog` (archivo local, vista previa con resumen, avisos y errores bloqueantes, selección de capítulos en catálogo, confirmación de un solo uso) y `ExportBc3Button` (avisos antes de descargar). Se integran en Presupuestos (importar obra → borrador nuevo), detalle de presupuesto (exportar), Catálogo (importar base y exportar), Plantillas (importar) y detalle de plantilla (exportar). No hay ruta `/bc3`.
 
-La creación de presupuesto es una transacción con el contador de la cuenta, que asigna el número. El borrado cancela la cola y elimina raíz y trozos juntos. El DTO público (`sharedBudgets` v3) se construye en `entities/budget/model/publicBudget.ts`. `shared/lib/budgetMath.ts` mantiene la misma política de cálculo para las vistas (PDF y visor público).
+La creación de presupuesto es una transacción con el contador de la cuenta, que asigna el número. El borrado cancela la cola y elimina raíz y trozos juntos. El DTO público (`sharedBudgets` v3) se construye en `@bg/domain/budget/publicBudget` (re-exportado en `entities/budget/model/publicBudget.ts`). `@bg/domain/lib/budgetMath` mantiene la misma política de cálculo para las vistas (PDF y visor público).
 
 ## PWA
 
@@ -48,7 +65,7 @@ Functions procesa sólo `onDocumentCreated`: trabajos deterministas por UID/lead
 
 ## Componentes UX (BG-007)
 
-`shared/ui` proporciona PageHeader/BackButton, CompanyAvatar, InfoPopover y SwipeActions, sin importar entidades. Cada página mantiene las acciones de negocio y el único estado de reveal de su lista; los borrados/selección siguen las APIs públicas de stores existentes. `/help` se carga con lazy y conserva contenido local en `pages/help/helpContent.ts`. La entrega de BG-007 no incorpora el prototipo local de BG-006 ni activa IA.
+`shared/ui` proporciona PageHeader/BackButton, CompanyAvatar, InfoPopover y SwipeActions, sin importar entidades. Cada página mantiene las acciones de negocio y el único estado de reveal de su lista; los borrados/selección siguen las APIs públicas de stores existentes. `/help` se carga con lazy y conserva contenido local en `pages/help/helpContent.ts` (re-exporta `@bg/domain/help/helpContent`). La entrega de BG-007 no incorpora el prototipo local de BG-006 ni activa IA.
 
 ## BG-008 — catálogo y estructura guiada
 
