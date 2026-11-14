@@ -74,7 +74,8 @@ export const BudgetListRow = memo(function BudgetListRow({
           {name}
         </Text>
         <Text variant="label" tone="muted" weight="regular" numberOfLines={1}>
-          {view.info.address || `${view.workItems.length} capítulos`}
+          {view.info.address ||
+            (view.workItems.length === 1 ? '1 capítulo' : `${view.workItems.length} capítulos`)}
         </Text>
         {status ? (
           <Text variant="caption" weight="medium" style={styles.status}>

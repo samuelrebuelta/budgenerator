@@ -139,7 +139,7 @@ export function Button({
         material && styles.clip,
         fullWidth && styles.fullWidth,
         // Glass must not be faded; elsewhere the web's 50 % disabled opacity (M3 has its own).
-        isDisabled && look === 'ios' && styles.disabled,
+        isDisabled && (look === 'ios' || (look === 'glass' && !container)) && styles.disabled,
         style,
       ]}
       {...props}

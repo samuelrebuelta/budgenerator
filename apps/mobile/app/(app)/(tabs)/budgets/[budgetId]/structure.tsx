@@ -138,6 +138,8 @@ export default function StructureSheet() {
     <>
       <Stack.Screen options={{ title: 'Crear paso a paso' }} />
       <KeyboardAwareScrollView
+        // A new step starts at the top (its own scroll view).
+        key={step}
         style={styles.screen}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"

@@ -134,8 +134,8 @@ export default function BudgetsScreen() {
           </Text>
           <Text variant="caption" tone="muted">
             {filtered
-              ? `${entries.length} presupuestos coincidentes, IVA incluido`
-              : `${entries.length} presupuestos guardados, IVA incluido`}
+              ? `${entries.length === 1 ? '1 presupuesto coincidente' : `${entries.length} presupuestos coincidentes`}, IVA incluido`
+              : `${entries.length === 1 ? '1 presupuesto guardado' : `${entries.length} presupuestos guardados`}, IVA incluido`}
           </Text>
         </Card>
       ) : null}

@@ -61,6 +61,21 @@ Reglas:
 - **Color de marca frente al del sistema:** en Android no se usa el color dinámico de Material You (sustituiría la marca); los roles M3 se rellenan con tokens (`systemColors` en `src/ui/theme.ts`). En iOS el tinte del vidrio y de las barras es `primary`. La tipografía es la de la marca (Manrope y Fraunces) en ambas plataformas.
 - **Android edge-to-edge:** React Native 0.88 dibuja siempre bajo las barras del sistema; las pantallas usan el área segura de `Screen` y la barra de tabs aplica su propio inset.
 
+## Presupuestos
+
+Lista (`FlashList` con búsqueda nativa en la cabecera, deslizar para borrar y tirar para recargar), detalle y editor sobre el documento BC3 canónico (`src/features/budgets`, rutas `app/(app)/(tabs)/budgets`). Partida, capítulo y «Crear paso a paso» se abren como hojas nativas. Todos los importes salen de `budgetTotals` y sus funciones de `@bg/domain` (`src/features/budgets/model.ts`); `tests/budgetParity.test.ts` comprueba que coinciden con el editor web, el visor público y la lista. Sin conexión, editar un presupuesto guardado se bloquea con el aviso de BG-012; el borrador es local hasta «Guardar». El PDF se genera con `buildBudgetDocument` y se comparte con la hoja del sistema; el enlace público exige el email verificado y apunta al visor web (`/shared/:token`).
+
+## Flujo Maestro
+
+`.maestro/budget-pdf.yaml` recorre login → nuevo presupuesto → capítulo y partida → guardar → PDF en la hoja de compartir. Maestro no forma parte del repositorio:
+
+```bash
+curl -fsSL "https://get.maestro.mobile.dev" | bash   # instala la CLI (necesita Java 17+)
+pnpm exec firebase emulators:start --project demo-budgenerator --only auth,firestore
+# crea la cuenta en el emulador (registro en la app o REST de Auth) y arranca Metro + el dev client
+maestro test apps/mobile/.maestro/budget-pdf.yaml -e EMAIL=<cuenta demo> -e PASSWORD=<contraseña demo>
+```
+
 ## Comprobaciones
 
 ```bash

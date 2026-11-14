@@ -118,6 +118,8 @@ export default function BudgetScreen() {
   const hasContent = useBudgetStore((state) => isDraft && draftHasContent(state.draft));
   const [saveError, setSaveError] = useState('');
   const [savedId, setSavedId] = useState<string | null>(null);
+  const { uid } = useSession();
+  const saveStatus = useSaveStatus(uid, budgetId);
 
   useEffect(() => {
     const store = useBudgetStore.getState();
@@ -247,18 +249,20 @@ export default function BudgetScreen() {
       <Stack.Screen
         options={{
           title,
-          headerRight: () =>
-            isDraft ? (
-              <Button
-                label={savingDraft ? 'Guardando…' : t('common.save')}
-                variant="link"
-                loading={savingDraft}
-                onPress={() => void save()}
-                testID="budget-save"
-              />
-            ) : (
-              <SaveStatusLabel budgetId={budgetId} />
-            ),
+          // No header item while idle: iOS 26 would draw an empty glass bubble.
+          headerRight: isDraft
+            ? () => (
+                <Button
+                  label={savingDraft ? 'Guardando…' : t('common.save')}
+                  variant="link"
+                  loading={savingDraft}
+                  onPress={() => void save()}
+                  testID="budget-save"
+                />
+              )
+            : saveStatus === 'idle'
+              ? undefined
+              : () => <SaveStatusLabel budgetId={budgetId} />,
         }}
       />
       <BudgetEditor budgetId={budgetId} record={record} isDraft={isDraft} notices={notices} />
@@ -267,11 +271,14 @@ export default function BudgetScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Fixed size: a native header item does not measure a flexible row (iOS 26 drew it empty).
   status: {
+    width: 112,
+    height: 36,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing[1],
-    paddingHorizontal: spacing[2],
   },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
 });
