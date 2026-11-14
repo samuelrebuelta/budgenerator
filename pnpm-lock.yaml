@@ -117,6 +117,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@bg/app-core':
+        specifier: workspace:*
+        version: link:../../packages/app-core
       '@bg/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -234,6 +237,9 @@ importers:
       react-native-worklets:
         specifier: 0.13.0
         version: 0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.1(@babel/core@7.29.0))(react-native@0.88.1(@babel/core@7.29.0)(@react-native/metro-config@0.88.1(@babel/core@7.29.0))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+      zustand:
+        specifier: ^5.0.12
+        version: 5.0.12(@types/react@19.3.0)(react@19.3.0)
     devDependencies:
       '@testing-library/react-native':
         specifier: ^14.1.0

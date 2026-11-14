@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@bg/app-core": "workspace:*",
     "@bg/domain": "workspace:*",
     "@bg/firebase-api": "workspace:*",
     "@bg/ui-tokens": "workspace:*",
@@ -50,7 +51,8 @@
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.11.1",
     "react-native-screens": "~4.30.1",
-    "react-native-worklets": "0.13.0"
+    "react-native-worklets": "0.13.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@testing-library/react-native": "^14.1.0",
