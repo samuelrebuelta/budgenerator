@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dismissToast, toastStore, type ToastTone } from '@bg/app-core/toast';
-import { colors, nativeShadows, radii, spacing } from '@bg/ui-tokens';
+import { colors, nativeShadows, spacing } from '@bg/ui-tokens';
 import { bindStore } from '../state/bindStore';
+import { GlassSurface } from './GlassSurface';
 import { Icon, type IconName } from './Icon';
+import { useNativeLook } from './platform';
 import { Text } from './Text';
+import { shapes, systemColors } from './theme';
 
 const useToastStore = bindStore(toastStore);
 
@@ -16,8 +19,11 @@ const toneStyle: Record<ToastTone, { line: string; ink: string; icon: IconName }
   error: { line: colors['danger-line'], ink: colors['danger-ink'], icon: 'wifi-off' },
 };
 
-/** Space above the bottom inset for the tab bar, so the toast sits on top of it (§6.1). */
-const TAB_BAR_CLEARANCE = 64;
+/**
+ * Space above the bottom inset for the tab bar, so the toast sits on top of it (§6.1): the
+ * floating Liquid Glass bar on iOS and the 80 dp Material 3 navigation bar on Android.
+ */
+const TAB_BAR_CLEARANCE = Platform.OS === 'android' ? 88 : 64;
 
 /**
  * Renders the app-wide toast of `@bg/app-core` (`showToast`, and the BG-012 offline toast that
@@ -26,6 +32,7 @@ const TAB_BAR_CLEARANCE = 64;
 export function ToastHost() {
   const toast = useToastStore((state) => state.toast);
   const insets = useSafeAreaInsets();
+  const look = useNativeLook();
 
   useEffect(() => {
     if (toast)
@@ -43,11 +50,11 @@ export function ToastHost() {
       pointerEvents="box-none"
       style={[styles.overlay, { bottom: insets.bottom + TAB_BAR_CLEARANCE }]}
     >
-      <View
+      <GlassSurface
         testID={offline ? 'offline-mutation-toast' : 'app-toast'}
         accessibilityRole={urgent ? 'alert' : 'summary'}
         accessibilityLiveRegion={urgent ? 'assertive' : 'polite'}
-        style={[styles.toast, { borderColor: tone.line }]}
+        style={[styles.toast, look !== 'glass' && [styles.solid, { borderColor: tone.line }]]}
       >
         <Icon name={offline ? 'wifi-off' : tone.icon} size={18} color={tone.ink} />
         <View style={styles.texts}>
@@ -64,12 +71,13 @@ export function ToastHost() {
           accessibilityRole="button"
           accessibilityLabel="Cerrar aviso"
           hitSlop={8}
+          android_ripple={{ color: systemColors.ripple, borderless: true, radius: 24 }}
           onPress={() => dismissToast(toast.id)}
           style={styles.close}
         >
           <Icon name="x" size={16} color={tone.ink} />
         </Pressable>
-      </View>
+      </GlassSurface>
     </View>
   );
 }
@@ -84,11 +92,11 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     paddingLeft: spacing[4],
     paddingVertical: spacing[2],
-    borderWidth: 1,
-    borderRadius: radii.card,
-    backgroundColor: colors.surface,
-    ...nativeShadows.toast,
+    borderRadius: shapes.card,
+    borderCurve: 'continuous',
   },
+  // Glass draws its own depth; the solid fallback keeps the web toast's border and shadow.
+  solid: { borderWidth: 1, ...nativeShadows.toast },
   texts: { flex: 1, paddingVertical: spacing[1] },
-  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
 });

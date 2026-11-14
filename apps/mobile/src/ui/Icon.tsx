@@ -1,8 +1,9 @@
-import type { ComponentProps } from 'react';
 import Feather from '@expo/vector-icons/Feather';
+import { SymbolView } from 'expo-symbols';
 import { colors } from '@bg/ui-tokens';
+import { SYSTEM_ICONS, type IconName } from './systemIcons';
 
-export type IconName = ComponentProps<typeof Feather>['name'];
+export type { IconName } from './systemIcons';
 
 export interface IconProps {
   name: IconName;
@@ -10,16 +11,25 @@ export interface IconProps {
   color?: string;
 }
 
-/**
- * Feather icons (the set lucide, the web's icons, was forked from) bundled with
- * `@expo/vector-icons`. Decorative: the control that holds it carries the accessible name.
- */
+/** Decorative icon: the control that holds it carries the accessible name. */
 export function Icon({ name, size = 20, color = colors.ink }: IconProps) {
-  return (
+  const fallback = (
     <Feather
       name={name}
       size={size}
       color={color}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
+  );
+  const system = SYSTEM_ICONS[name];
+  if (!system) return fallback;
+  return (
+    <SymbolView
+      name={{ ios: system.sf, android: system.md }}
+      size={size}
+      tintColor={color}
+      fallback={fallback}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     />

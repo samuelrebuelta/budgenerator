@@ -14,10 +14,19 @@ export interface ScreenProps {
    * a native stack header, which also insets the scroll view automatically on iOS).
    */
   edges?: Edge[];
+  /** No canvas: the container's material shows through (the iOS 26 glass sheet of the menu). */
+  transparent?: boolean;
 }
 
 /** Base of every screen: canvas background, safe area and an optional page title. */
-export function Screen({ title, children, scroll = true, edges = ['top', 'bottom'] }: ScreenProps) {
+export function Screen({
+  title,
+  children,
+  scroll = true,
+  edges = ['top', 'bottom'],
+  transparent = false,
+}: ScreenProps) {
+  const background = [styles.safeArea, transparent && styles.transparent];
   const body = (
     <>
       {title ? (
@@ -33,7 +42,7 @@ export function Screen({ title, children, scroll = true, edges = ['top', 'bottom
   if (scroll && edges.length === 0)
     return (
       <ScrollView
-        style={styles.safeArea}
+        style={background}
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -42,7 +51,7 @@ export function Screen({ title, children, scroll = true, edges = ['top', 'bottom
       </ScrollView>
     );
   return (
-    <SafeAreaView style={styles.safeArea} edges={edges}>
+    <SafeAreaView style={background} edges={edges}>
       {scroll ? (
         <ScrollView
           contentContainerStyle={styles.content}
@@ -61,6 +70,7 @@ export function Screen({ title, children, scroll = true, edges = ['top', 'bottom
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing[4], gap: spacing[4] },
+  transparent: { backgroundColor: 'transparent' },
   fill: { flex: 1 },
   title: { marginBottom: spacing[1] },
 });

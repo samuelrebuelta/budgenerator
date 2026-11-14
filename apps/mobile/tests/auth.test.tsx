@@ -111,7 +111,8 @@ describe('cerrar sesión (D3)', () => {
     await screen.findByTestId('budgets-placeholder');
     expect(userStorage('leaving').getString(LAST_TAB_KEY)).toBe('budgets');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Menú de la cuenta' }));
+    // Every tab stack has its header mounted; the first account button is Presupuestos'.
+    await fireEvent.press(screen.getAllByRole('button', { name: 'Menú de la cuenta' })[0]!);
     await fireEvent.press(await screen.findByRole('button', { name: 'Mi cuenta' }));
     expect(await screen.findByTestId('account-email')).toHaveTextContent('leaving@example.com');
     await fireEvent.press(screen.getByRole('button', { name: 'Cerrar sesión' }));

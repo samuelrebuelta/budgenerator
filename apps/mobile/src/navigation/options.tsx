@@ -1,29 +1,61 @@
+import { Platform } from 'react-native';
 import type { NativeStackNavigationOptions } from 'expo-router';
 import { colors } from '@bg/ui-tokens';
-import { fontFamily } from '../ui';
+import { fontFamily, liquidGlass as glass } from '../ui';
 import { AccountMenuButton } from './AccountMenuButton';
 
-const headerBase: NativeStackNavigationOptions = {
-  headerShadowVisible: false,
-  headerStyle: { backgroundColor: colors.canvas },
-  headerTintColor: colors.ink,
-  headerTitleStyle: { fontFamily: fontFamily.semibold, color: colors['ink-strong'] },
-  contentStyle: { backgroundColor: colors.canvas },
-};
+/**
+ * Native stack header of each platform (README «Diseño nativo»):
+ * - iOS 26: no header background, so the system draws its transparent Liquid Glass header with
+ *   the scroll edge effect; titles in Manrope and large titles in Fraunces (the web's display).
+ * - iOS < 26: opaque header on the brand canvas.
+ * - Android: Material 3 small top app bar on the canvas (title start-aligned, 22 sp, no shadow).
+ */
+const headerBase: NativeStackNavigationOptions = Platform.select({
+  ios: {
+    headerTintColor: colors.primary,
+    headerTitleStyle: { fontFamily: fontFamily.semibold, color: colors['ink-strong'] },
+    headerLargeTitleStyle: { fontFamily: fontFamily.display, color: colors['ink-strong'] },
+    headerLargeTitleShadowVisible: false,
+    headerShadowVisible: false,
+    ...(glass
+      ? {}
+      : {
+          headerStyle: { backgroundColor: colors.canvas },
+          headerLargeStyle: { backgroundColor: colors.canvas },
+        }),
+    contentStyle: { backgroundColor: colors.canvas },
+  },
+  default: {
+    headerStyle: { backgroundColor: colors.canvas },
+    headerShadowVisible: false,
+    headerTintColor: colors.ink,
+    headerTitleStyle: {
+      fontFamily: fontFamily.semibold,
+      color: colors['ink-strong'],
+      fontSize: 22,
+    },
+    contentStyle: { backgroundColor: colors.canvas },
+  },
+});
 
 /**
- * Native header of a root tab with the account icon. §6.1 asks for the iOS large title, but with
- * react-native-screens 4.30 on iOS 26 it renders blank (checked on the simulator, even with the
- * scroll view as the root view): standard title until it is fixed upstream (TODO BG-014).
+ * Header of a root tab: iOS large title that collapses into the glass header when scrolling
+ * (the screen's root is the `ScrollView`, `Screen edges={[]}`), and the account button.
  */
 export const tabRootOptions = (title: string): NativeStackNavigationOptions => ({
   ...headerBase,
   title,
+  headerLargeTitleEnabled: true,
   headerRight: () => <AccountMenuButton />,
 });
 
-/** Header of the menu modal's screens. */
+/** Header of the menu sheet's screens; on iOS 26 the sheet's glass shows through. */
 export const menuScreenOptions: NativeStackNavigationOptions = {
   ...headerBase,
   headerBackButtonDisplayMode: 'minimal',
+  ...(glass ? { contentStyle: { backgroundColor: 'transparent' } } : {}),
 };
+
+/** Whether the menu sheet shows the system glass (iOS 26) instead of the canvas. */
+export const menuOnGlass = glass;

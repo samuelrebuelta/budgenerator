@@ -1,12 +1,41 @@
-import type { IconName } from '../ui/Icon';
+import type { AndroidSymbol, SFSymbol } from 'expo-symbols';
 
-/** Tab order and icons of the web (`src/app/navigation.ts`, lucide → Feather). Each tab has its own stack. */
+/**
+ * Tab order of the web (`src/app/navigation.ts`). Each tab has its own stack. Icons are the
+ * system's: SF Symbols on iOS (outline, filled when selected, as the HIG asks) and Material
+ * Symbols on Android, equivalent to the web's lucide icons.
+ */
 export const TAB_SCREENS = [
-  { name: 'budgets', title: 'Presupuestos', icon: 'file-text' },
-  { name: 'projects', title: 'Proyectos', icon: 'briefcase' },
-  { name: 'team', title: 'Equipo', icon: 'users' },
-  { name: 'leads', title: 'Solicitudes', icon: 'inbox' },
-] as const satisfies readonly { name: string; title: string; icon: IconName }[];
+  {
+    name: 'budgets',
+    title: 'Presupuestos',
+    sf: { default: 'doc.text', selected: 'doc.text.fill' },
+    md: 'description',
+  },
+  {
+    name: 'projects',
+    title: 'Proyectos',
+    sf: { default: 'briefcase', selected: 'briefcase.fill' },
+    md: 'work',
+  },
+  {
+    name: 'team',
+    title: 'Equipo',
+    sf: { default: 'person.2', selected: 'person.2.fill' },
+    md: 'group',
+  },
+  {
+    name: 'leads',
+    title: 'Solicitudes',
+    sf: { default: 'tray', selected: 'tray.fill' },
+    md: 'inbox',
+  },
+] as const satisfies readonly {
+  name: string;
+  title: string;
+  sf: { default: SFSymbol; selected: SFSymbol };
+  md: AndroidSymbol;
+}[];
 
 export type TabName = (typeof TAB_SCREENS)[number]['name'];
 

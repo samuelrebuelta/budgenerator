@@ -7,6 +7,7 @@ import { EmailVerificationNotice } from '../../../src/features/account/EmailVeri
 import { LegalLinks } from '../../../src/features/legal/LegalLinks';
 import { signOutAndWipe } from '../../../src/session';
 import { useAuthStore, useUserStore } from '../../../src/state/stores';
+import { menuOnGlass } from '../../../src/navigation/options';
 import { Button, Card, Notice, Screen, Text } from '../../../src/ui';
 
 function formatPlanDate(value: string) {
@@ -54,7 +55,7 @@ export default function AccountScreen() {
     );
 
   return (
-    <Screen edges={['bottom']}>
+    <Screen edges={['bottom']} transparent={menuOnGlass}>
       <Text variant="label" tone="muted" weight="regular" testID="account-email">
         {email}
       </Text>

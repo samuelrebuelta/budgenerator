@@ -1,36 +1,39 @@
-import { Tabs } from 'expo-router';
+import { NativeTabs } from 'expo-router/native-tabs';
 import { colors } from '@bg/ui-tokens';
 import { saveLastTab } from '../../../src/navigation/lastTab';
 import { TAB_SCREENS } from '../../../src/navigation/tabs';
 import { useSession } from '../../../src/session';
-import { fontFamily, Icon } from '../../../src/ui';
+import { fontFamily, systemColors } from '../../../src/ui';
 
-/** Root tabs in the web's order; every focus is remembered for the next launch (D8). */
+/**
+ * Root tabs in the web's order with the system tab bar (`NativeTabs`): on iOS 26 the floating
+ * Liquid Glass bar, which minimises while scrolling down; on Android the Material 3 navigation
+ * bar with its active indicator. Every focus is remembered for the next launch (D8).
+ */
 export default function TabsLayout() {
   const { uid } = useSession();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors['ink-muted'],
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },
-        tabBarLabelStyle: { fontFamily: fontFamily.semibold, fontSize: 12 },
+    <NativeTabs
+      tintColor={colors.primary}
+      iconColor={{ default: colors['ink-muted'], selected: colors.primary }}
+      labelStyle={{
+        default: { fontFamily: fontFamily.medium, color: colors['ink-muted'] },
+        selected: { fontFamily: fontFamily.semibold, color: colors['ink-strong'] },
       }}
+      minimizeBehavior="onScrollDown"
+      // Android (Material 3): navigation bar on the web sidebar colour, brand indicator and ripple.
+      backgroundColor={systemColors.surfaceContainer}
+      indicatorColor={systemColors.secondaryContainer}
+      rippleColor={systemColors.ripple}
+      labelVisibilityMode="labeled"
       screenListeners={({ route }) => ({ focus: () => saveLastTab(uid, route.name) })}
     >
       {TAB_SCREENS.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.title,
-            tabBarIcon: ({ color, size }) => (
-              <Icon name={tab.icon} color={String(color)} size={size} />
-            ),
-          }}
-        />
+        <NativeTabs.Trigger key={tab.name} name={tab.name} testID={`tab-${tab.name}`}>
+          <NativeTabs.Trigger.Label>{tab.title}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
+        </NativeTabs.Trigger>
       ))}
-    </Tabs>
+    </NativeTabs>
   );
 }

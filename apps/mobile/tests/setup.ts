@@ -44,3 +44,19 @@ jest.mock('../src/platform/repositories', () => ({
 jest.mock('react-native-nitro-modules', () => ({
   NitroModules: { createHybridObject: jest.fn() },
 }));
+
+// Native views of the native design (README «Diseño nativo»): the tests render the fallbacks,
+// i.e. the solid iOS look and the Feather glyphs.
+jest.mock('expo-glass-effect', () => {
+  const { View } = require('react-native');
+  return {
+    GlassView: View,
+    GlassContainer: View,
+    isLiquidGlassAvailable: () => false,
+    isGlassEffectAPIAvailable: () => false,
+  };
+});
+jest.mock('expo-symbols', () => ({
+  SymbolView: ({ fallback }: { fallback?: unknown }) => fallback ?? null,
+  unstable_getMaterialSymbolSourceAsync: async () => null,
+}));

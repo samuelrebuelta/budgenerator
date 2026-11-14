@@ -35,6 +35,8 @@ La fuente de verdad de los tokens es el paquete `packages/ui-tokens` (`@bg/ui-to
 | Tipografía    | `font-sans` (Manrope), `font-display` (Fraunces), `text-display` para títulos y la escala `text-xs…4xl`; ningún texto por debajo de 12 px                                                                                           |
 | Capas y ancho | `--z-dropdown` 30, `--z-sticky` 40, `--z-nav` 45, `--z-header` 50, `--z-popover` 60, `--z-tour` 80, `--z-toast` 90 (`z-(--z-toast)`); `shell:` y `max-shell:` en 801 px                                                             |
 
+En la app nativa los mismos tokens son la base de color, pero los controles y las barras son los del sistema (Liquid Glass en iOS 26, Material 3 en Android): los patrones por plataforma están en [Diseño nativo](../apps/mobile/README.md#diseño-nativo).
+
 ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y los imports a internos de entidades (`@/entities/<x>/<interno>`) o entre páginas, sin excepciones. Un color que no encaje en un token existente se añade como token semántico en `packages/ui-tokens`, nunca como hex en el componente.
 
 ### Capas de CSS

@@ -1,4 +1,5 @@
-import { Redirect, Stack } from 'expo-router';
+import { Platform } from 'react-native';
+import { Redirect, Stack, type NativeStackNavigationOptions } from 'expo-router';
 import { colors } from '@bg/ui-tokens';
 import { useSession } from '../../src/session';
 import {
@@ -10,6 +11,22 @@ import {
 import { LoadingScreen } from '../../src/ui';
 
 const OFFLINE_RESTORE = 'Abriendo la última copia guardada…';
+
+/**
+ * Account menu (§4.2) as a native sheet. iOS: `formSheet` with medium and large detents and the
+ * grabber (Liquid Glass sheet on iOS 26). Android: full-screen modal, because react-native-screens
+ * does not support a nested stack (Mi cuenta, placeholders) inside its Material bottom sheet.
+ */
+const menuPresentation: NativeStackNavigationOptions = Platform.select({
+  ios: {
+    presentation: 'formSheet',
+    sheetAllowedDetents: [0.6, 1],
+    sheetGrabberVisible: true,
+    sheetInitialDetentIndex: 0,
+    contentStyle: { backgroundColor: 'transparent' },
+  },
+  default: { presentation: 'modal' },
+});
 
 /**
  * Session guard, equivalent to the web's `AuthGuard`: no user → login; the workspace opens when
@@ -39,7 +56,7 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="menu" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="menu" options={menuPresentation} />
     </Stack>
   );
 }
