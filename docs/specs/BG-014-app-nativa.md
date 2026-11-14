@@ -97,7 +97,7 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 
 ### Fase 1 — Núcleo (6–8 semanas)
 
-- [ ] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes).
+- [x] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes) (14-11-2026: todos los repositorios y los ocho stores con el coordinador de sesión; la app aún no monta los stores, ver el registro, paso 5).
 - [ ] Registro, verificación de email, login y recuperación; tabs (D8).
 - [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público.
 - [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).
