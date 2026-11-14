@@ -2,8 +2,9 @@ import { Stack } from 'expo-router';
 import { detailOptions, sheetOptions, tabRootOptions } from '../../../../src/navigation/options';
 
 /**
- * Projects stack: list → detail, with the progress history, «Nueva ampliación» and «Anular
- * ampliación» as native sheets over the detail (formSheet on iOS, modal on Android).
+ * Projects stack: list → detail, with the progress history, «Nueva ampliación», «Anular
+ * ampliación», «Editar nombre y cliente» and «Asignar equipo» as native sheets over the detail
+ * (formSheet on iOS, modal on Android).
  */
 export default function ProyectosLayout() {
   return (
@@ -16,6 +17,11 @@ export default function ProyectosLayout() {
       />
       <Stack.Screen name="[projectId]/supplement" options={sheetOptions('Nueva ampliación', [1])} />
       <Stack.Screen name="[projectId]/void" options={sheetOptions('Anular ampliación', [0.6, 1])} />
+      <Stack.Screen
+        name="[projectId]/edit"
+        options={sheetOptions('Editar nombre y cliente', [0.6, 1])}
+      />
+      <Stack.Screen name="[projectId]/assign" options={sheetOptions('Asignar equipo', [0.75, 1])} />
     </Stack>
   );
 }

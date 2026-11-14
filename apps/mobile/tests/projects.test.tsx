@@ -5,6 +5,8 @@ import { setNetworkOnline } from '@bg/app-core/network';
 import { toastStore } from '@bg/app-core/toast';
 import { formatEuros } from '@bg/domain';
 import type { BudgetRecord } from '@bg/domain/budget/record';
+import { router } from 'expo-router';
+import { buildProjectAssignment } from '@bg/domain/project/assignments';
 import { calculateProjectProgressHistory } from '@bg/domain/project/history';
 import { calculateProjectProgress, workItemProgress } from '@bg/domain/project/progress';
 import { buildProjectSupplement } from '@bg/domain/project/supplements';
@@ -15,6 +17,7 @@ import type {
   ProjectTask,
   ProjectWorkItem,
 } from '@bg/domain/project/types';
+import type { WorkCrew, WorkforceMember } from '@bg/domain/workforce/types';
 import { coordinator, repositories, useAuthStore, useProjectStore } from '../src/state/stores';
 import { setMockUser } from './helpers';
 import { budgetRecord, user } from '../../../packages/domain/tests/fixtures';
@@ -355,5 +358,177 @@ describe('convertir en proyecto', () => {
 
     expect(await screen.findByTestId('offline-mutation-toast')).toBeOnTheScreen();
     expect(repositories.project.convertBudgetToProject).not.toHaveBeenCalled();
+  });
+});
+
+describe('editar nombre y cliente', () => {
+  it('guarda nombre y cliente recortados con updateProjectMetadata y actualiza el detalle', async () => {
+    mocked(repositories.project.updateProjectMetadata).mockImplementation(
+      async (_uid: string, _id: string, title: string, clientName: string) => ({
+        title,
+        address: title,
+        clientName,
+        budgetRevision: 2,
+      }),
+    );
+    await openApp('/projects/p1', { projects: [twoTasks()] });
+    await fireEvent.press(await screen.findByTestId('project-edit'));
+
+    const title = await screen.findByTestId('project-edit-title');
+    expect(title.props.value).toBe('Calle Mayor 1');
+    await fireEvent.changeText(title, '  Reforma Calle Mayor  ');
+    await fireEvent.changeText(screen.getByTestId('project-edit-client'), ' Clínica Sur ');
+    await fireEvent.press(screen.getByTestId('project-edit-save'));
+
+    await waitFor(() =>
+      expect(repositories.project.updateProjectMetadata).toHaveBeenCalledWith(
+        'ana',
+        'p1',
+        'Reforma Calle Mayor',
+        'Clínica Sur',
+      ),
+    );
+    await waitFor(() => expect(screen.queryByTestId('project-edit-sheet')).toBeNull());
+    expect(await screen.findByText('Reforma Calle Mayor')).toBeOnTheScreen();
+    expect(useProjectStore.getState().activeProject).toMatchObject({
+      title: 'Reforma Calle Mayor',
+      address: 'Reforma Calle Mayor',
+      clientName: 'Clínica Sur',
+    });
+  });
+
+  it('valida como la web: nombre obligatorio y cliente de 120 caracteres como máximo', async () => {
+    await openApp('/projects/p1', { projects: [twoTasks()] });
+    await fireEvent.press(await screen.findByTestId('project-edit'));
+
+    await fireEvent.changeText(await screen.findByTestId('project-edit-title'), '   ');
+    await fireEvent.press(screen.getByTestId('project-edit-save'));
+    expect(await screen.findByTestId('project-edit-error')).toHaveTextContent(
+      'El nombre del proyecto debe tener entre 1 y 120 caracteres.',
+    );
+
+    await fireEvent.changeText(screen.getByTestId('project-edit-title'), 'Obra');
+    await fireEvent.changeText(screen.getByTestId('project-edit-client'), 'x'.repeat(121));
+    await fireEvent.press(screen.getByTestId('project-edit-save'));
+    expect(await screen.findByTestId('project-edit-error')).toHaveTextContent(
+      'El nombre del cliente no puede superar los 120 caracteres.',
+    );
+    expect(repositories.project.updateProjectMetadata).not.toHaveBeenCalled();
+  });
+
+  it('sin conexión no abre la hoja ni guarda, con el aviso de BG-012', async () => {
+    await openApp('/projects/p1', { projects: [twoTasks()] });
+    await fireEvent.press(await screen.findByTestId('project-edit'));
+    await fireEvent.changeText(await screen.findByTestId('project-edit-title'), 'Obra nueva');
+
+    await act(async () => setNetworkOnline(false));
+    await fireEvent.press(screen.getByTestId('project-edit-save'));
+    expect(await screen.findByTestId('offline-mutation-toast')).toBeOnTheScreen();
+    expect(repositories.project.updateProjectMetadata).not.toHaveBeenCalled();
+    expect(useProjectStore.getState().activeProject?.title).toBe('Calle Mayor 1');
+
+    await act(async () => router.back());
+    await waitFor(() => expect(screen.queryByTestId('project-edit-sheet')).toBeNull());
+    await fireEvent.press(screen.getByTestId('project-edit'));
+    expect(screen.queryByTestId('project-edit-sheet')).toBeNull();
+  });
+});
+
+describe('equipo asignado', () => {
+  const at = '2026-11-01T00:00:00.000Z';
+  const member = (id: string, name: string): WorkforceMember => ({
+    id,
+    name,
+    status: 'active',
+    createdAt: at,
+    updatedAt: at,
+  });
+  const crew = (id: string, label: string, memberIds: string[]): WorkCrew => ({
+    id,
+    label,
+    color: 'green',
+    memberIds,
+    status: 'active',
+    createdAt: at,
+    updatedAt: at,
+  });
+  const ana = member('m1', 'Ana Pérez');
+  const luis = member('m2', 'Luis Gil');
+  const eva = member('m3', 'Eva Ruiz');
+  const asignada = buildProjectAssignment({ resourceType: 'member', resource: ana }, at);
+
+  function withWorkforce(members: WorkforceMember[], crews: WorkCrew[]) {
+    mocked(repositories.workforce.fetchMembers).mockResolvedValue(members);
+    mocked(repositories.workforce.fetchCrews).mockResolvedValue(crews);
+  }
+
+  it('marca el conflicto de cuadrilla, asigna una persona libre y la quita', async () => {
+    withWorkforce([ana, luis, eva], [crew('c1', 'Pintores', ['m1', 'm2'])]);
+    mocked(repositories.project.addAssignment).mockImplementation(
+      async (_uid: string, _projectId: string, _type: 'member', id: string) =>
+        buildProjectAssignment({ resourceType: 'member', resource: id === 'm2' ? luis : eva }, at),
+    );
+    const detail = projectDetail(twoTasks().workItems, { assignments: [asignada] });
+    await openApp('/projects/p1', { projects: [detail] });
+
+    expect(await screen.findByTestId('assignment-member_m1')).toBeOnTheScreen();
+    await fireEvent.press(await screen.findByTestId('project-team-assign'));
+
+    expect(await screen.findByTestId('assign-crew-c1-conflict')).toHaveTextContent(
+      'Incluye a Ana Pérez, ya asignada individualmente',
+    );
+    expect(screen.getByTestId('assign-crew-c1-button')).toBeDisabled();
+    expect(screen.getByTestId('assign-member-m1-button')).toBeDisabled();
+    await fireEvent.press(screen.getByTestId('assign-member-m2-button'));
+
+    await waitFor(() =>
+      expect(repositories.project.addAssignment).toHaveBeenCalledWith('ana', 'p1', 'member', 'm2'),
+    );
+    expect(await screen.findByTestId('assignment-member_m2')).toBeOnTheScreen();
+    expect(screen.queryByTestId('assign-sheet')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('assignment-remove-member_m1'));
+    await waitFor(() =>
+      expect(repositories.project.removeAssignment).toHaveBeenCalledWith('ana', 'p1', 'member_m1'),
+    );
+    await waitFor(() => expect(screen.queryByTestId('assignment-member_m1')).toBeNull());
+  });
+
+  it('muestra el conflicto que devuelve la transacción con assignmentState.revision', async () => {
+    withWorkforce([ana, luis], [crew('c2', 'Albañiles', ['m2'])]);
+    mocked(repositories.project.addAssignment).mockRejectedValue(
+      new Error('La cuadrilla comparte integrantes con otra cuadrilla asignada al proyecto.'),
+    );
+    await openApp('/projects/p1', { projects: [twoTasks()] });
+    await fireEvent.press(await screen.findByTestId('project-team-assign'));
+    await fireEvent.press(await screen.findByTestId('assign-crew-c2-button'));
+
+    expect(await screen.findByTestId('assign-error')).toHaveTextContent(
+      'La cuadrilla comparte integrantes con otra cuadrilla asignada al proyecto.',
+    );
+    expect(screen.getByTestId('assign-sheet')).toBeOnTheScreen();
+    expect(useProjectStore.getState().activeProject?.assignments).toEqual([]);
+  });
+
+  it('sin conexión no asigna ni quita, con el aviso de BG-012', async () => {
+    withWorkforce([ana, luis], []);
+    const detail = projectDetail(twoTasks().workItems, { assignments: [asignada] });
+    await openApp('/projects/p1', { projects: [detail] });
+    await screen.findByTestId('assignment-member_m1');
+    await fireEvent.press(await screen.findByTestId('project-team-assign'));
+    await screen.findByTestId('assign-member-m2-button');
+
+    await act(async () => setNetworkOnline(false));
+    await fireEvent.press(screen.getByTestId('assign-member-m2-button'));
+    expect(await screen.findByTestId('offline-mutation-toast')).toBeOnTheScreen();
+    expect(repositories.project.addAssignment).not.toHaveBeenCalled();
+
+    await act(async () => router.back());
+    await waitFor(() => expect(screen.queryByTestId('assign-sheet')).toBeNull());
+    await fireEvent.press(screen.getByTestId('project-team-assign'));
+    expect(screen.queryByTestId('assign-sheet')).toBeNull();
+    await fireEvent.press(screen.getByTestId('assignment-remove-member_m1'));
+    expect(repositories.project.removeAssignment).not.toHaveBeenCalled();
+    expect(screen.getByTestId('assignment-member_m1')).toBeOnTheScreen();
   });
 });

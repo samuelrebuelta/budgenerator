@@ -6,16 +6,19 @@ import type { ProjectDetail, ProjectTask, ProjectWorkItem } from '@bg/domain/pro
 import { colors, spacing } from '@bg/ui-tokens';
 import { projectSubtitle, projectTitle } from '../../../../../src/features/projects/model';
 import {
+  haptic,
   projectErrorMessage,
   useProjectMutation,
 } from '../../../../../src/features/projects/mutations';
 import { ProjectSummaryCard } from '../../../../../src/features/projects/ProjectSummaryCard';
 import { SupplementsCard } from '../../../../../src/features/projects/SupplementsCard';
+import { TeamAssignmentsCard } from '../../../../../src/features/projects/TeamAssignmentsCard';
+import { allowSavedMutation } from '../../../../../src/features/budgets/offline';
 import { TaskRow, WorkItemHeader } from '../../../../../src/features/projects/WorkItemSection';
 import { HeaderIconButton } from '../../../../../src/navigation/HeaderIconButton';
 import { useSession } from '../../../../../src/session';
 import { useNetworkStore, useProjectStore } from '../../../../../src/state/stores';
-import { Button, LoadingScreen, Notice, Screen, Text } from '../../../../../src/ui';
+import { Button, LoadingScreen, Notice, Screen, Text, touchTarget } from '../../../../../src/ui';
 
 interface Section {
   key: string;
@@ -27,11 +30,20 @@ function openHistory(projectId: string) {
   router.push({ pathname: '/projects/[projectId]/history', params: { projectId } });
 }
 
+/** «Editar nombre y cliente»: offline the sheet does not open (BG-012 toast, as every mutation). */
+function openEdit(projectId: string) {
+  if (!allowSavedMutation()) {
+    haptic('warning');
+    return;
+  }
+  router.push({ pathname: '/projects/[projectId]/edit', params: { projectId } });
+}
+
 /**
  * Project detail (web `ProjectDetailPage`): summary with progress and dates, one section per active
  * chapter with its items to mark (haptic after each transaction), supplements and their voids, and
- * the progress history sheet. Every mutation is a transaction blocked offline with the BG-012 toast
- * (D4). Team assignments stay on the web until the Team tab (fase 2).
+ * the progress history sheet, the «Editar nombre y cliente» sheet and the team assigned to the
+ * project. Every mutation is a transaction blocked offline with the BG-012 toast (D4).
  */
 export default function ProjectScreen() {
   const { projectId = '' } = useLocalSearchParams<{ projectId: string }>();
@@ -185,12 +197,21 @@ export default function ProjectScreen() {
       <Stack.Screen
         options={{
           title: 'Proyecto',
+          // Fixed size: a native header item does not measure a flexible row.
           headerRight: () => (
-            <HeaderIconButton
-              icon="trending-up"
-              label="Ver progreso del proyecto"
-              onPress={() => openHistory(id)}
-            />
+            <View style={styles.headerActions}>
+              <HeaderIconButton
+                icon="edit-3"
+                label="Editar datos del proyecto"
+                onPress={() => openEdit(id)}
+                testID="project-edit"
+              />
+              <HeaderIconButton
+                icon="trending-up"
+                label="Ver progreso del proyecto"
+                onPress={() => openHistory(id)}
+              />
+            </View>
           ),
         }}
       />
@@ -241,6 +262,16 @@ export default function ProjectScreen() {
         ListHeaderComponent={header}
         ListFooterComponent={
           <View style={styles.footer}>
+            <TeamAssignmentsCard
+              project={project}
+              busy={busy}
+              onRemove={(assignmentId) =>
+                void run(assignmentId, () => store().removeAssignment(id, assignmentId), {
+                  feedback: 'selection',
+                  fallback: 'No se ha podido actualizar la asignación.',
+                })
+              }
+            />
             <SupplementsCard project={project} busy={busy} />
           </View>
         }
@@ -261,5 +292,6 @@ const styles = StyleSheet.create({
   header: { padding: spacing[4], paddingBottom: 0, gap: spacing[4] },
   titleBlock: { gap: spacing[1] },
   sectionTitle: { gap: spacing[1], marginTop: spacing[2] },
-  footer: { padding: spacing[4], paddingTop: spacing[6] },
+  footer: { padding: spacing[4], paddingTop: spacing[6], gap: spacing[4] },
+  headerActions: { flexDirection: 'row', width: touchTarget * 2, height: touchTarget },
 });
