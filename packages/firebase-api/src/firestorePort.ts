@@ -51,6 +51,8 @@ export interface DocumentSnapshotLike {
 }
 
 export interface QueryDocumentSnapshotLike extends DocumentSnapshotLike {
+  /** Reference of the document; used to read its subcollections and content chunks. */
+  readonly ref: DocumentReferenceLike;
   data(): DocumentData;
 }
 
@@ -63,6 +65,17 @@ export interface TransactionLike {
   set(reference: DocumentReferenceLike, data: DocumentData): unknown;
   update(reference: DocumentReferenceLike, data: DocumentData): unknown;
   delete(reference: DocumentReferenceLike): unknown;
+}
+
+/** `writeBatch(database)`: only deletes are batched today (`deleteStoredDocument`). */
+export interface WriteBatchLike {
+  delete(reference: DocumentReferenceLike): unknown;
+  commit(): Promise<void>;
+}
+
+/** Options of `setDoc`; the repositories only merge. */
+export interface SetOptionsLike {
+  readonly merge?: boolean;
 }
 
 export type WhereFilterOpLike =
@@ -83,12 +96,19 @@ export interface FirestoreSdk {
   getDocFromServer(reference: DocumentReferenceLike): Promise<DocumentSnapshotLike>;
   getDocs(query: QueryLike): Promise<QuerySnapshotLike>;
   getDocsFromServer(query: QueryLike): Promise<QuerySnapshotLike>;
-  setDoc(reference: DocumentReferenceLike, data: DocumentData): Promise<void>;
+  setDoc(
+    reference: DocumentReferenceLike,
+    data: DocumentData,
+    options?: SetOptionsLike,
+  ): Promise<void>;
   updateDoc(reference: DocumentReferenceLike, data: DocumentData): Promise<void>;
   deleteDoc(reference: DocumentReferenceLike): Promise<void>;
   deleteField(): unknown;
+  /** Server time sentinel; Rules compare it with `request.time`. */
+  serverTimestamp(): unknown;
   query(query: QueryLike, ...constraints: QueryConstraintLike[]): QueryLike;
   where(fieldPath: string, opStr: WhereFilterOpLike, value: unknown): QueryConstraintLike;
+  writeBatch(database: FirestoreLike): WriteBatchLike;
   runTransaction<T>(
     database: FirestoreLike,
     updateFunction: (transaction: TransactionLike) => Promise<T>,
@@ -104,3 +124,8 @@ export type MutationGuard = <TArgs extends unknown[], TResult>(
 ) => (...args: TArgs) => Promise<TResult>;
 
 export const unguardedMutation: MutationGuard = (operation) => operation;
+
+/** Runs one operation through the guard (the web's `runNetworkMutation`). */
+export function runGuarded<T>(guard: MutationGuard, operation: () => Promise<T>): Promise<T> {
+  return guard(operation)();
+}

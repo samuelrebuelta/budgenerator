@@ -9,9 +9,11 @@ import {
   getDocsFromServer,
   query,
   runTransaction,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from '@react-native-firebase/firestore';
 import type { FirestoreSdk } from '@bg/firebase-api';
 
@@ -48,7 +50,9 @@ export const nativeFirestoreSdk: FirestoreSdk = {
   getDocsFromServer,
   query,
   runTransaction,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 };

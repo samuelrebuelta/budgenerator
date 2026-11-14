@@ -9,9 +9,11 @@ import {
   getDocsFromServer,
   query,
   runTransaction,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import type { FirestoreSdk } from '@bg/firebase-api';
 
@@ -30,7 +32,9 @@ export const webFirestoreSdk: FirestoreSdk = {
   getDocsFromServer,
   query,
   runTransaction,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 };

@@ -1,31 +1,13 @@
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { createProfileRepository } from '@bg/firebase-api/profile';
 import { db } from '@/shared/firebase/config';
-import type { CompanyProfile } from '@/shared/types';
-import { runNetworkMutation } from '@/shared/lib/networkMutation';
+import { webFirestoreSdk } from '@/shared/firebase/firestoreSdk';
+import { guardNetworkMutation } from '@/shared/lib/networkMutation';
 
-function profileDoc(uid: string) {
-  return doc(db, 'users', uid, 'profile', 'data');
-}
+/** Web binding of the shared profile repository (`@bg/firebase-api`, BG-014 D2). */
+const repository = createProfileRepository({
+  sdk: webFirestoreSdk,
+  database: db,
+  guardMutation: guardNetworkMutation,
+});
 
-function legacyProfileDoc(uid: string) {
-  return doc(db, 'users', uid, 'settings', 'profile');
-}
-
-export async function fetchProfile(uid: string): Promise<CompanyProfile | null> {
-  const snap = await getDoc(profileDoc(uid));
-  if (snap.exists()) return snap.data() as CompanyProfile;
-
-  const legacySnap = await getDoc(legacyProfileDoc(uid));
-  if (legacySnap.exists()) {
-    const data = legacySnap.data() as CompanyProfile;
-    await setDoc(profileDoc(uid), data);
-    await deleteDoc(legacyProfileDoc(uid));
-    return data;
-  }
-
-  return null;
-}
-
-export async function saveProfile(uid: string, profile: CompanyProfile) {
-  await runNetworkMutation(() => setDoc(profileDoc(uid), profile));
-}
+export const { fetchProfile, saveProfile } = repository;

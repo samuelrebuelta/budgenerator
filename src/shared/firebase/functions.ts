@@ -1,4 +1,10 @@
-import { connectFunctionsEmulator, getFunctions, type Functions } from 'firebase/functions';
+import {
+  connectFunctionsEmulator,
+  getFunctions,
+  httpsCallable,
+  type Functions,
+} from 'firebase/functions';
+import type { FunctionsPort } from '@bg/firebase-api/functionsPort';
 import { firebaseApp, useFirebaseEmulators } from './app';
 
 /** Must match `FUNCTION_REGION` in functions/src/core/config.ts (same region as Firestore). */
@@ -17,3 +23,8 @@ function createFunctions(): Functions {
 }
 
 export const functions = /* @__PURE__ */ createFunctions();
+
+/** Callables of the web Functions instance for the shared repositories (`@bg/firebase-api`). */
+export const webFunctions: FunctionsPort = {
+  httpsCallable: (name, options) => httpsCallable(functions, name, options),
+};

@@ -1,86 +1,20 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { createUserRepository } from '@bg/firebase-api/user';
 import { db } from '@/shared/firebase/config';
-import type { UserData, UserPlan } from '@/shared/types';
-import { runNetworkMutation } from '@/shared/lib/networkMutation';
+import { webFirestoreSdk } from '@/shared/firebase/firestoreSdk';
+import { guardNetworkMutation } from '@/shared/lib/networkMutation';
 
-function userDataDoc(uid: string) {
-  return doc(db, 'users', uid);
-}
+/** Web binding of the shared user repository (`@bg/firebase-api`, BG-014 D2). */
+const repository = createUserRepository({
+  sdk: webFirestoreSdk,
+  database: db,
+  guardMutation: guardNetworkMutation,
+});
 
-export async function fetchUserData(uid: string): Promise<UserData | null> {
-  const snap = await getDoc(userDataDoc(uid));
-  if (snap.exists()) {
-    const data = snap.data();
-    if (data.accountData) return data as UserData;
-  }
-
-  // Privileged legacy accounts must be migrated by trusted administrative tooling.
-  // Never copy editable legacy accountData into a newly privileged root document.
-
-  return null;
-}
-
-/**
- * Creates or merges the account root. `legalAcceptanceVersion` is only sent when
- * the account is created from the registration form; Rules require the server
- * time as acceptance date.
- */
-export async function saveUserData(uid: string, data: UserData, legalAcceptanceVersion?: string) {
-  await setDoc(
-    userDataDoc(uid),
-    legalAcceptanceVersion
-      ? {
-          ...data,
-          legalAcceptance: { version: legalAcceptanceVersion, acceptedAt: serverTimestamp() },
-        }
-      : data,
-    { merge: true },
-  );
-}
-
-export async function updateUserData(uid: string, data: Partial<UserData>) {
-  await runNetworkMutation(() => updateDoc(userDataDoc(uid), data));
-}
-
-export async function fetchAllUsers(): Promise<UserData[]> {
-  const snap = await getDocs(collection(db, 'users'));
-  return snap.docs.filter((d) => d.data().accountData).map((d) => d.data() as UserData);
-}
-
-export async function adminUpdateUserPlan(uid: string, plan: UserPlan, premiumExpiresAt?: string) {
-  const update: Record<string, unknown> = { 'accountData.plan': plan };
-  if (plan === 'premium') {
-    update['accountData.premiumExpiresAt'] =
-      premiumExpiresAt ??
-      (() => {
-        const d = new Date();
-        d.setFullYear(d.getFullYear() + 1);
-        return d.toISOString();
-      })();
-  } else {
-    update['accountData.premiumExpiresAt'] = null;
-    update['accountData.premiumExpiresAtMillis'] = null;
-  }
-  if (plan === 'premium')
-    update['accountData.premiumExpiresAtMillis'] = Date.parse(
-      update['accountData.premiumExpiresAt'] as string,
-    );
-  await runNetworkMutation(() => updateDoc(doc(db, 'users', uid), update));
-}
-
-export async function adminUpdatePremiumExpiry(uid: string, premiumExpiresAt: string) {
-  await runNetworkMutation(() =>
-    updateDoc(doc(db, 'users', uid), {
-      'accountData.premiumExpiresAt': premiumExpiresAt,
-      'accountData.premiumExpiresAtMillis': Date.parse(premiumExpiresAt),
-    }),
-  );
-}
+export const {
+  fetchUserData,
+  saveUserData,
+  updateUserData,
+  fetchAllUsers,
+  adminUpdateUserPlan,
+  adminUpdatePremiumExpiry,
+} = repository;
