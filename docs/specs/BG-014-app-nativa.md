@@ -1,6 +1,6 @@
 # BG-014 — App nativa iOS/Android con React Native y Expo
 
-Estado: aprobado
+Estado: parcial
 
 Fecha: 2026-11-14. Detalle técnico y justificación: [análisis de la app nativa](../analysis/native-app-plan.md) (antes BG-N01). Las decisiones D1–D10 se revisaron con el propietario el 14-11-2026 y la spec quedó aprobada ese mismo día. La aprobación autoriza el trabajo de las fases en PRs separadas; los despliegues, envíos a tienda y cambios de reglas siguen necesitando instrucción explícita (AGENTS.md).
 
