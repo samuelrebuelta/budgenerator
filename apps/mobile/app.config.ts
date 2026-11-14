@@ -117,6 +117,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/auth',
     'expo-secure-store',
     'expo-sharing',
+    '@react-native-community/datetimepicker',
     [
       'expo-image-picker',
       {

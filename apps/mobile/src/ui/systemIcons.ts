@@ -53,4 +53,11 @@ export const SYSTEM_ICONS: Partial<Record<IconName, { sf: SFSymbol; md: AndroidS
   'arrow-up': { sf: 'arrow.up', md: 'arrow_upward' },
   'arrow-down': { sf: 'arrow.down', md: 'arrow_downward' },
   'edit-3': { sf: 'pencil', md: 'edit' },
+  circle: { sf: 'circle', md: 'radio_button_unchecked' },
+  tool: { sf: 'wrench.and.screwdriver', md: 'construction' },
+  calendar: { sf: 'calendar', md: 'calendar_today' },
+  'trending-up': { sf: 'chart.line.uptrend.xyaxis', md: 'trending_up' },
+  folder: { sf: 'folder', md: 'folder' },
+  clipboard: { sf: 'checklist.checked', md: 'assignment_turned_in' },
+  slash: { sf: 'nosign', md: 'block' },
 };

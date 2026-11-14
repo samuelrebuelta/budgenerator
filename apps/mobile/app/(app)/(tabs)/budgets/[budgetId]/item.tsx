@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { KeyboardAwareScrollView, KeyboardToolbar } from 'react-native-keyboard-controller';
-import { decimal, formatEuros, unitLabel, unitPrice, KNOWN_UNITS } from '@bg/domain';
+import { decimal, formatEuros, unitLabel, unitPrice } from '@bg/domain';
 import { catalogView } from '@bg/domain/catalog/record';
 import { searchTariffs } from '@bg/domain/catalog/search';
 import { t } from '@bg/domain/i18n';
@@ -15,17 +15,10 @@ import {
   useEditorRecord,
 } from '../../../../../src/features/budgets/editing';
 import { itemAmount, multiplierOf } from '../../../../../src/features/budgets/model';
+import { UnitPicker } from '../../../../../src/features/budgets/UnitPicker';
 import { HeaderIconButton } from '../../../../../src/navigation/HeaderIconButton';
 import { useBudgetStore, useCatalogStore } from '../../../../../src/state/stores';
-import {
-  Button,
-  Card,
-  ListGroup,
-  ListRow,
-  systemColors,
-  Text,
-  TextField,
-} from '../../../../../src/ui';
+import { Button, Card, ListGroup, ListRow, Text, TextField } from '../../../../../src/ui';
 
 /** Text of a number field: what the user typed, or the stored value when it changed elsewhere. */
 function useNumberText(value: number) {
@@ -36,52 +29,6 @@ function useNumberText(value: number) {
     if (decimal(text) !== value) setText(value ? String(value).replace('.', ',') : '');
   }
   return [text, setText] as const;
-}
-
-function UnitPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (unit: string) => void;
-  disabled: boolean;
-}) {
-  const units: string[] = KNOWN_UNITS.includes(value as (typeof KNOWN_UNITS)[number])
-    ? [...KNOWN_UNITS]
-    : [...KNOWN_UNITS, value];
-  return (
-    <View style={styles.field}>
-      <Text variant="label" weight="medium" style={styles.label}>
-        Unidad
-      </Text>
-      <View style={styles.segments} accessibilityRole="radiogroup">
-        {units.map((unit) => {
-          const selected = unit === value;
-          return (
-            <Pressable
-              key={unit}
-              accessibilityRole="radio"
-              accessibilityLabel={unitLabel(unit)}
-              accessibilityState={{ selected, disabled }}
-              disabled={disabled}
-              onPress={() => onChange(unit)}
-              android_ripple={{ color: systemColors.ripple }}
-              style={[styles.segment, selected && styles.segmentSelected]}
-            >
-              <Text
-                variant="label"
-                weight={selected ? 'semibold' : 'regular'}
-                style={selected ? styles.segmentTextSelected : null}
-              >
-                {unitLabel(unit)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
 }
 
 /**
@@ -296,25 +243,6 @@ const styles = StyleSheet.create({
   card: { gap: spacing[3] },
   row: { flexDirection: 'row', gap: spacing[3] },
   half: { flex: 1 },
-  field: { gap: spacing[1] },
-  label: { color: colors['ink-soft'] },
-  segments: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  segment: {
-    minWidth: 56,
-    minHeight: 40,
-    paddingHorizontal: spacing[3],
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors['line-strong'],
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  segmentSelected: {
-    backgroundColor: systemColors.secondaryContainer,
-    borderColor: colors.primary,
-  },
-  segmentTextSelected: { color: colors['ink-strong'] },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',

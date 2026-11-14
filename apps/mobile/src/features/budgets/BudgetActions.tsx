@@ -5,7 +5,13 @@ import { budgetView, type BudgetRecord } from '@bg/domain/budget/record';
 import { t } from '@bg/domain/i18n';
 import { toUserMessage } from '@bg/domain/lib/errors';
 import { spacing } from '@bg/ui-tokens';
-import { repositories, useAuthStore, useBudgetStore, useProfileStore } from '../../state/stores';
+import {
+  repositories,
+  useAuthStore,
+  useBudgetStore,
+  useProfileStore,
+  useProjectStore,
+} from '../../state/stores';
 import { Button, Card, Notice, Text } from '../../ui';
 import { EmailVerificationNotice } from '../account/EmailVerificationNotice';
 import { allowSavedMutation } from './offline';
@@ -34,18 +40,19 @@ function confirm(title: string, message: string, label: string, onConfirm: () =>
 /**
  * Actions of a saved budget (web `BudgetDetailPage` footer): PDF through the native share sheet,
  * public link (verified email), acceptance and its withdrawal, a copy of a converted budget and
- * deletion. Converting into a project arrives with the Projects tab (registro BG-014, paso 8).
+ * deletion. An accepted budget converts into a project with the shared transaction (blocked
+ * offline with the BG-012 toast) and opens it in the Projects tab (registro BG-014, paso 9).
  */
 export function BudgetActions({ record }: { record: BudgetRecord }) {
   const company = useProfileStore((state) => state.profile);
   const refreshVerification = useAuthStore((state) => state.refreshVerification);
-  const [busy, setBusy] = useState<'pdf' | 'link' | 'accept' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'link' | 'accept' | 'convert' | null>(null);
   const [error, setError] = useState('');
   const [needsVerification, setNeedsVerification] = useState(false);
   const [link, setLink] = useState<{ token: string; url: string } | null>(null);
   const store = useBudgetStore.getState;
 
-  const run = (kind: 'pdf' | 'link' | 'accept', action: () => Promise<unknown>) => {
+  const run = (kind: 'pdf' | 'link' | 'accept' | 'convert', action: () => Promise<unknown>) => {
     if (busy) return;
     setBusy(kind);
     setError('');
@@ -93,6 +100,20 @@ export function BudgetActions({ record }: { record: BudgetRecord }) {
       'El presupuesto volverá a ser editable y podrás modificar la oferta.',
       'Retirar aceptación',
       () => run('accept', () => store().withdrawBudgetAcceptance(record.id)),
+    );
+
+  const convert = () =>
+    confirm(
+      '¿Convertir en proyecto?',
+      'Se guardará una copia independiente de esta oferta para seguir el avance. El presupuesto quedará como referencia de solo lectura.',
+      'Convertir en proyecto',
+      () => {
+        if (!allowSavedMutation()) return;
+        run('convert', async () => {
+          const projectId = await useProjectStore.getState().convertBudgetToProject(record.id);
+          router.push({ pathname: '/projects/[projectId]', params: { projectId } });
+        });
+      },
     );
 
   const remove = () =>
@@ -170,14 +191,24 @@ export function BudgetActions({ record }: { record: BudgetRecord }) {
             onPress={copy}
           />
         ) : record.acceptedAt ? (
-          <Button
-            label="Retirar aceptación"
-            variant="secondary"
-            fullWidth
-            loading={busy === 'accept'}
-            onPress={withdraw}
-            testID="budget-withdraw"
-          />
+          <>
+            <Button
+              label="Convertir en proyecto"
+              icon="briefcase"
+              fullWidth
+              loading={busy === 'convert'}
+              onPress={convert}
+              testID="budget-convert"
+            />
+            <Button
+              label="Retirar aceptación"
+              variant="secondary"
+              fullWidth
+              loading={busy === 'accept'}
+              onPress={withdraw}
+              testID="budget-withdraw"
+            />
+          </>
         ) : (
           <Button
             label="Marcar como aceptado"

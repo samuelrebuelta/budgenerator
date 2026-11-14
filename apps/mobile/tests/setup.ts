@@ -92,3 +92,24 @@ jest.mock('react-native-gesture-handler/ReanimatedSwipeable', () => {
   }) => require('react').createElement(View, null, children, renderRightActions?.());
   return { __esModule: true, default: Swipeable };
 });
+
+/** Haptics are native; the tests check which feedback a mutation asks for. */
+jest.mock('expo-haptics', () => ({
+  selectionAsync: jest.fn(async () => undefined),
+  notificationAsync: jest.fn(async () => undefined),
+  impactAsync: jest.fn(async () => undefined),
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+}));
+
+/** Native date picker: a host view that keeps its props, so tests fire `valueChange` on it. */
+jest.mock('@react-native-community/datetimepicker', () => {
+  const { View } = require('react-native');
+  const Picker = (props: Record<string, unknown>) =>
+    require('react').createElement(View, { ...props, testID: props.testID ?? 'date-picker' });
+  return {
+    __esModule: true,
+    default: Picker,
+    DateTimePickerAndroid: { open: jest.fn(), dismiss: jest.fn(async () => true) },
+  };
+});

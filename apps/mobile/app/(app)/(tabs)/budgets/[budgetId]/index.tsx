@@ -230,15 +230,29 @@ export default function BudgetScreen() {
       {!isDraft ? <ConflictNotice budgetId={budgetId} /> : null}
       {record.projectId ? (
         <Notice tone="success" title="Presupuesto convertido en proyecto">
-          La oferta aceptada permanece aquí como documento de referencia.
+          <Text variant="label" weight="regular">
+            La oferta aceptada permanece aquí como documento de referencia.
+          </Text>
+          <Button
+            label="Ver proyecto"
+            icon="briefcase"
+            variant="secondary"
+            onPress={() =>
+              router.push({
+                pathname: '/projects/[projectId]',
+                params: { projectId: record.projectId ?? '' },
+              })
+            }
+            testID="budget-open-project"
+          />
         </Notice>
       ) : record.acceptedAt ? (
         <Notice
           tone="info"
           title={`Presupuesto aceptado el ${new Date(record.acceptedAt).toLocaleDateString('es-ES')}.`}
         >
-          Puedes retirarlo para volver a editar. La conversión en proyecto se hace de momento desde
-          la web.
+          Puedes retirar la aceptación para volver a editar o convertirlo en proyecto para seguir el
+          avance.
         </Notice>
       ) : null}
     </>
