@@ -107,7 +107,9 @@ export function DateField({
           {value ? (compact ? formatCompactDate(value) : formatProjectDate(value)) : 'Sin fecha'}
         </Text>
       </Pressable>
-      {isIOS && expanded ? <DateTimePicker {...pickerProps} display="inline" /> : null}
+      {isIOS && expanded ? (
+        <DateTimePicker {...pickerProps} display="inline" style={styles.calendar} />
+      ) : null}
     </View>
   );
 }
@@ -131,4 +133,7 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: colors['surface-muted'] },
   disabled: { opacity: 0.6 },
   text: { color: colors.primary },
+  // UIKit does not report the inline calendar's height to Yoga: without it the calendar overlaps
+  // the content below and its month arrows fall outside the hit area.
+  calendar: { height: 340, alignSelf: 'stretch' },
 });

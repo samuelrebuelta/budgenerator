@@ -77,7 +77,8 @@ const styles = StyleSheet.create({
   track: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors['surface-muted'],
+    // `line` keeps the empty track visible on the chapter header (`surface-muted`) and the summary.
+    backgroundColor: colors.line,
     overflow: 'hidden',
   },
   fill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },

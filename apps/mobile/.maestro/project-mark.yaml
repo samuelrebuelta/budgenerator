@@ -1,0 +1,79 @@
+# BG-014 · login → presupuesto aceptado → convertir en proyecto → marcar partida, contra los
+# emuladores demo-budgenerator. Requisitos y ejecución: apps/mobile/README.md, «Flujo Maestro».
+#   maestro test apps/mobile/.maestro/project-mark.yaml \
+#     -e EMAIL=maestro@example.test -e PASSWORD=Reforma2026
+# La cuenta se crea antes en el emulador de Auth (registro en la app o REST del emulador) y debe
+# tener plaza libre en el plan Free (crea su propio presupuesto).
+appId: com.budgenerator.app.dev
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Email'
+- inputText: ${EMAIL}
+- tapOn: 'Contraseña'
+- inputText: ${PASSWORD}
+- tapOn: 'Entrar'
+- extendedWaitUntil:
+    visible:
+      id: 'budget-create-button'
+    timeout: 20000
+# Presupuesto con un capítulo y una partida.
+- tapOn:
+    id: 'budget-create-button'
+- tapOn:
+    id: 'budget-client-name'
+- inputText: 'Cliente Proyecto'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'budget-add-chapter'
+- tapOn:
+    id: 'budget-add-chapter'
+- tapOn: 'Personalizada'
+- tapOn:
+    id: 'chapter-custom-name'
+- inputText: 'Pintura'
+- tapOn:
+    id: 'chapter-add'
+- tapOn: 'Añadir partida'
+- tapOn:
+    id: 'item-description'
+- inputText: 'Pintura de paredes'
+- tapOn:
+    id: 'item-quantity'
+- inputText: '25'
+- tapOn:
+    id: 'item-price'
+- inputText: '8,5'
+- tapOn:
+    id: 'item-done'
+- tapOn:
+    id: 'budget-save'
+# Aceptar y convertir (cada acción pide confirmación con una alerta nativa).
+- scrollUntilVisible:
+    element:
+      id: 'budget-accept'
+- tapOn:
+    id: 'budget-accept'
+- tapOn: 'Marcar como aceptado'
+- scrollUntilVisible:
+    element:
+      id: 'budget-convert'
+- tapOn:
+    id: 'budget-convert'
+- tapOn: 'Convertir en proyecto'
+# Se abre el detalle del proyecto en la tab Proyectos.
+- extendedWaitUntil:
+    visible:
+      id: 'project-summary'
+    timeout: 15000
+- assertVisible: '0 de 1 partidas terminadas'
+- scrollUntilVisible:
+    element: 'Pintura de paredes'
+- tapOn: 'Pintura de paredes'
+# El capítulo pasa a «1 de 1 partidas · 100%» (workItemProgress) y la partida queda marcada.
+- extendedWaitUntil:
+    visible: '1 de 1 partidas · 100%'
+    timeout: 10000
+- assertVisible:
+    id: 'project-task-date-.*'
