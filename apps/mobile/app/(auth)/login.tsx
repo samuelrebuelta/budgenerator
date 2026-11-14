@@ -1,48 +1,79 @@
-import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
+import { t } from '@bg/domain/i18n';
 import { spacing } from '@bg/ui-tokens';
-import { runtimeSelfCheck } from '../../src/platform/runtime';
-import { appVariant } from '../../src/platform/variant';
-import { Button, Card, Screen, Text } from '../../src/ui';
+import { AuthScreen } from '../../src/features/auth/AuthScreen';
+import { useAuthStore } from '../../src/state/stores';
+import { Button, Notice, TextField } from '../../src/ui';
 
-/** Login placeholder (phase 0). Email/password with RNFB Auth arrives in phase 1. */
+/** Email/password sign-in with the web's copy and error messages (`t('login.*')`). */
 export default function LoginScreen() {
-  return (
-    <Screen title="BudGenerator">
-      <Text tone="muted">Presupuestos y obras de tu empresa, también sin conexión.</Text>
-      <Card style={styles.card}>
-        <Text variant="title">Inicia sesión</Text>
-        <Text tone="muted">El acceso con email y contraseña llegará en la fase 1.</Text>
-        <Button label="Entrar" disabled fullWidth />
-      </Card>
-      {appVariant === 'development' ? <RuntimeDiagnostics /> : null}
-    </Screen>
-  );
-}
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const signIn = useAuthStore((state) => state.signIn);
+  const error = useAuthStore((state) => state.error);
+  const loading = useAuthStore((state) => state.loading);
+  const clearError = useAuthStore((state) => state.clearError);
 
-/** Development only: proves that `@bg/domain` and the web globals work on this engine. */
-function RuntimeDiagnostics() {
-  const checks = useMemo(() => runtimeSelfCheck(), []);
+  useEffect(() => clearError(), [clearError]);
+
+  const submit = () => {
+    if (!email || !password || loading) return;
+    void signIn(email, password);
+  };
+
   return (
-    <Card style={styles.card} testID="runtime-diagnostics">
-      <Text variant="label" weight="semibold">
-        Variante {appVariant} · motor {'HermesInternal' in globalThis ? 'Hermes' : 'JS'}
-      </Text>
-      {checks.map((item) => (
-        <Text key={item.name} variant="caption" tone={item.ok ? 'muted' : 'danger'}>
-          {item.ok ? '✓' : '✗'} {item.name}: {item.detail}
-        </Text>
-      ))}
-      <Button
-        label="Spikes de fase 0"
-        variant="secondary"
-        onPress={() => router.push('/dev/spikes')}
+    <AuthScreen title={t('login.signIn')}>
+      <TextField
+        label={t('login.email')}
+        value={email}
+        onChangeText={setEmail}
+        placeholder={t('login.emailPlaceholder')}
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
       />
-    </Card>
+      <TextField
+        label={t('login.password')}
+        value={password}
+        onChangeText={setPassword}
+        password
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={submit}
+      />
+      {error ? (
+        <Notice tone="danger" plain>
+          {error}
+        </Notice>
+      ) : null}
+      <Button
+        label={t('login.enter')}
+        icon="log-in"
+        fullWidth
+        loading={loading}
+        disabled={!email || !password}
+        onPress={submit}
+      />
+      <View style={styles.links}>
+        <Button
+          label={t('login.forgotPassword')}
+          variant="link"
+          onPress={() => router.push({ pathname: '/reset-password', params: { email } })}
+        />
+        <Button
+          label={t('login.noAccount')}
+          variant="link"
+          onPress={() => router.replace('/register')}
+        />
+      </View>
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: spacing[3] },
+  links: { alignItems: 'center', gap: spacing[1] },
 });

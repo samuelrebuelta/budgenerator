@@ -3,7 +3,8 @@ import { t } from '@bg/domain/i18n';
 import { flushWrites } from '../sync.js';
 import { withTimeout } from '../session.js';
 
-function mapAuthError(e: unknown): string {
+/** Spanish message (`t('login.*')`) of a Firebase Auth error, shared by web and mobile forms. */
+export function mapAuthError(e: unknown): string {
   const code = (e as { code?: string }).code;
   switch (code) {
     case 'auth/invalid-credential':

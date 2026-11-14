@@ -1,12 +1,11 @@
 import { Redirect } from 'expo-router';
+import { readLastTab } from '../src/navigation/lastTab';
 import { useSession } from '../src/session';
 
-/**
- * Entry route. TODO(BG-014 D8): open the last used tab (saved in MMKV per UID); the first time,
- * Presupuestos.
- */
+/** Entry route. D8: the last tab used on this device (MMKV of the UID); the first time, Presupuestos. */
 export default function Index() {
-  const { status } = useSession();
+  const { status, uid } = useSession();
   if (status === 'loading') return null;
-  return <Redirect href={status === 'signedIn' ? '/budgets' : '/login'} />;
+  if (status === 'signedOut') return <Redirect href="/login" />;
+  return <Redirect href={`/${readLastTab(uid)}`} />;
 }

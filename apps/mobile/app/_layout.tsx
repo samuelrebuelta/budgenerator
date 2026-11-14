@@ -1,5 +1,6 @@
 // Must stay the first import: @bg/domain needs Intl.PluralRules while it loads.
 import '../src/platform/polyfills';
+import '../src/platform/bootstrap';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -7,14 +8,11 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { colors } from '@bg/ui-tokens';
-import { initFirebase } from '../src/platform/firebase';
-import { registerIdGenerator } from '../src/platform/ids';
 import { runtimeSelfCheck } from '../src/platform/runtime';
 import { SessionProvider, useSession } from '../src/session';
+import { ToastHost } from '../src/ui';
 
 void SplashScreen.preventAutoHideAsync();
-registerIdGenerator();
-initFirebase();
 
 if (__DEV__) {
   const failed = runtimeSelfCheck().filter((item) => !item.ok);
@@ -39,7 +37,10 @@ function RootNavigator() {
   );
 }
 
-/** Root providers: gestures, keyboard, session. Sentry and notifications arrive in phase 2. */
+/**
+ * Root providers: gestures, keyboard, session (`@bg/app-core` over RNFB) and the app-wide toast.
+ * Sentry and notifications arrive in phase 2.
+ */
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -47,6 +48,7 @@ export default function RootLayout() {
         <SessionProvider>
           <StatusBar style="dark" />
           <RootNavigator />
+          <ToastHost />
         </SessionProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

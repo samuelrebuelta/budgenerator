@@ -55,11 +55,14 @@ export class SessionResetError extends Error {
  * BG-012 criterion 7): Firestore `terminate` + `clearPersistence`, MMKV of the UID and sign-out.
  * Every step runs even if an earlier one fails, and sign-out always runs last; failures are
  * reported together so the caller can block the next sign-in until the device is clean.
- * Phase 1 adds the earlier steps of `prepareSignOut` (push device, FCM token, WriteQueue).
+ * The earlier steps of `prepareSignOut` (WriteQueue; push device and FCM token in phase 2) run
+ * before it in `src/session/deviceSession.ts`. With `signOut: false` it only wipes the device:
+ * used when another account is already signed in and the previous one left data behind.
  */
 export async function resetSession(
   uid: string | null,
   port: SessionResetPort = nativeSessionResetPort,
+  { signOut: endSession = true }: { signOut?: boolean } = {},
 ): Promise<void> {
   const failures: { step: SessionResetStep; error: unknown }[] = [];
   const run = async (step: SessionResetStep, action: () => unknown) => {
@@ -76,7 +79,7 @@ export async function resetSession(
     await run('clearFirestorePersistence', () => port.clearFirestorePersistence());
   await run('reattachFirestore', () => port.reattachFirestore());
   if (uid) await run('deleteUserStorage', () => port.deleteUserStorage(uid));
-  await run('signOut', () => port.signOut());
+  if (endSession) await run('signOut', () => port.signOut());
 
   if (failures.length) throw new SessionResetError(failures);
 }

@@ -7,16 +7,18 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, radii, spacing } from '@bg/ui-tokens';
+import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 import { controlHeight } from './theme';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
 
 export interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
   label: string;
   variant?: ButtonVariant;
   loading?: boolean;
   fullWidth?: boolean;
+  icon?: IconName;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -32,6 +34,8 @@ const palette: Record<ButtonVariant, { background: string; pressed: string; text
     pressed: colors['danger-ink'],
     text: colors['on-primary'],
   },
+  ghost: { background: 'transparent', pressed: colors['surface-muted'], text: colors.ink },
+  link: { background: 'transparent', pressed: 'transparent', text: colors.primary },
 };
 
 /** Button with the web's variants and a 44 pt touch target. */
@@ -40,6 +44,7 @@ export function Button({
   variant = 'primary',
   loading = false,
   fullWidth = false,
+  icon,
   disabled,
   style,
   ...props
@@ -56,13 +61,18 @@ export function Button({
         styles.base,
         { backgroundColor: pressed ? tone.pressed : tone.background },
         variant === 'secondary' && styles.secondary,
+        variant === 'link' && styles.link,
         fullWidth && styles.fullWidth,
         isDisabled && styles.disabled,
         style,
       ]}
       {...props}
     >
-      {loading ? <ActivityIndicator color={tone.text} /> : null}
+      {loading ? (
+        <ActivityIndicator color={tone.text} />
+      ) : icon ? (
+        <Icon name={icon} size={16} color={tone.text} />
+      ) : null}
       <Text variant="label" weight="semibold" style={{ color: tone.text }}>
         {label}
       </Text>
@@ -81,6 +91,7 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   secondary: { borderWidth: StyleSheet.hairlineWidth, borderColor: colors['line-strong'] },
+  link: { paddingHorizontal: spacing[2] },
   fullWidth: { alignSelf: 'stretch' },
   disabled: { opacity: 0.5 },
 });

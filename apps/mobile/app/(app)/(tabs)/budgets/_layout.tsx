@@ -1,5 +1,10 @@
 import { Stack } from 'expo-router';
+import { tabRootOptions } from '../../../../src/navigation/options';
 
-export default function BudgetsLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function PresupuestosLayout() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={tabRootOptions('Presupuestos')} />
+    </Stack>
+  );
 }

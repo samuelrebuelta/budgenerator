@@ -1,6 +1,6 @@
 import { createMMKV, type MMKV } from 'react-native-mmkv';
 import type { KeyValueStore, OfflineEntry } from '@bg/app-core/ports';
-import { userStorage } from './userStorage';
+import { existingUserStorage, userStorage } from './userStorage';
 
 /**
  * Keys of the shared offline cache that belong to an account: `session:{uid}:…` (store
@@ -24,15 +24,21 @@ function shared(): MMKV {
   return sharedStorage;
 }
 
+/** Storage that receives a write: the account's (created if needed) or the shared one. */
 function storageFor(key: string): MMKV {
   const uid = accountOfKey(key);
   return uid ? userStorage(uid) : shared();
 }
 
-/** Storages a prefix can reach: the account's when the prefix names one, otherwise the shared. */
+/**
+ * Storages a read or a delete can reach: the account's when the key or prefix names one and it
+ * still exists (never recreated after `resetSession`), otherwise the shared one.
+ */
 function storagesFor(prefix: string): MMKV[] {
   const uid = accountOfKey(prefix);
-  return [uid ? userStorage(uid) : shared()];
+  if (!uid) return [shared()];
+  const storage = existingUserStorage(uid);
+  return storage ? [storage] : [];
 }
 
 function parse(raw: string | undefined): OfflineEntry | undefined {
@@ -51,7 +57,7 @@ function parse(raw: string | undefined): OfflineEntry | undefined {
  */
 export const mmkvKeyValueStore: KeyValueStore = {
   async get(key) {
-    return parse(storageFor(key).getString(key));
+    return parse(storagesFor(key)[0]?.getString(key));
   },
   async getAll(prefix) {
     return storagesFor(prefix).flatMap((storage) =>
@@ -71,6 +77,6 @@ export const mmkvKeyValueStore: KeyValueStore = {
     storageFor(entry.key).set(entry.key, JSON.stringify(entry));
   },
   async delete(keys) {
-    for (const key of keys) storageFor(key).remove(key);
+    for (const key of keys) for (const storage of storagesFor(key)) storage.remove(key);
   },
 };

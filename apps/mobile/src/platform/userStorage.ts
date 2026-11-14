@@ -1,4 +1,4 @@
-import { createMMKV, deleteMMKV, type MMKV } from 'react-native-mmkv';
+import { createMMKV, deleteMMKV, existsMMKV, type MMKV } from 'react-native-mmkv';
 
 /**
  * Per-account MMKV storage (store snapshots, last tab…; BG-014 §3.7). One instance per UID so
@@ -20,6 +20,15 @@ export function userStorage(uid: string): MMKV {
     instances.set(id, storage);
   }
   return storage;
+}
+
+/**
+ * The UID's storage only if it is open or exists on disk. Reads and deletes use it so that a late
+ * cleanup after `resetSession` does not create the files of an account that was just wiped (D3).
+ */
+export function existingUserStorage(uid: string): MMKV | null {
+  const id = userStorageId(uid);
+  return instances.get(id) ?? (existsMMKV(id) ? userStorage(uid) : null);
 }
 
 /**

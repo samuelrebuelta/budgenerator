@@ -1,4 +1,4 @@
-import { budgetTotals, formatEuros, generateId } from '@bg/domain';
+import { budgetTotals, formatEuros, formatNumber, generateId } from '@bg/domain';
 
 /**
  * Web-standard globals that `@bg/domain` relies on (packages/domain/src/runtime-globals.d.ts).
@@ -38,8 +38,9 @@ function check(name: string, run: () => [boolean, string]): RuntimeCheck {
 }
 
 /**
- * Exercises the globals and `@bg/domain` on the real engine (Hermes in the dev client). Shown on
- * the development login so a missing polyfill is visible after an Expo or React Native upgrade.
+ * Exercises the globals and `@bg/domain` on the real engine (Hermes in the dev client). The root
+ * layout warns in Metro in development, so a missing polyfill is visible after an Expo or React
+ * Native upgrade.
  */
 export function runtimeSelfCheck(): RuntimeCheck[] {
   return [
@@ -70,10 +71,11 @@ export function runtimeSelfCheck(): RuntimeCheck[] {
       const text = formatEuros(total);
       return [total === 91.54 && text.includes('91,54'), text];
     }),
-    check('Intl agrupación es-ES', () => {
-      // Same as Node/ICU (web and the PDF reference): no separator below 10.000.
+    check('Agrupación es-ES', () => {
+      // `@bg/domain` prints like Node/ICU (web and the PDF reference) on every engine: no
+      // separator below 10.000, although Hermes on Android groups four digits natively.
       const options = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-      const text = `${(1234.5).toLocaleString('es-ES', options)} | ${(12345.5).toLocaleString('es-ES', options)}`;
+      const text = `${formatNumber(1234.5, options)} | ${formatNumber(12345.5, options)}`;
       return [text === '1234,50 | 12.345,50', text];
     }),
     check('Intl.PluralRules', () => {

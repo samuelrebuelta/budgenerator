@@ -1,5 +1,10 @@
 import { Stack } from 'expo-router';
+import { tabRootOptions } from '../../../../src/navigation/options';
 
-export default function LeadsLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function SolicitudesLayout() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={tabRootOptions('Solicitudes')} />
+    </Stack>
+  );
 }

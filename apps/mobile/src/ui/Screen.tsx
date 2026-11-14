@@ -9,7 +9,10 @@ export interface ScreenProps {
   children?: ReactNode;
   /** Scrollable content (default) or a fixed view for screens with their own list. */
   scroll?: boolean;
-  /** Safe-area edges to pad; screens under a native header or tab bar only need some. */
+  /**
+   * Safe-area edges to pad; screens under a native header or tab bar only need some (`[]` under
+   * a native stack header, which also insets the scroll view automatically on iOS).
+   */
   edges?: Edge[];
 }
 
@@ -28,7 +31,13 @@ export function Screen({ title, children, scroll = true, edges = ['top', 'bottom
   return (
     <SafeAreaView style={styles.safeArea} edges={edges}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.content}>{body}</ScrollView>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+        >
+          {body}
+        </ScrollView>
       ) : (
         <View style={[styles.content, styles.fill]}>{body}</View>
       )}
