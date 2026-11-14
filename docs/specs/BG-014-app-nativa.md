@@ -54,7 +54,7 @@ Comprobado sobre `57129b7`; no hay que construirlo de nuevo para la app.
 
 - [ ] La web pasa `pnpm lint`, `pnpm build`, `pnpm test`, `pnpm test:rules`, `pnpm build:functions` y `pnpm test:e2e` sin cambios de comportamiento tras extraer los paquetes, y el PDF de referencia de `tests/pdf.test.ts` no cambia.
 - [x] Functions importa de `@bg/domain` y no queda ningún `../../src` en `functions/src` (14-11-2026: a través de `functions/src/domain.ts`, que re-exporta las fuentes del paquete por ruta relativa).
-- [ ] Mismos importes en web y móvil para el conjunto de presupuestos de prueba (test de paridad sobre `budgetTotals` y el modelo BC3).
+- [x] Mismos importes en web y móvil para el conjunto de presupuestos de prueba (test de paridad sobre `budgetTotals` y el modelo BC3) (14-11-2026: `apps/mobile/tests/budgetParity.test.ts`, cinco documentos con capítulos anidados, mediciones, descuento, recargo e IVA 0/21 %).
 - [ ] El PDF móvil es equivalente página a página al web para el documento largo de los tests y se comparte con el menú nativo.
 - [ ] En modo avión, las vistas visitadas se muestran sin skeleton tras reiniciar la app y una mutación muestra el toast de BG-012.
 - [ ] Cambiar de cuenta no deja datos del UID anterior en la caché de Firestore ni en MMKV (test automatizado).
@@ -99,9 +99,9 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 
 - [x] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes) (14-11-2026: todos los repositorios y los ocho stores con el coordinador de sesión; la app aún no monta los stores, ver el registro, paso 5).
 - [x] Registro, verificación de email, login y recuperación; tabs (D8) (14-11-2026: con el coordinador de `@bg/app-core` montado y `resetSession` en el cierre de sesión y el cambio de cuenta; ver el registro, paso 6).
-- [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público.
+- [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público (14-11-2026: Presupuestos, PDF y enlace hechos, ver el registro, paso 8; faltan Proyectos y Solicitudes).
 - [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).
-- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF.
+- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF (14-11-2026: paridad hecha; el flujo Maestro está escrito pero sin ejecutar, Maestro no está instalado).
 
 ### Fase 2 — Paridad (4–5 semanas)
 
