@@ -9,4 +9,7 @@ module.exports = {
   ],
   // The workspace packages use NodeNext-style `.js` specifiers that point at TypeScript sources.
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
+  // The first render of each screen suite transforms and loads Expo Router, FlashList and the
+  // stores; on the 2-core GitHub runner that alone took longer than Jest's default 5 s.
+  testTimeout: 30000,
 };
