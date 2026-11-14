@@ -28,6 +28,19 @@ export function Screen({ title, children, scroll = true, edges = ['top', 'bottom
       {children}
     </>
   );
+  // Under a native stack header the scroll view has to be the screen's root view: iOS only
+  // attaches the large title (and insets the content) to a root scroll view.
+  if (scroll && edges.length === 0)
+    return (
+      <ScrollView
+        style={styles.safeArea}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+      >
+        {body}
+      </ScrollView>
+    );
   return (
     <SafeAreaView style={styles.safeArea} edges={edges}>
       {scroll ? (

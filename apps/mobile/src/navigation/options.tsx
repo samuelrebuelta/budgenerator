@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import type { NativeStackNavigationOptions } from 'expo-router';
 import { colors } from '@bg/ui-tokens';
 import { fontFamily } from '../ui';
@@ -12,13 +11,14 @@ const headerBase: NativeStackNavigationOptions = {
   contentStyle: { backgroundColor: colors.canvas },
 };
 
-/** Native header of a root tab: large title on iOS (§6.1) and the account icon. */
+/**
+ * Native header of a root tab with the account icon. §6.1 asks for the iOS large title, but with
+ * react-native-screens 4.30 on iOS 26 it renders blank (checked on the simulator, even with the
+ * scroll view as the root view): standard title until it is fixed upstream (TODO BG-014).
+ */
 export const tabRootOptions = (title: string): NativeStackNavigationOptions => ({
   ...headerBase,
   title,
-  headerLargeTitle: Platform.OS === 'ios',
-  headerLargeTitleShadowVisible: false,
-  headerLargeTitleStyle: { fontFamily: fontFamily.display, color: colors['ink-strong'] },
   headerRight: () => <AccountMenuButton />,
 });
 

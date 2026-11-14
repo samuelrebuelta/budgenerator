@@ -185,4 +185,28 @@ describe('callables y auth con puertos', () => {
     expect(calls).toEqual([{ name: 'deleteAccount', data: undefined, timeout: 300_000 }]);
     await expect(repository.readAdminClaim(currentUser)).resolves.toBe(true);
   });
+
+  it('lee la verificación del usuario recargado aunque el SDK lo sustituya (RNFB)', async () => {
+    const steps: string[] = [];
+    const user = (emailVerified: boolean): AuthUserLike => ({
+      uid: 'alice',
+      email: 'alice@example.test',
+      emailVerified,
+      reload: async () => {
+        // Like React Native Firebase: the stale snapshot keeps its value.
+        auth.currentUser = user(true);
+      },
+      getIdToken: async (force?: boolean) => (steps.push(`token:${force}`), 't'),
+      getIdTokenResult: async () => ({ claims: {} }),
+    });
+    const auth: { currentUser: AuthUserLike | null } = { currentUser: user(false) };
+    const repository = createAuthRepository<AuthUserLike>({
+      auth,
+      functions: functionsPort().port,
+      sdk: {} as never,
+    });
+
+    await expect(repository.refreshEmailVerification()).resolves.toBe(true);
+    expect(steps).toEqual(['token:true']);
+  });
 });

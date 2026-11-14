@@ -39,13 +39,18 @@ export function createAuthRepository<TUser extends AuthUserLike>({
     await sdk.sendEmailVerification(auth.currentUser);
   }
 
-  /** Reloads the user and forces a new ID token so Rules see `email_verified`. */
+  /**
+   * Reloads the user and forces a new ID token so Rules see `email_verified`. The web SDK updates
+   * the same `User` in place; React Native Firebase replaces `auth.currentUser` with a new
+   * snapshot, so the reloaded state is read from `auth.currentUser` (found on the iOS simulator).
+   */
   async function refreshEmailVerification() {
     const user = auth.currentUser;
     if (!user) return false;
     await user.reload();
-    if (user.emailVerified) await user.getIdToken(true);
-    return user.emailVerified;
+    const fresh = auth.currentUser ?? user;
+    if (fresh.emailVerified) await fresh.getIdToken(true);
+    return fresh.emailVerified;
   }
 
   /** Admins are identified only by the `admin` custom claim set with Admin SDK. */
