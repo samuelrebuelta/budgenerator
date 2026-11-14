@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.app-core.tsbuildinfo",
+    "target": "es2023",
+    // No DOM, React or SDK: each platform injects its storage, connectivity and repositories,
+    // and binds the vanilla stores to React with its own `zustand`.
+    "lib": ["ES2023"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src",
+    "../domain/src/runtime-globals.d.ts",
+    "../firebase-api/src/runtime-globals.d.ts"
+  ]
+}

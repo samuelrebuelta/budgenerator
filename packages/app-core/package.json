@@ -1,0 +1,25 @@
+{
+  "name": "@bg/app-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Client state shared by web and mobile (BG-014): session model, write queue, network and offline caches, entity stores and the session coordinator, with platform ports (KeyValueStore, ConnectivityPort, DraftStorage, ImageNormalizer) and injected repositories.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./stores/*": "./src/stores/*.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bg/domain": "workspace:*",
+    "@bg/firebase-api": "workspace:*",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

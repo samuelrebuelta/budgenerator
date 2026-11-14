@@ -3,17 +3,14 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { runtimeConfig } from './core/config.js';
-import type { CatalogPart, CompanyProfile, Tariff } from '../../src/shared/types/index.js';
-import {
-  decodeContent,
-  projectCatalogParts,
-} from '../../src/entities/construction-document/model/index.js';
+import type { CatalogPart, CompanyProfile, Tariff } from './domain.js';
+import { decodeContent, projectCatalogParts } from './domain.js';
 import {
   calculateQuoteRange,
   getAvailableEstimatorServices,
   getSimpleEstimatorServices,
   validateEstimatorSettings,
-} from '../../src/entities/quote-estimator/model/estimate.js';
+} from './domain.js';
 import {
   ESTIMATOR_ROOMS,
   ESTIMATOR_SCOPES,
@@ -24,17 +21,10 @@ import {
   isValidEstimateInstanceId,
   isSimpleQuoteEstimatorSettings,
   serviceKey,
-} from '../../src/entities/quote-estimator/model/types.js';
-import {
-  isValidPrivacyPolicyUrl,
-  validateLeadContact,
-  validateLeadStartTiming,
-} from '../../src/entities/quote-estimator/model/leads.js';
-import type { PublicLeadSubmission } from '../../src/entities/quote-estimator/model/types.js';
-import {
-  SHORT_LINK_SLUG_PATTERN,
-  slugifyCompanyName,
-} from '../../src/entities/quote-estimator/model/sharing.js';
+} from './domain.js';
+import { isValidPrivacyPolicyUrl, validateLeadContact, validateLeadStartTiming } from './domain.js';
+import type { PublicLeadSubmission } from './domain.js';
+import { SHORT_LINK_SLUG_PATTERN, slugifyCompanyName } from './domain.js';
 import type {
   EstimateSelection,
   LegacyQuoteEstimatorSettings,
@@ -43,7 +33,7 @@ import type {
   QuoteEstimate,
   QuoteEstimatorSettings,
   ShortLinkResolution,
-} from '../../src/entities/quote-estimator/model/types.js';
+} from './domain.js';
 
 if (getApps().length === 0) initializeApp();
 const firestore = getFirestore();

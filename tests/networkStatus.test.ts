@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { scheduleFlushWrites } = vi.hoisted(() => ({ scheduleFlushWrites: vi.fn() }));
 
-vi.mock('../src/shared/model/sync', () => ({ scheduleFlushWrites }));
+// The network model lives in @bg/app-core and schedules the flush through its own sync module.
+vi.mock('@bg/app-core/sync', () => ({ scheduleFlushWrites }));
 
 import {
   isNetworkUnavailable,

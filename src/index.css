@@ -3,6 +3,7 @@
  * utility in TSX overrides component and legacy styles. See docs/styles-and-responsive.md.
  */
 @import 'tailwindcss';
+@import './app/styles/theme.generated.css';
 @import './app/styles/tokens.css';
 @import './app/styles/utilities.css';
 @import './app/styles/base.css';

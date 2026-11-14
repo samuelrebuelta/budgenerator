@@ -1,14 +1,7 @@
-import { create } from 'zustand';
 import type { User } from 'firebase/auth';
-import {
-  setSessionUid,
-  sessionUid,
-  sessionRevision,
-  isSessionCurrent,
-  withTimeout,
-} from '@/shared/model/session';
-import { useSyncStore, flushWrites, hasPendingWrites } from '@/shared/model/sync';
-import { toUserMessage } from '@/shared/lib/errors';
+import { sessionDraftStorage } from '@/shared/platform';
+import { createSessionCoordinator } from '@bg/app-core/sessionCoordinator';
+import { bindStore } from '@/shared/lib/bindStore';
 import { useBudgetStore, resetBudgetStore } from '@/entities/budget';
 import { useCatalogStore, resetCatalogStore } from '@/entities/catalog';
 import { useProfileStore, resetProfileStore } from '@/entities/profile';
@@ -16,32 +9,13 @@ import { useProjectStore, resetProjectStore } from '@/entities/project';
 import { resetWorkforceStore } from '@/entities/workforce';
 import { useTemplateStore, resetTemplateStore } from '@/entities/template';
 import { useUserStore, resetUserStore } from '@/entities/user';
-import {
-  clearMemoryResources,
-  restorePersistedMemoryResources,
-} from '@/shared/lib/memoryResourceCache';
-import {
-  deleteOfflineUserData,
-  restoreOfflineStores,
-  withOfflinePersistenceSuspended,
-} from '@/shared/lib/offlineStateCache';
-import {
-  isBrowserDisconnected,
-  markNetworkAvailable,
-  reportNetworkUnavailable,
-} from '@/shared/model/network';
-export const useSessionStore = create<{
-  uid: string | null;
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  error: string | null;
-}>(() => ({ uid: null, status: 'idle', error: null }));
-let loading: Promise<void> | null = null;
-export function resetSession(uid: string | null) {
-  const previous = sessionUid();
-  if (previous && previous !== uid) void deleteOfflineUserData(previous);
-  setSessionUid(uid);
-  withOfflinePersistenceSuspended(() => {
-    clearMemoryResources();
+
+/**
+ * Web binding of the shared session coordinator (`@bg/app-core`): which stores reset on an
+ * account change, which ones a session loads and the project list as the recovery probe.
+ */
+const coordinator = createSessionCoordinator<User>({
+  resetStores() {
     resetBudgetStore();
     resetCatalogStore();
     resetProfileStore();
@@ -49,89 +23,22 @@ export function resetSession(uid: string | null) {
     resetWorkforceStore();
     resetTemplateStore();
     resetUserStore();
-    useSyncStore.setState({ jobs: {} });
-  });
-  if (previous && previous !== uid) {
-    try {
-      for (const key of Object.keys(sessionStorage))
-        if (key.startsWith(`cimbra-draft:${previous}:`)) sessionStorage.removeItem(key);
-    } catch {
-      /* Private mode. */
-    }
-  }
-  loading = null;
-  useSessionStore.setState({ uid, status: 'idle', error: null });
-}
-export function loadSession(
-  user: User,
-  retry = false,
-  writesAlreadyFlushed = false,
-): Promise<void> {
-  if (sessionUid() !== user.uid) resetSession(user.uid);
-  if (loading) return loading;
-  if (useSessionStore.getState().status === 'ready' && !retry) return Promise.resolve();
-  const revision = sessionRevision();
-  const sessionWasReady = useSessionStore.getState().status === 'ready';
-  if (!sessionWasReady) useSessionStore.setState({ uid: user.uid, status: 'loading', error: null });
-  loading = (async () => {
-    try {
-      if (!sessionWasReady)
-        await Promise.all([
-          restoreOfflineStores(user.uid),
-          restorePersistedMemoryResources(user.uid),
-        ]);
-      if (!isSessionCurrent(user.uid, revision)) return;
-      if (isBrowserDisconnected()) {
-        useSessionStore.setState({ uid: user.uid, status: 'ready', error: null });
-        return;
-      }
-      if (retry && !writesAlreadyFlushed) {
-        await withTimeout(flushWrites());
-        if (hasPendingWrites()) throw new Error('Hay cambios pendientes de sincronizar.');
-      }
-      await withTimeout(
-        Promise.all([
-          useUserStore.getState().loadUserData(user.uid, user.email ?? ''),
-          useBudgetStore.getState().loadBudgets(user.uid),
-          useCatalogStore.getState().loadCatalogs(user.uid, true),
-          useProfileStore.getState().loadProfile(user.uid, user.email ?? ''),
-          useProjectStore.getState().loadProjects(user.uid, true),
-          useTemplateStore.getState().loadTemplates(user.uid),
-        ]),
-      );
-      if (isSessionCurrent(user.uid, revision)) {
-        markNetworkAvailable('session');
-        useSessionStore.setState({ status: 'ready' });
-      }
-    } catch (error) {
-      if (isSessionCurrent(user.uid, revision)) {
-        const offline = reportNetworkUnavailable(error);
-        useSessionStore.setState({
-          status: offline || sessionWasReady ? 'ready' : 'error',
-          error:
-            offline || sessionWasReady
-              ? null
-              : toUserMessage(error, 'No hemos podido abrir tu espacio de trabajo.'),
-        });
-      }
-    } finally {
-      if (isSessionCurrent(user.uid, revision)) loading = null;
-    }
-  })();
-  return loading;
-}
+  },
+  loadStores: (user) =>
+    Promise.all([
+      useUserStore.getState().loadUserData(user.uid, user.email ?? ''),
+      useBudgetStore.getState().loadBudgets(user.uid),
+      useCatalogStore.getState().loadCatalogs(user.uid, true),
+      useProfileStore.getState().loadProfile(user.uid, user.email ?? ''),
+      useProjectStore.getState().loadProjects(user.uid, true),
+      useTemplateStore.getState().loadTemplates(user.uid),
+    ]),
+  probe: (user) => useProjectStore.getState().loadProjects(user.uid, true),
+  drafts: sessionDraftStorage,
+});
 
-export async function probeSessionConnection(user: User): Promise<boolean> {
-  if (isBrowserDisconnected()) return false;
-  try {
-    await withTimeout(useProjectStore.getState().loadProjects(user.uid, true));
-    markNetworkAvailable('request');
-    return true;
-  } catch (error) {
-    reportNetworkUnavailable(error);
-    return false;
-  }
-}
+export const useSessionStore = bindStore(coordinator.sessionStore);
+export const { resetSession, loadSession, probeSessionConnection, prepareSignOut } = coordinator;
 
 export { retryUnauthenticatedRouteConnection } from './sessionModule';
 
@@ -142,8 +49,4 @@ export function hasBudgetDraft(): boolean {
 
 export function hasDirtyBudgetDraft(): boolean {
   return useBudgetStore.getState().draftDirty;
-}
-
-export async function prepareSignOut() {
-  await withTimeout(flushWrites());
 }

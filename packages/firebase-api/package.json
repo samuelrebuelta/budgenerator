@@ -1,0 +1,22 @@
+{
+  "name": "@bg/firebase-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Firestore repositories shared by web and mobile with the SDK injected through a minimal port (BG-014 D2). Started in the phase 0 spike with the project repository.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bg/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

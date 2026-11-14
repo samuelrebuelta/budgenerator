@@ -1,0 +1,63 @@
+# BG-014 · login → crear presupuesto → PDF, contra los emuladores demo-budgenerator.
+# Requisitos y ejecución: apps/mobile/README.md, «Flujo Maestro».
+#   maestro test apps/mobile/.maestro/budget-pdf.yaml \
+#     -e EMAIL=maestro@example.test -e PASSWORD=Reforma2026
+# La cuenta se crea antes en el emulador de Auth (registro en la app o REST del emulador).
+appId: com.budgenerator.app.dev
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Email'
+- inputText: ${EMAIL}
+- tapOn: 'Contraseña'
+- inputText: ${PASSWORD}
+- tapOn: 'Entrar'
+- extendedWaitUntil:
+    visible:
+      id: 'budget-create-button'
+    timeout: 20000
+- tapOn:
+    id: 'budget-create-button'
+- tapOn:
+    id: 'budget-client-name'
+- inputText: 'Cliente Maestro'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'budget-add-chapter'
+- tapOn:
+    id: 'budget-add-chapter'
+- tapOn: 'Personalizada'
+- tapOn:
+    id: 'chapter-custom-name'
+- inputText: 'Pintura'
+- tapOn:
+    id: 'chapter-add'
+- tapOn: 'Añadir partida'
+- tapOn:
+    id: 'item-description'
+- inputText: 'Pintura de paredes'
+- tapOn:
+    id: 'item-quantity'
+- inputText: '25'
+- tapOn:
+    id: 'item-price'
+- inputText: '8,5'
+- tapOn:
+    id: 'item-done'
+- tapOn:
+    id: 'budget-save'
+- extendedWaitUntil:
+    visible:
+      id: 'budget-save-status'
+    optional: true
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: 'budget-export-pdf'
+- tapOn:
+    id: 'budget-export-pdf'
+# Hoja nativa de compartir con el PDF (iOS: vista previa «presupuesto-1.pdf»).
+- extendedWaitUntil:
+    visible: 'presupuesto-.*\.pdf'
+    timeout: 15000

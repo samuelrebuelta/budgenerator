@@ -1,7 +1,23 @@
 {
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./packages/domain"
+    },
+    {
+      "path": "./packages/ui-tokens"
+    },
+    {
+      "path": "./packages/firebase-api"
+    },
+    {
+      "path": "./packages/app-core"
+    }
   ]
 }

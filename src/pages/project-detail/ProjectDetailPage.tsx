@@ -8,11 +8,11 @@ import {
   ProjectProgressBar,
   ProjectStatusTag,
   useProjectStore,
+  workItemProgress,
   type ProjectDetail,
-  type ProjectWorkItem,
 } from '@/entities/project';
 import { formatCurrency, formatQuantity, generateId } from '@/shared/lib';
-import { money, taskAmount } from '@/shared/lib/budgetMath';
+import { taskAmount } from '@/shared/lib/budgetMath';
 import {
   Button,
   Card,
@@ -49,29 +49,6 @@ function userFacingError(reason: unknown, fallback: string) {
   if (message.includes('permission') || message.includes('insufficient'))
     return 'No tienes acceso a este proyecto.';
   return reason.message;
-}
-
-function workItemProgress(item: ProjectWorkItem, mode: 'amount' | 'concepts') {
-  const totalConcepts = item.tasks.length;
-  const completed = item.tasks.filter((task) => task.completedAt);
-  const completedConcepts = completed.length;
-  const totalAmount = money(item.tasks.reduce((total, task) => total + taskAmount(task), 0));
-  const completedAmount = money(completed.reduce((total, task) => total + taskAmount(task), 0));
-  const percent =
-    totalConcepts === 0
-      ? 0
-      : Math.round(
-          mode === 'amount' && totalAmount > 0
-            ? (completedAmount / totalAmount) * 100
-            : (completedConcepts / totalConcepts) * 100,
-        );
-  return {
-    totalConcepts,
-    completedConcepts,
-    totalAmount,
-    completedAmount,
-    percent: Math.max(0, Math.min(100, percent)),
-  };
 }
 
 export function ProjectDetailPage() {

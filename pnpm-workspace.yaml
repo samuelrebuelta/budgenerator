@@ -1,0 +1,5 @@
+# Incremental monorepo (BG-014 D1): the web stays at the root until the mobile beta.
+# `functions/` keeps its own workspace and lockfile because it deploys on its own.
+packages:
+  - 'packages/*'
+  - 'apps/*'

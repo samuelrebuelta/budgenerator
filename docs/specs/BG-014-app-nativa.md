@@ -1,6 +1,6 @@
 # BG-014 — App nativa iOS/Android con React Native y Expo
 
-Estado: aprobado
+Estado: parcial
 
 Fecha: 2026-11-14. Detalle técnico y justificación: [análisis de la app nativa](../analysis/native-app-plan.md) (antes BG-N01). Las decisiones D1–D10 se revisaron con el propietario el 14-11-2026 y la spec quedó aprobada ese mismo día. La aprobación autoriza el trabajo de las fases en PRs separadas; los despliegues, envíos a tienda y cambios de reglas siguen necesitando instrucción explícita (AGENTS.md).
 
@@ -53,15 +53,15 @@ Comprobado sobre `57129b7`; no hay que construirlo de nuevo para la app.
 ## Criterios de aceptación
 
 - [ ] La web pasa `pnpm lint`, `pnpm build`, `pnpm test`, `pnpm test:rules`, `pnpm build:functions` y `pnpm test:e2e` sin cambios de comportamiento tras extraer los paquetes, y el PDF de referencia de `tests/pdf.test.ts` no cambia.
-- [ ] Functions importa de `@bg/domain` y no queda ningún `../../src` en `functions/src`.
-- [ ] Mismos importes en web y móvil para el conjunto de presupuestos de prueba (test de paridad sobre `budgetTotals` y el modelo BC3).
+- [x] Functions importa de `@bg/domain` y no queda ningún `../../src` en `functions/src` (14-11-2026: a través de `functions/src/domain.ts`, que re-exporta las fuentes del paquete por ruta relativa).
+- [x] Mismos importes en web y móvil para el conjunto de presupuestos de prueba (test de paridad sobre `budgetTotals` y el modelo BC3) (14-11-2026: `apps/mobile/tests/budgetParity.test.ts`, cinco documentos con capítulos anidados, mediciones, descuento, recargo e IVA 0/21 %).
 - [ ] El PDF móvil es equivalente página a página al web para el documento largo de los tests y se comparte con el menú nativo.
 - [ ] En modo avión, las vistas visitadas se muestran sin skeleton tras reiniciar la app y una mutación muestra el toast de BG-012.
 - [ ] Cambiar de cuenta no deja datos del UID anterior en la caché de Firestore ni en MMKV (test automatizado).
 - [ ] Un lead nuevo genera un aviso con la app cerrada en iOS y Android físicos, y al tocarlo se abre ese lead.
 - [ ] Borrar la cuenta desde la app deja vacías todas las colecciones del UID en el emulador y cierra la sesión.
 - [ ] La app no muestra precios, compras ni enlaces de pago (D7).
-- [ ] La app abre en la última tab usada y, la primera vez, en Presupuestos (D8).
+- [x] La app abre en la última tab usada y, la primera vez, en Presupuestos (D8) (14-11-2026: Jest y simulador iOS).
 - [ ] Ninguna prueba usa datos reales; las pruebas contra `budgenerator` usan cuentas sintéticas que se borran al terminar (D5).
 - [ ] VoiceOver y TalkBack recorren crear presupuesto → exportar PDF sin bloqueos.
 - [ ] La app se aprueba en App Store y Google Play con crash-free ≥ 99,5 % en beta.
@@ -89,19 +89,19 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 ### Fase 0 — Preparación y monorepo (3–4 semanas)
 
 - [x] Aprobación de esta spec por el propietario (14-11-2026).
-- [ ] `pnpm-workspace.yaml` con la web en la raíz.
-- [ ] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él.
-- [ ] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
-- [ ] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production`.
-- [ ] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes, push en dispositivo físico y borrado de persistencia al cambiar de cuenta.
+- [x] `pnpm-workspace.yaml` con la web en la raíz (14-11-2026).
+- [x] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él (14-11-2026; Functions vía el shim `functions/src/domain.ts`).
+- [x] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
+- [x] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production` (14-11-2026; `eas.json` sin `projectId`: falta vincular la cuenta de Expo del propietario).
+- [x] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes y borrado de persistencia al cambiar de cuenta, los tres go ([informe](plans/2026-11-14-bg-014-spikes.md), 14-11-2026). **Push en dispositivo físico pendiente** de la licencia de Apple Developer.
 
 ### Fase 1 — Núcleo (6–8 semanas)
 
-- [ ] `@bg/firebase-api` y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes).
-- [ ] Registro, verificación de email, login y recuperación; tabs (D8).
-- [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público.
-- [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).
-- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF.
+- [x] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes) (14-11-2026: todos los repositorios y los ocho stores con el coordinador de sesión; la app aún no monta los stores, ver el registro, paso 5).
+- [x] Registro, verificación de email, login y recuperación; tabs (D8) (14-11-2026: con el coordinador de `@bg/app-core` montado y `resetSession` en el cierre de sesión y el cambio de cuenta; ver el registro, paso 6).
+- [x] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público (14-11-2026: Presupuestos, PDF y enlace, paso 8; Proyectos, pasos 9–10, con edición de nombre y cliente y asignaciones de equipo; Solicitudes con deep link, paso 11. Probado en simulador iOS; Android y el bloqueo offline en dispositivo, pendientes).
+- [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3) (14-11-2026: «Mi cuenta» básica, cierre de sesión y borrado del dispositivo hechos, paso 6; falta verificar en modo avión que las vistas visitadas se muestran sin skeleton tras reiniciar).
+- [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF (14-11-2026: paridad hecha; los flujos Maestro `budget-pdf` y `project-mark` están escritos pero sin ejecutar, Maestro no está instalado).
 
 ### Fase 2 — Paridad (4–5 semanas)
 

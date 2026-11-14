@@ -6,6 +6,7 @@ export {
   getProjectLocalDateKey,
   normalizeProjectCompletionDate,
 } from './model/history';
+export { workItemProgress } from './model/progress';
 export {
   findAssignmentWithOverlappingMember,
   findCrewAssignmentForMember,

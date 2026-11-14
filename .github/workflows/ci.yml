@@ -37,3 +37,17 @@ jobs:
         with:
           name: failure-evidence
           path: test-artifacts/
+  mobile:
+    # App nativa (apps/mobile): sin builds nativos, sólo TypeScript y Jest.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @bg/mobile typecheck
+      - run: pnpm --filter @bg/mobile test

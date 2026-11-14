@@ -11,11 +11,14 @@ const fakes = vi.hoisted(() => ({
   reset: vi.fn(),
 }));
 
-vi.mock('@/shared/model/sync', () => ({
-  useSyncStore: { setState: vi.fn() },
+// The coordinator lives in @bg/app-core and reads its own sync module.
+vi.mock('@bg/app-core/sync', () => ({
+  syncStore: { setState: vi.fn() },
   flushWrites: vi.fn(async () => {}),
   hasPendingWrites: fakes.hasPendingWrites,
   scheduleFlushWrites: vi.fn(),
+  registerFlusher: vi.fn(),
+  syncStatus: vi.fn(),
 }));
 vi.mock('@/entities/budget', () => ({
   useBudgetStore: { getState: () => ({ loadBudgets: fakes.loadBudgets }) },

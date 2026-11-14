@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.firebase-api.tsbuildinfo",
+    "target": "es2023",
+    // No DOM and no Firebase SDK on purpose: each platform injects its SDK through the port.
+    "lib": ["ES2023"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  // The domain sources are type-checked through the imports; they need its runtime globals.
+  "include": ["src", "../domain/src/runtime-globals.d.ts"]
+}
