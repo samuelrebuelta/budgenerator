@@ -21,6 +21,8 @@ El repositorio es un monorepo pnpm incremental (`pnpm-workspace.yaml` con `packa
 
 Reglas del paquete: sin DOM, Firebase, Zustand, React ni alias `@/` (ESLint lo impide y `tsc -b` lo comprueba con `lib: ES2023`; `src/runtime-globals.d.ts` declara las APIs web estándar que usa: `structuredClone`, `URL`, `TextEncoder`/`TextDecoder` y `crypto.randomUUID`). Los imports relativos llevan `.js` donde Functions los compila con NodeNext. Sus tests puros viven en `packages/domain/tests` y `pnpm test` los ejecuta junto a `tests/`.
 
+`packages/ui-tokens` (`@bg/ui-tokens`) es TypeScript fuente sin build ni dependencias: exporta como objetos tipados los tokens de diseño (colores, fuentes, radios, sombras, breakpoint, tamaño de título y escala de espaciado) en formatos que entiende React Native (hex, números en px, sombras estructuradas con conversión a props nativas). `scripts/build-theme.mjs` genera de ellos `src/app/styles/theme.generated.css` (el bloque `@theme` de Tailwind), que `pnpm dev` y `pnpm build` regeneran; un test de Vitest comprueba la sincronía y los formatos. Es la única fuente de verdad: no se edita el CSS generado.
+
 Las rutas antiguas de `src/` (`shared/types`, `shared/lib/budgetMath`, `entities/*/model/*`…) son re-exportaciones de una línea desde `@bg/domain`, para que la web no cambie sus imports ni las reglas de capas. Functions no puede resolver un paquete del workspace en Cloud Build: importa el dominio sólo a través de `functions/src/domain.ts`, que re-exporta por ruta relativa; `tsc` compila esos fuentes en `functions/lib/packages/domain/src` y `main` sigue en `lib/functions/src/index.js`.
 
 ## Arranque y sesión

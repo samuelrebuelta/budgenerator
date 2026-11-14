@@ -91,7 +91,7 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 - [x] Aprobación de esta spec por el propietario (14-11-2026).
 - [x] `pnpm-workspace.yaml` con la web en la raíz (14-11-2026).
 - [x] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él (14-11-2026; Functions vía el shim `functions/src/domain.ts`).
-- [ ] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
+- [x] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
 - [ ] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production`.
 - [ ] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes, push en dispositivo físico y borrado de persistencia al cambiar de cuenta.
 

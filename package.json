@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && node scripts/build-icons.mjs && vite build && vite build --config vite.notifications-sw.config.ts && node scripts/build-sw.mjs",
+    "dev": "node scripts/build-theme.mjs && vite",
+    "build": "node scripts/build-theme.mjs && tsc -b && node scripts/build-icons.mjs && vite build && vite build --config vite.notifications-sw.config.ts && node scripts/build-sw.mjs",
+    "theme": "node scripts/build-theme.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "firebase:deploy": "node scripts/deploy.mjs hosting",

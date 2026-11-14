@@ -1,0 +1,19 @@
+{
+  "name": "@bg/ui-tokens",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Single source of truth for the BudGenerator design tokens: typed objects for web and React Native, and the generator of the web Tailwind @theme block.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./css": "./src/css.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

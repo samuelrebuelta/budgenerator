@@ -20,7 +20,7 @@ Comprueba el flujo afectado en móvil estrecho y escritorio con datos ficticios.
 
 ### Tokens
 
-Los tokens viven en el `@theme` de [tokens.css](../src/app/styles/tokens.css) y generan utilidades de Tailwind (`bg-surface`, `text-ink-muted`, `rounded-card`, `shadow-popover`, `shell:`) y variables CSS.
+La fuente de verdad de los tokens es el paquete `packages/ui-tokens` (`@bg/ui-tokens`, [tokens.ts](../packages/ui-tokens/src/tokens.ts)), compartido con la app móvil. `scripts/build-theme.mjs` genera de él el `@theme` de [theme.generated.css](../src/app/styles/theme.generated.css): no lo edites a mano. Para añadir o cambiar un token, edita `tokens.ts` y ejecuta `pnpm theme`; `pnpm dev` y `pnpm build` lo regeneran y un test de Vitest falla si el CSS versionado no coincide. Las variables que no son del tema (z-index, altura de control, estados, movimiento) siguen en [tokens.css](../src/app/styles/tokens.css). Los tokens generan utilidades de Tailwind (`bg-surface`, `text-ink-muted`, `rounded-card`, `shadow-popover`, `shell:`) y variables CSS.
 
 | Grupo         | Tokens                                                                                                                                                                                                                              |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,11 +35,11 @@ Los tokens viven en el `@theme` de [tokens.css](../src/app/styles/tokens.css) y 
 | Tipografía    | `font-sans` (Manrope), `font-display` (Fraunces), `text-display` para títulos y la escala `text-xs…4xl`; ningún texto por debajo de 12 px                                                                                           |
 | Capas y ancho | `--z-dropdown` 30, `--z-sticky` 40, `--z-nav` 45, `--z-header` 50, `--z-popover` 60, `--z-tour` 80, `--z-toast` 90 (`z-(--z-toast)`); `shell:` y `max-shell:` en 801 px                                                             |
 
-ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y los imports a internos de entidades (`@/entities/<x>/<interno>`) o entre páginas, sin excepciones. Un color que no encaje en un token existente se añade como token semántico en `tokens.css`, nunca como hex en el componente.
+ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y los imports a internos de entidades (`@/entities/<x>/<interno>`) o entre páginas, sin excepciones. Un color que no encaje en un token existente se añade como token semántico en `packages/ui-tokens`, nunca como hex en el componente.
 
 ### Capas de CSS
 
-`src/index.css` solo importa, en este orden: Tailwind, `tokens.css`, `utilities.css` (`print:`, `scrollbar-none`, `focus-ring`), `base.css` (`@layer base`: fuentes, foco, altura táctil y cápsula por defecto de los botones) y, dentro de `@layer components`, `components/primitives.css`, los ficheros `legacy/*` y `motion.css` y `print.css`. Así cualquier utilidad de Tailwind gana a los estilos de componente: no hacen falta `!important` ni `!px-3`. El CSS de `legacy/` es deuda: al migrar una pantalla, pasa sus clases a utilidades con tokens (como Ayuda) y borra las reglas.
+`src/index.css` solo importa, en este orden: Tailwind, `theme.generated.css` (el `@theme` generado), `tokens.css`, `utilities.css` (`print:`, `scrollbar-none`, `focus-ring`), `base.css` (`@layer base`: fuentes, foco, altura táctil y cápsula por defecto de los botones) y, dentro de `@layer components`, `components/primitives.css`, los ficheros `legacy/*` y `motion.css` y `print.css`. Así cualquier utilidad de Tailwind gana a los estilos de componente: no hacen falta `!important` ni `!px-3`. El CSS de `legacy/` es deuda: al migrar una pantalla, pasa sus clases a utilidades con tokens (como Ayuda) y borra las reglas.
 
 ### Primitivas
 
@@ -67,7 +67,7 @@ ESLint rechaza colores hex arbitrarios (`bg-[#…]`) en todo `src/**/*.tsx` y lo
 
 ## Base visual y responsive
 
-budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y los tokens de `src/app/styles/tokens.css`. La identidad visual se documenta en [la propuesta visual archivada](archive/design-proposal.md): petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
+budgenerator utiliza Tailwind CSS 4 con el plugin de Vite y los tokens de `@bg/ui-tokens` (generados en `src/app/styles/theme.generated.css`). La identidad visual se documenta en [la propuesta visual archivada](archive/design-proposal.md): petróleo, cal, papel y terracota; Manrope para UI y Fraunces para titulares. Ambas fuentes son locales.
 
 La shell tiene navegación lateral en escritorio y navegación inferior bajo 800 px únicamente en las cuatro rutas raíz `/budgets`, `/projects`, `/team` y `/profile/solicitudes`. En móvil, el header queda sticky bajo el área segura. Las tabs raíz muestran la marca y el acceso al menú de cuenta; las páginas secundarias ocultan ambos y suben el `BackButton` al header, junto al estado de guardado. Debajo queda el título y subtítulo alineados a la izquierda, dentro del contenido desplazable; las acciones de página usan una fila propia. El indicador de guardado conserva un espacio fijo de 32 px para no mover los controles al comenzar o terminar una escritura. El catálogo está en el menú, debajo de Mi empresa. Las demás opciones de empresa, cuenta, ayuda, cierre de sesión y administración se conservan en el menú; escritorio mantiene los accesos laterales de cuenta y ayuda. El panel usa una tarjeta completa para el valor monetario en móvil, evitando recortar importes. El editor conserva tabla en escritorio y cards bajo el breakpoint sm de Tailwind (640 px).
 
