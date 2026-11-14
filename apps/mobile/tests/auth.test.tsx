@@ -81,6 +81,25 @@ describe('login', () => {
   });
 });
 
+describe('recuperar contraseña', () => {
+  it('envía el enlace al email del login y muestra los textos de la web', async () => {
+    setMockUser(null);
+    await renderRouter('./app', { initialUrl: '/login' });
+    await fireEvent.changeText(await screen.findByLabelText('Email'), 'ana@example.com');
+    await fireEvent.press(screen.getByRole('button', { name: '¿Olvidaste tu contraseña?' }));
+
+    expect(await screen.findByLabelText('Email')).toHaveDisplayValue('ana@example.com');
+    await fireEvent.press(screen.getByRole('button', { name: 'Enviar enlace' }));
+
+    expect(repositories.auth.sendPasswordReset).toHaveBeenCalledWith('ana@example.com');
+    expect(
+      await screen.findByText(
+        'Se ha enviado un email con instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada.',
+      ),
+    ).toBeOnTheScreen();
+  });
+});
+
 describe('cerrar sesión (D3)', () => {
   it('borra la cuenta del dispositivo con resetSession y vuelve al login', async () => {
     const reset = jest.spyOn(sessionReset, 'resetSession');

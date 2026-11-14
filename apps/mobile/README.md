@@ -34,7 +34,7 @@ El simulador de iOS llega a los emuladores por `localhost` y el emulador de Andr
 
 En el simulador de iOS, el dev client tiene que estar firmado ad hoc (lo hace `pnpm ios` o `xcodebuild` con `CODE_SIGN_IDENTITY=-`): con `CODE_SIGNING_ALLOWED=NO` el binario no lleva entitlements y Firebase Auth falla con `auth/keychain-error`.
 
-En la variante `development`, el login muestra un diagnóstico del motor: que `@bg/domain` calcula importes y que existen `structuredClone`, `TextEncoder`, `TextDecoder`, `URL`, `Intl` (incluida la agrupación de miles de `es-ES`), `atob` y `btoa` en Hermes, y un botón a los spikes de fase 0 (`budgenerator://dev/spikes?run=d2|pdf|d3|all&n=<nonce>`), que dejan el resultado en Metro (`[spike]`) y en `Documents/spikes/*.json`. [Informe de los spikes](../../docs/specs/plans/2026-11-14-bg-014-spikes.md).
+Las cuentas de prueba se crean desde la propia app (registro) contra el emulador de Auth. El enlace de verificación no se envía: el emulador lo deja en `http://localhost:9199/emulator/v1/projects/demo-budgenerator/oobCodes`, y abrirlo marca el email como verificado («Ya lo he verificado» en la app). En `development`, Metro avisa (`[runtime]`) si falta alguna API web que usan `@bg/domain` y jsPDF en Hermes. Los spikes de fase 0 se retiraron en la fase 1; su código está en el commit `ae6a037` y el resultado en el [informe](../../docs/specs/plans/2026-11-14-bg-014-spikes.md).
 
 ## Comprobaciones
 

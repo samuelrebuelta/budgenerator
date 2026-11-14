@@ -61,7 +61,7 @@ Comprobado sobre `57129b7`; no hay que construirlo de nuevo para la app.
 - [ ] Un lead nuevo genera un aviso con la app cerrada en iOS y Android físicos, y al tocarlo se abre ese lead.
 - [ ] Borrar la cuenta desde la app deja vacías todas las colecciones del UID en el emulador y cierra la sesión.
 - [ ] La app no muestra precios, compras ni enlaces de pago (D7).
-- [ ] La app abre en la última tab usada y, la primera vez, en Presupuestos (D8).
+- [x] La app abre en la última tab usada y, la primera vez, en Presupuestos (D8) (14-11-2026: Jest y simulador iOS).
 - [ ] Ninguna prueba usa datos reales; las pruebas contra `budgenerator` usan cuentas sintéticas que se borran al terminar (D5).
 - [ ] VoiceOver y TalkBack recorren crear presupuesto → exportar PDF sin bloqueos.
 - [ ] La app se aprueba en App Store y Google Play con crash-free ≥ 99,5 % en beta.
@@ -98,7 +98,7 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 ### Fase 1 — Núcleo (6–8 semanas)
 
 - [x] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes) (14-11-2026: todos los repositorios y los ocho stores con el coordinador de sesión; la app aún no monta los stores, ver el registro, paso 5).
-- [ ] Registro, verificación de email, login y recuperación; tabs (D8).
+- [x] Registro, verificación de email, login y recuperación; tabs (D8) (14-11-2026: con el coordinador de `@bg/app-core` montado y `resetSession` en el cierre de sesión y el cambio de cuenta; ver el registro, paso 6).
 - [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público.
 - [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).
 - [ ] Tests de paridad y flujo Maestro login → presupuesto → PDF.
