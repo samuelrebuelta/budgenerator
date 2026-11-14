@@ -29,6 +29,41 @@ const paintChapter = (price: number) => [
     ],
   },
 ];
+const seededPrimaryCatalog = () =>
+  seedDocument('catalog', { name: 'Reformas · Mi selección' }, [
+    {
+      name: 'Pintura',
+      items: [
+        { description: 'Pintura interior (dos manos)', unit: 'm2', price: 12.75, cost: 5.25 },
+      ],
+    },
+  ]);
+/**
+ * Restores the seeded catalog of the primary account. Earlier tests import whole categories;
+ * whether those writes land before the page closes depends on timing, so a test that imports
+ * from a known catalog must reset it instead of relying on the previous state.
+ */
+async function restorePrimaryCatalog() {
+  const env = await initializeTestEnvironment({
+    projectId: project,
+    firestore: {
+      host: firestoreEmulator.hostname,
+      port: Number(firestoreEmulator.port || 8180),
+      rules: readFileSync('firestore.rules', 'utf8'),
+    },
+  });
+  try {
+    await env.withSecurityRulesDisabled((ctx) =>
+      writeStoredDocument(
+        ctx.firestore(),
+        `users/${primaryUid}/catalog/main`,
+        seededPrimaryCatalog(),
+      ),
+    );
+  } finally {
+    await env.cleanup();
+  }
+}
 const fakeBudget = (name: string, address: string, price: number, number: string) =>
   seedDocument(
     'budget',
@@ -220,18 +255,7 @@ test.beforeAll(async () => {
       phone: '',
       email,
     });
-    await writeStoredDocument(
-      db,
-      `users/${uid}/catalog/main`,
-      seedDocument('catalog', { name: 'Reformas · Mi selección' }, [
-        {
-          name: 'Pintura',
-          items: [
-            { description: 'Pintura interior (dos manos)', unit: 'm2', price: 12.75, cost: 5.25 },
-          ],
-        },
-      ]),
-    );
+    await writeStoredDocument(db, `users/${uid}/catalog/main`, seededPrimaryCatalog());
     for (const [id, name] of [
       ['tpl-main', 'Reforma de baño'],
       ['tpl-paint', 'Puesta a punto'],
@@ -1124,6 +1148,7 @@ test('an account without a catalog starts with the complete renovation catalog',
 test('catalog imports a category, a part, or one concept from category details', async ({
   page,
 }) => {
+  await restorePrimaryCatalog();
   await login(page);
   await page.goto('/catalog');
   await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
@@ -2743,12 +2768,19 @@ test('plans project teams by week and saves person changes only for the selected
     const swipeSurface = page.getByTestId('weekly-swipe-surface');
     const currentSlide = swipeSurface.locator('[data-week-slide="current"]');
     const activeWeekRange = currentSlide.getByTestId('week-range');
+    // Start the drag on the selected day's heading, a draggable spot that is always visible:
+    // install and push banners can push the middle of the surface below the floating tab bar
+    // on a 390×844 viewport, and the week range sits under the (ignored) date picker.
+    const dayHeading = currentSlide.locator('h3').first();
+    await dayHeading.scrollIntoViewIfNeeded();
     const surfaceBounds = await swipeSurface.boundingBox();
     const initialSlideBounds = await currentSlide.boundingBox();
+    const dayHeadingBounds = await dayHeading.boundingBox();
     expect(surfaceBounds).not.toBeNull();
     expect(initialSlideBounds).not.toBeNull();
+    expect(dayHeadingBounds).not.toBeNull();
     const dragStartX = surfaceBounds!.x + surfaceBounds!.width / 2;
-    const dragStartY = surfaceBounds!.y + surfaceBounds!.height / 2;
+    const dragStartY = dayHeadingBounds!.y + dayHeadingBounds!.height / 2;
     await page.mouse.move(dragStartX, dragStartY);
     await page.mouse.down();
     await page.mouse.move(dragStartX - 90, dragStartY, { steps: 6 });
@@ -3180,12 +3212,10 @@ test('creates standalone and completed-project work entries from a day in Equipo
   });
   const db = env.authenticatedContext(primaryUid).firestore();
   const completedProjectId = 'project-team-job-completed-old';
-  const today = new Date();
-  const dateKey = [
-    String(today.getFullYear()).padStart(4, '0'),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-');
+  // Same day as the browser (Playwright runs it in Europe/Madrid), not the runner's UTC day.
+  const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(
+    new Date(),
+  );
   const completedProject = {
     id: completedProjectId,
     sourceBudgetId: 'budget-team-job-completed-old',
