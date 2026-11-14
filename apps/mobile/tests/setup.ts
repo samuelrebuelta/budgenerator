@@ -60,3 +60,35 @@ jest.mock('expo-symbols', () => ({
   SymbolView: ({ fallback }: { fallback?: unknown }) => fallback ?? null,
   unstable_getMaterialSymbolSourceAsync: async () => null,
 }));
+
+/** PDF output (`src/features/budgets/pdf.ts`): the file and the share sheet are native. */
+jest.mock('expo-file-system', () => {
+  class File {
+    uri: string;
+    exists = false;
+    constructor(_directory: unknown, name: string) {
+      this.uri = `file:///cache/${name}`;
+    }
+    create() {}
+    delete() {}
+    async write() {}
+  }
+  return { File, Paths: { cache: {}, document: {} } };
+});
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => undefined),
+}));
+
+/** The swipe container needs Reanimated's native runtime; the row and its actions render as is. */
+jest.mock('react-native-gesture-handler/ReanimatedSwipeable', () => {
+  const { View } = require('react-native');
+  const Swipeable = ({
+    children,
+    renderRightActions,
+  }: {
+    children?: unknown;
+    renderRightActions?: () => unknown;
+  }) => require('react').createElement(View, null, children, renderRightActions?.());
+  return { __esModule: true, default: Swipeable };
+});

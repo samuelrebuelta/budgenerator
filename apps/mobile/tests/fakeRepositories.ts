@@ -73,6 +73,8 @@ export function createFakeRepositories() {
       saveBudget: jest.fn(async () => 1),
       createBudget: jest.fn(),
       deleteBudgetDoc: jest.fn(async () => undefined),
+      shareBudget: jest.fn(async () => 'shared-token'),
+      revokeSharedBudget: jest.fn(async () => undefined),
     },
     budgetAcceptance: { acceptBudget: jest.fn(), withdrawBudgetAcceptance: jest.fn() },
     catalog: {

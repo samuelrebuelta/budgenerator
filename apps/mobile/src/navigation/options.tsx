@@ -50,6 +50,39 @@ export const tabRootOptions = (title: string): NativeStackNavigationOptions => (
   headerRight: () => <AccountMenuButton />,
 });
 
+/**
+ * Pushed screen of a tab stack (budget detail): standard title that the scroll edge effect of iOS
+ * 26 puts on glass, minimal back button (only the chevron), Material 3 top app bar on Android.
+ */
+export const detailOptions = (title: string): NativeStackNavigationOptions => ({
+  ...headerBase,
+  title,
+  headerBackButtonDisplayMode: 'minimal',
+});
+
+/**
+ * Editing sheet over a screen (budget item, chapter, guided structure). iOS: `formSheet` with the
+ * given detents and the grabber (a Liquid Glass sheet on iOS 26, its content opaque). Android:
+ * full-screen modal with the M3 top app bar, as the account menu.
+ */
+export const sheetOptions = (
+  title: string,
+  detents: number[] = [1],
+): NativeStackNavigationOptions =>
+  Platform.select<NativeStackNavigationOptions>({
+    ios: {
+      ...headerBase,
+      title,
+      presentation: 'formSheet',
+      sheetAllowedDetents: detents,
+      sheetGrabberVisible: true,
+      sheetInitialDetentIndex: 0,
+      headerShown: true,
+      contentStyle: { backgroundColor: colors.canvas },
+    },
+    default: { ...headerBase, title, presentation: 'modal' },
+  });
+
 /** Header of the menu sheet's screens; on iOS 26 the sheet's glass shows through. */
 export const menuScreenOptions: NativeStackNavigationOptions = {
   ...headerBase,

@@ -10,6 +10,10 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   label: string;
   /** Password field with the web's «Mostrar/Ocultar contraseña» toggle. */
   password?: boolean;
+  /** Keeps the label as the accessible name only (compact inline fields, e.g. the VAT rate). */
+  hideLabel?: boolean;
+  /** Helper text under the field (the web's field hint). */
+  hint?: string;
   ref?: Ref<ComponentRef<typeof TextInput>>;
 }
 
@@ -21,6 +25,8 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
 export function TextField({
   label,
   password = false,
+  hideLabel = false,
+  hint,
   ref,
   onFocus,
   onBlur,
@@ -30,9 +36,11 @@ export function TextField({
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
-      <Text variant="label" weight="medium" style={styles.label}>
-        {label}
-      </Text>
+      {hideLabel ? null : (
+        <Text variant="label" weight="medium" style={styles.label}>
+          {label}
+        </Text>
+      )}
       <View style={styles.control}>
         <TextInput
           ref={ref}
@@ -51,7 +59,12 @@ export function TextField({
             setFocused(false);
             onBlur?.(event);
           }}
-          style={[styles.input, focused && styles.focused, password && styles.inputWithToggle]}
+          style={[
+            styles.input,
+            focused && styles.focused,
+            password && styles.inputWithToggle,
+            props.editable === false && styles.readOnly,
+          ]}
           {...props}
         />
         {password ? (
@@ -67,6 +80,11 @@ export function TextField({
           </Pressable>
         ) : null}
       </View>
+      {hint ? (
+        <Text variant="caption" tone="muted">
+          {hint}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -91,6 +109,7 @@ const styles = StyleSheet.create({
   },
   // M3 focused outline is 2 dp in the primary colour; iOS keeps 1 pt and only changes colour.
   focused: { borderColor: colors.primary, borderWidth: isAndroid ? 2 : 1 },
+  readOnly: { backgroundColor: colors['surface-muted'], color: colors['ink-muted'] },
   inputWithToggle: { paddingRight: spacing[12] },
   toggle: {
     position: 'absolute',

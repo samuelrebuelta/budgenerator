@@ -108,7 +108,7 @@ describe('cerrar sesión (D3)', () => {
     });
     setMockUser({ uid: 'leaving' });
     await renderRouter('./app', { initialUrl: '/' });
-    await screen.findByTestId('budgets-placeholder');
+    await screen.findByTestId('budgets-list');
     expect(userStorage('leaving').getString(LAST_TAB_KEY)).toBe('budgets');
 
     // Every tab stack has its header mounted; the first account button is Presupuestos'.

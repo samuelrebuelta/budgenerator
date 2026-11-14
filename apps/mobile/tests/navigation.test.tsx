@@ -28,10 +28,10 @@ describe('guard de sesión (equivalente a AuthGuard)', () => {
     await renderRouter('./app', { initialUrl: '/' });
 
     const retry = await screen.findByRole('button', { name: 'Reintentar' });
-    expect(screen.queryByTestId('budgets-placeholder')).toBeNull();
+    expect(screen.queryByTestId('budgets-list')).toBeNull();
 
     await fireEvent.press(retry);
-    expect(await screen.findByTestId('budgets-placeholder')).toBeOnTheScreen();
+    expect(await screen.findByTestId('budgets-list')).toBeOnTheScreen();
   });
 });
 
@@ -40,7 +40,7 @@ describe('tabs y D8', () => {
     setMockUser({ uid: 'first-time' });
     await renderRouter('./app', { initialUrl: '/' });
 
-    expect(await screen.findByTestId('budgets-placeholder')).toBeOnTheScreen();
+    expect(await screen.findByTestId('budgets-list')).toBeOnTheScreen();
     expect(screen).toHavePathname('/budgets');
     const tabBar = nativeTabBar(screen.toJSON());
     expect(tabBar.items).toEqual(
@@ -62,7 +62,7 @@ describe('tabs y D8', () => {
   it('guarda la última tab en el MMKV del UID y vuelve a abrir en ella', async () => {
     setMockUser({ uid: 'returning' });
     const { unmount } = await renderRouter('./app', { initialUrl: '/' });
-    await screen.findByTestId('budgets-placeholder');
+    await screen.findByTestId('budgets-list');
 
     // The native tab bar is drawn by UIKit: switching tabs goes through the router, as a tap does.
     await act(async () => {
