@@ -21,7 +21,9 @@ import { Button, Icon, Notice, Text } from '../../../../src/ui';
 
 const EMPTY: QuoteLead[] = [];
 
+/** Opens a lead; the «no disponible» notice of a previous deep link goes away with it. */
 function openLead(id: string) {
+  router.setParams({ notice: undefined });
   router.push({ pathname: '/leads/[leadId]', params: { leadId: id } });
 }
 
@@ -112,7 +114,7 @@ export default function LeadsScreen() {
     const requested = validLeadId(leadId);
     if (!requested) return;
     router.setParams({ leadId: undefined });
-    openLead(requested);
+    router.push({ pathname: '/leads/[leadId]', params: { leadId: requested } });
   }, [leadId]);
   const entries = useMemo(() => filterLeads(leads, search, filter), [leads, search, filter]);
   const filtered = !!search.trim() || !!filter;

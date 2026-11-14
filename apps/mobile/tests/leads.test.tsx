@@ -8,7 +8,7 @@ import type { BudgetRecord } from '@bg/domain/budget/record';
 import type { QuoteLead } from '@bg/domain/quote-estimator/types';
 import { budgetView } from '@bg/domain/budget/record';
 import { router } from 'expo-router';
-import { leadIdFromDeepLink, whatsappUrl } from '../src/features/leads/model';
+import { filterLeads, leadIdFromDeepLink, whatsappUrl } from '../src/features/leads/model';
 import { leadRouteFromPushData } from '../src/platform/push';
 import { coordinator, repositories, useAuthStore, useBudgetStore } from '../src/state/stores';
 import { setMockUser } from './helpers';
@@ -261,6 +261,22 @@ describe('modelo', () => {
     expect(leadRouteFromPushData({ leadId: 'l1' })).toBe('/leads/l1');
     expect(leadRouteFromPushData({ leadId: 'javascript:alert(1)' })).toBeNull();
     expect(leadRouteFromPushData(null)).toBeNull();
+  });
+
+  it('busca por nombre, email, teléfono y reforma, sin distinguir mayúsculas', () => {
+    const leads = [
+      lead('l1'),
+      lead('l2', {
+        contact: { name: 'Mario Ejemplo', email: 'mario@example.com', phone: '611 222 333' },
+        selections: [{ room: 'kitchen', scope: 'partial', quality: 'medium', areaM2: 9 }],
+      }),
+    ];
+    const ids = (search: string) => filterLeads(leads, search, '').map((item) => item.id);
+    expect(ids('MARIO')).toEqual(['l2']);
+    expect(ids('lucia@')).toEqual(['l1']);
+    expect(ids('611 222')).toEqual(['l2']);
+    expect(ids('baño')).toEqual(['l1']);
+    expect(ids('nadie')).toEqual([]);
   });
 
   it('forma el enlace de WhatsApp con prefijo internacional', () => {
