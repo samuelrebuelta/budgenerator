@@ -7,6 +7,7 @@ import { createCatalogRepository } from '@bg/firebase-api/catalog';
 import { createNotificationsRepository } from '@bg/firebase-api/notifications';
 import { createProfileRepository } from '@bg/firebase-api/profile';
 import { createProjectRepository } from '@bg/firebase-api/project';
+import { createQuoteEstimatorRepository } from '@bg/firebase-api/quoteEstimator';
 import { createTemplateRepository } from '@bg/firebase-api/template';
 import { createUserRepository } from '@bg/firebase-api/user';
 import { createWorkforceRepository } from '@bg/firebase-api/workforce';
@@ -42,6 +43,12 @@ export function createNativeRepositories() {
     catalog: createCatalogRepository({ sdk, database, guardMutation }),
     profile: createProfileRepository({ sdk, database, guardMutation }),
     project: createProjectRepository({ sdk, database, guardMutation }),
+    quoteEstimator: createQuoteEstimatorRepository({
+      sdk,
+      database,
+      functions: nativeFunctions,
+      guardMutation,
+    }),
     template: createTemplateRepository({ sdk, database, guardMutation }),
     workforce: createWorkforceRepository({ sdk, database, guardMutation }),
     notifications: createNotificationsRepository({ functions: nativeFunctions, guardMutation }),

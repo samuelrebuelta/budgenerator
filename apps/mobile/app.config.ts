@@ -70,7 +70,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       './firebase/development/GoogleService-Info.plist',
     ),
     // TODO(BG-014): Team ID, push entitlement, App Attest and associated domains need the Apple
-    // Developer licence.
+    // Developer licence. Universal links: add
+    // `associatedDomains: ['applinks:budgenerator.web.app']` and publish
+    // `https://budgenerator.web.app/.well-known/apple-app-site-association` with
+    // `{"applinks":{"details":[{"appIDs":["<TEAM_ID>.<bundleId>"],"components":[{"/":"/profile/solicitudes"}]}]}}`.
   },
   android: {
     package: bundleId,
@@ -83,6 +86,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#183E3B',
     },
     predictiveBackGestureEnabled: false,
+    // App Links for the leads page of the web (`app/(app)/profile/solicitudes.tsx`). Verification
+    // needs `https://budgenerator.web.app/.well-known/assetlinks.json` with the SHA-256 of the
+    // signing certificate (EAS credentials, TODO BG-014); until then Android asks which app opens
+    // the link. The `budgenerator://` scheme works without it.
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          { scheme: 'https', host: 'budgenerator.web.app', pathPrefix: '/profile/solicitudes' },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
   },
   plugins: [
     'expo-router',

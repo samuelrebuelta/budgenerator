@@ -107,6 +107,11 @@ export function createFakeRepositories() {
       addAssignment: jest.fn(),
       removeAssignment: jest.fn(async () => undefined),
     },
+    quoteEstimator: {
+      fetchLeads: jest.fn(async () => []),
+      fetchLead: jest.fn(async () => null),
+      deleteLead: jest.fn(async () => undefined),
+    },
     template: { fetchTemplates: jest.fn(async () => []) },
     workforce: { fetchMembers: jest.fn(async () => []), fetchCrews: jest.fn(async () => []) },
     notifications: {},

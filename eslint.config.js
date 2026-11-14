@@ -185,6 +185,16 @@ export default defineConfig([
     languageOptions: { globals: { __DEV__: 'readonly' } },
   },
   {
+    // Expo Router reads `unstable_settings` (initial route of a stack) from route layouts.
+    files: ['apps/mobile/app/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, allowExportNames: ['unstable_settings'] },
+      ],
+    },
+  },
+  {
     files: ['apps/mobile/tests/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.jest } },
     rules: { '@typescript-eslint/no-require-imports': 'off' },

@@ -32,6 +32,8 @@ export const SYSTEM_ICONS: Partial<Record<IconName, { sf: SFSymbol; md: AndroidS
   'user-plus': { sf: 'person.badge.plus', md: 'person_add' },
   star: { sf: 'star', md: 'star' },
   mail: { sf: 'envelope', md: 'mail' },
+  phone: { sf: 'phone', md: 'call' },
+  'message-circle': { sf: 'message', md: 'chat' },
   'log-out': { sf: 'rectangle.portrait.and.arrow.right', md: 'logout' },
   'log-in': { sf: 'arrow.right.circle', md: 'login' },
   award: { sf: 'rosette', md: 'workspace_premium' },
