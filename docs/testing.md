@@ -15,7 +15,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-`pnpm install` en la raíz instala también los paquetes del workspace (`packages/*`, por ahora `@bg/domain`). Functions tiene su propia instalación: `pnpm --dir functions install --frozen-lockfile`.
+`pnpm install` en la raíz instala también los paquetes del workspace (`packages/*` y `apps/*`: `@bg/domain`, `@bg/ui-tokens` y la app nativa `@bg/mobile`). Functions tiene su propia instalación: `pnpm --dir functions install --frozen-lockfile`.
 
 La aplicación se abre en [http://localhost:3000/](http://localhost:3000/). Requiere las variables `VITE_FIREBASE_*` descritas en el README. La configuración actual no conecta emuladores; comprobar a qué proyecto apunta `.env` antes de crear o modificar datos durante pruebas locales.
 
@@ -29,7 +29,11 @@ pnpm test:rules:emulator          # reglas en emulador, puertos alternativos 48x
 pnpm test:notifications:emulator  # integración de Functions (avisos, cuenta, abuso, retención)
 pnpm test:integration             # reglas + navegador con Auth, Firestore y Functions
 pnpm build
+pnpm --filter @bg/mobile typecheck  # app nativa: TypeScript
+pnpm --filter @bg/mobile test       # app nativa: Jest (jest-expo) + React Native Testing Library
 ```
+
+`pnpm test` (Vitest) no recoge los tests de `apps/mobile/tests`, que son de Jest. `pnpm lint` y `pnpm format:check` sí incluyen `apps/mobile`, salvo `ios/` y `android/`, que genera `expo prebuild`. Cómo compilar el dev client y conectarlo a los emuladores: [README de la app](../apps/mobile/README.md).
 
 `scripts/deploy.mjs` ejecuta por sí mismo lint, formato, unitarias, reglas y, si se despliegan Functions, su build e integración, y comprueba el bundle; la suite de navegador se confía a CI.
 

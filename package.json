@@ -19,7 +19,7 @@
     "firebase:emulators": "firebase emulators:start --project demo-cimbra --only auth,firestore,functions",
     "build:functions": "pnpm --dir functions build",
     "firebase:deploy:all": "node scripts/deploy.mjs all",
-    "format:check": "prettier --check src scripts tests packages functions/src functions/package.json functions/tsconfig.json *.config.ts firebase.json package.json pnpm-workspace.yaml",
+    "format:check": "prettier --check src scripts tests packages apps functions/src functions/package.json functions/tsconfig.json *.config.ts firebase.json package.json pnpm-workspace.yaml",
     "firebase:deploy:staging": "node scripts/deploy.mjs all --project staging",
     "test:rules:emulator": "firebase emulators:exec --config firebase.notifications-test.json --project demo-cimbra-rules --only firestore \"pnpm test:rules\"",
     "docs:check": "node scripts/check-docs.mjs"

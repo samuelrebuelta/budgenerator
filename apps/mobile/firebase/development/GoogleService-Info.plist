@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Fictitious Firebase app for the `development` variant: project `demo-budgenerator`, which only
+  exists in the local emulators (auth 9099, firestore 8080, functions 5001). These values are not
+  credentials and do not reach any real Firebase project. Real files for preview/production are
+  injected at build time (see app.config.ts); never commit them here.
+-->
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyD3m0BudGeneratorEmulatorOnly00000</string>
+	<key>GCM_SENDER_ID</key>
+	<string>123456789000</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.budgenerator.app.dev</string>
+	<key>PROJECT_ID</key>
+	<string>demo-budgenerator</string>
+	<key>STORAGE_BUCKET</key>
+	<string>demo-budgenerator.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false/>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false/>
+	<key>IS_APPINVITE_ENABLED</key>
+	<false/>
+	<key>IS_GCM_ENABLED</key>
+	<false/>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true/>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:123456789000:ios:a1b2c3d4e5f60718</string>
+</dict>
+</plist>

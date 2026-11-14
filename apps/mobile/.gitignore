@@ -1,0 +1,18 @@
+# Continuous Native Generation: `expo prebuild` regenerates the native projects.
+/ios
+/android
+
+.expo/
+expo-env.d.ts
+web-build/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Real Firebase files for preview/production arrive as EAS secrets, never in Git.
+/firebase/preview/
+/firebase/production/

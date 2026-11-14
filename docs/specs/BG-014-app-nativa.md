@@ -92,7 +92,7 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 - [x] `pnpm-workspace.yaml` con la web en la raíz (14-11-2026).
 - [x] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él (14-11-2026; Functions vía el shim `functions/src/domain.ts`).
 - [x] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
-- [ ] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production`.
+- [x] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production` (14-11-2026; `eas.json` sin `projectId`: falta vincular la cuenta de Expo del propietario).
 - [ ] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes, push en dispositivo físico y borrado de persistencia al cambiar de cuenta.
 
 ### Fase 1 — Núcleo (6–8 semanas)

@@ -23,6 +23,15 @@ Reglas del paquete: sin DOM, Firebase, Zustand, React ni alias `@/` (ESLint lo i
 
 `packages/ui-tokens` (`@bg/ui-tokens`) es TypeScript fuente sin build ni dependencias: exporta como objetos tipados los tokens de diseño (colores, fuentes, radios, sombras, breakpoint, tamaño de título y escala de espaciado) en formatos que entiende React Native (hex, números en px, sombras estructuradas con conversión a props nativas). `scripts/build-theme.mjs` genera de ellos `src/app/styles/theme.generated.css` (el bloque `@theme` de Tailwind), que `pnpm dev` y `pnpm build` regeneran; un test de Vitest comprueba la sincronía y los formatos. Es la única fuente de verdad: no se edita el CSS generado.
 
+`apps/mobile` (`@bg/mobile`) es la app nativa (fase 0 de BG-014; [README](../apps/mobile/README.md)): Expo SDK 58 con React Native 0.88 y React 19.3 (la web sigue en 19.2: cada importer resuelve su copia), Expo Router, dev client, Hermes y New Architecture. Usa CNG: `ios/` y `android/` los genera `expo prebuild` y no se versionan. `app.config.ts` lee `APP_VARIANT` (`development`, `preview`, `production`) para el nombre, el bundle id (`com.budgenerator.app` con sufijo `.dev`/`.preview`) y los ficheros de Firebase; `eas.json` define los perfiles y canales de EAS con `runtimeVersion` por fingerprint. Estructura (§4.1 del análisis):
+
+- `app/`: rutas de Expo Router. `_layout.tsx` monta los providers (gestos, teclado, sesión) y conecta Firebase; `(auth)/login` es un placeholder; `(app)/_layout.tsx` es el guard de sesión; `(app)/(tabs)` tiene Presupuestos, Proyectos, Equipo y Solicitudes, cada una con su stack.
+- `src/platform/`: `firebase.ts` (RNFB; en `development` conecta los emuladores de `demo-budgenerator` y Functions en `europe-southwest1`), `ids.ts` (`setIdGenerator` con `expo-crypto`) y `runtime.ts` (comprobación de las APIs web que usa `@bg/domain` en Hermes).
+- `src/ui/`: primitivas `Text`, `Button`, `Card`, `ListRow` y `Screen` con `StyleSheet` y `@bg/ui-tokens`; Manrope y Fraunces como TTF estáticos incrustados con el plugin de `expo-font`.
+- `src/session/`: sesión mínima sobre `onAuthStateChanged`; en fase 1 la sustituye `@bg/app-core`.
+
+Metro resuelve los paquetes del workspace por sus `exports` a TypeScript fuente; `metro.config.js` reintenta sin extensión los imports relativos `.js` del dominio (estilo NodeNext), y Jest hace lo mismo con `moduleNameMapper`.
+
 Las rutas antiguas de `src/` (`shared/types`, `shared/lib/budgetMath`, `entities/*/model/*`…) son re-exportaciones de una línea desde `@bg/domain`, para que la web no cambie sus imports ni las reglas de capas. Functions no puede resolver un paquete del workspace en Cloud Build: importa el dominio sólo a través de `functions/src/domain.ts`, que re-exporta por ruta relativa; `tsc` compila esos fuentes en `functions/lib/packages/domain/src` y `main` sigue en `lib/functions/src/index.js`.
 
 ## Arranque y sesión

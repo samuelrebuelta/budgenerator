@@ -6,3 +6,7 @@ playwright-report/
 tmp/
 docs/testing-access.local.md
 pnpm-lock.yaml
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/.expo/
+apps/mobile/expo-env.d.ts
