@@ -12,6 +12,9 @@ const REQUIRED_GLOBALS = [
   'URL',
   'URLSearchParams',
   'Intl',
+  // jsPDF (`buildBudgetDocument`) encodes with them; React Native installs both.
+  'atob',
+  'btoa',
 ] as const;
 
 export function missingRuntimeGlobals(scope: object = globalThis): string[] {
@@ -67,9 +70,19 @@ export function runtimeSelfCheck(): RuntimeCheck[] {
       const text = formatEuros(total);
       return [total === 91.54 && text.includes('91,54'), text];
     }),
+    check('Intl agrupación es-ES', () => {
+      // Same as Node/ICU (web and the PDF reference): no separator below 10.000.
+      const options = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+      const text = `${(1234.5).toLocaleString('es-ES', options)} | ${(12345.5).toLocaleString('es-ES', options)}`;
+      return [text === '1234,50 | 12.345,50', text];
+    }),
     check('Intl.PluralRules', () => {
       const rules = new Intl.PluralRules('es-ES');
       return [rules.select(1) === 'one' && rules.select(2) === 'other', rules.select(1)];
+    }),
+    check('atob/btoa', () => {
+      const encoded = btoa('%PDF-1.3');
+      return [atob(encoded) === '%PDF-1.3', encoded];
     }),
     check('generateId', () => {
       const id = generateId();

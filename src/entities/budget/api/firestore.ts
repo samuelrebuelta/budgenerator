@@ -24,20 +24,15 @@ import {
   newRootFields,
   readStoredDocument,
   saveStoredDocument,
-  type StoredRoot,
 } from '@/entities/construction-document/api/storage';
+import type { BudgetRoot } from '@bg/firebase-api/storedDocument';
 import type { BudgetRecord } from '../model/record';
 import { buildSharedBudget, type SharedBudget } from '../model/publicBudget';
 
 export type { SharedBudget };
 import type { CompanyProfile, UserData } from '@/shared/types';
 
-export interface BudgetRoot extends StoredRoot {
-  number: number;
-  acceptedAt?: string;
-  projectId?: string;
-  sourceLeadId?: string;
-}
+export type { BudgetRoot };
 
 function budgetsCol(uid: string) {
   return collection(db, 'users', uid, 'budgets');

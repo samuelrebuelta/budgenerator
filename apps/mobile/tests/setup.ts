@@ -28,3 +28,8 @@ jest.mock('@react-native-firebase/functions', () => ({
   getFunctions: () => ({}),
   connectFunctionsEmulator: jest.fn(),
 }));
+
+// react-native-mmkv uses its own in-memory mock under Jest; only its Nitro loader needs a stub.
+jest.mock('react-native-nitro-modules', () => ({
+  NitroModules: { createHybridObject: jest.fn() },
+}));

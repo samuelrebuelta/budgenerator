@@ -1,26 +1,27 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 const entityInternals = {
   group: ['@/entities/*/*'],
   message: 'Importa la entidad desde su API pública (@/entities/<nombre>).',
-}
+};
 const otherPages = {
   group: ['@/pages/*'],
   message: 'Una página no importa otra: mueve el código compartido a entities, features o shared.',
-}
+};
 const upperLayers = (layers) => ({
   group: layers.map((layer) => `@/${layer}/*`),
   message: 'Respeta las capas FSD: una capa solo importa capas inferiores (docs/architecture.md).',
-})
+});
 const arbitraryColor = {
-  selector: 'Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/], TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]/]',
+  selector:
+    'Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/], TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]/]',
   message: 'Usa los tokens de color del @theme (bg-surface, text-ink-muted…) en lugar de hex.',
-}
+};
 
 export default defineConfig([
   globalIgnores([
@@ -80,7 +81,10 @@ export default defineConfig([
   {
     files: ['src/features/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [entityInternals, upperLayers(['pages', 'app'])] }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: [entityInternals, upperLayers(['pages', 'app'])] },
+      ],
     },
   },
   {
@@ -97,7 +101,35 @@ export default defineConfig([
           patterns: [
             {
               group: ['@/*', 'react', 'react-*', 'firebase', 'firebase/*', 'zustand', 'zustand/*'],
-              message: '@bg/domain es TypeScript puro: sin alias de la web, UI, Firebase ni stores.',
+              message:
+                '@bg/domain es TypeScript puro: sin alias de la web, UI, Firebase ni stores.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // @bg/firebase-api receives the SDK through its port (BG-014 D2): it never imports one.
+    files: ['packages/firebase-api/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/*',
+                'react',
+                'react-*',
+                'firebase',
+                'firebase/*',
+                '@react-native-firebase/*',
+                'zustand',
+                'zustand/*',
+              ],
+              message:
+                '@bg/firebase-api recibe el SDK por el puerto FirestoreSdk: sin alias de la web, UI, SDK ni stores.',
             },
           ],
         },
@@ -126,4 +158,4 @@ export default defineConfig([
     ],
     languageOptions: { globals: { ...globals.node } },
   },
-])
+]);

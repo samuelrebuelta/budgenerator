@@ -9,14 +9,17 @@ import {
   type Transaction,
 } from 'firebase/firestore';
 import {
+  readStoredDocument as readSharedStoredDocument,
+  type StoredDocument,
+  type StoredRoot,
+} from '@bg/firebase-api/storedDocument';
+import { webFirestoreSdk } from '@/shared/firebase/firestoreSdk';
+import {
   CONSTRUCTION_SCHEMA_VERSION,
   contentOf,
-  decodeContent,
   encodeContent,
   type ConstructionBusiness,
-  type ConstructionContent,
   type ConstructionDocument,
-  type ConstructionDocumentKind,
 } from '../model';
 
 /**
@@ -28,30 +31,10 @@ import {
  * Every save runs in one transaction that checks the root revision (optimistic concurrency),
  * bumps it and rewrites the chunks with the new revision. Readers verify all chunks carry the
  * root revision, so a read that interleaves with a write retries instead of mixing versions.
+ * The read side and the root types live in `@bg/firebase-api` (shared with mobile, BG-014 D2).
  */
-export interface StoredRoot {
-  id: string;
-  kind: ConstructionDocumentKind;
-  schemaVersion: typeof CONSTRUCTION_SCHEMA_VERSION;
-  revision: number;
-  /** Revision of the content chunks; root-only updates (acceptance…) leave it unchanged. */
-  contentRevision: number;
-  chunkCount: number;
-  createdAt: string;
-  updatedAt: string;
-  name: string;
-  clientName: string;
-  address: string;
-  date: string;
-  budgetNumber: string;
-  ivaRate: number;
-  adjustment?: { multiplier: number; reason: string };
-}
-
-export interface StoredDocument<R extends StoredRoot = StoredRoot> {
-  root: R;
-  document: ConstructionDocument;
-}
+export type { StoredDocument, StoredRoot } from '@bg/firebase-api/storedDocument';
+export { assembleDocument, businessFromRoot } from '@bg/firebase-api/storedDocument';
 
 export class RevisionConflictError extends Error {
   constructor() {
@@ -90,26 +73,6 @@ export function businessFields(business: ConstructionBusiness) {
   };
 }
 
-export function businessFromRoot(root: StoredRoot): ConstructionBusiness {
-  return {
-    name: root.name ?? '',
-    clientName: root.clientName ?? '',
-    address: root.address ?? '',
-    date: root.date ?? '',
-    budgetNumber: root.budgetNumber ?? '',
-    ivaRate: typeof root.ivaRate === 'number' ? root.ivaRate : 0.1,
-    ...(root.adjustment ? { adjustment: { ...root.adjustment } } : {}),
-  };
-}
-
-export function assembleDocument(
-  root: StoredRoot,
-  content: ConstructionContent,
-): ConstructionDocument {
-  if (content.kind !== root.kind) throw new Error('El contenido no corresponde a su documento.');
-  return { ...content, business: businessFromRoot(root) };
-}
-
 /** Writes all chunks for `revision` and deletes the ones a shorter version no longer uses. */
 export function writeContent(
   transaction: Transaction,
@@ -128,25 +91,11 @@ export function writeContent(
 }
 
 /** Reads the root and its chunks; retries when a concurrent save changed the revision. */
-export async function readStoredDocument<R extends StoredRoot>(
+export function readStoredDocument<R extends StoredRoot>(
   root: DocumentReference,
   attempts = 3,
 ): Promise<StoredDocument<R> | null> {
-  for (let attempt = 0; attempt < attempts; attempt++) {
-    const rootSnap = await getDoc(root);
-    if (!rootSnap.exists()) return null;
-    const data = rootSnap.data() as R;
-    const chunks = await Promise.all(
-      Array.from({ length: data.chunkCount }, (_, index) => getDoc(contentChunkRef(root, index))),
-    );
-    const consistent = chunks.every(
-      (chunk) => chunk.exists() && chunk.data().revision === data.contentRevision,
-    );
-    if (!consistent) continue;
-    const content = decodeContent(chunks.map((chunk) => chunk.data()!.data as string));
-    return { root: data, document: assembleDocument(data, content) };
-  }
-  throw new Error('No se ha podido leer una versión coherente del documento. Inténtalo de nuevo.');
+  return readSharedStoredDocument<R>(webFirestoreSdk, root, attempts);
 }
 
 /** Deletes the root and every chunk atomically. */

@@ -32,6 +32,8 @@ describe('@bg/domain desde la app', () => {
       'TextEncoder',
       'TextDecoder',
       'URLSearchParams',
+      'atob',
+      'btoa',
     ]);
     const failed = runtimeSelfCheck().filter((item) => !item.ok && item.name !== 'generateId');
     expect(failed).toEqual([]);

@@ -93,11 +93,11 @@ Estimación: 18–23 semanas de un desarrollador hasta publicar; beta interna a 
 - [x] Extraer `@bg/domain` (tipos, modelo BC3, importes, catálogo, estimador, proyectos, planificación, fechas y textos) con sus tests; web y Functions importan de él (14-11-2026; Functions vía el shim `functions/src/domain.ts`).
 - [x] Extraer `@bg/ui-tokens` y generar el `@theme` de la web.
 - [x] `apps/mobile` con Expo Router, dev client, EAS y variantes `development`, `preview` y `production` (14-11-2026; `eas.json` sin `projectId`: falta vincular la cuenta de Expo del propietario).
-- [ ] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes, push en dispositivo físico y borrado de persistencia al cambiar de cuenta.
+- [x] Spikes con informe go/fallback: repositorio `project` con RNFB, PDF en Hermes y borrado de persistencia al cambiar de cuenta, los tres go ([informe](plans/2026-11-14-bg-014-spikes.md), 14-11-2026). **Push en dispositivo físico pendiente** de la licencia de Apple Developer.
 
 ### Fase 1 — Núcleo (6–8 semanas)
 
-- [ ] `@bg/firebase-api` y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes).
+- [ ] `@bg/firebase-api` (iniciado en el spike con el puerto `FirestoreSdk` y el repositorio de proyectos) y `@bg/app-core` con puertos de plataforma (MMKV, NetInfo, imágenes).
 - [ ] Registro, verificación de email, login y recuperación; tabs (D8).
 - [ ] Presupuestos, Proyectos y Solicitudes del MVP; PDF compartido; enlace público.
 - [ ] Mi cuenta con cerrar sesión; consulta offline con persistencia nativa (D3).

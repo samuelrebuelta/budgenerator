@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 import { spacing } from '@bg/ui-tokens';
 import { runtimeSelfCheck } from '../../src/platform/runtime';
 import { appVariant } from '../../src/platform/variant';
@@ -33,6 +34,11 @@ function RuntimeDiagnostics() {
           {item.ok ? '✓' : '✗'} {item.name}: {item.detail}
         </Text>
       ))}
+      <Button
+        label="Spikes de fase 0"
+        variant="secondary"
+        onPress={() => router.push('/dev/spikes')}
+      />
     </Card>
   );
 }

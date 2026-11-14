@@ -8,7 +8,16 @@ import { appVariant } from './variant';
 /** Callables live in Madrid, as on the web (`src/shared/firebase/functions.ts`). */
 export const FUNCTIONS_REGION = 'europe-southwest1';
 
-const EMULATOR_PORTS = { auth: 9099, firestore: 8080, functions: 5001 } as const;
+/**
+ * Emulator ports: the repo defaults of `firebase.json` (same as the web), overridable when another
+ * project already uses them (docs/testing.md, «Emuladores en puertos alternativos»). Metro inlines
+ * `EXPO_PUBLIC_*` when it bundles, so restart it after changing them.
+ */
+export const EMULATOR_PORTS = {
+  auth: Number(process.env.EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT ?? 9199),
+  firestore: Number(process.env.EXPO_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
+  functions: Number(process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001),
+} as const;
 
 /**
  * Host of the Firebase emulators seen from the device: the iOS simulator shares the Mac's
@@ -22,6 +31,15 @@ export function emulatorHost(os: string = Platform.OS): string {
 }
 
 let connected = false;
+
+/**
+ * Binds Firestore to the emulator in `development` (no-op elsewhere). Also called after
+ * `terminate`: React Native Firebase then creates a new native instance without the binding.
+ */
+export function connectFirestoreToEmulator() {
+  if (appVariant !== 'development') return;
+  connectFirestoreEmulator(getFirestore(), emulatorHost(), EMULATOR_PORTS.firestore);
+}
 
 /**
  * Connects the native Firebase SDKs. In `development` they point at the local emulators and the
@@ -43,7 +61,7 @@ export function initFirebase() {
   if (appVariant === 'development') {
     const host = emulatorHost();
     connectAuthEmulator(getAuth(), `http://${host}:${EMULATOR_PORTS.auth}`);
-    connectFirestoreEmulator(getFirestore(), host, EMULATOR_PORTS.firestore);
+    connectFirestoreToEmulator();
     connectFunctionsEmulator(
       getFunctions(getApp(), FUNCTIONS_REGION),
       host,
