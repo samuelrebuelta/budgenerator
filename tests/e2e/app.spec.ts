@@ -1100,6 +1100,9 @@ test('existing catalog can import the complete renovation base', async ({ page }
     'Ventanas',
     'Vidrio',
   ]);
+  // Later tests expect the seeded catalog: let the import land, then put it back.
+  await waitSaved(page);
+  await restorePrimaryCatalog();
 });
 
 test('an account without a catalog starts with the complete renovation catalog', async ({
@@ -1205,6 +1208,9 @@ test('catalog imports a category, a part, or one concept from category details',
           fields.filter((field) => (field as HTMLInputElement).value === 'Punto de luz').length,
       ),
   ).toBe(1);
+  // Later tests expect the seeded catalog: let the import land, then put it back.
+  await waitSaved(page);
+  await restorePrimaryCatalog();
 });
 
 test('collapsed catalog parts hide add on mobile, desktop expands, and focused selects show outline', async ({
