@@ -137,6 +137,49 @@ export default defineConfig([
     },
   },
   {
+    // @bg/app-core runs on web and React Native: platform APIs come through its ports and each
+    // app binds the vanilla stores to React with its own `zustand` (BG-014).
+    files: ['packages/app-core/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'zustand',
+              message: 'Usa zustand/vanilla: cada app enlaza los stores a React.',
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                '@/*',
+                'react',
+                'react-*',
+                'firebase',
+                'firebase/*',
+                '@react-native-firebase/*',
+                'zustand/*',
+                '!zustand/vanilla',
+              ],
+              message:
+                '@bg/app-core no depende de la plataforma: usa sus puertos y zustand/vanilla (cada app enlaza los stores a React).',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'window', message: 'Usa un puerto de @bg/app-core.' },
+        { name: 'document', message: 'Usa un puerto de @bg/app-core.' },
+        { name: 'navigator', message: 'Usa ConnectivityPort.' },
+        { name: 'indexedDB', message: 'Usa KeyValueStore.' },
+        { name: 'sessionStorage', message: 'Usa DraftStorage.' },
+        { name: 'localStorage', message: 'Usa un puerto de @bg/app-core.' },
+      ],
+    },
+  },
+  {
     // React Native app (Expo). Its tests run on Jest (jest-expo), whose mock factories use `require`.
     files: ['apps/mobile/**/*.{ts,tsx}'],
     languageOptions: { globals: { __DEV__: 'readonly' } },

@@ -6,14 +6,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/entities/profile/api/firestore', () => mocks);
-vi.mock('../src/shared/lib/writeQueue', () => ({
-  WriteQueue: class {
-    schedule = vi.fn();
-    flush = vi.fn().mockResolvedValue(undefined);
-    clear = vi.fn();
-  },
-}));
-vi.mock('../src/shared/lib/offlineStateCache', () => ({ registerOfflineStore: vi.fn() }));
+// The shared store (@bg/app-core) uses its real write queue and offline cache (in memory here).
 
 import { resetProfileStore, useProfileStore } from '../src/entities/profile/model/store';
 import { setSessionUid } from '../src/shared/model/session';

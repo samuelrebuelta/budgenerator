@@ -1,35 +1,13 @@
-import { create } from 'zustand';
-export const useSyncStore = create<{ jobs: Record<string, { pending: boolean; error?: string }> }>(
-  () => ({ jobs: {} }),
-);
-export function syncStatus(key: string, pending: boolean, error?: unknown) {
-  useSyncStore.setState((s) => ({
-    jobs: {
-      ...s.jobs,
-      [key]: {
-        pending,
-        error: error
-          ? 'No se han podido guardar los cambios. Comprueba la conexión y reintenta.'
-          : undefined,
-      },
-    },
-  }));
-}
-const flushers = new Set<() => Promise<void>>();
-let scheduledFlush: ReturnType<typeof setTimeout> | null = null;
-export function registerFlusher(flush: () => Promise<void>) {
-  flushers.add(flush);
-}
-export async function flushWrites() {
-  await Promise.all([...flushers].map((flush) => flush()));
-}
-export function scheduleFlushWrites() {
-  if (scheduledFlush !== null) return;
-  scheduledFlush = setTimeout(() => {
-    scheduledFlush = null;
-    void flushWrites().catch(() => {});
-  }, 0);
-}
-export function hasPendingWrites() {
-  return Object.values(useSyncStore.getState().jobs).some((j) => j.pending || j.error);
-}
+import { syncStore } from '@bg/app-core/sync';
+import { bindStore } from '@/shared/lib/bindStore';
+
+export {
+  syncStatus,
+  registerFlusher,
+  flushWrites,
+  scheduleFlushWrites,
+  hasPendingWrites,
+  type SyncState,
+} from '@bg/app-core/sync';
+
+export const useSyncStore = bindStore(syncStore);

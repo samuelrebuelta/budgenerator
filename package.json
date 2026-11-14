@@ -25,6 +25,7 @@
     "docs:check": "node scripts/check-docs.mjs"
   },
   "dependencies": {
+    "@bg/app-core": "workspace:*",
     "@bg/domain": "workspace:*",
     "@bg/firebase-api": "workspace:*",
     "@fontsource-variable/fraunces": "^5.3.0",
