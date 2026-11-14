@@ -17,14 +17,30 @@ const percentFormatter = new Intl.NumberFormat(APP_LOCALE, {
   maximumFractionDigits: 0,
 });
 
+/**
+ * es-ES only groups thousands from five integer digits (CLDR `minimumGroupingDigits: 2`): Node,
+ * browsers and Hermes on iOS print «1234,50», but Hermes on Android prints «1.234,50» (BG-014,
+ * phase 0 spike). Drops the separator of a lone four-digit integer part so every engine prints
+ * the same amounts as the web and the reference PDF; on engines that already follow CLDR it is a
+ * no-op.
+ */
+export function applySpanishGrouping(text: string): string {
+  return text.replace(/(^|[^\d.,])(\d)\.(\d{3})(?![\d.])/g, '$1$2$3');
+}
+
+/** `toLocaleString('es-ES', options)` with the same grouping on every engine. */
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return applySpanishGrouping(value.toLocaleString(APP_LOCALE, options));
+}
+
 /** 1234.5 → «1234,50 €». */
 export function formatEuros(value: number): string {
-  return euroFormatter.format(Number.isFinite(value) ? value : 0);
+  return applySpanishGrouping(euroFormatter.format(Number.isFinite(value) ? value : 0));
 }
 
 /** Whole euros without decimals: 1234.5 → «1235 €». */
 export function formatRoundedEuros(value: number): string {
-  return roundedEuroFormatter.format(Number.isFinite(value) ? value : 0);
+  return applySpanishGrouping(roundedEuroFormatter.format(Number.isFinite(value) ? value : 0));
 }
 
 /** Integer cents → euros: 123450 → «1234,50 €». */
@@ -34,12 +50,12 @@ export function formatCents(cents: number): string {
 
 /** 10.5 → «10,5». */
 export function formatQuantity(value: number): string {
-  return quantityFormatter.format(Number.isFinite(value) ? value : 0);
+  return applySpanishGrouping(quantityFormatter.format(Number.isFinite(value) ? value : 0));
 }
 
 /** 0.42 → «42 %». */
 export function formatPercent(ratio: number): string {
-  return percentFormatter.format(Number.isFinite(ratio) ? ratio : 0);
+  return applySpanishGrouping(percentFormatter.format(Number.isFinite(ratio) ? ratio : 0));
 }
 
 type DateInput = string | number | Date;

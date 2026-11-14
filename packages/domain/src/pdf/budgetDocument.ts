@@ -8,8 +8,9 @@ import {
   unitPrice,
   workItemSubtreeAmount,
 } from '../lib/budgetMath.js';
+import { formatNumber } from '../lib/format.js';
 const fmt = (value: number) =>
-  value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 /** Logo already decoded to PNG by the platform (canvas on web). */
 export interface BudgetPdfLogo {
   data: string;
@@ -167,7 +168,7 @@ export function buildBudgetDocument(
         doc.text(fragment, left, y, { lineHeightFactor: 1.2 });
         if (offset === 0) {
           doc.setFontSize(8.5);
-          doc.text(task.quantity.toLocaleString('es-ES'), 120, y, { align: 'right' });
+          doc.text(formatNumber(task.quantity), 120, y, { align: 'right' });
           doc.text(unitLabel(task.unit), 131, y, { align: 'center' });
           doc.text(fmt(unitPrice(task, multiplier)), 161, y, { align: 'right' });
           doc.setFont('helvetica', 'bold');
