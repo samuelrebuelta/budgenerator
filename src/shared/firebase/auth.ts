@@ -6,6 +6,6 @@ export const auth = getAuth(firebaseApp);
 if (useFirebaseEmulators)
   connectAuthEmulator(
     auth,
-    import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? 'http://127.0.0.1:9199',
+    import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL ?? 'http://127.0.0.1:9399',
     { disableWarnings: true },
   );

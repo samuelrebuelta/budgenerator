@@ -11,7 +11,7 @@ import { createProjectFirestoreApi } from '../src/entities/project/api/firestore
 
 let env: RulesTestEnvironment;
 const firestoreEmulator = new URL(
-  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`,
 );
 const projectId = 'project-1';
 const alice = () => env.authenticatedContext('alice').firestore();
@@ -55,7 +55,7 @@ beforeAll(async () => {
     projectId: 'demo-bg011-assignments',
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });

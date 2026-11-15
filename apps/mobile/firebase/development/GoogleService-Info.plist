@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Fictitious Firebase app for the `development` variant: project `demo-budgenerator`, which only
-  exists in the local emulators (auth 9099, firestore 8080, functions 5001). These values are not
+  exists in the local emulators (auth 9399, firestore 8280, functions 5101). These values are not
   credentials and do not reach any real Firebase project. Real files for preview/production are
   injected at build time (see app.config.ts); never commit them here.
 -->

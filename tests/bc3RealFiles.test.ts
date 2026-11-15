@@ -1,15 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseBc3 } from '../src/entities/construction-document/bc3';
+import { parseBc3, serializeBc3 } from '../src/entities/construction-document/bc3';
 
 /**
- * Ficheros BC3 generados por Presto y por Arquímedes, no por nosotros: traen las manías
+ * Ficheros BC3 generados por Presto, Arquímedes y TCQ, no por nosotros: traen las manías
  * del mundo real (registros partidos en varias líneas, conceptos de porcentaje, extensiones
  * propietarias). No se versionan, porque pesan decenas de MB y se publican sin licencia de
  * redistribución; apunta `BC3_REAL_DIR` a una carpeta que los contenga para ejecutarlos.
  *
  * Fuentes: base de precios de la Junta de Extremadura 2026 (Presto 25.01) y proyecto del
- * CEIP Villimar de la Junta de Castilla y León (Arquímedes de CYPE).
+ * CEIP Villimar de la Junta de Castilla y León (Arquímedes de CYPE) y la reforma
+ * del local Gervilla del Ayuntamiento de Barcelona (TCQ).
  */
 const directory = process.env.BC3_REAL_DIR;
 const path = (name: string) => `${directory}/${name}`;
@@ -69,5 +70,23 @@ describe('BC3 de Arquímedes: proyecto del CEIP Villimar', () => {
     expect(result.summary.computedTotal).toBe(result.summary.declaredTotal);
     // El archivo se contradice consigo mismo y eso se avisa, sin bloquear.
     expect(result.diagnostics.map((item) => item.code)).toContain('price-mismatch');
+  });
+});
+
+const TCQ = 'BCN-15858200.bc3';
+
+describe('BC3 de TCQ: reforma del local Gervilla', () => {
+  it.skipIf(missing(TCQ))('conserva el total al importar, exportar y volver a importar', () => {
+    const result = parseBc3(bytes(TCQ), { target: 'budget' });
+    expect(errors(result)).toEqual([]);
+    expect(result.summary).toMatchObject({
+      declaredTotal: 333_046.58,
+      computedTotal: 333_046.58,
+      measuredItems: 324,
+    });
+    const exported = serializeBc3(result.document!);
+    const roundTrip = parseBc3(exported.bytes, { target: 'budget' });
+    expect(errors(roundTrip)).toEqual([]);
+    expect(roundTrip.summary.computedTotal).toBe(result.summary.computedTotal);
   });
 });

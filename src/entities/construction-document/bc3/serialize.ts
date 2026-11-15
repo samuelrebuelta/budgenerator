@@ -84,7 +84,7 @@ export function serializeBc3(
       `~K|2\\2\\${decimals.quantity}\\${decimals.yield}\\${decimals.amount}\\2\\${decimals.price}\\2\\${f(currency)}\\|${percentageField}|`,
     );
 
-  // Prices: root and chapters carry their computed amounts; composed concepts their rate.
+  // Root and chapters carry computed amounts; composed concepts keep their declared price.
   const structuralPrice = new Map<string, number>();
   structuralPrice.set(root.id, totals.raw);
   walkNodes(document.tree, (node) => {
@@ -96,7 +96,7 @@ export function serializeBc3(
     const prices = [...concept.prices];
     if (structuralPrice.has(concept.id))
       prices[0] = formatFixed(structuralPrice.get(concept.id)!, decimals.amount);
-    else if (concept.decomposition.length)
+    else if (concept.decomposition.length && (parseDecimal(prices[0], 0) ?? 0) <= 0)
       prices[0] = formatFixed(rate(concept.id), decimals.price);
     const codes = [codeOf(concept), ...(concept.synonyms ?? [])].map(f).join('\\');
     lines.push(

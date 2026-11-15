@@ -33,18 +33,11 @@ const byVariant = {
  * Firebase native config files. Development uses the versioned files of the fictitious
  * `demo-budgenerator` project. Preview and production take the real files from EAS file
  * environment variables (`GOOGLE_SERVICES_PLIST`, `GOOGLE_SERVICES_JSON`); they are never
- * committed. TODO(BG-014): create the iOS/Android apps in the `budgenerator` Firebase project and
- * upload their files as EAS secrets once the store owner and bundle id are decided (D6).
+ * committed. A prebuild for one platform only requires its own file. React Native Firebase
+ * checks the file when applying the native config plugin for that platform.
  */
-function firebaseFile(envName: string, devPath: string): string {
-  if (variant === 'development') return devPath;
-  const path = process.env[envName];
-  if (!path) {
-    throw new Error(
-      `Falta ${envName} para la variante ${variant}: apunta al fichero real de Firebase (secreto de EAS).`,
-    );
-  }
-  return path;
+function firebaseFile(envName: string, devPath: string): string | undefined {
+  return variant === 'development' ? devPath : process.env[envName];
 }
 
 const bundleId = `${BASE_ID}${byVariant[variant].suffix}`;

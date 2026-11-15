@@ -327,6 +327,11 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
   const byCode = new Map<string, FiebdcConcept>();
   let conceptSequence = 0;
   let multiplePrices = false;
+  const costColumns = priceLabels.flatMap((label, index) =>
+    /^(coste|costo)$/i.test(label.trim()) ? [index] : [],
+  );
+  const costColumn =
+    options.target === 'catalog' && costColumns.length === 1 ? costColumns[0] : undefined;
   for (const record of records.filter((candidate) => candidate.type === 'C')) {
     const codes = splitSubfields(record.fields[0])
       .map((code) => code.trim())
@@ -351,11 +356,13 @@ export function parseBc3(input: Uint8Array, options: Bc3ParseOptions): Bc3ParseR
       if (price && !isDecimalText(price))
         report('invalid-number', `Precio no numérico en ${codes[0]}: «${price}».`, 'error', record);
     if (prices.length > 1) multiplePrices = true;
+    const cost = costColumn === undefined ? undefined : prices[costColumn];
     const concept = createConcept(`c${++conceptSequence}`, codes[0]!, {
       ...(codes.length > 1 ? { synonyms: codes.slice(1) } : {}),
       unit: (record.fields[1] ?? '').trim(),
       summary: record.fields[2] ?? '',
       prices,
+      ...(cost && (parseDecimal(cost) ?? -1) >= 0 ? { cost } : {}),
       dates: splitSubfields(record.fields[4]).filter(Boolean),
       type: (record.fields[5] ?? '').trim() || '0',
     });

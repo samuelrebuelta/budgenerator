@@ -8,7 +8,7 @@ import {
   unitPrice,
   workItemSubtreeAmount,
 } from '../lib/budgetMath.js';
-import { formatNumber } from '../lib/format.js';
+import { formatDate, formatNumber } from '../lib/format.js';
 const fmt = (value: number) =>
   formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 /** Logo already decoded to PNG by the platform (canvas on web). */
@@ -96,7 +96,11 @@ export function buildBudgetDocument(
   doc.setFontSize(8);
   muted();
   doc.setFont('helvetica', 'normal');
-  doc.text(`Nº ${budget.info.budgetNumber || '—'}  /  ${budget.info.date}`, left, y);
+  doc.text(
+    `Nº ${budget.info.budgetNumber || '—'}  /  ${formatDate(budget.info.date, '—')}`,
+    left,
+    y,
+  );
   y += 12;
   for (const [label, value] of [
     ['CLIENTE', budget.info.clientName],

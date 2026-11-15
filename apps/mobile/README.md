@@ -30,11 +30,27 @@ pnpm android                                  # ídem en el emulador de Android
 pnpm start                                    # sólo Metro, si el dev client ya está instalado
 ```
 
-El simulador de iOS llega a los emuladores por `localhost` y el emulador de Android por `10.0.2.2` (`src/platform/firebase.ts`). En un dispositivo físico, exporta `EXPO_PUBLIC_EMULATOR_HOST=<IP del Mac>` antes de `pnpm start`. Los puertos son los de `firebase.json` (Auth 9199, Firestore 8180, Functions 5001); si otro proyecto los ocupa, arranca los emuladores con otra configuración y exporta `EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT`, `EXPO_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_PORT` y `EXPO_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT` antes de `pnpm start`. CocoaPods necesita `LANG=en_US.UTF-8` en la shell.
+El simulador de iOS llega a los emuladores por `localhost` y el emulador de Android por `10.0.2.2` (`src/platform/firebase.ts`). En un dispositivo físico, exporta `EXPO_PUBLIC_EMULATOR_HOST=<IP del Mac>` antes de `pnpm start`. Los puertos son los de `firebase.json` (Auth 9399, Firestore 8280, Functions 5101); si otro proyecto los ocupa, arranca los emuladores con otra configuración y exporta `EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT`, `EXPO_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_PORT` y `EXPO_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT` antes de `pnpm start`. CocoaPods necesita `LANG=en_US.UTF-8` en la shell.
 
 En el simulador de iOS, el dev client tiene que estar firmado ad hoc (lo hace `pnpm ios` o `xcodebuild` con `CODE_SIGN_IDENTITY=-`): con `CODE_SIGNING_ALLOWED=NO` el binario no lleva entitlements y Firebase Auth falla con `auth/keychain-error`.
 
-Las cuentas de prueba se crean desde la propia app (registro) contra el emulador de Auth. El enlace de verificación no se envía: el emulador lo deja en `http://localhost:9199/emulator/v1/projects/demo-budgenerator/oobCodes`, y abrirlo marca el email como verificado («Ya lo he verificado» en la app). En `development`, Metro avisa (`[runtime]`) si falta alguna API web que usan `@bg/domain` y jsPDF en Hermes. Los spikes de fase 0 se retiraron en la fase 1; su código está en el commit `ae6a037` y el resultado en el [informe](../../docs/specs/plans/2026-11-14-bg-014-spikes.md).
+Las cuentas de prueba se crean desde la propia app (registro) contra el emulador de Auth. El enlace de verificación no se envía: el emulador lo deja en `http://localhost:9399/emulator/v1/projects/demo-budgenerator/oobCodes`, y abrirlo marca el email como verificado («Ya lo he verificado» en la app). En `development`, Metro avisa (`[runtime]`) si falta alguna API web que usan `@bg/domain` y jsPDF en Hermes. Los spikes de fase 0 se retiraron en la fase 1; su código está en el commit `ae6a037` y el resultado en el [informe](../../docs/specs/plans/2026-11-14-bg-014-spikes.md).
+
+## Compilar e instalar Android de producción
+
+Registra `com.budgenerator.app` en [Configuración de Firebase](https://console.firebase.google.com/project/budgenerator/settings/general), descarga `google-services.json` y guárdalo fuera del repositorio. Necesitas Android SDK, JDK 21 y un dispositivo con depuración USB o un emulador de Android.
+
+Desde la raíz del repositorio, con las dependencias instaladas:
+
+```bash
+cd apps/mobile
+export APP_VARIANT=production
+export GOOGLE_SERVICES_JSON="/ruta/fuera/del/repositorio/google-services.json"
+pnpm exec expo prebuild --clean --platform android
+pnpm exec expo run:android --variant release --device
+```
+
+`prebuild --clean` regenera `android/` para el paquete de producción. `run:android` compila e instala el APK de Release en el dispositivo elegido. Para reinstalar un APK local con un único dispositivo conectado, usa `adb install -r android/app/build/outputs/apk/release/app-release.apk`. La compilación local sirve para instalación directa con la firma del proyecto generado. La distribución por Google Play requiere configurar su propia firma. En iOS la variable equivalente es `GOOGLE_SERVICES_PLIST` y se usa `--platform ios`.
 
 ## Diseño nativo
 

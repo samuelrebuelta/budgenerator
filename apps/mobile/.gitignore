@@ -16,3 +16,5 @@ dist/
 # Real Firebase files for preview/production arrive as EAS secrets, never in Git.
 /firebase/preview/
 /firebase/production/
+/google-services.json
+/GoogleService-Info.plist

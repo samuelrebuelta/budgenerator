@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { parseBc3, serializeBc3 } from '@/entities/construction-document/bc3';
 import {
   calculateConstructionTotals,
+  createEmptyDocument,
+  mergeIntoCatalog,
   projectCatalogParts,
   projectWorkItems,
   type ConstructionDocument,
@@ -57,7 +59,12 @@ describe('price base import (ANSI)', () => {
       charset: 'ANSI',
     });
     const labour = Object.values(document.concepts).find((concept) => concept.code === 'MO001')!;
-    expect(labour).toMatchObject({ synonyms: ['OF1'], unit: 'h', prices: ['22.00', '20.00'] });
+    expect(labour).toMatchObject({
+      synonyms: ['OF1'],
+      unit: 'h',
+      prices: ['22.00', '20.00'],
+      cost: '20.00',
+    });
     const tile = Object.values(document.concepts).find((concept) => concept.code === 'MT001')!;
     expect(tile.summary).toBe('Azulejo cerámico 30×60 cm «blanco»');
     expect(tile.unit).toBe('m²');
@@ -82,6 +89,28 @@ describe('price base import (ANSI)', () => {
     ]);
     expect(parts[2]!.concepts.find((item) => item.code === 'E02ALI')!.basePrice).toBe(39.07);
     expect(result.summary).toMatchObject({ chapters: 2, items: 5, composedConcepts: 2 });
+  });
+
+  it('exports only selected catalog attributes with the allocated concept code', () => {
+    const target = structuredClone(document);
+    target.extensions = [];
+    const existing = Object.values(target.concepts).find(({ code }) => code === 'E02ALI')!;
+    existing.summary = 'Otra partida con el mismo código';
+    const include = (chapter: string) => chapter === 'Revestimientos y acabados';
+    const { document: merged } = mergeIntoCatalog(target, document, include);
+    const imported = Object.values(merged.concepts).find(
+      ({ id, summary }) =>
+        id !== existing.id && summary === document.concepts[existing.id]!.summary,
+    )!;
+    expect(imported.code).not.toBe(existing.code);
+    expect(merged.extensions).toEqual([{ type: '~X', raw: `~X|${imported.code}|PESO\\12.5\\|` }]);
+    expect(mergeIntoCatalog(merged, document, include).document.extensions).toEqual(
+      merged.extensions,
+    );
+    expect(reimport(merged, 'catalog').again.document?.extensions).toEqual(merged.extensions);
+    expect(
+      mergeIntoCatalog(createEmptyDocument('catalog'), document, () => false).document.extensions,
+    ).toEqual([]);
   });
 
   it('round-trips export → import keeping codes, order, prices and extensions', () => {
