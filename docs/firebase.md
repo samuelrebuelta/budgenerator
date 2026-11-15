@@ -4,7 +4,7 @@ Servicios utilizados: Authentication con email/contraseña, Firestore, Hosting, 
 
 ## Configuración
 
-`shared/firebase/config.ts` utiliza las variables `VITE_FIREBASE_*` de `.env.example`. Con `VITE_USE_FIREBASE_EMULATORS=true` exige un projectId `demo-` y conecta a Auth local 9199, Firestore local 8180 y Functions local 5001 (puertos sobrescribibles con `VITE_FIREBASE_*_EMULATOR_*`). La región de Functions es `europe-southwest1`, la misma que Firestore; se fija en `functions/src/core/config.ts` (`FUNCTION_REGION`) y en el cliente con `VITE_FIREBASE_FUNCTIONS_REGION` (por defecto la misma). Functions usa Node.js 24, sin instancias mínimas, 256 MiB, 15 s en las callables públicas, 30 s en las autenticadas, 300 s/512 MiB en las de cuenta y 540 s en las programadas. La configuración no secreta de Functions vive en `functions/.env` (versionado); un proyecto concreto puede sobrescribirla con `functions/.env.<projectId>`, ignorado por Git. El build de pruebas fuerza valores demo; los scripts de deploy rechazan esos valores.
+`shared/firebase/config.ts` utiliza las variables `VITE_FIREBASE_*` de `.env.example`. Con `VITE_USE_FIREBASE_EMULATORS=true` exige un projectId `demo-` y conecta a Auth local 9399, Firestore local 8280 y Functions local 5101 (puertos sobrescribibles con `VITE_FIREBASE_*_EMULATOR_*`). La región de Functions es `europe-southwest1`, la misma que Firestore; se fija en `functions/src/core/config.ts` (`FUNCTION_REGION`) y en el cliente con `VITE_FIREBASE_FUNCTIONS_REGION` (por defecto la misma). Functions usa Node.js 24, sin instancias mínimas, 256 MiB, 15 s en las callables públicas, 30 s en las autenticadas, 300 s/512 MiB en las de cuenta y 540 s en las programadas. La configuración no secreta de Functions vive en `functions/.env` (versionado); un proyecto concreto puede sobrescribirla con `functions/.env.<projectId>`, ignorado por Git. El build de pruebas fuerza valores demo; los scripts de deploy rechazan esos valores.
 
 ## Documentos
 
@@ -103,7 +103,7 @@ El modelo FIEBDC (12-11-2026) sustituye sin migración a `tariffCatalogs`, `tari
 
 `pnpm test:integration` construye Functions y ejecuta reglas y navegador sobre emuladores de Auth, Firestore y Functions. El despliegue se hace siempre con `scripts/deploy.mjs` (ver «Operación y despliegue»). El build remoto usa pnpm y requiere `functions/pnpm-workspace.yaml` con aprobación explícita de los scripts de `@firebase/util` y `protobufjs`, además de `@google-cloud/functions-framework` como dependencia directa.
 
-Integración BC3 y endurecimiento del back desplegados el 15-11-2026 al proyecto `budgenerator` desde `main` (`5e03807`, CI en verde): 16 callables y `processNewLeadNotifications` en `europe-southwest1` con Node.js 24, las cuatro tareas programadas en `europe-west1`, reglas, índices y Hosting. Las Functions antiguas de `europe-west1` se borraron con `firebase deploy --only functions --force` tras pasar los controles de `deploy.mjs` (sin terminal interactiva la CLI exige `--force` para la nueva política de reintento del trigger y para borrar funciones). Antes se activó PITR en Firestore. Las callables responden sin sesión con el error de su handler (404 o 401), no con 403 de Cloud Run. No se migraron ni modificaron documentos.
+Integración BC3 y endurecimiento del back desplegados el 15-11-2026 al proyecto `budgenerator` desde `main` (`5e03807`, CI en verde): 15 callables y `processNewLeadNotifications` en `europe-southwest1` con Node.js 24, las cuatro tareas programadas en `europe-west1`, reglas, índices y Hosting. Las Functions antiguas de `europe-west1` se borraron con `firebase deploy --only functions --force` tras pasar los controles de `deploy.mjs` (sin terminal interactiva la CLI exige `--force` para la nueva política de reintento del trigger y para borrar funciones). Antes se activó PITR en Firestore. Las callables responden sin sesión con el error de su handler (404 o 401), no con 403 de Cloud Run. No se migraron ni modificaron documentos.
 
 BG-005 se desplegó el 18-10-2026 al proyecto `budgenerator`: Hosting en https://budgenerator.web.app; seis Cloud Functions v2 ACTIVE en `europe-west1` con runtime Node.js 22; y las reglas de Firestore. Se configuró limpieza automática de imágenes de Functions tras 1 día. Firestore Standard está en `europe-southwest1`; no se escribieron ni migraron datos durante el despliegue. La región de Functions es independiente de la base Firestore. CI no despliega. La cuenta admin de la aplicación no autentica al CLI.
 
@@ -169,15 +169,12 @@ Aplica las fases 0 a 2 del [análisis del back](analysis/backend.md) que son có
 
 ### Operación y despliegue
 
-`scripts/deploy.mjs <objetivos> [--project <alias>]` es la única vía de despliegue. Objetivos: `hosting`, `rules`, `indexes`, `functions` o `all`. Atajos: `pnpm firebase:deploy` (Hosting), `pnpm firebase:deploy:all` (todo en producción) y `pnpm firebase:deploy:staging` (todo en staging). El script se detiene si:
+`scripts/deploy.mjs <objetivos> [--project <alias>] [--full-checks] [--force] [--non-interactive]` es la vía de despliegue. Objetivos: `hosting`, `rules`, `indexes`, `functions` o `all`. Atajos: `pnpm firebase:deploy` (Hosting), `pnpm firebase:deploy:all` (todo en producción) y `pnpm firebase:deploy:staging` (todo en staging).
 
-- el árbol de Git tiene cambios sin confirmar;
-- en producción (`default`), la rama no es `main`, `main` no coincide con `origin/main`, o el último run de CI de `main` no está en verde o no corresponde al commit (con `gh`; si no está disponible, avisa);
-- fallan `lint`, `format:check`, `test`, las reglas en emulador (`test:rules:emulator`) o, si se despliegan Functions, `build:functions` y `test:notifications:emulator`;
-- el entorno web apunta a emuladores, le faltan variables o su `VITE_FIREBASE_PROJECT_ID` no es el destino;
-- el bundle de `dist` contiene un `projectId` distinto del destino o un `authDomain` demo, o no contiene el `authDomain` configurado (incidente del 18-10-2026).
-
-La suite de navegador (`test:integration`) se ejecuta en CI, no en el script. CI ejecuta ahora también `format:check`, `build:functions` y `test:notifications:emulator`.
+- Exige un árbol Git limpio. Para producción, exige `main` actualizado e igual a `origin/main`. Consulta el workflow `ci.yml` de `main`. Una CI fallida del SHA bloquea el despliegue. Si el último run es de otro SHA, ejecuta checks locales y bloquea el despliegue hasta disponer de una CI verde del commit. Si la consulta con `gh` falla, avisa y ejecuta los checks locales.
+- La CI verde del SHA permite omitir `lint`, `format:check`, `test`, `test:rules:emulator` y, con Functions, `test:notifications:emulator`. `--full-checks` los fuerza. La suite de navegador se ejecuta en CI.
+- Siempre construye los destinos seleccionados. Para Hosting valida el entorno antes del build y verifica que todo el JS de `dist` apunta al proyecto y al dominio de Auth esperados. Los archivos con entorno demo se rechazan.
+- Reenvía `--force` y `--non-interactive` al CLI de Firebase. En una ejecución sin terminal interactiva, el CLI exige `--force` al borrar funciones o cambiar la política de reintento de un trigger.
 
 **Staging.** `.firebaserc` tiene el alias `staging` con el id de ejemplo `CHANGE-ME-budgenerator-staging`; el script se niega a usarlo hasta que se sustituya por el id real. El build de staging lee `.env.staging` (modo Vite `staging`) y Functions puede tener `functions/.env.<projectId>`. No se ha creado ningún proyecto.
 
@@ -230,59 +227,18 @@ Todas las Functions pasan por `observe()` (`functions/src/core/observability.ts`
 
 ### Tareas del propietario en consola o `gcloud`
 
-No se han ejecutado. Sustituir `BILLING_ACCOUNT_ID` y el email.
+PITR ya está activo. El 15-11-2026 se retiraron los cuatro servicios Cloud Run antiguos de Madrid. Quedaron verificados los 16 servicios vigentes de Madrid y los cuatro jobs habilitados en Bélgica. También se registró Android, se configuró el backup diario de 14 días y se verificó el claim de la cuenta de administración y su campo informativo en Firestore. Los procedimientos siguientes requieren autorización del propietario sobre `budgenerator`.
 
-```bash
-# 1. Presupuesto de facturación con avisos al 50, 90 y 100 %
-gcloud billing budgets create --billing-account=BILLING_ACCOUNT_ID \
-  --display-name="BudGenerator mensual" --budget-amount=25EUR \
-  --filter-projects=projects/budgenerator \
-  --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
+1. **Cloud Run.** Lista los servicios en Madrid con `gcloud run services list --region europe-southwest1 --project budgenerator`. Cruza el listado con las Functions desplegadas. Sólo se retiran los huérfanos de `applyRetentionPolicies`, `recoverLeadNotificationJobs`, `cleanupLeadNotificationJobs` y `cleanupPushDevices` en Madrid. Las cuatro tareas vigentes están en Bélgica. [Cloud Run de BudGenerator](https://console.cloud.google.com/run?project=budgenerator).
+2. **Administración.** Con ADC y desde la raíz del repositorio, usa `node scripts/set-admin-claim.mjs --project budgenerator --email budgenerator@gmail.com --apply --confirm budgenerator`. Después, cierra sesión y vuelve a entrar con la cuenta administradora.
+3. **Android.** Ejecuta `pnpm exec firebase apps:create ANDROID BudGenerator --package-name com.budgenerator.app --project budgenerator`. Con el ID devuelto, descarga la configuración mediante `pnpm exec firebase apps:sdkconfig ANDROID <id> --project budgenerator --out /ruta/externa/google-services.json`. El registro y la descarga también están en [Configuración del proyecto](https://console.firebase.google.com/project/budgenerator/settings/general).
+4. **Backups.** Comprueba la configuración con `gcloud firestore backups schedules list --database='(default)' --project=budgenerator`. Para crear el backup diario de 14 días, usa `gcloud firestore backups schedules create --database='(default)' --recurrence=daily --retention=14d --project=budgenerator`. En la [consola de Firestore](https://console.cloud.google.com/firestore/databases?project=budgenerator), abre `(default)` → **Copias programadas** → **Editar** y elige **Diaria** y **14 días**.
+5. **Facturación.** En [Facturación de BudGenerator](https://console.cloud.google.com/billing/linkedaccount?project=budgenerator), abre la cuenta vinculada y entra en **Presupuestos y alertas** → **Crear presupuesto**. Limita el alcance a `budgenerator`, fija el importe mensual y configura umbrales de gasto real del 50, 90 y 100 %. Selecciona los destinatarios que deban recibirlos y guarda.
+6. **Errores de Functions.** En [Explorador de registros](https://console.cloud.google.com/logs/query?project=budgenerator), aplica el filtro de abajo y pulsa **Crear alerta**. Dale el nombre «BudGenerator: errores de Functions», configura la frecuencia de avisos y selecciona un canal de correo de [Cloud Monitoring](https://console.cloud.google.com/monitoring/alerting/notifications?project=budgenerator). Guarda la política.
+7. **App Check web.** En [reCAPTCHA Enterprise](https://console.cloud.google.com/security/recaptcha?project=budgenerator), activa la API si hace falta y crea una clave web basada en puntuación para `budgenerator.web.app` y `budgenerator.firebaseapp.com`. Registra la app web con esa clave en [Firebase App Check](https://console.firebase.google.com/project/budgenerator/appcheck). Configura `VITE_FIREBASE_APPCHECK_SITE_KEY` para el próximo build de Hosting. Mantén Functions en modo `monitor` hasta verificar el tráfico legítimo con la app actualizada.
+8. **Firebase Auth.** En [Configuración de Authentication](https://console.firebase.google.com/project/budgenerator/authentication/settings), revisa **Dominios autorizados**, configura una longitud mínima de 8 caracteres y habilita **Protección contra enumeración de correos** en **Acciones del usuario**. En [Plantillas](https://console.firebase.google.com/project/budgenerator/authentication/emails), deja en español la verificación de correo y el restablecimiento de contraseña.
 
-# 2. PITR (7 días) y backups programados
-gcloud firestore databases update --database='(default)' --enable-pitr --project=budgenerator
-gcloud firestore backups schedules create --database='(default)' \
-  --recurrence=daily --retention=14d --project=budgenerator
-gcloud firestore backups schedules create --database='(default)' \
-  --recurrence=weekly --day-of-week=SUN --retention=8w --project=budgenerator
-gcloud firestore backups schedules list --database='(default)' --project=budgenerator
-
-# 3. Canal de avisos y métricas basadas en logs
-gcloud beta monitoring channels create --display-name="Propietario" --type=email \
-  --channel-labels=email_address=PROPIETARIO@EXAMPLE.COM --project=budgenerator
-for event in function_failed rate_limit_exceeded app_check_missing lead_push_throttled; do
-  gcloud logging metrics create "bg_${event}" --project=budgenerator \
-    --description="BudGenerator ${event}" \
-    --log-filter="resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"${event}\""
-done
-
-# 4. Alerta: algún function_failed en 5 minutos (repetir con otras métricas y umbrales)
-cat > /tmp/bg-alert-failed.json <<'JSON'
-{
-  "displayName": "BudGenerator: errores de Functions",
-  "combiner": "OR",
-  "conditions": [{
-    "displayName": "function_failed > 0",
-    "conditionThreshold": {
-      "filter": "metric.type=\"logging.googleapis.com/user/bg_function_failed\" AND resource.type=\"cloud_run_revision\"",
-      "comparison": "COMPARISON_GT", "thresholdValue": 0, "duration": "0s",
-      "aggregations": [{ "alignmentPeriod": "300s", "perSeriesAligner": "ALIGN_SUM" }]
-    }
-  }],
-  "notificationChannels": ["projects/budgenerator/notificationChannels/CHANNEL_ID"]
-}
-JSON
-gcloud alpha monitoring policies create --policy-from-file=/tmp/bg-alert-failed.json --project=budgenerator
-
-# 5. Clave reCAPTCHA Enterprise para App Check (después, registrarla en Firebase > App Check
-#    y ponerla en VITE_FIREBASE_APPCHECK_SITE_KEY del build de producción)
-gcloud services enable recaptchaenterprise.googleapis.com --project=budgenerator
-gcloud recaptcha keys create --web --display-name="BudGenerator web" \
-  --domains=budgenerator.web.app,budgenerator.firebaseapp.com --integration-type=SCORE \
-  --project=budgenerator
-
-# 6. Comprobar las TTL (se crean al desplegar firestore:indexes)
-gcloud firestore fields ttls list --project=budgenerator
+```text
+resource.type="cloud_run_revision"
+jsonPayload.event="function_failed"
 ```
-
-En la consola de Firebase: Authentication > Configuración > Política de contraseñas con mínimo 8 caracteres y protección contra enumeración de emails; plantillas de email en español (verificación y restablecimiento); dominios autorizados. Asignar el claim al admin real con el script antes de desplegar las reglas nuevas, o el panel de administración quedará inaccesible. Ensayar una restauración de backup en staging cada trimestre: `gcloud firestore databases restore --source-backup=… --destination-database=restore-test`.
