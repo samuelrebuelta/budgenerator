@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // @ts-expect-error -- plain ESM script without type declarations
 import { validateBuildEnv, verifyBundle } from '../scripts/check-deploy.mjs';
 
@@ -66,5 +66,104 @@ describe('deploy guardrails', () => {
       'const c={authDomain:"budgenerator.firebaseapp.com",projectId:"budgenerator-staging"};',
     );
     await expect(verifyBundle('budgenerator', env, other)).rejects.toThrow();
+  });
+});
+
+describe('deploy CLI', () => {
+  const head = 'current-sha';
+  const localChecks = [
+    'pnpm lint',
+    'pnpm format:check',
+    'pnpm test',
+    'pnpm test:rules:emulator',
+    'pnpm test:notifications:emulator',
+  ];
+  const commands: string[] = [];
+  let ciSha: string;
+  let conclusion: string;
+  const spawn = vi.fn((command: string, args: string[]) => {
+    const invocation = [command, ...args].join(' ');
+    commands.push(invocation);
+    const stdout =
+      command === 'gh'
+        ? JSON.stringify([{ conclusion, headSha: ciSha }])
+        : invocation === 'git rev-parse --abbrev-ref HEAD'
+          ? 'main'
+          : invocation.startsWith('git rev-parse ')
+            ? head
+            : '';
+    return { status: 0, stdout };
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    commands.length = 0;
+    ciSha = head;
+    conclusion = 'success';
+    vi.doMock('node:child_process', () => ({ spawnSync: spawn }));
+    vi.doMock('../scripts/check-deploy.mjs', () => ({
+      resolveProject: async () => ({ projectId: 'budgenerator', mode: 'production' }),
+      pendingLegalData: async () => [],
+    }));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('Despliegue bloqueado');
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.doUnmock('node:child_process');
+    vi.doUnmock('../scripts/check-deploy.mjs');
+  });
+
+  async function deploy(...flags: string[]) {
+    const argv = process.argv;
+    process.argv = ['node', 'scripts/deploy.mjs', 'functions', ...flags];
+    try {
+      // @ts-expect-error -- plain ESM script without type declarations
+      await import('../scripts/deploy.mjs');
+    } finally {
+      process.argv = argv;
+    }
+  }
+
+  it('uses green CI for HEAD and still builds the selected target', async () => {
+    await deploy();
+    expect(commands.filter((command) => localChecks.includes(command))).toEqual([]);
+    expect(commands).toContain('pnpm build:functions');
+    expect(commands).toContain('pnpm exec firebase deploy --project budgenerator --only functions');
+  });
+
+  it.each(['success', 'failure'])(
+    'runs the local checks for a different CI SHA (%s) and blocks production',
+    async (previousConclusion) => {
+      ciSha = 'previous-sha';
+      conclusion = previousConclusion;
+      await expect(deploy()).rejects.toThrow('Despliegue bloqueado');
+      expect(commands).toEqual(expect.arrayContaining(localChecks));
+      expect(commands.some((command) => command.startsWith('pnpm exec firebase deploy'))).toBe(
+        false,
+      );
+    },
+  );
+
+  it('blocks a failed CI for HEAD', async () => {
+    conclusion = 'failure';
+    await expect(deploy()).rejects.toThrow('Despliegue bloqueado');
+    expect(commands.some((command) => command.startsWith('pnpm '))).toBe(false);
+  });
+
+  it('runs the local checks with --full-checks even when CI is green', async () => {
+    await deploy('--full-checks');
+    expect(commands).toEqual(expect.arrayContaining(localChecks));
+  });
+
+  it('forwards Firebase flags without forwarding --full-checks', async () => {
+    await deploy('--force', '--non-interactive', '--full-checks');
+    expect(commands.at(-1)).toBe(
+      'pnpm exec firebase deploy --project budgenerator --only functions --force --non-interactive',
+    );
   });
 });
