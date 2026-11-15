@@ -84,14 +84,15 @@ if (production) {
   }
 }
 
-// 2. Legal texts: producción los publica tal cual, así que no pueden quedar marcadores.
+// 2. Legal texts: producción los publica tal cual. Aviso, no bloqueo: la app aún no está en
+// uso (decisión del propietario, 15-11-2026); volver a `fail` cuando haya usuarios reales.
 if (production && targets.includes('hosting')) {
   const pending = await pendingLegalData();
   if (pending.length)
-    fail(
-      `Los textos legales tienen ${pending.length} datos sin rellenar:\n` +
+    console.warn(
+      `\n⚠ Los textos legales tienen ${pending.length} datos sin rellenar (no bloquea):\n` +
         pending.map((item) => `  - ${item}`).join('\n') +
-        '\nRellena LEGAL_HOLDER en src/pages/legal/legalContent.ts y pide a un asesor las frases que queden.',
+        '\nRellena LEGAL_HOLDER en src/pages/legal/legalContent.ts antes de usar la app con clientes reales.\n',
     );
 }
 
