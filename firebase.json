@@ -73,13 +73,16 @@
   },
   "emulators": {
     "auth": {
-      "port": 9199
+      "port": 9399
     },
     "firestore": {
-      "port": 8180
+      "port": 8280
     },
     "functions": {
-      "port": 5001
+      "port": 5101
+    },
+    "eventarc": {
+      "port": 4612
     },
     "hub": {
       "port": 4412
@@ -88,7 +91,8 @@
       "port": 4512
     },
     "ui": {
-      "enabled": false
+      "enabled": false,
+      "port": 4012
     },
     "singleProjectMode": true
   }

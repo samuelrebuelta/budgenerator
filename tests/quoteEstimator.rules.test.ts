@@ -10,7 +10,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from '
 
 let env: RulesTestEnvironment;
 const firestoreEmulator = new URL(
-  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`,
 );
 const settings = {
   services: [
@@ -29,7 +29,7 @@ beforeAll(async () => {
     projectId: 'demo-bg005-estimator',
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });

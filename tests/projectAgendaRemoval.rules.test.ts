@@ -16,7 +16,7 @@ import {
 } from '../src/entities/construction-document/model';
 
 let env: RulesTestEnvironment;
-const emulator = new URL(`http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`);
+const emulator = new URL(`http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`);
 const projectId = 'project-agenda-removal';
 
 const project = (): Project => ({
@@ -71,7 +71,7 @@ beforeAll(async () => {
     projectId: 'demo-bg011-agenda-removal',
     firestore: {
       host: emulator.hostname,
-      port: Number(emulator.port || 8180),
+      port: Number(emulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });

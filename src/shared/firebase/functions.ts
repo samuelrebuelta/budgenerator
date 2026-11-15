@@ -17,7 +17,7 @@ function createFunctions(): Functions {
     connectFunctionsEmulator(
       functions,
       '127.0.0.1',
-      Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001),
+      Number(import.meta.env.VITE_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5101),
     );
   return functions;
 }

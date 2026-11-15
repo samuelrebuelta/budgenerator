@@ -7,7 +7,7 @@ function createFirestore(): Firestore {
     connectFirestoreEmulator(
       db,
       import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST ?? '127.0.0.1',
-      Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
+      Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8280),
     );
   return db;
 }

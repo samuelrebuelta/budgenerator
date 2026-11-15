@@ -8,10 +8,10 @@ import { seedDocument, writeStoredDocument } from './seed';
 const email = 'budgenerator@gmail.com';
 const password = 'Local-emulator-Only-2026';
 const project = process.env.E2E_FIREBASE_PROJECT_ID ?? 'demo-cimbra';
-const authEmulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
+const authEmulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9399';
 const authEmulatorUrl = `http://${authEmulatorHost}`;
 const firestoreEmulator = new URL(
-  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`,
 );
 const notificationLeadId = 'a'.repeat(64);
 let primaryUid = '';
@@ -48,7 +48,7 @@ async function restorePrimaryCatalog() {
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -122,7 +122,7 @@ test.beforeAll(async () => {
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -2475,7 +2475,7 @@ test('keeps cached views visible offline and toasts when a roster edit cannot be
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -2506,7 +2506,7 @@ test('keeps cached views visible offline and toasts when a roster edit cannot be
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -2529,7 +2529,7 @@ test('plans project teams by week and saves person changes only for the selected
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -3080,7 +3080,7 @@ test('edits a project name and client and synchronizes both fields to its source
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });
@@ -3216,7 +3216,7 @@ test('creates standalone and completed-project work entries from a day in Equipo
     projectId: project,
     firestore: {
       host: firestoreEmulator.hostname,
-      port: Number(firestoreEmulator.port || 8180),
+      port: Number(firestoreEmulator.port || 8280),
       rules: readFileSync('firestore.rules', 'utf8'),
     },
   });

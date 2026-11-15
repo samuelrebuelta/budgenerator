@@ -9,7 +9,7 @@ import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/fi
 
 let env: RulesTestEnvironment;
 const firestoreEmulator = new URL(
-  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`,
 );
 
 beforeAll(async () => {

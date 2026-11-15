@@ -14,9 +14,9 @@ export const FUNCTIONS_REGION = 'europe-southwest1';
  * `EXPO_PUBLIC_*` when it bundles, so restart it after changing them.
  */
 export const EMULATOR_PORTS = {
-  auth: Number(process.env.EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT ?? 9199),
-  firestore: Number(process.env.EXPO_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8180),
-  functions: Number(process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5001),
+  auth: Number(process.env.EXPO_PUBLIC_FIREBASE_AUTH_EMULATOR_PORT ?? 9399),
+  firestore: Number(process.env.EXPO_PUBLIC_FIREBASE_FIRESTORE_EMULATOR_PORT ?? 8280),
+  functions: Number(process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_EMULATOR_PORT ?? 5101),
 } as const;
 
 /**

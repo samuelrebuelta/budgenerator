@@ -6,9 +6,9 @@ const project = 'demo-cimbra';
 const email = 'estimator-owner@example.test';
 const password = 'Local-emulator-Only-2026';
 let ownerUid = '';
-const authEmulatorUrl = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199'}`;
+const authEmulatorUrl = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9399'}`;
 const firestoreEmulator = new URL(
-  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8180'}`,
+  `http://${process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8280'}`,
 );
 const previewPort = process.env.E2E_PREVIEW_PORT ?? '4173';
 
@@ -47,7 +47,7 @@ test.beforeAll(async () => {
 
   const env = await initializeTestEnvironment({
     projectId: project,
-    firestore: { host: firestoreEmulator.hostname, port: Number(firestoreEmulator.port || 8180) },
+    firestore: { host: firestoreEmulator.hostname, port: Number(firestoreEmulator.port || 8280) },
   });
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (context) => {
