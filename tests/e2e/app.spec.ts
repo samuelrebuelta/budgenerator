@@ -2542,9 +2542,12 @@ test('plans project teams by week and saves person changes only for the selected
       String(date.getDate()).padStart(2, '0'),
     ].join('-');
   });
+  // The week view runs Monday to Sunday: on Sunday "tomorrow" is already next week and its day
+  // button is not on screen, so the second day is yesterday then.
   const tomorrowKey = await page.evaluate((today) => {
     const [year, month, day] = today.split('-').map(Number);
-    const date = new Date(year!, month! - 1, day! + 1);
+    const sunday = new Date().getDay() === 0;
+    const date = new Date(year!, month! - 1, day! + (sunday ? -1 : 1));
     return [
       date.getFullYear(),
       String(date.getMonth() + 1).padStart(2, '0'),
