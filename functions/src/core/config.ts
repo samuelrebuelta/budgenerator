@@ -10,6 +10,12 @@
 /** Same region as the Firestore database (`europe-southwest1`, Madrid). */
 export const FUNCTION_REGION = 'europe-southwest1';
 
+/**
+ * Cloud Scheduler has no `europe-southwest1` location, so scheduled jobs stay in the nearest
+ * region that has it. They only run background maintenance, so the extra hop does not matter.
+ */
+export const SCHEDULE_REGION = 'europe-west1';
+
 export type AppCheckMode = 'off' | 'monitor' | 'enforce';
 
 function readInt(name: string, fallback: number, min = 1, max = 1_000_000) {
@@ -86,6 +92,7 @@ export const triggerOptions = {
 
 export const scheduleOptions = {
   ...base,
+  region: SCHEDULE_REGION,
   maxInstances: 1,
   timeoutSeconds: 540,
   timeZone: 'Europe/Madrid',
