@@ -485,6 +485,7 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
   let addedParts = 0;
   let addedConcepts = 0;
   const copied = new Map<string, string>();
+  const chapters = new Map<string, string>();
   const visit = (node: FiebdcNode, targetParent: string, override?: FiebdcConcept) => {
     const concept = override ?? source.concepts[node.conceptId];
     if (!concept) return;
@@ -497,6 +498,7 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
       chapter = locate(document, added.chapterId);
       addedParts++;
     }
+    if (!override) chapters.set(concept.id, chapter.conceptId);
     const chapterId = chapter.id;
     for (const child of node.children) {
       const item = source.concepts[child.conceptId];
@@ -554,6 +556,31 @@ export function mergeIntoCatalog<T extends ConstructionContent>(
         decomposition: [],
       },
     );
+  }
+  if ((addedParts || addedConcepts) && source.extensions.some(({ type }) => type === '~X')) {
+    const codes = new Map<string, string>();
+    for (const [id, targetId] of [...chapters, ...copied]) {
+      const original = source.concepts[id]!;
+      const code = document.concepts[targetId]!.code;
+      for (const alias of [original.code, ...(original.synonyms ?? [])]) {
+        codes.set(bareCode(alias), code);
+      }
+    }
+    const extensions = [...document.extensions];
+    const seen = new Set(extensions.map(({ raw }) => raw));
+    for (const record of source.extensions) {
+      if (record.type !== '~X') continue;
+      const match = /^(~X\|)([^|]*)/i.exec(record.raw);
+      if (!match) continue;
+      const sourceCode = match[2]!.trim();
+      const targetCode = sourceCode ? codes.get(bareCode(sourceCode)) : '';
+      if (targetCode === undefined) continue;
+      const raw = `${match[1]}${targetCode}${record.raw.slice(match[0].length)}`;
+      if (seen.has(raw)) continue;
+      seen.add(raw);
+      extensions.push({ ...record, raw });
+    }
+    document = { ...document, extensions };
   }
   return { document, addedParts, addedConcepts };
 }

@@ -1920,7 +1920,7 @@ test('guided structure supports back, cancellation, review, incomplete measureme
   await trigger.click();
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 3 · Fontanería');
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 · Fontanería');
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
 });
 
@@ -1934,7 +1934,7 @@ test('guided structure has one concept step per selected part and accepts option
   await dialog.getByRole('checkbox', { name: /^Fontanería/ }).check();
   await dialog.getByRole('checkbox', { name: /^Demolición/ }).check();
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 de 4 · Fontanería');
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 2 · Fontanería');
   await expect(dialog.getByText('Más utilizadas', { exact: false })).toHaveCount(0);
   const plumbingConcept = dialog.getByRole('checkbox', {
     name: /Tubería de agua fría y caliente/,
@@ -1946,7 +1946,7 @@ test('guided structure has one concept step per selected part and accepts option
     })
     .fill('4.5');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 3 de 4 · Demolición');
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 3 · Demolición');
   const demolitionConcept = dialog.getByRole('checkbox', {
     name: /Carga y retirada de escombros/,
   });
@@ -1955,7 +1955,7 @@ test('guided structure has one concept step per selected part and accepts option
     dialog.getByRole('spinbutton', { name: 'Cantidad para Carga y retirada de escombros' }),
   ).toHaveValue('');
   await dialog.getByRole('button', { name: 'Continuar', exact: true }).click();
-  await expect(dialog.getByRole('status').first()).toHaveText('Paso 4 de 4 · Revisión');
+  await expect(dialog.getByRole('status').first()).toHaveText('Paso 4 · Revisión');
   await expect(dialog.getByText('4,5 ML', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'Atrás', exact: true }).click();
   await expect(demolitionConcept).toBeChecked();

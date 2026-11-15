@@ -167,7 +167,7 @@ function StructureFlow({ snapshot, onClose }: { snapshot: Snapshot; onClose: () 
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="structure-progress" role="status">
-            Paso {step + 1} de {partIds.length + 2} · {stepTitle}
+            Paso {step + 1} · {stepTitle}
           </p>
           <h2 ref={heading} tabIndex={-1}>
             {stepHeading}
