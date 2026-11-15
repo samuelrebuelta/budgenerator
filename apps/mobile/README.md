@@ -36,6 +36,22 @@ En el simulador de iOS, el dev client tiene que estar firmado ad hoc (lo hace `p
 
 Las cuentas de prueba se crean desde la propia app (registro) contra el emulador de Auth. El enlace de verificación no se envía: el emulador lo deja en `http://localhost:9399/emulator/v1/projects/demo-budgenerator/oobCodes`, y abrirlo marca el email como verificado («Ya lo he verificado» en la app). En `development`, Metro avisa (`[runtime]`) si falta alguna API web que usan `@bg/domain` y jsPDF en Hermes. Los spikes de fase 0 se retiraron en la fase 1; su código está en el commit `ae6a037` y el resultado en el [informe](../../docs/specs/plans/2026-11-14-bg-014-spikes.md).
 
+## Compilar e instalar Android de producción
+
+Registra `com.budgenerator.app` en [Configuración de Firebase](https://console.firebase.google.com/project/budgenerator/settings/general), descarga `google-services.json` y guárdalo fuera del repositorio. Necesitas Android SDK, JDK 21 y un dispositivo con depuración USB o un emulador de Android.
+
+Desde la raíz del repositorio, con las dependencias instaladas:
+
+```bash
+cd apps/mobile
+export APP_VARIANT=production
+export GOOGLE_SERVICES_JSON="/ruta/fuera/del/repositorio/google-services.json"
+pnpm exec expo prebuild --clean --platform android
+pnpm exec expo run:android --variant release --device
+```
+
+`prebuild --clean` regenera `android/` para el paquete de producción. `run:android` compila e instala el APK de Release en el dispositivo elegido. Para reinstalar un APK local con un único dispositivo conectado, usa `adb install -r android/app/build/outputs/apk/release/app-release.apk`. La compilación local sirve para instalación directa con la firma del proyecto generado. La distribución por Google Play requiere configurar su propia firma. En iOS la variable equivalente es `GOOGLE_SERVICES_PLIST` y se usa `--platform ios`.
+
 ## Diseño nativo
 
 La app usa el lenguaje de cada sistema y no imita la web: Liquid Glass en iOS 26 y Material 3 en Android. Los tokens de `@bg/ui-tokens` siguen siendo la base de color (marca, texto, estados); el sistema pone el material (vidrio, superficies tonales, ripple) y las formas. Las pantallas nuevas se montan con las primitivas de `src/ui` y las opciones de `src/navigation/options.tsx`, sin estilos de plataforma sueltos.
