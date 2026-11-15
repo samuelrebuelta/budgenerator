@@ -71,7 +71,9 @@ export async function verifyBundle(projectId, env, distDir = 'dist') {
   let authDomainFound = false;
   for (const file of files) {
     const source = await readFile(file, 'utf8');
-    for (const match of source.matchAll(/projectId:\s*"([^"]+)"/g)) projectIds.add(match[1]);
+    // Vite/Rolldown may emit the string with double quotes or as a template literal.
+    for (const match of source.matchAll(/projectId:\s*(["'`])([^"'`]+)\1/g))
+      projectIds.add(match[2]);
     if (env.VITE_FIREBASE_AUTH_DOMAIN && source.includes(env.VITE_FIREBASE_AUTH_DOMAIN))
       authDomainFound = true;
     if (/demo-[a-z0-9-]+\.firebaseapp\.com/.test(source))

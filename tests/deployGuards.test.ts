@@ -44,6 +44,19 @@ describe('deploy guardrails', () => {
     await expect(verifyBundle('budgenerator', env, dir)).resolves.toMatchObject({ files: 1 });
   });
 
+  it('reads the projectId when the bundler emits it as a template literal', async () => {
+    const dir = await bundle(
+      'const c={apiKey:`key`,authDomain:`budgenerator.firebaseapp.com`,projectId:`budgenerator`};',
+    );
+    await expect(verifyBundle('budgenerator', env, dir)).resolves.toMatchObject({
+      projectIds: ['budgenerator'],
+    });
+    const other = await bundle(
+      'const c={authDomain:`budgenerator.firebaseapp.com`,projectId:`budgenerator-staging`};',
+    );
+    await expect(verifyBundle('budgenerator', env, other)).rejects.toThrow();
+  });
+
   it('rejects a bundle built for another or a demo project', async () => {
     const demo = await bundle(
       'const c={authDomain:"demo-bg010-e2e.firebaseapp.com",projectId:"demo-bg010-e2e"};',
